@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "TrailMetrics"
 include(":app")
- 
+include(":domain")
