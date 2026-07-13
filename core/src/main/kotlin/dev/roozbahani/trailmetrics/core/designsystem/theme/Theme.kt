@@ -1,6 +1,5 @@
-package dev.roozbahani.trailmetrics.ui.theme
+package dev.roozbahani.trailmetrics.core.designsystem.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

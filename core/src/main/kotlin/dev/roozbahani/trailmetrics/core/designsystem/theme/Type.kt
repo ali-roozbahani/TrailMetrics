@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.ui.theme
+package dev.roozbahani.trailmetrics.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
