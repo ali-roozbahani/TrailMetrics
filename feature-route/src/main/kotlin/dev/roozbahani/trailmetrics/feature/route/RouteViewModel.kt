@@ -48,10 +48,10 @@ class RouteViewModel(
     }
 
     private fun handleCurrentLocationErrors(error: RouteError?) {
-        _uiState.update { it.copy(error = uiErrorMapper.mapError(error)) }
+        viewModelScope.launch {
+            _uiEvents.send(RouteUiEvent.ShowError(error = uiErrorMapper.mapError(error)))
 
-        if (error is RouteError.MissingLocationPermission) {
-            viewModelScope.launch {
+            if (error is RouteError.MissingLocationPermission) {
                 _uiEvents.send(RouteUiEvent.RequestLocationPermission)
             }
         }
@@ -69,7 +69,7 @@ class RouteViewModel(
         val startPoint = state.startPoint ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true) }
 
             val draftRoute = RouteDraft(
                 startPoint = RoutePoint(coordinates = startPoint, order = 0),
@@ -81,12 +81,8 @@ class RouteViewModel(
                     _uiState.update { it.copy(isLoading = false, generatedRoute = route) }
                 }
                 .onFailure { error ->
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            isLoading = false,
-                            error = uiErrorMapper.mapError(error as? RouteError)
-                        )
-                    }
+                    _uiState.update { it.copy(isLoading = false) }
+                    _uiEvents.send(RouteUiEvent.ShowError(uiErrorMapper.mapError(error as? RouteError)))
                 }
         }
     }
@@ -96,8 +92,7 @@ data class RouteUiState(
     val startPoint: Coordinates? = null,
     val waypoints: List<RoutePoint> = emptyList(),
     val generatedRoute: Route? = null,
-    val isLoading: Boolean = false,
-    val error: RouteUiError? = null
+    val isLoading: Boolean = false
 ) {
     val canGenerateRoute: Boolean
         get() = startPoint != null && waypoints.size >= MIN_WAYPOINTS && !isLoading
@@ -108,7 +103,8 @@ data class RouteUiState(
 }
 
 sealed interface RouteUiEvent {
-    data object RequestLocationPermission: RouteUiEvent
+    data object RequestLocationPermission : RouteUiEvent
+    data class ShowError(val error: RouteUiError) : RouteUiEvent
 }
 
 data class RouteUiError(@param:StringRes val errorResId: Int)
