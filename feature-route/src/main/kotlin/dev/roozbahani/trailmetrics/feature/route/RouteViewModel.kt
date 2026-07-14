@@ -57,6 +57,10 @@ class RouteViewModel(
         }
     }
 
+    fun onLocationPermissionGranted() {
+        loadCurrentLocation()
+    }
+
     fun onMapTapped(coordinates: Coordinates) {
         _uiState.update { state ->
             val newWaypoint = RoutePoint(coordinates = coordinates, order = state.waypoints.size)

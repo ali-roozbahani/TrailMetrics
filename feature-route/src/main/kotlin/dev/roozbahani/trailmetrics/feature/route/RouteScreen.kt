@@ -1,5 +1,8 @@
 package dev.roozbahani.trailmetrics.feature.route
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +49,15 @@ fun RouteScreen(
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
 
+    val permissionHandler = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.any { granted -> granted }
+        if (granted) {
+            viewModel.onLocationPermissionGranted()
+        }
+    }
+
     @Suppress("LocalContextGetResourceValueCall")
     LaunchedEffect(Unit) {
         viewModel.uiEvents.collect { event ->
@@ -55,7 +67,12 @@ fun RouteScreen(
                 }
 
                 is RouteUiEvent.RequestLocationPermission -> {
-                    // TODO: launcher.launch(...)
+                    permissionHandler.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
                 }
             }
         }
