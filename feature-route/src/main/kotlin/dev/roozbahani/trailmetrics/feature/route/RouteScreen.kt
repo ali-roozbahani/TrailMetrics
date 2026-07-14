@@ -25,10 +25,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -86,6 +88,16 @@ fun RouteScreen(
                     )
                 }
             ) {
+                uiState.startPoint?.let { startPoint ->
+                    Marker(
+                        state = rememberUpdatedMarkerState(
+                            position = LatLng(startPoint.latitude, startPoint.longitude)
+                        ),
+                        title = stringResource(R.string.marker_title_start_finish),
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+                    )
+                }
+
                 uiState.waypoints.forEach { point ->
                     Marker(
                         state = rememberUpdatedMarkerState(
@@ -94,6 +106,18 @@ fun RouteScreen(
                                 point.coordinates.longitude
                             )
                         )
+                    )
+                }
+
+                uiState.generatedRoute?.let { route ->
+                    Polyline(
+                        points = remember(route) { // avoids unnecessary mappings
+                            route.points.map { point ->
+                                LatLng(point.coordinates.latitude, point.coordinates.longitude)
+                            }
+                        },
+                        color = MaterialTheme.colorScheme.primary,
+                        width = 8f
                     )
                 }
             }
