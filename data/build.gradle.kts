@@ -34,6 +34,12 @@ android {
             name = "DIRECTIONS_API_KEY",
             "\"${localProperties.getProperty("DIRECTIONS_API_KEY", "")}\""
         )
+
+        buildConfigField(
+            type = "String",
+            name = "ANDROID_CERT_SHA1",
+            "\"${localProperties.getProperty("ANDROID_CERT_SHA1", "")}\""
+        )
     }
 
     compileOptions {
@@ -65,6 +71,10 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
+
+    // Koin (DI)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

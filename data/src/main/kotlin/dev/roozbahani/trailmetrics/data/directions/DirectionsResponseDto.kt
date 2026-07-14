@@ -1,13 +1,14 @@
 package dev.roozbahani.trailmetrics.data.directions
 
+import dev.roozbahani.trailmetrics.data.common.GoogleApiResponse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class DirectionsResponseDto(
-    val status: String,
+    override val status: String,
     val routes: List<RouteDto> = emptyList()
-)
+) : GoogleApiResponse
 
 @Serializable
 data class RouteDto(
