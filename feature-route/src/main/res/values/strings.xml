@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_route_ui_error_location_unavailable">Unable to retrieve your current location</string>
+    <string name="msg_route_ui_error_missing_location_permission">Location permission is missing</string>
+    <string name="msg_route_ui_error_general">Failed to retrieve your current location</string>
+</resources>
