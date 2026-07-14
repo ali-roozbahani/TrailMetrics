@@ -139,6 +139,12 @@ fun RouteScreen(
                 }
             }
 
+            if (uiState.startPoint == null) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

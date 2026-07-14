@@ -27,7 +27,7 @@ val networkModule = module {
 
             defaultRequest {
                 header("X-Android-Package", context.packageName)
-                header("X-Android-Cert", BuildConfig.ANDROID_CERT_SHA1)
+                header("X-Android-Cert", BuildConfig.ANDROID_CERT_SHA1.replace(":", ""))
             }
         }
     }
