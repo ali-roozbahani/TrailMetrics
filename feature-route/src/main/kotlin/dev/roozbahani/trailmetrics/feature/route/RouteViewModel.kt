@@ -95,6 +95,16 @@ class RouteViewModel(
         _uiState.update { RouteUiState() }
         loadCurrentLocation()
     }
+
+    fun onWaypointRemoved(removeCandidate: RoutePoint) {
+        _uiState.update { state ->
+            val updatedWaypoints = state.waypoints
+                .filterNot { it == removeCandidate }
+                .mapIndexed { index, point -> point.copy(order = index) }
+
+            state.copy(waypoints = updatedWaypoints, generatedRoute = null)
+        }
+    }
 }
 
 data class RouteUiState(
