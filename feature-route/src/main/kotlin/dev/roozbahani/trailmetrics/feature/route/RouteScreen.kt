@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -40,6 +42,7 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
@@ -123,14 +126,22 @@ fun RouteScreen(
                 }
 
                 uiState.waypoints.forEach { point ->
-                    Marker(
+                    MarkerComposable(
                         state = rememberUpdatedMarkerState(
-                            position = LatLng(
-                                point.coordinates.latitude,
-                                point.coordinates.longitude
-                            )
+                            position = LatLng(point.coordinates.latitude, point.coordinates.longitude)
+                        ),
+                        onClick = {
+                            viewModel.onWaypointRemoved(point)
+                            true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color.Red,
+                            modifier = Modifier.size(48.dp)
                         )
-                    )
+                    }
                 }
 
                 uiState.generatedRoute?.let { route ->
