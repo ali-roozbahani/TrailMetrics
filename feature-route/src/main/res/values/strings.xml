@@ -5,4 +5,5 @@
     <string name="msg_route_ui_error_general">Failed to retrieve your current location</string>
     <string name="btn_generate_route">Generate Route</string>
     <string name="marker_title_start_finish">Start / Finish</string>
+    <string name="btn_reset_route">Reset route</string>
 </resources>

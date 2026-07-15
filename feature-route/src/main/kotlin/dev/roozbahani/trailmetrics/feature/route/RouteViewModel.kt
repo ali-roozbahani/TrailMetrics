@@ -90,6 +90,11 @@ class RouteViewModel(
                 }
         }
     }
+
+    fun onResetClicked() {
+        _uiState.update { RouteUiState() }
+        loadCurrentLocation()
+    }
 }
 
 data class RouteUiState(
