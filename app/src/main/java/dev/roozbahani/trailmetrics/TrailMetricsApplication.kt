@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.data.di.commonModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
 import dev.roozbahani.trailmetrics.data.di.locationModule
 import dev.roozbahani.trailmetrics.data.di.networkModule
+import dev.roozbahani.trailmetrics.data.di.trackingModule
 import dev.roozbahani.trailmetrics.data.di.useCaseModule
 import dev.roozbahani.trailmetrics.feature.route.di.routeModule
 import org.koin.android.ext.koin.androidContext
@@ -21,7 +22,8 @@ class TrailMetricsApplication : Application() {
                 locationModule,
                 directionsModule,
                 useCaseModule,
-                routeModule
+                routeModule,
+                trackingModule
             )
         }
     }
