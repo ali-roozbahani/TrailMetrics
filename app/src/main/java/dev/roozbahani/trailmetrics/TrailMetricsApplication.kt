@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics
 
 import android.app.Application
+import dev.roozbahani.trailmetrics.data.di.commonModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
 import dev.roozbahani.trailmetrics.data.di.locationModule
 import dev.roozbahani.trailmetrics.data.di.networkModule
@@ -15,6 +16,7 @@ class TrailMetricsApplication : Application() {
         startKoin {
             androidContext(this@TrailMetricsApplication)
             modules(
+                commonModule,
                 networkModule,
                 locationModule,
                 directionsModule,
