@@ -24,7 +24,7 @@ class TrackingSessionManagerTest {
     private val locationRepository = mockk<LocationRepository>()
     private val clock = mockk<Clock>()
     private val logger = mockk<Logger>(relaxed = true)
-
+    private val trackingService = mockk<TrackingServiceLauncher>(relaxed = true)
     private val point1 = Coordinates(51.336, 12.388)
     private val point2 = Coordinates(51.327, 12.394)
 
@@ -38,11 +38,12 @@ class TrackingSessionManagerTest {
 
         val testScope = TestScope(StandardTestDispatcher(testScheduler))
         val manager = TrackingSessionManager(
-            locationRepository,
-            UpdateTrackingStateUseCase(),
-            clock,
-            logger,
-            testScope
+            locationRepository = locationRepository,
+            updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
+            trackingServiceLauncher = trackingService,
+            clock = clock,
+            logger = logger,
+            scope = testScope
         )
 
         // Act
@@ -69,11 +70,12 @@ class TrackingSessionManagerTest {
 
         val testScope = TestScope(StandardTestDispatcher(testScheduler))
         val manager = TrackingSessionManager(
-            locationRepository,
-            UpdateTrackingStateUseCase(),
-            clock,
-            logger,
-            testScope
+            locationRepository = locationRepository,
+            updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
+            trackingServiceLauncher = trackingService,
+            clock = clock,
+            logger = logger,
+            scope = testScope
         )
 
         // Act
@@ -97,11 +99,12 @@ class TrackingSessionManagerTest {
 
         val testScope = TestScope(StandardTestDispatcher(testScheduler))
         val manager = TrackingSessionManager(
-            locationRepository,
-            UpdateTrackingStateUseCase(),
-            clock,
-            logger,
-            testScope
+            locationRepository = locationRepository,
+            updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
+            trackingServiceLauncher = trackingService,
+            clock = clock,
+            logger = logger,
+            scope = testScope
         )
 
         // Act Start
@@ -139,11 +142,12 @@ class TrackingSessionManagerTest {
 
         val testScope = TestScope(StandardTestDispatcher(testScheduler))
         val manager = TrackingSessionManager(
-            locationRepository,
-            UpdateTrackingStateUseCase(),
-            clock,
-            logger,
-            testScope
+            locationRepository = locationRepository,
+            updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
+            trackingServiceLauncher = trackingService,
+            clock = clock,
+            logger = logger,
+            scope = testScope
         )
 
         // Act Start

@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 class TrackingSessionManager(
     private val locationRepository: LocationRepository,
     private val updateTrackingStateUseCase: UpdateTrackingStateUseCase,
+    private val trackingServiceLauncher: TrackingServiceLauncher,
     private val clock: Clock,
     private val logger: Logger,
     private val scope: CoroutineScope
@@ -31,6 +32,7 @@ class TrackingSessionManager(
     fun start(startPoint: Coordinates) {
         dispatch(TrackingEvent.Start(startPoint, clock.nowMillis()))
         observeLocation()
+        trackingServiceLauncher.start()
     }
 
     fun pause(){
@@ -46,6 +48,7 @@ class TrackingSessionManager(
     fun stop(){
         locationObservationJob?.cancel()
         dispatch(TrackingEvent.Stop(clock.nowMillis()))
+        trackingServiceLauncher.stop()
     }
 
     private fun observeLocation() {
