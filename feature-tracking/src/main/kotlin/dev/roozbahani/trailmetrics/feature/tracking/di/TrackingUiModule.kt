@@ -1,16 +1,16 @@
-package dev.roozbahani.trailmetrics.feature.route.di
+package dev.roozbahani.trailmetrics.feature.tracking.di
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
-import dev.roozbahani.trailmetrics.feature.route.RouteViewModel
+import dev.roozbahani.trailmetrics.feature.tracking.TrackingViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-val routeModule = module {
+val trackingUiModule = module {
     factory { RouteUiErrorMapper() }
     viewModel {
-        RouteViewModel(
+        TrackingViewModel(
+            trackingSessionManager = get(),
             getCurrentLocationUseCase = get(),
-            generateClosedRouteUseCase = get(),
             uiErrorMapper = get()
         )
     }

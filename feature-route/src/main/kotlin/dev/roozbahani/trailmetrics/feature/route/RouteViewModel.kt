@@ -1,8 +1,9 @@
 package dev.roozbahani.trailmetrics.feature.route
 
-import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
+import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RouteDraft
@@ -49,7 +50,7 @@ class RouteViewModel(
 
     private fun handleCurrentLocationErrors(error: RouteError?) {
         viewModelScope.launch {
-            _uiEvents.send(RouteUiEvent.ShowError(error = uiErrorMapper.mapError(error)))
+            _uiEvents.send(RouteUiEvent.ShowError(error = uiErrorMapper.map(error)))
 
             if (error is RouteError.MissingLocationPermission) {
                 _uiEvents.send(RouteUiEvent.RequestLocationPermission)
@@ -86,7 +87,7 @@ class RouteViewModel(
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(isLoading = false) }
-                    _uiEvents.send(RouteUiEvent.ShowError(uiErrorMapper.mapError(error as? RouteError)))
+                    _uiEvents.send(RouteUiEvent.ShowError(uiErrorMapper.map(error as? RouteError)))
                 }
         }
     }
@@ -124,24 +125,4 @@ data class RouteUiState(
 sealed interface RouteUiEvent {
     data object RequestLocationPermission : RouteUiEvent
     data class ShowError(val error: RouteUiError) : RouteUiEvent
-}
-
-data class RouteUiError(@param:StringRes val errorResId: Int)
-
-class RouteUiErrorMapper {
-    fun mapError(error: RouteError?): RouteUiError {
-        return when (error) {
-            is RouteError.LocationUnavailable -> {
-                RouteUiError(R.string.msg_route_ui_error_location_unavailable)
-            }
-
-            is RouteError.MissingLocationPermission -> {
-                RouteUiError(R.string.msg_route_ui_error_missing_location_permission)
-            }
-
-            else -> {
-                RouteUiError(R.string.msg_route_ui_error_general)
-            }
-        }
-    }
 }
