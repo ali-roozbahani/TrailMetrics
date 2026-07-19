@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteError
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
@@ -64,12 +66,30 @@ class TrackingViewModel(
 
     fun onStopClicked() = trackingSessionManager.stop()
 
+    fun onLocationPermissionGranted() {
+        onStartClicked()
+    }
+
 }
 
 data class TrackingUiState(
     val trackingState: TrackingState = TrackingState.Idle,
     val isPreparingStart: Boolean = false
 ) {
+    val currentPath: List<Coordinates>
+        get() = when (val state = trackingState) {
+            is TrackingState.Tracking -> state.metrics.path
+            is TrackingState.Paused -> state.metrics.path
+            else -> emptyList()
+        }
+
+    val currentMetrics: TrackingMetrics?
+        get() = when (trackingState) {
+            is TrackingState.Tracking -> trackingState.metrics
+            is TrackingState.Paused -> trackingState.metrics
+            else -> null
+        }
+
     val canStart: Boolean
         get() = (trackingState is TrackingState.Idle || trackingState is TrackingState.Finished) && !isPreparingStart
 
@@ -85,5 +105,5 @@ data class TrackingUiState(
 
 sealed interface TrackingUiEvent {
     data object RequestLocationPermission : TrackingUiEvent
-    data class ShowError(val uiError: RouteUiError) : TrackingUiEvent
+    data class ShowError(val error: RouteUiError) : TrackingUiEvent
 }
