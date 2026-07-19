@@ -27,6 +27,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":domain"))
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -37,6 +39,10 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
+
+    // Maps - Compose
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)

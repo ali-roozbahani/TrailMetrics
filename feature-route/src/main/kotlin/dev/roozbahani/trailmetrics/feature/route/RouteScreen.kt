@@ -37,15 +37,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerComposable
-import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import dev.roozbahani.trailmetrics.core.map.RoutePolyline
+import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
+import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import org.koin.androidx.compose.koinViewModel
 
@@ -105,10 +104,9 @@ fun RouteScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
+            TrailGoogleMap(
                 cameraPositionState = cameraPositionState,
-                onMapLongClick = { latLng ->
+                onMapLongClicked = { latLng ->
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.onMapTapped(
                         Coordinates(latitude = latLng.latitude, longitude = latLng.longitude)
@@ -116,12 +114,9 @@ fun RouteScreen(
                 }
             ) {
                 uiState.startPoint?.let { startPoint ->
-                    Marker(
-                        state = rememberUpdatedMarkerState(
-                            position = LatLng(startPoint.latitude, startPoint.longitude)
-                        ),
+                    StartFinishMarker(
                         title = stringResource(R.string.marker_title_start_finish),
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+                        coordinates = startPoint,
                     )
                 }
 
@@ -145,15 +140,7 @@ fun RouteScreen(
                 }
 
                 uiState.generatedRoute?.let { route ->
-                    Polyline(
-                        points = remember(route) { // avoids unnecessary mappings
-                            route.points.map { point ->
-                                LatLng(point.coordinates.latitude, point.coordinates.longitude)
-                            }
-                        },
-                        color = MaterialTheme.colorScheme.primary,
-                        width = 8f
-                    )
+                    RoutePolyline(points = route.points.map { it.coordinates })
                 }
             }
 
@@ -163,6 +150,7 @@ fun RouteScreen(
                 )
             }
 
+            // Reset Button
             FilledIconButton(
                 onClick = viewModel::onResetClicked,
                 colors = IconButtonDefaults.filledIconButtonColors(
