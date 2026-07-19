@@ -11,6 +11,12 @@ import androidx.core.app.NotificationCompat
 import dev.roozbahani.trailmetrics.data.R
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -18,21 +24,41 @@ class TrackingService : Service(), KoinComponent {
 
     private val trackingSessionManager by inject<TrackingSessionManager>()
 
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private var trackingStateObservationJob: Job? = null
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // TODO: startForeground(NOTIFICATION_ID, buildNotification(...))
-        // TODO: start observing trackingSessionManager.currentState
-        // TODO: Handle intent?.action for Stop btn of notification
+        if (intent?.action == ACTION_STOP) {
+            trackingSessionManager.stop()
+            return START_NOT_STICKY
+        }
+
+        startForeground(NOTIFICATION_ID, buildNotification(TrackingState.Idle))
+        observeTrackingState()
+
         return START_STICKY
+    }
+
+    private fun observeTrackingState() {
+        trackingStateObservationJob?.cancel()
+        trackingStateObservationJob = serviceScope.launch {
+            trackingSessionManager.currentState.collect { state ->
+                val notification = buildNotification(state)
+                val notificationManager = getSystemService(NotificationManager::class.java)
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // TODO: cancel the coroutine scope of this service
+        serviceScope.cancel()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -26,7 +26,6 @@ class TrackingSessionManager(
 ) {
     private val _state = MutableStateFlow<TrackingState>(TrackingState.Idle)
     val currentState: StateFlow<TrackingState> = _state.asStateFlow()
-
     private var locationObservationJob: Job? = null
 
     fun start(startPoint: Coordinates) {
