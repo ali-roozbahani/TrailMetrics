@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import dev.roozbahani.trailmetrics.data.R
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -94,14 +95,6 @@ class TrackingService : Service(), KoinComponent {
             .addAction(0, "Stop", stopPendingIntent)
             .setOngoing(true)
             .build()
-    }
-
-    private fun formatDistance(meters: Double): String {
-        return if (meters >= 1000) {
-            "%.1f km".format(meters / 1000)
-        } else {
-            "${meters.toInt()} m"
-        }
     }
 
     private companion object {
