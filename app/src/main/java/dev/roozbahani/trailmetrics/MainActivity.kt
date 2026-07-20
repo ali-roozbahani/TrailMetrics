@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -56,7 +60,19 @@ fun TrailMetricsNavHost() {
             typeMap = mapOf(
                 typeOf<Coordinates>() to CoordinatesNavType,
                 typeOf<List<Coordinates>>() to PlannedRoutePointsNavType,
-            )
+            ),
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { fullWidth -> fullWidth }) + fadeIn()
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { fullWidth -> -fullWidth }) + fadeOut()
+            },
+            popEnterTransition = {
+                slideInHorizontally(initialOffsetX = { fullWidth -> -fullWidth }) + fadeIn()
+            },
+            popExitTransition = {
+                slideOutHorizontally(targetOffsetX = { fullWidth -> fullWidth }) + fadeOut()
+            }
         ) { backStackEntry ->
             val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
             TrackingScreen(

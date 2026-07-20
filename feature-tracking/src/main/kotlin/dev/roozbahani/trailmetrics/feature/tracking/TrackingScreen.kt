@@ -5,7 +5,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -176,8 +181,14 @@ fun TrackingScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (hasReachedDestination) {
+                AnimatedContent(
+                    targetState = hasReachedDestination,
+                    transitionSpec = {
+                        (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
+                    },
+                    label = "tracking_controls"
+                ) { completed ->
+                    if (completed) {
                         Card(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer
@@ -205,63 +216,65 @@ fun TrackingScreen(
                             }
                         }
                     } else {
-                        if (uiState.canStart) {
-                            Button( // Start
-                                onClick = {
-                                    if (hasLocationPermission(context)) {
-                                        viewModel.onStartClicked(initialStartPoint)
-                                    } else {
-                                        permissionHandler.launch(LOCATION_PERMISSIONS)
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (uiState.canStart) {
+                                Button( // Start
+                                    onClick = {
+                                        if (hasLocationPermission(context)) {
+                                            viewModel.onStartClicked(initialStartPoint)
+                                        } else {
+                                            permissionHandler.launch(LOCATION_PERMISSIONS)
+                                        }
                                     }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = null
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.btn_tracking_start))
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PlayArrow,
-                                    contentDescription = null
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.btn_tracking_start))
                             }
-                        }
-                        if (uiState.canPause) {
-                            Button( // Pause
-                                onClick = viewModel::onPauseClicked,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary,
-                                    contentColor = MaterialTheme.colorScheme.onTertiary
-                                )
-                            ) {
-                                Icon(imageVector = TrailPauseIcon, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.btn_tracking_pause))
+                            if (uiState.canPause) {
+                                Button( // Pause
+                                    onClick = viewModel::onPauseClicked,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    )
+                                ) {
+                                    Icon(imageVector = TrailPauseIcon, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.btn_tracking_pause))
+                                }
                             }
-                        }
-                        if (uiState.canResume) {
-                            Button( // Resume
-                                onClick = viewModel::onResumeClicked
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.PlayArrow,
-                                    contentDescription = null
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.btn_tracking_resume))
+                            if (uiState.canResume) {
+                                Button( // Resume
+                                    onClick = viewModel::onResumeClicked
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = null
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.btn_tracking_resume))
+                                }
                             }
-                        }
-                        if (uiState.canStop) {
-                            Button( // Stop
-                                onClick = {
-                                    viewModel.onStopClicked()
-                                    onFinished()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError
-                                )
-                            ) {
-                                Icon(imageVector = TrailStopIcon, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.btn_tracking_stop))
+                            if (uiState.canStop) {
+                                Button( // Stop
+                                    onClick = {
+                                        viewModel.onStopClicked()
+                                        onFinished()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    )
+                                ) {
+                                    Icon(imageVector = TrailStopIcon, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.btn_tracking_stop))
+                                }
                             }
                         }
                     }
