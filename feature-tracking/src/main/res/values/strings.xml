@@ -4,4 +4,6 @@
     <string name="btn_tracking_pause">Pause</string>
     <string name="btn_tracking_resume">Resume</string>
     <string name="btn_tracking_stop">Stop</string>
+    <string name="msg_route_completed">Your journey is finished, Congrats!</string>
+    <string name="btn_tracking_finish">Finish</string>
 </resources>

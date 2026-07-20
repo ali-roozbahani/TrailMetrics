@@ -61,7 +61,8 @@ fun TrailMetricsNavHost() {
             val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
             TrackingScreen(
                 initialStartPoint = route.startPoint,
-                plannedRoutePoints = route.plannedRoutePoints
+                plannedRoutePoints = route.plannedRoutePoints,
+                onFinished = { navController.popBackStack() }
             )
         }
     }

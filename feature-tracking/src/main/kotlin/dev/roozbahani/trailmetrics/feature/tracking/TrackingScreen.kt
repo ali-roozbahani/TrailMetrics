@@ -43,7 +43,9 @@ import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
+import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import org.koin.androidx.compose.koinViewModel
@@ -52,6 +54,7 @@ import org.koin.androidx.compose.koinViewModel
 fun TrackingScreen(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
+    onFinished: () -> Unit,
     viewModel: TrackingViewModel = koinViewModel()
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,9 +101,26 @@ fun TrackingScreen(
         }
     }
 
+    // Progress & CurrentLocation
     var progress by remember { mutableStateOf<RouteProgress?>(null) }
     var lastProgressIndex by remember { mutableStateOf(0) }
     val currentLocation = uiState.currentPath.lastOrNull()
+
+    val currentProgress = progress
+    val isRouteCompleted = currentLocation != null &&
+            plannedRoutePoints.isNotEmpty() &&
+            uiState.trackingState is TrackingState.Tracking &&
+            currentProgress != null &&
+            currentProgress.lastIndex >= plannedRoutePoints.size - ROUTE_COMPLETION_INDEX_MARGIN &&
+            currentLocation.distanceTo(plannedRoutePoints.last()) <= ROUTE_COMPLETION_THRESHOLD_METERS
+    var hasReachedDestination by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isRouteCompleted) {
+        if (isRouteCompleted && !hasReachedDestination) {
+            hasReachedDestination = true
+            viewModel.onStopClicked()
+        }
+    }
 
     LaunchedEffect(currentLocation) {
         currentLocation?.let {
@@ -130,9 +150,7 @@ fun TrackingScreen(
                     RoutePolyline(points = traveled, color = MaterialTheme.colorScheme.primary)
                 }
 
-                currentLocation?.let {
-                    CurrentLocationMarker(coordinates = it)
-                }
+                CurrentLocationMarker(coordinates = currentLocation ?: initialStartPoint)
             }
 
             Column(
@@ -148,25 +166,37 @@ fun TrackingScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (uiState.canStart) {
-                        Button(onClick = {
-                            if (hasLocationPermission(context)) {
-                                viewModel.onStartClicked(initialStartPoint)
-                            } else {
-                                permissionHandler.launch(LOCATION_PERMISSIONS)
-                            }
-                        }) {
-                            Text(stringResource(R.string.btn_tracking_start))
+                    if (hasReachedDestination) {
+                        Text(stringResource(R.string.msg_route_completed))
+                        Button(onClick = { onFinished() }) {
+                            Text(stringResource(R.string.btn_tracking_finish))
                         }
-                    }
-                    if (uiState.canPause) {
-                        Button(onClick = viewModel::onPauseClicked) { Text(stringResource(R.string.btn_tracking_pause)) }
-                    }
-                    if (uiState.canResume) {
-                        Button(onClick = viewModel::onResumeClicked) { Text(stringResource(R.string.btn_tracking_resume)) }
-                    }
-                    if (uiState.canStop) {
-                        Button(onClick = viewModel::onStopClicked) { Text(stringResource(R.string.btn_tracking_stop)) }
+                    } else {
+                        if (uiState.canStart) {
+                            Button(onClick = {
+                                if (hasLocationPermission(context)) {
+                                    viewModel.onStartClicked(initialStartPoint)
+                                } else {
+                                    permissionHandler.launch(LOCATION_PERMISSIONS)
+                                }
+                            }) {
+                                Text(stringResource(R.string.btn_tracking_start))
+                            }
+                        }
+                        if (uiState.canPause) {
+                            Button(onClick = viewModel::onPauseClicked) { Text(stringResource(R.string.btn_tracking_pause)) }
+                        }
+                        if (uiState.canResume) {
+                            Button(onClick = viewModel::onResumeClicked) { Text(stringResource(R.string.btn_tracking_resume)) }
+                        }
+                        if (uiState.canStop) {
+                            Button(onClick = {
+                                viewModel.onStopClicked()
+                                onFinished()
+                            }) {
+                                Text(stringResource(R.string.btn_tracking_stop))
+                            }
+                        }
                     }
                 }
             }
@@ -195,6 +225,8 @@ fun MetricsDisplay(
 }
 
 private const val DEFAULT_ZOOM = 15f
+private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0
+private const val ROUTE_COMPLETION_INDEX_MARGIN = 3
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION
