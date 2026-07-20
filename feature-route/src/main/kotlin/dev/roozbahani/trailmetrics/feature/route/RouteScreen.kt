@@ -53,7 +53,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RouteScreen(
     viewModel: RouteViewModel = koinViewModel(),
-    onStartTrackingClicked: (Coordinates) -> Unit
+    onStartTrackingClicked: (startPoint: Coordinates, plannedRoutePoints: List<Coordinates>) -> Unit
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -196,9 +196,15 @@ fun RouteScreen(
                 }
 
                 val startPoint = uiState.startPoint
-                if (uiState.generatedRoute != null && startPoint != null) {
+                val generatedRoute = uiState.generatedRoute
+                if (generatedRoute != null && startPoint != null) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { onStartTrackingClicked(startPoint) }) {
+                    Button(onClick = {
+                        onStartTrackingClicked(
+                            startPoint,
+                            generatedRoute.points.map { it.coordinates }
+                        )
+                    }) {
                         Text(stringResource(R.string.btn_start_tracking))
                     }
                 }

@@ -36,15 +36,23 @@ fun TrailMetricsNavHost() {
     ) {
         composable<TrailMetricsRoute.RoutePlanning> {
             RouteScreen(
-                onStartTrackingClicked = { startPoint ->
-                    navController.navigate(TrailMetricsRoute.Tracking(startPoint))
+                onStartTrackingClicked = { startPoint, plannedRoutePoints ->
+                    navController.navigate(
+                        TrailMetricsRoute.Tracking(
+                            startPoint,
+                            plannedRoutePoints
+                        )
+                    )
                 }
             )
         }
 
         composable<TrailMetricsRoute.Tracking> { backStackEntry ->
             val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
-            TrackingScreen(initialStartPoint = route.startPoint)
+            TrackingScreen(
+                initialStartPoint = route.startPoint,
+                plannedRoutePoints = route.plannedRoutePoints
+            )
         }
     }
 }

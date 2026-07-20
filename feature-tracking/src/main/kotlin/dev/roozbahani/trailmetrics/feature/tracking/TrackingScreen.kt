@@ -34,10 +34,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
+import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import org.koin.androidx.compose.koinViewModel
@@ -45,6 +47,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun TrackingScreen(
     initialStartPoint: Coordinates,
+    plannedRoutePoints: List<Coordinates>,
     viewModel: TrackingViewModel = koinViewModel()
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,9 +101,20 @@ fun TrackingScreen(
                 .padding(innerPadding)
         ) {
             TrailGoogleMap(cameraPositionState = cameraPositionState) {
-                uiState.currentPath.takeIf { it.isNotEmpty() }?.let { points ->
-                    RoutePolyline(points = points)
+                val currentLocation = uiState.currentPath.lastOrNull()
+
+                val progress = remember(currentLocation) {
+                    currentLocation?.let { calculateRouteProgress(plannedRoutePoints, it) }
                 }
+
+                progress?.remainingSegment?.let { remaining ->
+                    RoutePolyline(points = remaining, color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                progress?.traveledSegment?.let { traveled ->
+                    RoutePolyline(points = traveled, color = MaterialTheme.colorScheme.primary)
+                }
+
+                currentLocation?.let { CurrentLocationMarker(coordinates = it) }
             }
 
             Column(

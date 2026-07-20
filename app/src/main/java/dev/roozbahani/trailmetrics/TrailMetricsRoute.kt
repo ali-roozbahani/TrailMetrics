@@ -8,5 +8,8 @@ sealed interface TrailMetricsRoute {
     data object RoutePlanning : TrailMetricsRoute
 
     @Serializable
-    data class Tracking(val startPoint: Coordinates) : TrailMetricsRoute
+    data class Tracking(
+        val startPoint: Coordinates,
+        val plannedRoutePoints: List<Coordinates>
+    ) : TrailMetricsRoute
 }
