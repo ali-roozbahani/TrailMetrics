@@ -4,21 +4,28 @@ import dev.roozbahani.trailmetrics.domain.util.distanceTo
 
 data class RouteProgress(
     val traveledSegment: List<Coordinates>,
-    val remainingSegment: List<Coordinates>
+    val remainingSegment: List<Coordinates>,
+    val lastIndex: Int
 )
 
 fun calculateRouteProgress(
     plannedRoute: List<Coordinates>,
-    currentLocation: Coordinates
+    currentLocation: Coordinates,
+    previousIndex: Int = 0,
+    searchWindow: Int = 10   // فقط تا ۱۰ نقطه جلوتر از موقعیت قبلی رو بگرد
 ): RouteProgress {
-    if (plannedRoute.isEmpty()) return RouteProgress(emptyList(), emptyList())
+    if (plannedRoute.isEmpty()) return RouteProgress(emptyList(), emptyList(), 0)
 
-    val closestIndex = plannedRoute.indices.minByOrNull { index ->
+    val windowEnd = (previousIndex + searchWindow).coerceAtMost(plannedRoute.size - 1)
+    val searchRange = previousIndex..windowEnd
+
+    val closestIndex = searchRange.minByOrNull { index ->
         plannedRoute[index].distanceTo(currentLocation)
-    } ?: 0
+    } ?: previousIndex
 
     return RouteProgress(
         traveledSegment = plannedRoute.subList(0, closestIndex + 1),
-        remainingSegment = plannedRoute.subList(closestIndex, plannedRoute.size)
+        remainingSegment = plannedRoute.subList(closestIndex, plannedRoute.size),
+        lastIndex = closestIndex
     )
 }

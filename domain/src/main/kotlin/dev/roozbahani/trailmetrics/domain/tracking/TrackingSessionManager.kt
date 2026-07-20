@@ -34,15 +34,17 @@ class TrackingSessionManager(
     private val _locationIssues = MutableSharedFlow<RouteError>(extraBufferCapacity = 1)
     val locationIssues: SharedFlow<RouteError> = _locationIssues.asSharedFlow()
 
+    private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
 
     fun start(startPoint: Coordinates) {
+        consecutiveUnavailableCount = 0
         dispatch(TrackingEvent.Start(startPoint, clock.nowMillis()))
         observeLocation()
         trackingServiceLauncher.start()
     }
 
-    fun pause(){
+    fun pause() {
         locationObservationJob?.cancel()
         dispatch(TrackingEvent.Pause(clock.nowMillis()))
     }
@@ -52,7 +54,7 @@ class TrackingSessionManager(
         observeLocation()
     }
 
-    fun stop(){
+    fun stop() {
         locationObservationJob?.cancel()
         dispatch(TrackingEvent.Stop(clock.nowMillis()))
         trackingServiceLauncher.stop()
@@ -64,11 +66,16 @@ class TrackingSessionManager(
             locationRepository.observeLocationUpdates().collect { update ->
                 when (update) {
                     is LocationUpdate.Success -> {
+                        consecutiveUnavailableCount = 0
                         dispatch(TrackingEvent.LocationReceived(update.coordinates, clock.nowMillis()))
                     }
+
                     is LocationUpdate.Unavailable -> {
+                        consecutiveUnavailableCount++
                         logger.debug(TAG, "Location unavailable: ${update.reason}")
-                        _locationIssues.tryEmit(update.reason)
+                        if (consecutiveUnavailableCount >= UNAVAILABLE_THRESHOLD) {
+                            _locationIssues.tryEmit(update.reason)
+                        }
                     }
                 }
             }
@@ -81,5 +88,6 @@ class TrackingSessionManager(
 
     private companion object {
         const val TAG = "TrackingSessionManager"
+        const val UNAVAILABLE_THRESHOLD = 3
     }
 }
