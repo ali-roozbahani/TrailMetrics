@@ -13,6 +13,6 @@ fun RoutePolyline(points: List<Coordinates>, color: Color = MaterialTheme.colorS
     Polyline(
         points = remember(points) { points.map { LatLng(it.latitude, it.longitude) } },
         color = color,
-        width = 8f
+        width = 12f
     )
 }

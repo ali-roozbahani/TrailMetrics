@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -175,13 +178,31 @@ fun TrackingScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (hasReachedDestination) {
-                        Text(stringResource(R.string.msg_route_completed))
-                        Button( // Finish
-                            onClick = { onFinished() }
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
-                            Icon(imageVector = Icons.Filled.Check, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.btn_tracking_finish))
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.msg_route_completed),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Button(onClick = onFinished) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.btn_tracking_finish))
+                                }
+                            }
                         }
                     } else {
                         if (uiState.canStart) {
@@ -194,7 +215,10 @@ fun TrackingScreen(
                                     }
                                 }
                             ) {
-                                Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null)
+                                Icon(
+                                    imageVector = Icons.Filled.PlayArrow,
+                                    contentDescription = null
+                                )
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.btn_tracking_start))
                             }
@@ -216,7 +240,10 @@ fun TrackingScreen(
                             Button( // Resume
                                 onClick = viewModel::onResumeClicked
                             ) {
-                                Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null)
+                                Icon(
+                                    imageVector = Icons.Filled.PlayArrow,
+                                    contentDescription = null
+                                )
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.btn_tracking_resume))
                             }
@@ -249,18 +276,30 @@ fun MetricsDisplay(
     metrics: TrackingMetrics,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
+    Card(
+        modifier = modifier.fillMaxWidth(fraction = 0.6f),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Text(
-            text = formatDistance(metrics.distanceMeters),
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Text(
-            text = formatElapsedTime(metrics.elapsedMillis),
-            style = MaterialTheme.typography.bodyLarge
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .animateContentSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = formatDistance(metrics.distanceMeters),
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                text = formatElapsedTime(metrics.elapsedMillis),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -21,6 +22,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -180,21 +182,6 @@ fun RouteScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
-                    onClick = { viewModel.onGenerateRouteClicked() },
-                    enabled = uiState.canGenerateRoute
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(stringResource(R.string.btn_generate_route))
-                    }
-                }
-
                 val startPoint = uiState.startPoint
                 val generatedRoute = uiState.generatedRoute
                 if (generatedRoute != null && startPoint != null) {
@@ -206,6 +193,22 @@ fun RouteScreen(
                         )
                     }) {
                         Text(stringResource(R.string.btn_start_tracking))
+                    }
+                }
+
+                if (uiState.generatedRoute == null) {
+                    Button(onClick = { viewModel.onGenerateRouteClicked() }, enabled = uiState.canGenerateRoute) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.btn_generate_route))
+                        }
+                    }
+                } else {
+                    OutlinedButton(onClick = { viewModel.onResetClicked() }) {
+                        Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.btn_reset_route))
                     }
                 }
             }
