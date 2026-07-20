@@ -10,7 +10,6 @@ val trackingUiModule = module {
     viewModel {
         TrackingViewModel(
             trackingSessionManager = get(),
-            getCurrentLocationUseCase = get(),
             uiErrorMapper = get()
         )
     }

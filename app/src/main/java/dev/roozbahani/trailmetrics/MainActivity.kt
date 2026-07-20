@@ -11,8 +11,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.feature.route.RouteScreen
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreen
+import dev.roozbahani.trailmetrics.navigation.CoordinatesNavType
+import dev.roozbahani.trailmetrics.navigation.PlannedRoutePointsNavType
+import dev.roozbahani.trailmetrics.navigation.TrailMetricsRoute
+import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +52,12 @@ fun TrailMetricsNavHost() {
             )
         }
 
-        composable<TrailMetricsRoute.Tracking> { backStackEntry ->
+        composable<TrailMetricsRoute.Tracking>(
+            typeMap = mapOf(
+                typeOf<Coordinates>() to CoordinatesNavType,
+                typeOf<List<Coordinates>>() to PlannedRoutePointsNavType,
+            )
+        ) { backStackEntry ->
             val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
             TrackingScreen(
                 initialStartPoint = route.startPoint,

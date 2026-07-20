@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics
+package dev.roozbahani.trailmetrics.navigation
 
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import kotlinx.serialization.Serializable
