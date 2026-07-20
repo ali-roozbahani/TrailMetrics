@@ -5,8 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -50,7 +52,8 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun RouteScreen(
-    viewModel: RouteViewModel = koinViewModel()
+    viewModel: RouteViewModel = koinViewModel(),
+    onStartTrackingClicked: (Coordinates) -> Unit
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -123,7 +126,10 @@ fun RouteScreen(
                 uiState.waypoints.forEach { point ->
                     MarkerComposable(
                         state = rememberUpdatedMarkerState(
-                            position = LatLng(point.coordinates.latitude, point.coordinates.longitude)
+                            position = LatLng(
+                                point.coordinates.latitude,
+                                point.coordinates.longitude
+                            )
                         ),
                         onClick = {
                             viewModel.onWaypointRemoved(point)
@@ -186,6 +192,14 @@ fun RouteScreen(
                         )
                     } else {
                         Text(stringResource(R.string.btn_generate_route))
+                    }
+                }
+
+                val startPoint = uiState.startPoint
+                if (uiState.generatedRoute != null && startPoint != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { onStartTrackingClicked(startPoint) }) {
+                        Text(stringResource(R.string.btn_start_tracking))
                     }
                 }
             }

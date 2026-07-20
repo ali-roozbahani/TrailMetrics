@@ -9,54 +9,39 @@ import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
-import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class TrackingViewModel(
     private val trackingSessionManager: TrackingSessionManager,
-    private val getCurrentLocationUseCase: GetCurrentLocationUseCase,
     private val uiErrorMapper: RouteUiErrorMapper
 ) : ViewModel() {
 
-    private val _isPreparingStart = MutableStateFlow(false)
+    val uiState: StateFlow<TrackingUiState> = trackingSessionManager.currentState
+        .map { trackingState ->
+            TrackingUiState(trackingState = trackingState)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = TrackingUiState()
+        )
 
-    val uiState: StateFlow<TrackingUiState> = combine(
-        trackingSessionManager.currentState,
-        _isPreparingStart
-    ) { trackingState, isPreparingStart ->
-        TrackingUiState(trackingState = trackingState, isPreparingStart = isPreparingStart)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = TrackingUiState()
-    )
+    val uiEvents: Flow<TrackingUiEvent> = trackingSessionManager.locationIssues
+        .map { routeError ->
+            if (routeError is RouteError.MissingLocationPermission) {
+                TrackingUiEvent.RequestLocationPermission
+            } else {
+                TrackingUiEvent.ShowError(uiErrorMapper.map(routeError))
+            }
+        }
 
-    private val _uiEvents = Channel<TrackingUiEvent>(Channel.BUFFERED)
-    val uiEvents: Flow<TrackingUiEvent> = _uiEvents.receiveAsFlow()
-
-    fun onStartClicked() {
+    fun onStartClicked(startCoordinates: Coordinates) {
         viewModelScope.launch {
-            _isPreparingStart.update { true }
-            getCurrentLocationUseCase()
-                .onSuccess { coordinates ->
-                    trackingSessionManager.start(coordinates)
-                }
-                .onFailure { error ->
-                    _uiEvents.send(TrackingUiEvent.ShowError(uiErrorMapper.map(error as? RouteError)))
-                    if (error is RouteError.MissingLocationPermission) {
-                        _uiEvents.send(TrackingUiEvent.RequestLocationPermission)
-                    }
-                }
-            _isPreparingStart.update { false }
+            trackingSessionManager.start(startCoordinates)
         }
     }
 
@@ -66,15 +51,14 @@ class TrackingViewModel(
 
     fun onStopClicked() = trackingSessionManager.stop()
 
-    fun onLocationPermissionGranted() {
-        onStartClicked()
+    fun onLocationPermissionGranted(startCoordinates: Coordinates) {
+        onStartClicked(startCoordinates)
     }
 
 }
 
 data class TrackingUiState(
-    val trackingState: TrackingState = TrackingState.Idle,
-    val isPreparingStart: Boolean = false
+    val trackingState: TrackingState = TrackingState.Idle
 ) {
     val currentPath: List<Coordinates>
         get() = when (val state = trackingState) {
@@ -91,7 +75,7 @@ data class TrackingUiState(
         }
 
     val canStart: Boolean
-        get() = (trackingState is TrackingState.Idle || trackingState is TrackingState.Finished) && !isPreparingStart
+        get() = (trackingState is TrackingState.Idle || trackingState is TrackingState.Finished)
 
     val canPause: Boolean
         get() = trackingState is TrackingState.Tracking

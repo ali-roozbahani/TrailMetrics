@@ -1,6 +1,8 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -12,9 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -29,12 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
@@ -42,6 +44,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun TrackingScreen(
+    initialStartPoint: Coordinates,
     viewModel: TrackingViewModel = koinViewModel()
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,7 +57,7 @@ fun TrackingScreen(
     ) { permissions ->
         val granted = permissions.values.any { granted -> granted }
         if (granted) {
-            viewModel.onLocationPermissionGranted()
+            viewModel.onLocationPermissionGranted(initialStartPoint)
         }
     }
 
@@ -114,18 +117,19 @@ fun TrackingScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (uiState.canStart) {
-                        Button(
-                            onClick = viewModel::onStartClicked,
-                            enabled = !uiState.isPreparingStart
-                        ) {
-                            if (uiState.isPreparingStart) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
+                        Button(onClick = {
+                            if (hasLocationPermission(context)) {
+                                viewModel.onStartClicked(initialStartPoint)
                             } else {
-                                Text(stringResource(R.string.btn_tracking_start))
+                                permissionHandler.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
                             }
+                        }) {
+                            Text(stringResource(R.string.btn_tracking_start))
                         }
                     }
                     if (uiState.canPause) {
@@ -161,4 +165,13 @@ fun MetricsDisplay(
             style = MaterialTheme.typography.bodyLarge
         )
     }
+}
+
+private fun hasLocationPermission(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
 }
