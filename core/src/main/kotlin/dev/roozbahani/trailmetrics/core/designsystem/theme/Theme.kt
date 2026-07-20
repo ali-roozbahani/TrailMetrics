@@ -8,35 +8,34 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val LightColorScheme = lightColorScheme(
+    primary = TrailGreen,
+    onPrimary = Color.White,
+    secondary = TrailBlue,
+    tertiary = TrailAmber,
+    onTertiary = Color.Black,   // amber background needs dark text for contrast
+    error = TrailRed,
+    onError = Color.White       // red background needs white text/icon
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColorScheme = darkColorScheme(
+    primary = TrailGreenLight,
+    onPrimary = Color.Black,
+    secondary = TrailBlueLight,
+    tertiary = TrailAmber,
+    onTertiary = Color.Black,
+    error = TrailRed,
+    onError = Color.White
 )
 
 @Composable
 fun TrailMetricsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Disabled to keep a consistent brand identity across devices
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

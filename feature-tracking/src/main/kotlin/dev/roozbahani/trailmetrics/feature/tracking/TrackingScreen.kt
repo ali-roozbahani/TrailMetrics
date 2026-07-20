@@ -14,7 +14,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -37,6 +43,8 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.roozbahani.trailmetrics.core.designsystem.icons.TrailPauseIcon
+import dev.roozbahani.trailmetrics.core.designsystem.icons.TrailStopIcon
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -168,32 +176,64 @@ fun TrackingScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (hasReachedDestination) {
                         Text(stringResource(R.string.msg_route_completed))
-                        Button(onClick = { onFinished() }) {
+                        Button( // Finish
+                            onClick = { onFinished() }
+                        ) {
+                            Icon(imageVector = Icons.Filled.Check, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.btn_tracking_finish))
                         }
                     } else {
                         if (uiState.canStart) {
-                            Button(onClick = {
-                                if (hasLocationPermission(context)) {
-                                    viewModel.onStartClicked(initialStartPoint)
-                                } else {
-                                    permissionHandler.launch(LOCATION_PERMISSIONS)
+                            Button( // Start
+                                onClick = {
+                                    if (hasLocationPermission(context)) {
+                                        viewModel.onStartClicked(initialStartPoint)
+                                    } else {
+                                        permissionHandler.launch(LOCATION_PERMISSIONS)
+                                    }
                                 }
-                            }) {
+                            ) {
+                                Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.btn_tracking_start))
                             }
                         }
                         if (uiState.canPause) {
-                            Button(onClick = viewModel::onPauseClicked) { Text(stringResource(R.string.btn_tracking_pause)) }
+                            Button( // Pause
+                                onClick = viewModel::onPauseClicked,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                )
+                            ) {
+                                Icon(imageVector = TrailPauseIcon, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.btn_tracking_pause))
+                            }
                         }
                         if (uiState.canResume) {
-                            Button(onClick = viewModel::onResumeClicked) { Text(stringResource(R.string.btn_tracking_resume)) }
+                            Button( // Resume
+                                onClick = viewModel::onResumeClicked
+                            ) {
+                                Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(stringResource(R.string.btn_tracking_resume))
+                            }
                         }
                         if (uiState.canStop) {
-                            Button(onClick = {
-                                viewModel.onStopClicked()
-                                onFinished()
-                            }) {
+                            Button( // Stop
+                                onClick = {
+                                    viewModel.onStopClicked()
+                                    onFinished()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                            ) {
+                                Icon(imageVector = TrailStopIcon, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.btn_tracking_stop))
                             }
                         }
