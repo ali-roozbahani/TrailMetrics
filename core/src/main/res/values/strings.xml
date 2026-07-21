@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_location_unavailable">Unable to retrieve your current location</string>
+    <string name="msg_missing_location_permission">Location permission is missing</string>
+    <string name="msg_general_location_error">Failed to retrieve your current location</string>
+</resources>

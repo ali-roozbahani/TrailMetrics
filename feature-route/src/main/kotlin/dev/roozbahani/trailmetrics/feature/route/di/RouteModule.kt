@@ -1,6 +1,6 @@
 package dev.roozbahani.trailmetrics.feature.route.di
 
-import dev.roozbahani.trailmetrics.feature.route.RouteUiErrorMapper
+import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
 import dev.roozbahani.trailmetrics.feature.route.RouteViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module

@@ -5,10 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -19,6 +22,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,21 +41,21 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerComposable
-import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import dev.roozbahani.trailmetrics.core.map.RoutePolyline
+import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
+import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun RouteScreen(
-    viewModel: RouteViewModel = koinViewModel()
+    viewModel: RouteViewModel = koinViewModel(),
+    onStartTrackingClicked: (startPoint: Coordinates, plannedRoutePoints: List<Coordinates>) -> Unit
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -105,10 +109,9 @@ fun RouteScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
+            TrailGoogleMap(
                 cameraPositionState = cameraPositionState,
-                onMapLongClick = { latLng ->
+                onMapLongClicked = { latLng ->
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.onMapTapped(
                         Coordinates(latitude = latLng.latitude, longitude = latLng.longitude)
@@ -116,19 +119,19 @@ fun RouteScreen(
                 }
             ) {
                 uiState.startPoint?.let { startPoint ->
-                    Marker(
-                        state = rememberUpdatedMarkerState(
-                            position = LatLng(startPoint.latitude, startPoint.longitude)
-                        ),
+                    StartFinishMarker(
                         title = stringResource(R.string.marker_title_start_finish),
-                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
+                        coordinates = startPoint,
                     )
                 }
 
                 uiState.waypoints.forEach { point ->
                     MarkerComposable(
                         state = rememberUpdatedMarkerState(
-                            position = LatLng(point.coordinates.latitude, point.coordinates.longitude)
+                            position = LatLng(
+                                point.coordinates.latitude,
+                                point.coordinates.longitude
+                            )
                         ),
                         onClick = {
                             viewModel.onWaypointRemoved(point)
@@ -145,15 +148,7 @@ fun RouteScreen(
                 }
 
                 uiState.generatedRoute?.let { route ->
-                    Polyline(
-                        points = remember(route) { // avoids unnecessary mappings
-                            route.points.map { point ->
-                                LatLng(point.coordinates.latitude, point.coordinates.longitude)
-                            }
-                        },
-                        color = MaterialTheme.colorScheme.primary,
-                        width = 8f
-                    )
+                    RoutePolyline(points = route.points.map { it.coordinates })
                 }
             }
 
@@ -163,6 +158,7 @@ fun RouteScreen(
                 )
             }
 
+            // Reset Button
             FilledIconButton(
                 onClick = viewModel::onResetClicked,
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -186,18 +182,33 @@ fun RouteScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
-                    onClick = { viewModel.onGenerateRouteClicked() },
-                    enabled = uiState.canGenerateRoute
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                val startPoint = uiState.startPoint
+                val generatedRoute = uiState.generatedRoute
+                if (generatedRoute != null && startPoint != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = {
+                        onStartTrackingClicked(
+                            startPoint,
+                            generatedRoute.points.map { it.coordinates }
                         )
-                    } else {
-                        Text(stringResource(R.string.btn_generate_route))
+                    }) {
+                        Text(stringResource(R.string.btn_start_tracking))
+                    }
+                }
+
+                if (uiState.generatedRoute == null) {
+                    Button(onClick = { viewModel.onGenerateRouteClicked() }, enabled = uiState.canGenerateRoute) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.btn_generate_route))
+                        }
+                    }
+                } else {
+                    OutlinedButton(onClick = { viewModel.onResetClicked() }) {
+                        Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.btn_reset_route))
                     }
                 }
             }

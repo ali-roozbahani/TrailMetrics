@@ -4,8 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.feature.route.RouteScreen
+import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreen
+import dev.roozbahani.trailmetrics.navigation.CoordinatesNavType
+import dev.roozbahani.trailmetrics.navigation.PlannedRoutePointsNavType
+import dev.roozbahani.trailmetrics.navigation.TrailMetricsRoute
+import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -13,8 +29,57 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TrailMetricsTheme {
-                RouteScreen()
+                TrailMetricsNavHost()
             }
+        }
+    }
+}
+
+@Composable
+fun TrailMetricsNavHost() {
+    val navController: NavHostController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = TrailMetricsRoute.RoutePlanning
+    ) {
+        composable<TrailMetricsRoute.RoutePlanning> {
+            RouteScreen(
+                onStartTrackingClicked = { startPoint, plannedRoutePoints ->
+                    navController.navigate(
+                        TrailMetricsRoute.Tracking(
+                            startPoint,
+                            plannedRoutePoints
+                        )
+                    )
+                }
+            )
+        }
+
+        composable<TrailMetricsRoute.Tracking>(
+            typeMap = mapOf(
+                typeOf<Coordinates>() to CoordinatesNavType,
+                typeOf<List<Coordinates>>() to PlannedRoutePointsNavType,
+            ),
+            enterTransition = {
+                slideInHorizontally(initialOffsetX = { fullWidth -> fullWidth }) + fadeIn()
+            },
+            exitTransition = {
+                slideOutHorizontally(targetOffsetX = { fullWidth -> -fullWidth }) + fadeOut()
+            },
+            popEnterTransition = {
+                slideInHorizontally(initialOffsetX = { fullWidth -> -fullWidth }) + fadeIn()
+            },
+            popExitTransition = {
+                slideOutHorizontally(targetOffsetX = { fullWidth -> fullWidth }) + fadeOut()
+            }
+        ) { backStackEntry ->
+            val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
+            TrackingScreen(
+                initialStartPoint = route.startPoint,
+                plannedRoutePoints = route.plannedRoutePoints,
+                onFinished = { navController.popBackStack() }
+            )
         }
     }
 }
