@@ -60,6 +60,12 @@ class TrackingService : Service(), KoinComponent {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+
+        // Explicitly cancel the notification to guard against a race condition
+        // where a state update calls notify() right around service teardown,
+        // leaving a stale notification behind that the system doesn't auto-remove.
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(NOTIFICATION_ID)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
