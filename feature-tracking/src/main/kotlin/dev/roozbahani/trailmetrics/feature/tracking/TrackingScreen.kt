@@ -3,6 +3,8 @@ package dev.roozbahani.trailmetrics.feature.tracking
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +89,44 @@ fun TrackingScreen(
         if (granted) {
             viewModel.onLocationPermissionGranted(initialStartPoint)
         }
+    }
+
+    val notificationPermissionHandler = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /** no op */ }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionHandler.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    var showExitConfirmation by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = uiState.canPause || uiState.canResume) {
+        showExitConfirmation = true
+    }
+
+    if (showExitConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmation = false },
+            title = { Text(stringResource(R.string.dialog_exit_tracking_title)) },
+            text = { Text(stringResource(R.string.dialog_exit_tracking_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitConfirmation = false
+                    viewModel.onStopClicked()
+                    onFinished()
+                }) {
+                    Text(stringResource(R.string.dialog_exit_tracking_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirmation = false }) {
+                    Text(stringResource(R.string.dialog_exit_tracking_dismiss))
+                }
+            }
+        )
     }
 
     @Suppress("LocalContextGetResourceValueCall")

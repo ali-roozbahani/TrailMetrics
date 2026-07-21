@@ -6,4 +6,8 @@
     <string name="btn_tracking_stop">Stop</string>
     <string name="msg_route_completed">Your journey is finished, Congrats!</string>
     <string name="btn_tracking_finish">Finish</string>
+    <string name="dialog_exit_tracking_title">Stop tracking?</string>
+    <string name="dialog_exit_tracking_message">Going back will stop your current tracking session. This cannot be undone.</string>
+    <string name="dialog_exit_tracking_confirm">Stop</string>
+    <string name="dialog_exit_tracking_dismiss">Cancel</string>
 </resources>
