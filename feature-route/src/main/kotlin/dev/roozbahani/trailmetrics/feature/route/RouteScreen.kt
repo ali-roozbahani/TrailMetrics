@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -24,21 +27,28 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.model.CameraPosition
@@ -46,9 +56,11 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import org.koin.androidx.compose.koinViewModel
 
@@ -215,6 +227,61 @@ fun RouteScreen(
         }
     }
 
+}
+
+@Composable
+fun ActivityTypeSelector(
+    selected: ActivityType,
+    onSelected: (ActivityType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = ActivityType.entries
+
+    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+        options.forEachIndexed { index, activityType ->
+            SegmentedButton(
+                selected = activityType == selected,
+                onClick = { onSelected(activityType) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.count()),
+                icon = {
+                    Icon(
+                        imageVector = iconFor(activityType),
+                        contentDescription = null,
+                        modifier = Modifier.size(SegmentedButtonDefaults.IconSize)
+                    )
+                },
+                label = { Text(labelFor(activityType)) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun labelFor(type: ActivityType): String = when (type) {
+    ActivityType.Running -> stringResource(R.string.activity_type_running)
+    ActivityType.Cycling -> stringResource(R.string.activity_type_cycling)
+    ActivityType.Walking -> stringResource(R.string.activity_type_walking)
+}
+
+private fun iconFor(type: ActivityType): ImageVector = when (type) {
+    ActivityType.Running -> Icons.AutoMirrored.Filled.DirectionsRun
+    ActivityType.Cycling -> Icons.AutoMirrored.Filled.DirectionsBike
+    ActivityType.Walking -> Icons.AutoMirrored.Filled.DirectionsWalk
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ActivityTypeSelectorPreview() {
+    TrailMetricsTheme {
+        var selected by remember { mutableStateOf(ActivityType.Running) }
+
+        Box(modifier = Modifier.padding(16.dp)) {
+            ActivityTypeSelector(
+                selected = selected,
+                onSelected = { selected = it }
+            )
+        }
+    }
 }
 
 private const val DEFAULT_ZOOM = 15f

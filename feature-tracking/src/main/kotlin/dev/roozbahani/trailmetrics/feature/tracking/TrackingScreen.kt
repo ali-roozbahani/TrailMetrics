@@ -25,7 +25,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,8 +57,6 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.rememberCameraPositionState
-import dev.roozbahani.trailmetrics.core.designsystem.icons.TrailPauseIcon
-import dev.roozbahani.trailmetrics.core.designsystem.icons.TrailStopIcon
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -285,7 +285,7 @@ fun TrackingScreen(
                                         contentColor = MaterialTheme.colorScheme.onTertiary
                                     )
                                 ) {
-                                    Icon(imageVector = TrailPauseIcon, contentDescription = null)
+                                    Icon(imageVector = Icons.Filled.Pause, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.btn_tracking_pause))
                                 }
@@ -313,7 +313,7 @@ fun TrackingScreen(
                                         contentColor = MaterialTheme.colorScheme.onError
                                     )
                                 ) {
-                                    Icon(imageVector = TrailStopIcon, contentDescription = null)
+                                    Icon(imageVector = Icons.Filled.Stop, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.btn_tracking_stop))
                                 }
