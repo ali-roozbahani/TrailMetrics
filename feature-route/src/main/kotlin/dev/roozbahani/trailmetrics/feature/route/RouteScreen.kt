@@ -3,8 +3,10 @@ package dev.roozbahani.trailmetrics.feature.route
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -20,12 +23,17 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -48,6 +56,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,13 +76,14 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RouteScreen(
     viewModel: RouteViewModel = koinViewModel(),
-    onStartTrackingClicked: (startPoint: Coordinates, plannedRoutePoints: List<Coordinates>) -> Unit
+    onStartTrackingClicked: (startPoint: Coordinates, plannedRoutePoints: List<Coordinates>, activityType: ActivityType) -> Unit
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
     val snackBarHostState = remember { SnackbarHostState() }
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
+    var showProfileSheet: Boolean by remember { mutableStateOf(false) }
 
     val permissionHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -100,6 +110,18 @@ fun RouteScreen(
                         )
                     )
                 }
+
+                is RouteUiEvent.RequestUserProfile -> {
+                    showProfileSheet = true
+                }
+
+                is RouteUiEvent.NavigateToTracking -> {
+                    onStartTrackingClicked(
+                        event.startPoint,
+                        event.plannedRoutePoints,
+                        event.activityType
+                    )
+                }
             }
         }
     }
@@ -111,6 +133,13 @@ fun RouteScreen(
                 DEFAULT_ZOOM
             )
         }
+    }
+
+    if (showProfileSheet) {
+        UserProfileBottomSheet(
+            onDismiss = { showProfileSheet = false },
+            onSave = { viewModel.saveUserProfile(it) }
+        )
     }
 
     Scaffold(
@@ -170,8 +199,7 @@ fun RouteScreen(
                 )
             }
 
-            // Reset Button
-            FilledIconButton(
+            FilledIconButton( // Reset Button
                 onClick = viewModel::onResetClicked,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -197,36 +225,105 @@ fun RouteScreen(
                 val startPoint = uiState.startPoint
                 val generatedRoute = uiState.generatedRoute
                 if (generatedRoute != null && startPoint != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = {
-                        onStartTrackingClicked(
-                            startPoint,
-                            generatedRoute.points.map { it.coordinates }
-                        )
-                    }) {
-                        Text(stringResource(R.string.btn_start_tracking))
-                    }
+                    StartTrackingPanel(
+                        selectedActivityType = uiState.selectedActivityType,
+                        onActivityTypeSelected = { viewModel.onActivityTypeSelected(it) },
+                        onResetClicked = viewModel::onResetClicked,
+                        onStartTrackingClicked = viewModel::onStartTrackingClicked
+                    )
                 }
 
                 if (uiState.generatedRoute == null) {
-                    Button(onClick = { viewModel.onGenerateRouteClicked() }, enabled = uiState.canGenerateRoute) {
+                    Button( // Generate Button
+                        onClick = { viewModel.onGenerateRouteClicked() },
+                        enabled = uiState.canGenerateRoute
+                    ) {
                         if (uiState.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
                         } else {
                             Text(stringResource(R.string.btn_generate_route))
                         }
-                    }
-                } else {
-                    OutlinedButton(onClick = { viewModel.onResetClicked() }) {
-                        Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.btn_reset_route))
                     }
                 }
             }
         }
     }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserProfileBottomSheet(
+    onDismiss: () -> Unit,
+    onSave: (weightKg: Double) -> Unit
+) {
+    var weightInput: String by remember { mutableStateOf("") }
+    val weightKg: Double? = weightInput.toDoubleOrNull()
+    val isValid: Boolean = weightKg != null && weightKg > 0
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(
+                text = stringResource(R.string.title_user_profile),
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = weightInput,
+                onValueChange = { weightInput = it },
+                label = { Text(stringResource(R.string.label_weight_kg)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    weightKg?.let { onSave(it) }
+                    onDismiss()
+                },
+                enabled = isValid,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.btn_save))
+            }
+        }
+    }
+}
+
+@Composable
+fun StartTrackingPanel(
+    selectedActivityType: ActivityType,
+    onActivityTypeSelected: (ActivityType) -> Unit,
+    onResetClicked: () -> Unit,
+    onStartTrackingClicked: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column {
+            ActivityTypeSelector(
+                selected = selectedActivityType,
+                onSelected = onActivityTypeSelected
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onStartTrackingClicked) {
+                    Text(stringResource(R.string.btn_start_tracking))
+                }
+                OutlinedButton(onClick = onResetClicked) {
+                    Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.btn_reset_route))
+                }
+            }
+        }
+    }
 }
 
 @Composable

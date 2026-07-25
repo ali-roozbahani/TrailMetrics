@@ -45,11 +45,12 @@ fun TrailMetricsNavHost() {
     ) {
         composable<TrailMetricsRoute.RoutePlanning> {
             RouteScreen(
-                onStartTrackingClicked = { startPoint, plannedRoutePoints ->
+                onStartTrackingClicked = { startPoint, plannedRoutePoints, selectedActivityType ->
                     navController.navigate(
                         TrailMetricsRoute.Tracking(
                             startPoint,
-                            plannedRoutePoints
+                            plannedRoutePoints,
+                            selectedActivityType
                         )
                     )
                 }

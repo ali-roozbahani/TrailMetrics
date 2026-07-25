@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.data.user
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -20,9 +21,9 @@ class UserProfileRepositoryImpl(
 
     override suspend fun saveUserProfile(userProfile: UserProfile) = withContext(ioDispatcher) {
         val json = Json.encodeToString(userProfile)
-        sharedPreferences.edit()
-            .putString(KEY_USER_PROFILE, json)
-            .apply()
+        sharedPreferences.edit {
+            putString(KEY_USER_PROFILE, json)
+        }
     }
 
     private companion object {
