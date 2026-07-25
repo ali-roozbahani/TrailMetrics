@@ -4,5 +4,6 @@ data class TrackingMetrics(
     val elapsedMillis: Long,
     val lastUpdateTimestampMillis: Long,
     val distanceMeters: Double,
-    val path: List<Coordinates>
+    val path: List<Coordinates>,
+    val currentSpeedMetersPerSecond: Float? = null
 )

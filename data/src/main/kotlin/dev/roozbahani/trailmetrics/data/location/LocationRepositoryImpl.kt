@@ -80,13 +80,15 @@ class LocationRepositoryImpl(
 
         val locationCallback: LocationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let {
+                result.lastLocation?.let { location ->
                     trySend(
                         LocationUpdate.Success(
                             Coordinates(
-                                latitude = it.latitude,
-                                longitude = it.longitude
-                            )
+                                latitude = location.latitude,
+                                longitude = location.longitude
+                            ),
+                            speedMetersPerSecond = if (location.hasSpeed()) location.speed else null,
+                            accuracyMeters = if (location.hasAccuracy()) location.accuracy else null
                         )
                     )
                 } ?: run {

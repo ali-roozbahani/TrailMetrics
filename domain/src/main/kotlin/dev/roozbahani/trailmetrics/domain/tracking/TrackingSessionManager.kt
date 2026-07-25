@@ -9,6 +9,7 @@ import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.Logger
+import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,7 @@ class TrackingSessionManager(
     private val locationRepository: LocationRepository,
     private val updateTrackingStateUseCase: UpdateTrackingStateUseCase,
     private val trackingServiceLauncher: TrackingServiceLauncher,
+    private val speedCalculator: SpeedCalculator,
     private val clock: Clock,
     private val logger: Logger,
     private val scope: CoroutineScope
@@ -39,6 +41,7 @@ class TrackingSessionManager(
 
     fun start(startPoint: Coordinates) {
         consecutiveUnavailableCount = 0
+        speedCalculator.reset()
         dispatch(TrackingEvent.Start(startPoint, clock.nowMillis()))
         observeLocation()
         trackingServiceLauncher.start()
@@ -67,7 +70,19 @@ class TrackingSessionManager(
                 when (update) {
                     is LocationUpdate.Success -> {
                         consecutiveUnavailableCount = 0
-                        dispatch(TrackingEvent.LocationReceived(update.coordinates, clock.nowMillis()))
+                        val speed = speedCalculator.calculate(
+                            coordinates = update.coordinates,
+                            timestampMillis = clock.nowMillis(),
+                            reportedSpeedMetersPerSecond = update.speedMetersPerSecond,
+                            accuracyMeters = update.accuracyMeters
+                        )
+                        dispatch(
+                            TrackingEvent.LocationReceived(
+                                coordinates = update.coordinates,
+                                timestampMillis = clock.nowMillis(),
+                                speedMetersPerSecond = speed
+                            )
+                        )
                     }
 
                     is LocationUpdate.Unavailable -> {

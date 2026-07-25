@@ -3,6 +3,7 @@ package dev.roozbahani.trailmetrics.data.di
 import dev.roozbahani.trailmetrics.data.tracking.AndroidTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,11 +19,14 @@ val trackingModule = module {
 
     single<TrackingServiceLauncher> { AndroidTrackingServiceLauncher(get()) }
 
+    factory { SpeedCalculator() }
+
     single {
         TrackingSessionManager(
             locationRepository = get(),
             updateTrackingStateUseCase = get(),
             trackingServiceLauncher = get(),
+            speedCalculator = get(),
             clock = get(),
             logger = get(),
             scope = get(TRACKING_SCOPE)

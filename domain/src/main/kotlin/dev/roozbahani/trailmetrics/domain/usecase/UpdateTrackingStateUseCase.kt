@@ -82,7 +82,8 @@ class UpdateTrackingStateUseCase {
                     elapsedMillis = currentState.metrics.elapsedMillis + deltaTime,
                     lastUpdateTimestampMillis = newEvent.timestampMillis,
                     distanceMeters = currentState.metrics.distanceMeters + deltaDistance,
-                    path = currentState.metrics.path + newEvent.coordinates
+                    path = currentState.metrics.path + newEvent.coordinates,
+                    currentSpeedMetersPerSecond = newEvent.speedMetersPerSecond
                 )
 
                 TrackingState.Tracking(newMetrics)
