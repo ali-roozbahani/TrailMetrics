@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -137,6 +138,7 @@ fun RouteScreen(
 
     if (showProfileSheet) {
         UserProfileBottomSheet(
+            initialWeightKg = uiState.userProfile?.weightKg,
             onDismiss = { showProfileSheet = false },
             onSave = { viewModel.saveUserProfile(it) }
         )
@@ -215,6 +217,22 @@ fun RouteScreen(
                 )
             }
 
+            FilledIconButton(
+                onClick = { showProfileSheet = true },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .shadow(elevation = 4.dp, shape = CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = stringResource(R.string.cd_user_profile)
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -256,21 +274,24 @@ fun RouteScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserProfileBottomSheet(
+    initialWeightKg: Double?,
     onDismiss: () -> Unit,
     onSave: (weightKg: Double) -> Unit
 ) {
-    var weightInput: String by remember { mutableStateOf("") }
+    var weightInput: String by remember { mutableStateOf(initialWeightKg?.toString().orEmpty()) }
     val weightKg: Double? = weightInput.toDoubleOrNull()
     val isValid: Boolean = weightKg != null && weightKg > 0
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
+                modifier = Modifier.align(Alignment.CenterHorizontally),
                 text = stringResource(R.string.title_user_profile),
                 style = MaterialTheme.typography.titleLarge
             )
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
                 value = weightInput,
                 onValueChange = { weightInput = it },
                 label = { Text(stringResource(R.string.label_weight_kg)) },
@@ -310,16 +331,22 @@ fun StartTrackingPanel(
         Column {
             ActivityTypeSelector(
                 selected = selectedActivityType,
-                onSelected = onActivityTypeSelected
+                onSelected = onActivityTypeSelected,
+                modifier = Modifier.padding(8.dp)
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onStartTrackingClicked) {
-                    Text(stringResource(R.string.btn_start_tracking))
-                }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedButton(onClick = onResetClicked) {
                     Icon(imageVector = Icons.Filled.Refresh, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.btn_reset_route))
+                }
+                Button(onClick = onStartTrackingClicked) {
+                    Text(stringResource(R.string.btn_start_tracking))
                 }
             }
         }
@@ -334,12 +361,17 @@ fun ActivityTypeSelector(
 ) {
     val options = ActivityType.entries
 
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
         options.forEachIndexed { index, activityType ->
             SegmentedButton(
                 selected = activityType == selected,
                 onClick = { onSelected(activityType) },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.count()),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = MaterialTheme.colorScheme.primary,
+                    activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                    activeBorderColor = MaterialTheme.colorScheme.primary
+                ),
                 icon = {
                     Icon(
                         imageVector = iconFor(activityType),

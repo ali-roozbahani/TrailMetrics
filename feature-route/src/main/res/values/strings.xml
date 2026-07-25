@@ -8,6 +8,7 @@
     <string name="activity_type_cycling">Cycling</string>
     <string name="activity_type_walking">Walking</string>
     <string name="title_user_profile">User Profile</string>
-    <string name="label_weight_kg">kg</string>
+    <string name="label_weight_kg">Weight (kg)</string>
     <string name="btn_save">Save</string>
+    <string name="cd_user_profile">User Profile</string>
 </resources>

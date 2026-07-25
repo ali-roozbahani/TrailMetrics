@@ -38,6 +38,7 @@ class RouteViewModel(
 
     init {
         loadCurrentLocation()
+        getAndUpdateUserProfile()
     }
 
     private fun loadCurrentLocation() {
@@ -119,7 +120,9 @@ class RouteViewModel(
 
     fun saveUserProfile(weightKg: Double) {
         viewModelScope.launch {
-            userProfileRepository.saveUserProfile(UserProfile(weightKg))
+            val userProfile = UserProfile(weightKg)
+            userProfileRepository.saveUserProfile(userProfile)
+            _uiState.update { state -> state.copy(userProfile = userProfile) }
         }
     }
 
@@ -143,12 +146,20 @@ class RouteViewModel(
             }
         }
     }
+
+    private fun getAndUpdateUserProfile() {
+        viewModelScope.launch {
+            val userProfile = userProfileRepository.getUserProfile()
+            _uiState.update { state -> state.copy(userProfile = userProfile) }
+        }
+    }
 }
 
 data class RouteUiState(
     val startPoint: Coordinates? = null,
     val waypoints: List<RoutePoint> = emptyList(),
     val generatedRoute: Route? = null,
+    val userProfile: UserProfile? = null,
     val selectedActivityType: ActivityType = ActivityType.Running, // by default
     val isLoading: Boolean = false
 ) {
