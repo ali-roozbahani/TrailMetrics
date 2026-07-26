@@ -2,7 +2,8 @@
 
 A modern Android app for tracking outdoor activities (running, cycling, walking) in real time — built with Kotlin, Jetpack Compose, and Clean Architecture as a portfolio project.
 
-<!-- PLACEHOLDER: after merging to main, edit this file on GitHub.com and drag-drop the demo video here — GitHub will auto-generate an embeddable link -->
+<img width="280" alt="TrailMetrics demo" src="https://github.com/user-attachments/assets/732abec0-d954-47f5-ac7a-3f45f165238c" />
+
 
 ---
 
