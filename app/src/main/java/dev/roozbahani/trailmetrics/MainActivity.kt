@@ -79,6 +79,7 @@ fun TrailMetricsNavHost() {
             TrackingScreen(
                 initialStartPoint = route.startPoint,
                 plannedRoutePoints = route.plannedRoutePoints,
+                activityType = route.selectedActivityType,
                 onFinished = { navController.popBackStack() }
             )
         }

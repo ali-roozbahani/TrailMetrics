@@ -60,6 +60,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
@@ -69,13 +70,15 @@ import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 fun TrackingScreen(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
+    activityType: ActivityType,
     onFinished: () -> Unit,
-    viewModel: TrackingViewModel = koinViewModel()
+    viewModel: TrackingViewModel = koinViewModel(parameters = { parametersOf(activityType) })
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
