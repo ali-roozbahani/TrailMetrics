@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.navigation
 
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import kotlinx.serialization.Serializable
 
@@ -10,6 +11,7 @@ sealed interface TrailMetricsRoute {
     @Serializable
     data class Tracking(
         val startPoint: Coordinates,
-        val plannedRoutePoints: List<Coordinates>
+        val plannedRoutePoints: List<Coordinates>,
+        val selectedActivityType: ActivityType
     ) : TrailMetricsRoute
 }

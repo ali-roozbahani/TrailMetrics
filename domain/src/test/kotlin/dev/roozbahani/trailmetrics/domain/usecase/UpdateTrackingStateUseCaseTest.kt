@@ -85,7 +85,7 @@ class UpdateTrackingStateUseCaseTest {
     fun `locationReceived is ignored when current state is Paused`() {
         val pausedMetrics = sampleMetrics()
         val currentState = TrackingState.Paused(pausedMetrics)
-        val locationReceivedEvent = TrackingEvent.LocationReceived(point2, 15)
+        val locationReceivedEvent = TrackingEvent.LocationReceived(coordinates = point2, timestampMillis = 15, speedMetersPerSecond = null)
 
         val newState = useCase(currentState, locationReceivedEvent)
 
@@ -96,10 +96,9 @@ class UpdateTrackingStateUseCaseTest {
     @Test
     fun `locationReceived from Tracking updates distance, elapsed time and path`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
-        val newUpdateEvent = TrackingEvent.LocationReceived(point2, 20)
+        val newUpdateEvent = TrackingEvent.LocationReceived(coordinates = point2, timestampMillis = 20, speedMetersPerSecond = null)
         val distanceMeters = currentState.metrics.path.last().distanceTo(newUpdateEvent.coordinates)
-        val deltaTime =
-            newUpdateEvent.timestampMillis - currentState.metrics.lastUpdateTimestampMillis
+        val deltaTime = newUpdateEvent.timestampMillis - currentState.metrics.lastUpdateTimestampMillis
 
         var newState = useCase(currentState, newUpdateEvent)
         assertThat(newState).isInstanceOf(TrackingState.Tracking::class.java)
@@ -147,7 +146,7 @@ class UpdateTrackingStateUseCaseTest {
     @Test
     fun `locationReceived is ignored when current state is Idle`() {
         val idleState = TrackingState.Idle
-        val locationReceivedEvent = TrackingEvent.LocationReceived(point1, 10)
+        val locationReceivedEvent = TrackingEvent.LocationReceived(coordinates = point1, timestampMillis = 10, speedMetersPerSecond =  null)
 
         val newState = useCase(idleState, locationReceivedEvent)
 

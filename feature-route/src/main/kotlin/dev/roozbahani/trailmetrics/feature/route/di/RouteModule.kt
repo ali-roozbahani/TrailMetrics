@@ -11,6 +11,7 @@ val routeModule = module {
         RouteViewModel(
             getCurrentLocationUseCase = get(),
             generateClosedRouteUseCase = get(),
+            userProfileRepository = get(),
             uiErrorMapper = get()
         )
     }
