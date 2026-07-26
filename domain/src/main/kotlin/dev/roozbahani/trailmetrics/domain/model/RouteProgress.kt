@@ -12,7 +12,7 @@ fun calculateRouteProgress(
     plannedRoute: List<Coordinates>,
     currentLocation: Coordinates,
     previousIndex: Int = 0,
-    searchWindow: Int = 10   // فقط تا ۱۰ نقطه جلوتر از موقعیت قبلی رو بگرد
+    searchWindow: Int = 10
 ): RouteProgress {
     if (plannedRoute.isEmpty()) return RouteProgress(emptyList(), emptyList(), 0)
 
