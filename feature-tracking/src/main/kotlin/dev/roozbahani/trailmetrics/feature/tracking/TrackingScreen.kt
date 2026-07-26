@@ -8,11 +8,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +22,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -67,8 +74,10 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
+import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
+import dev.roozbahani.trailmetrics.domain.util.formatSpeed
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -222,7 +231,7 @@ fun TrackingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 uiState.currentMetrics?.let { metrics ->
-                    MetricsDisplay(metrics = metrics)
+                    MetricsDisplay(metrics = metrics, calories = uiState.calories)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -332,32 +341,72 @@ fun TrackingScreen(
 @Composable
 fun MetricsDisplay(
     metrics: TrackingMetrics,
+    calories: Double?,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(fraction = 0.6f),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .animateContentSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = formatDistance(metrics.distanceMeters),
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Text(
-                text = formatElapsedTime(metrics.elapsedMillis),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricCell(
+                    icon = Icons.Filled.Route,
+                    label = stringResource(R.string.label_distance),
+                    value = formatDistance(metrics.distanceMeters),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCell(
+                    icon = Icons.Filled.Timer,
+                    label = stringResource(R.string.label_time),
+                    value = formatElapsedTime(metrics.elapsedMillis),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricCell(
+                    icon = Icons.Filled.Speed,
+                    label = stringResource(R.string.label_speed),
+                    value = formatSpeed(metrics.currentSpeedMetersPerSecond),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCell(
+                    icon = Icons.Filled.LocalFireDepartment,
+                    label = stringResource(R.string.label_calories),
+                    value = formatCalories(calories),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun MetricCell(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(value, style = MaterialTheme.typography.titleLarge)
     }
 }
 
