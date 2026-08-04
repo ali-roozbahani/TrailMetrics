@@ -2,10 +2,7 @@ package dev.roozbahani.trailmetrics.data.common
 
 import kotlinx.coroutines.CancellationException
 
-interface GoogleApiResponse {
-    val status: String
-}
-
+@Suppress("TooGenericExceptionCaught")
 suspend inline fun <R : GoogleApiResponse> safeApiCall(
     crossinline apiCall: suspend () -> R
 ): Result<R> =
@@ -21,3 +18,7 @@ suspend inline fun <R : GoogleApiResponse> safeApiCall(
     } catch (e: Exception) {
         Result.failure(e)
     }
+
+interface GoogleApiResponse {
+    val status: String
+}
