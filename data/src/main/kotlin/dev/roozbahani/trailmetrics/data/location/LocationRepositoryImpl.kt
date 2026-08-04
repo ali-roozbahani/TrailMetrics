@@ -28,6 +28,7 @@ class LocationRepositoryImpl(
 ) : LocationRepository {
 
 
+    @Suppress("TooGenericExceptionCaught")
     @RequiresPermission(
         anyOf = [
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -66,6 +67,7 @@ class LocationRepositoryImpl(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     @RequiresPermission(
         anyOf = [
             Manifest.permission.ACCESS_FINE_LOCATION,

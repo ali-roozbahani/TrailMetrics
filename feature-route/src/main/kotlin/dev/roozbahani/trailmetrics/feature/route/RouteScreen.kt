@@ -77,7 +77,11 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RouteScreen(
     viewModel: RouteViewModel = koinViewModel(),
-    onStartTrackingClicked: (startPoint: Coordinates, plannedRoutePoints: List<Coordinates>, activityType: ActivityType) -> Unit
+    onStartTrackingClicked: (
+        startPoint: Coordinates,
+        plannedRoutePoints: List<Coordinates>,
+        activityType: ActivityType
+    ) -> Unit,
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -400,6 +404,7 @@ private fun iconFor(type: ActivityType): ImageVector = when (type) {
     ActivityType.Walking -> Icons.AutoMirrored.Filled.DirectionsWalk
 }
 
+@Suppress("UnusedPrivateMember")
 @Preview(showBackground = true)
 @Composable
 private fun ActivityTypeSelectorPreview() {
