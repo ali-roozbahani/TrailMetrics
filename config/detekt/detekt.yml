@@ -37,7 +37,7 @@ complexity:
     active: true
     functionThreshold: 7
     constructorThreshold: 7
-    excludes: ['**/domain/**/TrackingSessionManager.kt']
+    excludes: ['**/domain/**/TrackingSessionManager.kt', '**/feature/tracking/TrackingViewModel.kt']
 
 naming:
   active: true

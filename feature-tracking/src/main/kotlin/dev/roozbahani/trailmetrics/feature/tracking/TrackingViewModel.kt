@@ -12,7 +12,9 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
+import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,9 +28,14 @@ class TrackingViewModel(
     private val trackingSessionManager: TrackingSessionManager,
     private val userProfileRepository: UserProfileRepository,
     private val calorieCalculator: CalorieCalculator,
+    private val saveActivityUseCase: SaveActivityUseCase,
     private val activityType: ActivityType,
+    private val plannedRoutePoints: List<Coordinates>,
+    private val clock: Clock,
     private val uiErrorMapper: RouteUiErrorMapper
 ) : ViewModel() {
+
+    private var startedAtEpochMillis: Long = 0L
 
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
 
@@ -76,6 +83,7 @@ class TrackingViewModel(
         }
 
     fun onStartClicked(startCoordinates: Coordinates) {
+        startedAtEpochMillis = clock.nowMillis()
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates)
         }
@@ -86,6 +94,24 @@ class TrackingViewModel(
     fun onResumeClicked() = trackingSessionManager.resume()
 
     fun onStopClicked() = trackingSessionManager.stop()
+
+    fun onFinishClicked(onSaved: () -> Unit) {
+        viewModelScope.launch {
+            val currentTrackingState = trackingSessionManager.currentState.value
+            if (currentTrackingState is TrackingState.Finished) {
+                val weightKg = _userProfile.value?.weightKg ?: return@launch
+                saveActivityUseCase(
+                    activityType = activityType,
+                    plannedRoutePoints = plannedRoutePoints,
+                    metrics = currentTrackingState.metrics,
+                    weightKg = weightKg,
+                    startedAtEpochMillis = startedAtEpochMillis,
+                    snapshotFilePath = null
+                )
+                onSaved()
+            }
+        }
+    }
 
     fun onLocationPermissionGranted(startCoordinates: Coordinates) {
         onStartClicked(startCoordinates)

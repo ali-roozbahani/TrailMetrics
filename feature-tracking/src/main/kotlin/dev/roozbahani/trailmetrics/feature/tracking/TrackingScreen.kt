@@ -86,8 +86,8 @@ fun TrackingScreen(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
-    onFinished: () -> Unit,
-    viewModel: TrackingViewModel = koinViewModel(parameters = { parametersOf(activityType) })
+    onNavigateBack: () -> Unit,
+    viewModel: TrackingViewModel = koinViewModel(parameters = { parametersOf(activityType, plannedRoutePoints) })
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -128,7 +128,7 @@ fun TrackingScreen(
                 TextButton(onClick = {
                     showExitConfirmation = false
                     viewModel.onStopClicked()
-                    onFinished()
+                    onNavigateBack()
                 }) {
                     Text(stringResource(R.string.dialog_exit_tracking_confirm))
                 }
@@ -259,7 +259,7 @@ fun TrackingScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Button(onClick = onFinished) {
+                                Button(onClick = { viewModel.onFinishClicked(onNavigateBack) }) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null
@@ -318,7 +318,7 @@ fun TrackingScreen(
                                 Button( // Stop
                                     onClick = {
                                         viewModel.onStopClicked()
-                                        onFinished()
+                                        onNavigateBack()
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,

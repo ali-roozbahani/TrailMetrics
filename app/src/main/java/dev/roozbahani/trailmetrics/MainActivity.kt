@@ -80,7 +80,7 @@ fun TrailMetricsNavHost() {
                 initialStartPoint = route.startPoint,
                 plannedRoutePoints = route.plannedRoutePoints,
                 activityType = route.selectedActivityType,
-                onFinished = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }
