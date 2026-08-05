@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="msg_no_activities">No Activities yet</string>
+    <string name="label_distance">Distance</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_calories">Calories</string>
+</resources>

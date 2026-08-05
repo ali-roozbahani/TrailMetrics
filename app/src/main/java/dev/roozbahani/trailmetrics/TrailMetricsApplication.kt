@@ -10,6 +10,7 @@ import dev.roozbahani.trailmetrics.data.di.networkModule
 import dev.roozbahani.trailmetrics.data.di.trackingModule
 import dev.roozbahani.trailmetrics.data.di.useCaseModule
 import dev.roozbahani.trailmetrics.data.di.userProfileModule
+import dev.roozbahani.trailmetrics.feature.history.di.historyUiModule
 import dev.roozbahani.trailmetrics.feature.route.di.routeModule
 import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
 import org.koin.android.ext.koin.androidContext
@@ -31,7 +32,8 @@ class TrailMetricsApplication : Application() {
                 trackingModule,
                 trackingUiModule,
                 userProfileModule,
-                activityHistoryModule
+                activityHistoryModule,
+                historyUiModule
             )
         }
     }

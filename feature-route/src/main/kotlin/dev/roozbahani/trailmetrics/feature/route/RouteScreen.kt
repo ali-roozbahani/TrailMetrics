@@ -393,9 +393,9 @@ fun ActivityTypeSelector(
 
 @Composable
 private fun labelFor(type: ActivityType): String = when (type) {
-    ActivityType.Running -> stringResource(R.string.activity_type_running)
-    ActivityType.Cycling -> stringResource(R.string.activity_type_cycling)
-    ActivityType.Walking -> stringResource(R.string.activity_type_walking)
+    ActivityType.Running -> stringResource(CoreStrings.activity_type_running)
+    ActivityType.Cycling -> stringResource(CoreStrings.activity_type_cycling)
+    ActivityType.Walking -> stringResource(CoreStrings.activity_type_walking)
 }
 
 private fun iconFor(type: ActivityType): ImageVector = when (type) {
@@ -421,3 +421,4 @@ private fun ActivityTypeSelectorPreview() {
 }
 
 private const val DEFAULT_ZOOM = 15f
+typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string

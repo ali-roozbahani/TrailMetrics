@@ -44,4 +44,7 @@ dependencies {
     // Koin
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
+
+    // Image Loading
+    implementation(libs.coil.compose)
 }
