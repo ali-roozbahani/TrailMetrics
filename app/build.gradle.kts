@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":feature-route"))
     implementation(project(":feature-tracking"))
+    implementation(project(":feature-history"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
