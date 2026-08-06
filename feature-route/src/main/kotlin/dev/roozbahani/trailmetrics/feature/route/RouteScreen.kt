@@ -82,6 +82,7 @@ fun RouteScreen(
         plannedRoutePoints: List<Coordinates>,
         activityType: ActivityType
     ) -> Unit,
+    bottomBar: @Composable () -> Unit = {}
 ) {
     val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -149,7 +150,8 @@ fun RouteScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) }
+        snackbarHost = { SnackbarHost(snackBarHostState) },
+        bottomBar = bottomBar
     ) { innerPadding ->
         Box(
             modifier = Modifier

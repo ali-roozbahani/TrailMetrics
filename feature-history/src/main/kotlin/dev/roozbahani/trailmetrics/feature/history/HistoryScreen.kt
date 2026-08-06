@@ -50,12 +50,15 @@ import java.util.Date
 @Composable
 fun HistoryScreen(
     onActivityClicked: (activityId: Long) -> Unit,
+    bottomBar: @Composable () -> Unit = {},
     viewModel: HistoryViewModel = koinViewModel()
 ) {
 
     val uiState: HistoryUiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        bottomBar = bottomBar
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
