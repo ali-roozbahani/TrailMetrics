@@ -3,7 +3,6 @@ package dev.roozbahani.trailmetrics.feature.history
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
@@ -167,37 +170,24 @@ private fun ActivityRow(
 
         Row(modifier = Modifier.padding(12.dp)) {
             MetricCell(
-                label = stringResource(R.string.label_distance),
+                label = stringResource(CoreStrings.label_distance),
                 value = formatDistance(activity.distanceMeters),
+                icon = Icons.Filled.Route,
                 modifier = Modifier.weight(1f)
             )
             MetricCell(
-                label = stringResource(R.string.label_duration),
+                label = stringResource(CoreStrings.label_duration),
                 value = formatElapsedTime(activity.durationMillis),
+                icon = Icons.Filled.Timer,
                 modifier = Modifier.weight(1f)
             )
             MetricCell(
-                label = stringResource(R.string.label_calories),
+                label = stringResource(CoreStrings.label_calories),
                 value = formatCalories(activity.calories),
+                icon = Icons.Filled.LocalFireDepartment,
                 modifier = Modifier.weight(1f)
             )
         }
-    }
-}
-
-@Composable
-private fun MetricCell(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(value, style = MaterialTheme.typography.titleMedium)
     }
 }
 

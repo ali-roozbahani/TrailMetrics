@@ -167,7 +167,7 @@ fun RouteScreen(
             ) {
                 uiState.startPoint?.let { startPoint ->
                     StartFinishMarker(
-                        title = stringResource(R.string.marker_title_start_finish),
+                        title = stringResource(CoreStrings.marker_title_start_finish),
                         coordinates = startPoint,
                     )
                 }
