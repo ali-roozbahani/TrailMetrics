@@ -95,7 +95,7 @@ class TrackingViewModel(
 
     fun onStopClicked() = trackingSessionManager.stop()
 
-    fun onFinishClicked(onSaved: () -> Unit) {
+    fun onFinishClicked(snapshotFilePath: String?, onSaved: () -> Unit) {
         viewModelScope.launch {
             val currentTrackingState = trackingSessionManager.currentState.value
             if (currentTrackingState is TrackingState.Finished) {
@@ -106,7 +106,7 @@ class TrackingViewModel(
                     metrics = currentTrackingState.metrics,
                     weightKg = weightKg,
                     startedAtEpochMillis = startedAtEpochMillis,
-                    snapshotFilePath = null
+                    snapshotFilePath = snapshotFilePath
                 )
                 onSaved()
             }

@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.feature.history
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -123,11 +124,13 @@ private fun ActivityDetailsContent(activity: ActivityRecord) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     MetricCell(
                         icon = Icons.Filled.Route,
                         label = stringResource(CoreStrings.label_distance),
@@ -141,7 +144,10 @@ private fun ActivityDetailsContent(activity: ActivityRecord) {
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Row(modifier = Modifier.padding(top = 16.dp)) {
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     MetricCell(
                         icon = Icons.Filled.Speed,
                         label = stringResource(CoreStrings.label_average_speed),

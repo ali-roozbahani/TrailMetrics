@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -117,6 +118,7 @@ private fun ActivityRow(
                 AsyncImage(
                     model = activity.snapshotFilePath,
                     contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(160.dp)
@@ -171,7 +173,10 @@ private fun ActivityRow(
             )
         }
 
-        Row(modifier = Modifier.padding(12.dp)) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             MetricCell(
                 label = stringResource(CoreStrings.label_distance),
                 value = formatDistance(activity.distanceMeters),

@@ -57,8 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
@@ -75,6 +77,7 @@ import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
+import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -84,7 +87,12 @@ fun TrackingScreen(
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
     onNavigateBack: () -> Unit,
-    viewModel: TrackingViewModel = koinViewModel(parameters = { parametersOf(activityType, plannedRoutePoints) })
+    viewModel: TrackingViewModel = koinViewModel(parameters = {
+        parametersOf(
+            activityType,
+            plannedRoutePoints
+        )
+    })
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -197,6 +205,8 @@ fun TrackingScreen(
         }
     }
 
+    var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { innerPadding ->
@@ -218,6 +228,10 @@ fun TrackingScreen(
                 }
 
                 CurrentLocationMarker(coordinates = currentLocation ?: initialStartPoint)
+
+                MapEffect(Unit) { map ->
+                    googleMapRef = map
+                }
             }
 
             Column(
@@ -256,7 +270,19 @@ fun TrackingScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Button(onClick = { viewModel.onFinishClicked(onNavigateBack) }) {
+                                Button( // Finish
+                                    onClick = {
+                                        val map = googleMapRef
+                                        if (map != null) {
+                                            map.snapshot { bitmap ->
+                                                val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
+                                                viewModel.onFinishClicked(filePath, onNavigateBack)
+                                            }
+                                        } else {
+                                            viewModel.onFinishClicked(null, onNavigateBack)
+                                        }
+                                    }
+                                ) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null
@@ -294,7 +320,10 @@ fun TrackingScreen(
                                         contentColor = MaterialTheme.colorScheme.onTertiary
                                     )
                                 ) {
-                                    Icon(imageVector = Icons.Filled.Pause, contentDescription = null)
+                                    Icon(
+                                        imageVector = Icons.Filled.Pause,
+                                        contentDescription = null
+                                    )
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.btn_tracking_pause))
                                 }
@@ -381,6 +410,7 @@ fun MetricsDisplay(
 }
 
 private typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string
+
 private const val DEFAULT_ZOOM = 15f
 private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0
 private const val ROUTE_COMPLETION_INDEX_MARGIN = 3
