@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.tracking.util
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -32,6 +33,7 @@ internal fun saveSnapshotToFile(context: Context, bitmap: Bitmap): String? =
         }
         file.absolutePath
     } catch (ex: IOException) {
+        Log.e("MapSnapshotSaver", "Failed to save map snapshot", ex)
         null
     }
 
