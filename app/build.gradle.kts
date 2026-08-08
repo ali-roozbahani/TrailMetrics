@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":data"))
     implementation(project(":feature-route"))
     implementation(project(":feature-tracking"))
+    implementation(project(":feature-history"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -73,6 +74,9 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+
+    // Icons
+    implementation(libs.androidx.compose.material.icons.extended)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

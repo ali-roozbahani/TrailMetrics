@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -54,16 +51,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -78,6 +77,7 @@ import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
+import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -86,8 +86,13 @@ fun TrackingScreen(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
-    onFinished: () -> Unit,
-    viewModel: TrackingViewModel = koinViewModel(parameters = { parametersOf(activityType) })
+    onNavigateBack: () -> Unit,
+    viewModel: TrackingViewModel = koinViewModel(parameters = {
+        parametersOf(
+            activityType,
+            plannedRoutePoints
+        )
+    })
 ) {
     val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val cameraPositionState = rememberCameraPositionState()
@@ -128,7 +133,7 @@ fun TrackingScreen(
                 TextButton(onClick = {
                     showExitConfirmation = false
                     viewModel.onStopClicked()
-                    onFinished()
+                    onNavigateBack()
                 }) {
                     Text(stringResource(R.string.dialog_exit_tracking_confirm))
                 }
@@ -200,6 +205,8 @@ fun TrackingScreen(
         }
     }
 
+    var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { innerPadding ->
@@ -221,6 +228,10 @@ fun TrackingScreen(
                 }
 
                 CurrentLocationMarker(coordinates = currentLocation ?: initialStartPoint)
+
+                MapEffect(Unit) { map ->
+                    googleMapRef = map
+                }
             }
 
             Column(
@@ -259,7 +270,19 @@ fun TrackingScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Button(onClick = onFinished) {
+                                Button( // Finish
+                                    onClick = {
+                                        val map = googleMapRef
+                                        if (map != null) {
+                                            map.snapshot { bitmap ->
+                                                val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
+                                                viewModel.onFinishClicked(filePath, onNavigateBack)
+                                            }
+                                        } else {
+                                            viewModel.onFinishClicked(null, onNavigateBack)
+                                        }
+                                    }
+                                ) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null
@@ -297,7 +320,10 @@ fun TrackingScreen(
                                         contentColor = MaterialTheme.colorScheme.onTertiary
                                     )
                                 ) {
-                                    Icon(imageVector = Icons.Filled.Pause, contentDescription = null)
+                                    Icon(
+                                        imageVector = Icons.Filled.Pause,
+                                        contentDescription = null
+                                    )
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.btn_tracking_pause))
                                 }
@@ -318,7 +344,7 @@ fun TrackingScreen(
                                 Button( // Stop
                                     onClick = {
                                         viewModel.onStopClicked()
-                                        onFinished()
+                                        onNavigateBack()
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
@@ -352,30 +378,30 @@ fun MetricsDisplay(
         Column(modifier = Modifier.padding(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricCell(
-                    icon = Icons.Filled.Route,
-                    label = stringResource(R.string.label_distance),
+                    label = stringResource(CoreStrings.label_distance),
                     value = formatDistance(metrics.distanceMeters),
+                    icon = Icons.Filled.Route,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCell(
-                    icon = Icons.Filled.Timer,
-                    label = stringResource(R.string.label_time),
+                    label = stringResource(CoreStrings.label_time),
                     value = formatElapsedTime(metrics.elapsedMillis),
+                    icon = Icons.Filled.Timer,
                     modifier = Modifier.weight(1f)
                 )
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricCell(
-                    icon = Icons.Filled.Speed,
-                    label = stringResource(R.string.label_speed),
+                    label = stringResource(CoreStrings.label_speed),
                     value = formatSpeed(metrics.currentSpeedMetersPerSecond),
+                    icon = Icons.Filled.Speed,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCell(
-                    icon = Icons.Filled.LocalFireDepartment,
-                    label = stringResource(R.string.label_calories),
+                    label = stringResource(CoreStrings.label_calories),
                     value = formatCalories(calories),
+                    icon = Icons.Filled.LocalFireDepartment,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -383,32 +409,7 @@ fun MetricsDisplay(
     }
 }
 
-@Composable
-private fun MetricCell(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
-            .padding(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(value, style = MaterialTheme.typography.titleLarge)
-    }
-}
+private typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string
 
 private const val DEFAULT_ZOOM = 15f
 private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0

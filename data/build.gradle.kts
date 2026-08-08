@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.room)
 }
 
 val localProperties = Properties().apply {
@@ -11,6 +12,10 @@ val localProperties = Properties().apply {
     if (localPropertiesFile.exists()) {
         load(localPropertiesFile.inputStream())
     }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {

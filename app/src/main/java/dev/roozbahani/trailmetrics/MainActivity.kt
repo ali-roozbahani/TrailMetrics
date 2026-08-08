@@ -16,10 +16,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.feature.history.DetailsScreen
+import dev.roozbahani.trailmetrics.feature.history.HistoryScreen
 import dev.roozbahani.trailmetrics.feature.route.RouteScreen
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreen
 import dev.roozbahani.trailmetrics.navigation.CoordinatesNavType
 import dev.roozbahani.trailmetrics.navigation.PlannedRoutePointsNavType
+import dev.roozbahani.trailmetrics.navigation.TrailMetricsBottomBar
 import dev.roozbahani.trailmetrics.navigation.TrailMetricsRoute
 import kotlin.reflect.typeOf
 
@@ -53,7 +56,8 @@ fun TrailMetricsNavHost() {
                             selectedActivityType
                         )
                     )
-                }
+                },
+                bottomBar = { TrailMetricsBottomBar(navController) }
             )
         }
 
@@ -80,8 +84,22 @@ fun TrailMetricsNavHost() {
                 initialStartPoint = route.startPoint,
                 plannedRoutePoints = route.plannedRoutePoints,
                 activityType = route.selectedActivityType,
-                onFinished = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() }
             )
+        }
+
+        composable<TrailMetricsRoute.History> {
+            HistoryScreen(
+                onActivityClicked = { activityId ->
+                    navController.navigate(TrailMetricsRoute.ActivityDetails(activityId))
+                },
+                bottomBar = { TrailMetricsBottomBar(navController) }
+            )
+        }
+
+        composable<TrailMetricsRoute.ActivityDetails> { backStackEntry ->
+            val route: TrailMetricsRoute.ActivityDetails = backStackEntry.toRoute()
+            DetailsScreen(activityId = route.activityId)
         }
     }
 }

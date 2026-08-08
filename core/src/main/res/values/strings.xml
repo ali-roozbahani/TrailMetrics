@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="marker_title_start_finish">Start / Finish</string>
     <string name="msg_location_unavailable">Unable to retrieve your current location</string>
     <string name="msg_missing_location_permission">Location permission is missing</string>
     <string name="msg_general_location_error">Failed to retrieve your current location</string>
+    <string name="activity_type_running">Running</string>
+    <string name="activity_type_cycling">Cycling</string>
+    <string name="activity_type_walking">Walking</string>
+    <string name="label_distance">Distance</string>
+    <string name="label_time">Time</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_speed">Speed</string>
+    <string name="label_average_speed">Avg. Speed</string>
+    <string name="label_calories">Calories</string>
 </resources>

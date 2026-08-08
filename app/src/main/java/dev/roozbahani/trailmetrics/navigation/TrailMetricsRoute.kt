@@ -14,4 +14,10 @@ sealed interface TrailMetricsRoute {
         val plannedRoutePoints: List<Coordinates>,
         val selectedActivityType: ActivityType
     ) : TrailMetricsRoute
+
+    @Serializable
+    data object History : TrailMetricsRoute
+
+    @Serializable
+    data class ActivityDetails(val activityId: Long) : TrailMetricsRoute
 }

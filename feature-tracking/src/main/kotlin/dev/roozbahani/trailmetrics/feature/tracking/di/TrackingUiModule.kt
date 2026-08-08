@@ -14,7 +14,10 @@ val trackingUiModule = module {
             trackingSessionManager = get(),
             userProfileRepository = get(),
             calorieCalculator = get(),
+            saveActivityUseCase = get(),
             activityType = params.get(),
+            plannedRoutePoints = params.get(),
+            clock = get(),
             uiErrorMapper = get()
         )
     }
