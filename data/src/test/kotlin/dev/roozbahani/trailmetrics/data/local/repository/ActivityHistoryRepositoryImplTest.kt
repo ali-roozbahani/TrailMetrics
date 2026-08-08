@@ -28,6 +28,20 @@ class ActivityHistoryRepositoryImplTest {
     private val point1 = Coordinates(51.336, 12.388)
     private val point2 = Coordinates(51.337, 12.389)
 
+    private val defaultActivity = ActivityRecord(
+        id = 0,
+        activityType = ActivityType.Walking,
+        startedAtEpochMillis = 1_000L,
+        endedAtEpochMillis = 2_000L,
+        distanceMeters = 100.0,
+        durationMillis = 1_000L,
+        averageSpeedMetersPerSecond = 15f,
+        calories = 30.0,
+        plannedRoutePoints = listOf(point1, point2),
+        actualPath = listOf(point1, point2),
+        snapshotFilePath = null
+    )
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
@@ -54,14 +68,13 @@ class ActivityHistoryRepositoryImplTest {
 
     @Test
     fun `saveActivity returns a valid generated id`() = runTest {
-        val newRecord = sampleActivity()
-        val generatedId = repository.saveActivity(newRecord)
+        val generatedId = repository.saveActivity(defaultActivity)
         assertThat(generatedId).isNotEqualTo(0)
     }
 
     @Test
     fun `saveActivity then observeActivities returns the saved activity`() = runTest {
-        var newRecord = sampleActivity()
+        var newRecord = defaultActivity
         val generatedId = repository.saveActivity(newRecord)
         newRecord = newRecord.copy(id = generatedId)
 
@@ -71,7 +84,7 @@ class ActivityHistoryRepositoryImplTest {
 
     @Test
     fun `getActivity returns the correct activity for an existing id`() = runTest {
-        var newRecord = sampleActivity()
+        var newRecord = defaultActivity
         val generatedId = repository.saveActivity(newRecord)
         newRecord = newRecord.copy(id = generatedId)
 
@@ -81,7 +94,7 @@ class ActivityHistoryRepositoryImplTest {
 
     @Test
     fun `getActivity returns null for a non-existing id`() = runTest {
-        repository.saveActivity(sampleActivity())
+        repository.saveActivity(defaultActivity)
 
         val activity = repository.getActivity(id = 12L) // only id = 1 exists
         assertThat(activity).isNull()
@@ -89,7 +102,7 @@ class ActivityHistoryRepositoryImplTest {
 
     @Test
     fun `deleteActivity removes the activity from the database`() = runTest {
-        val newRecord = sampleActivity()
+        val newRecord = defaultActivity
         val generatedId = repository.saveActivity(newRecord)
 
         assertThat(repository.getActivity(generatedId)).isNotNull() // assert new activity exists
@@ -101,15 +114,15 @@ class ActivityHistoryRepositoryImplTest {
 
     @Test
     fun `observeActivities emits activities ordered by most recent first`() = runTest {
-        var activity1 = sampleActivity(startedAtEpochMillis = 1_000L)
+        var activity1 = defaultActivity.copy(startedAtEpochMillis = 1_000L)
         val genId1 = repository.saveActivity(activity1)
         activity1 = activity1.copy(id = genId1)
 
-        var activity2 = sampleActivity(startedAtEpochMillis = 2_000L)
+        var activity2 = defaultActivity.copy(startedAtEpochMillis = 2_000L)
         val genId2 = repository.saveActivity(activity2)
         activity2 = activity2.copy(id = genId2)
 
-        var activity3 = sampleActivity(startedAtEpochMillis = 3_000L)
+        var activity3 = defaultActivity.copy(startedAtEpochMillis = 3_000L)
         val genId3 = repository.saveActivity(activity3)
         activity3 = activity3.copy(id = genId3)
 
@@ -120,30 +133,4 @@ class ActivityHistoryRepositoryImplTest {
             activity1
         ) // ORDERED DESC
     }
-
-    private fun sampleActivity(
-        id: Long = 0,
-        activityType: ActivityType = ActivityType.Walking,
-        startedAtEpochMillis: Long = 1_000L,
-        endedAtEpochMillis: Long = 2_000L,
-        distanceMeters: Double = 100.0,
-        durationMillis: Long = 1_000L,
-        averageSpeedMetersPerSecond: Float = 15f,
-        calories: Double = 30.0,
-        plannedRoutePoints: List<Coordinates> = listOf(point1, point2),
-        actualPath: List<Coordinates> = listOf(point1, point2),
-        snapshotFilePath: String? = null
-    ) = ActivityRecord(
-        id = id,
-        activityType = activityType,
-        startedAtEpochMillis = startedAtEpochMillis,
-        endedAtEpochMillis = endedAtEpochMillis,
-        distanceMeters = distanceMeters,
-        durationMillis = durationMillis,
-        averageSpeedMetersPerSecond = averageSpeedMetersPerSecond,
-        calories = calories,
-        plannedRoutePoints = plannedRoutePoints,
-        actualPath = actualPath,
-        snapshotFilePath = snapshotFilePath
-    )
 }
