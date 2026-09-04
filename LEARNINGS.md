@@ -96,4 +96,45 @@ Fix: `xcodebuild -downloadPlatform iOS` (or Xcode > Settings > Platforms > iOS).
 Direct analogy to Android: this is the iOS equivalent of downloading a system image
 via the Android SDK Manager before an AVD can boot.
 
+---
+
+## Manual fakes over mocking frameworks for KMP
+
+mockk (like Truth/JUnit) has no Kotlin/Native artifacts, so mocked dependencies
+in tests had to become hand-written fakes to run in commonTest. Two design
+decisions worth remembering:
+
+1. **Fakes need mutable behavior, not just mutable state.** A first pass at
+   `FakeClock` took its return sequence via constructor (`FakeClock(vararg values)`),
+   mirroring how mockk's `every {}` is called per-test. But the object under test
+   is often constructed once in `@BeforeTest`, before each test's specific
+   values are known. Fix: expose a `setValues(...)` method that can be called
+   from within each test, after construction — matching the timing of mockk's
+   per-test `every {}` calls rather than the timing of object creation.
+
+2. **Not every dependency needs a fake.** `CalorieCalculator` is a concrete,
+   pure, deterministic class (no I/O) — it was left as a real instance in
+   `SaveActivityUseCaseTest` rather than mocked/faked. Rule of thumb: fake or
+   mock only at I/O boundaries (network, disk, sensors, system clock); pure
+   logic should just be used directly, since fixture behavior for it doesn't
+   need faking and its correctness is covered by CalorieCalculatorTest already.
+   Bonus: computing the test's expected value by calling the real calculator
+   (instead of hardcoding a number) keeps the test resilient to intentional
+   formula changes and catches accidental ones.
+
+---
+
+## Phase A (domain module) complete
+
+`domain` is now a fully verified KMP module: all production code compiles for
+Android + iOS, and all 7 test files run (not just compile) on both
+`testAndroidHostTest` and `iosSimulatorArm64Test`, using kotlin.test + hand-written
+fakes instead of JUnit/Truth/mockk. Zero JVM-only test dependencies remain.
+
+Next: Phase B (data module) — Ktor engine swap, Room KMP driver, and designing
+expect/actual boundaries for SharedPreferences, Play Services Location, and the
+Android foreground Service (per the original ClaudeCode investigation report).
+
+---
+
 ## [Next entry goes here — Phase B: Ktor engine swap / Room KMP driver / etc.]
