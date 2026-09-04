@@ -1,7 +1,8 @@
 package dev.roozbahani.trailmetrics.domain.model
 
-import com.google.common.truth.Truth.assertThat
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class RouteProgressTest {
 
@@ -13,8 +14,8 @@ class RouteProgressTest {
     @Test
     fun `empty planned route returns empty segments`() {
         val result = calculateRouteProgress(plannedRoute = emptyList(), currentLocation = point1)
-        assertThat(result.traveledSegment).hasSize(0)
-        assertThat(result.remainingSegment).hasSize(0)
+        assertEquals(0, result.traveledSegment.size)
+        assertEquals(0, result.remainingSegment.size)
     }
 
     @Test
@@ -23,8 +24,10 @@ class RouteProgressTest {
 
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
-        assertThat(result.traveledSegment).containsExactly(point1)
-        assertThat(result.remainingSegment).containsExactly(point1, point2, point3)
+        val expectedTraveled = listOf(point1)
+        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        val expectedRemaining = listOf(point1, point2, point3)
+        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
     }
 
     @Test
@@ -33,8 +36,10 @@ class RouteProgressTest {
 
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
-        assertThat(result.traveledSegment).containsExactly(point1, point2, point3)
-        assertThat(result.remainingSegment).containsExactly(point3)
+        val expectedTraveled = listOf(point1, point2, point3)
+        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        val expectedRemaining = listOf(point3)
+        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
     }
 
     @Test
@@ -43,8 +48,10 @@ class RouteProgressTest {
 
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
-        assertThat(result.traveledSegment).containsExactly(point1, point2)
-        assertThat(result.remainingSegment).containsExactly(point2, point3)
+        val expectedTraveled = listOf(point1, point2)
+        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        val expectedRemaining = listOf(point2, point3)
+        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
     }
 
     @Test
@@ -61,12 +68,12 @@ class RouteProgressTest {
         // The user is actually near index 1
         val currentLocation = Coordinates(51.3369, 12.3889)
 
-        // بدون previousIndex (رفتار قدیمی) - انتظار داریم اشتباه بره سراغ index 3
+        // Without previousIndex (old behavior) - expected to incorrectly jump to index 3
         val resultWithoutFix = calculateRouteProgress(loopRoute, currentLocation)
-        assertThat(resultWithoutFix.lastIndex).isEqualTo(3)  // این باگ قدیمی رو مستند می‌کنه
+        assertEquals(3, resultWithoutFix.lastIndex)  // documents the old bug
 
-// با previousIndex=1 (رفتار جدید) - باید نزدیک 1/2 بمونه، نه بپره به 3
+        // With previousIndex=1 (new behavior) - should stay near 1/2, not jump to 3
         val resultWithFix = calculateRouteProgress(loopRoute, currentLocation, previousIndex = 1, searchWindow = 1)
-        assertThat(resultWithFix.lastIndex).isAtMost(2)
+        assertTrue(resultWithFix.lastIndex <= 2)
     }
 }

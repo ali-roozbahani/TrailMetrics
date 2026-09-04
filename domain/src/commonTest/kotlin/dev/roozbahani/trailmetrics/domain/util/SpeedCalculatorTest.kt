@@ -1,9 +1,11 @@
 package dev.roozbahani.trailmetrics.domain.util
 
-import com.google.common.truth.Truth.assertThat
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
-import org.junit.Before
-import org.junit.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class SpeedCalculatorTest {
     private lateinit var speedCalculator: SpeedCalculator
@@ -11,7 +13,7 @@ class SpeedCalculatorTest {
     private val point2 = Coordinates(51.338551183866215, 12.390722809535038)
     private val point3 = Coordinates(51.339014111023744, 12.395014789492011)
 
-    @Before
+    @BeforeTest
     fun setup() {
         speedCalculator = SpeedCalculator(windowSize = 2)
     }
@@ -26,7 +28,7 @@ class SpeedCalculatorTest {
             accuracyMeters = 10f
         )
 
-        assertThat(speed).isEqualTo(reportedSpeed)
+        assertEquals(reportedSpeed, speed)
     }
 
     @Test
@@ -51,7 +53,7 @@ class SpeedCalculatorTest {
         val distanceMeters = point1.distanceTo(point2)
         val expectedSpeed = (distanceMeters / deltaTimeSeconds).toFloat()
 
-        assertThat(resultSpeed).isEqualTo(expectedSpeed)
+        assertEquals(expectedSpeed, resultSpeed)
     }
 
     @Test
@@ -76,7 +78,7 @@ class SpeedCalculatorTest {
         val distanceMeters = point1.distanceTo(point2)
         val expectedSpeed = (distanceMeters / deltaTimeSeconds).toFloat()
 
-        assertThat(resultSpeed).isEqualTo(expectedSpeed)
+        assertEquals(expectedSpeed, resultSpeed)
     }
 
     @Test
@@ -101,7 +103,7 @@ class SpeedCalculatorTest {
         val distanceMeters = point1.distanceTo(point2)
         val expectedSpeed = (distanceMeters / deltaTimeSeconds).toFloat()
 
-        assertThat(resultSpeed).isEqualTo(expectedSpeed)
+        assertEquals(expectedSpeed, resultSpeed)
     }
 
     @Test
@@ -119,7 +121,7 @@ class SpeedCalculatorTest {
             accuracyMeters = null // Forcing window calculation
         )
 
-        assertThat(resultSpeed).isNull()
+        assertNull(resultSpeed)
     }
 
     @Test
@@ -136,7 +138,7 @@ class SpeedCalculatorTest {
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
-        assertThat(speedBeforeReset).isNotNull()
+        assertNotNull(speedBeforeReset)
 
         speedCalculator.reset() // Act Reset
 
@@ -147,7 +149,7 @@ class SpeedCalculatorTest {
             accuracyMeters = null // Forcing window calculation
         )
 
-        assertThat(speedAfterReset).isNull()
+        assertNull(speedAfterReset)
     }
 
     @Test
@@ -184,6 +186,6 @@ class SpeedCalculatorTest {
         val distanceMeters = point2.distanceTo(point3)
         val expectedSpeed = (distanceMeters / deltaTimeSeconds).toFloat()
 
-        assertThat(resultSpeed).isEqualTo(expectedSpeed)
+        assertEquals(expectedSpeed, resultSpeed)
     }
 }
