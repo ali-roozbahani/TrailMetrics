@@ -1,12 +1,14 @@
 package dev.roozbahani.trailmetrics.domain.usecase
 
-import com.google.common.truth.Truth.assertThat
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class UpdateTrackingStateUseCaseTest {
 
@@ -20,13 +22,14 @@ class UpdateTrackingStateUseCaseTest {
         val startEvent = TrackingEvent.Start(point1, 0)
 
         var newState = useCase(idleState, startEvent)
-        assertThat(newState).isInstanceOf(TrackingState.Tracking::class.java)
+        assertIs<TrackingState.Tracking>(newState)
 
         newState = newState as TrackingState.Tracking
-        assertThat(newState.metrics.path).containsExactly(point1)
-        assertThat(newState.metrics.elapsedMillis).isEqualTo(0)
-        assertThat(newState.metrics.lastUpdateTimestampMillis).isEqualTo(0)
-        assertThat(newState.metrics.distanceMeters).isWithin(1.0).of(0.0)
+        val expectedPath = listOf(point1)
+        assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
+        assertEquals(0, newState.metrics.elapsedMillis)
+        assertEquals(0, newState.metrics.lastUpdateTimestampMillis)
+        assertEquals(0.0, newState.metrics.distanceMeters, absoluteTolerance = 1.0)
     }
 
     @Test
@@ -35,13 +38,14 @@ class UpdateTrackingStateUseCaseTest {
         val startEvent = TrackingEvent.Start(point1, 0)
 
         var newState = useCase(currentState, startEvent)
-        assertThat(newState).isInstanceOf(TrackingState.Tracking::class.java)
+        assertIs<TrackingState.Tracking>(newState)
 
         newState = newState as TrackingState.Tracking
-        assertThat(newState.metrics.path).containsExactly(point1)
-        assertThat(newState.metrics.elapsedMillis).isEqualTo(0)
-        assertThat(newState.metrics.lastUpdateTimestampMillis).isEqualTo(0)
-        assertThat(newState.metrics.distanceMeters).isWithin(1.0).of(0.0)
+        val expectedPath = listOf(point1)
+        assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
+        assertEquals(0, newState.metrics.elapsedMillis)
+        assertEquals(0, newState.metrics.lastUpdateTimestampMillis)
+        assertEquals(0.0, newState.metrics.distanceMeters, absoluteTolerance = 1.0)
     }
 
     @Test
@@ -51,10 +55,10 @@ class UpdateTrackingStateUseCaseTest {
         val pauseEvent = TrackingEvent.Pause(timestampMillis = 15)
 
         var newState = useCase(currentState, pauseEvent)
-        assertThat(newState).isInstanceOf(TrackingState.Paused::class.java)
+        assertIs<TrackingState.Paused>(newState)
 
         newState = newState as TrackingState.Paused
-        assertThat(newState.metrics).isEqualTo(metrics)
+        assertEquals(metrics, newState.metrics)
     }
 
     @Test
@@ -64,14 +68,13 @@ class UpdateTrackingStateUseCaseTest {
 
         val resumeEvent = TrackingEvent.Resume(20)
         var newState = useCase(pausedState, resumeEvent)
-        assertThat(newState).isInstanceOf(TrackingState.Tracking::class.java)
+        assertIs<TrackingState.Tracking>(newState)
 
         newState = newState as TrackingState.Tracking
-        assertThat(newState.metrics.lastUpdateTimestampMillis)
-            .isEqualTo(resumeEvent.timestampMillis) // must be 20 as defined above
-        assertThat(newState.metrics.path).isEqualTo(pausedStateMetrics.path)
-        assertThat(newState.metrics.elapsedMillis).isEqualTo(pausedStateMetrics.elapsedMillis)
-        assertThat(newState.metrics.distanceMeters).isEqualTo(pausedState.metrics.distanceMeters)
+        assertEquals(resumeEvent.timestampMillis, newState.metrics.lastUpdateTimestampMillis) // must be 20 as defined above
+        assertEquals(pausedStateMetrics.path, newState.metrics.path)
+        assertEquals(pausedStateMetrics.elapsedMillis, newState.metrics.elapsedMillis)
+        assertEquals(pausedState.metrics.distanceMeters, newState.metrics.distanceMeters)
     }
 
     @Test
@@ -79,7 +82,7 @@ class UpdateTrackingStateUseCaseTest {
         val idleState = TrackingState.Idle
 
         val newState = useCase(idleState, TrackingEvent.Pause(10))
-        assertThat(newState).isEqualTo(TrackingState.Idle)
+        assertEquals(TrackingState.Idle, newState)
     }
 
     @Test
@@ -94,12 +97,12 @@ class UpdateTrackingStateUseCaseTest {
 
         val newState = useCase(currentState, locationReceivedEvent)
 
-        assertThat(newState).isInstanceOf(TrackingState.Paused::class.java)
-        assertThat((newState as TrackingState.Paused).metrics).isEqualTo(pausedMetrics)
+        assertIs<TrackingState.Paused>(newState)
+        assertEquals(pausedMetrics, newState.metrics)
     }
 
     @Test
-    fun `locationReceived from Tracking updates distance, elapsed time and path`() {
+    fun `locationReceived from Tracking updates distance and elapsed time and path`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
         val newUpdateEvent = TrackingEvent.LocationReceived(
             coordinates = point2,
@@ -110,14 +113,15 @@ class UpdateTrackingStateUseCaseTest {
         val deltaTime = newUpdateEvent.timestampMillis - currentState.metrics.lastUpdateTimestampMillis
 
         var newState = useCase(currentState, newUpdateEvent)
-        assertThat(newState).isInstanceOf(TrackingState.Tracking::class.java)
+        assertIs<TrackingState.Tracking>(newState)
 
         newState = newState as TrackingState.Tracking
-        assertThat(newState.metrics.distanceMeters).isEqualTo(currentState.metrics.distanceMeters + distanceMeters)
-        assertThat(newState.metrics.elapsedMillis).isEqualTo(currentState.metrics.elapsedMillis + deltaTime)
-        assertThat(newState.metrics.path).hasSize(2)
-        assertThat(newState.metrics.path).containsExactly(point1, point2)
-        assertThat(newState.metrics.lastUpdateTimestampMillis).isEqualTo(newUpdateEvent.timestampMillis)
+        assertEquals(currentState.metrics.distanceMeters + distanceMeters, newState.metrics.distanceMeters)
+        assertEquals(currentState.metrics.elapsedMillis + deltaTime, newState.metrics.elapsedMillis)
+        assertEquals(2, newState.metrics.path.size)
+        val expectedPath = listOf(point1, point2)
+        assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
+        assertEquals(newUpdateEvent.timestampMillis, newState.metrics.lastUpdateTimestampMillis)
     }
 
     @Test
@@ -127,8 +131,8 @@ class UpdateTrackingStateUseCaseTest {
 
         val newState = useCase(currentState, stopEvent)
 
-        assertThat(newState).isInstanceOf(TrackingState.Finished::class.java)
-        assertThat((newState as TrackingState.Finished).metrics).isEqualTo(currentState.metrics)
+        assertIs<TrackingState.Finished>(newState)
+        assertEquals(currentState.metrics, newState.metrics)
     }
 
     @Test
@@ -138,8 +142,8 @@ class UpdateTrackingStateUseCaseTest {
 
         val newState = useCase(currentState, stopEvent)
 
-        assertThat(newState).isInstanceOf(TrackingState.Finished::class.java)
-        assertThat((newState as TrackingState.Finished).metrics).isEqualTo(currentState.metrics)
+        assertIs<TrackingState.Finished>(newState)
+        assertEquals(currentState.metrics, newState.metrics)
     }
 
     @Test
@@ -149,7 +153,7 @@ class UpdateTrackingStateUseCaseTest {
 
         val newState = useCase(trackingState, startEvent)
 
-        assertThat(newState).isEqualTo(trackingState)
+        assertEquals(trackingState, newState)
     }
 
     @Test
@@ -163,7 +167,7 @@ class UpdateTrackingStateUseCaseTest {
 
         val newState = useCase(idleState, locationReceivedEvent)
 
-        assertThat(newState).isEqualTo(idleState)
+        assertEquals(idleState, newState)
     }
 
     private fun sampleMetrics(

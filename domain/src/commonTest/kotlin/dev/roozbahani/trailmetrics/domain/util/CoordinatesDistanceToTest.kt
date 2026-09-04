@@ -1,8 +1,8 @@
 package dev.roozbahani.trailmetrics.domain.util
 
-import com.google.common.truth.Truth.assertThat
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class CoordinatesDistanceToTest {
 
@@ -12,7 +12,7 @@ class CoordinatesDistanceToTest {
         val to = Coordinates(51.33698699962992, 12.386805594469173)
 
         val distanceMeters = from.distanceTo(to)
-        assertThat(distanceMeters).isWithin(1.0).of(0.0)
+        assertEquals(expected = 0.0, actual = distanceMeters, absoluteTolerance = 1.0)
     }
 
     @Test
@@ -24,7 +24,7 @@ class CoordinatesDistanceToTest {
         val expectedValue: Double = 14010.0
         val delta = 42.03
 
-        assertThat(distanceMeters).isWithin(delta).of(expectedValue)
+        assertEquals(expected = expectedValue, actual = distanceMeters, absoluteTolerance = delta)
     }
 
     @Test
@@ -35,6 +35,6 @@ class CoordinatesDistanceToTest {
         val distanceMetersFromP1ToP2 = p1.distanceTo(p2)
         val distanceMetersFromP2ToP1 = p2.distanceTo(p1)
 
-        assertThat(distanceMetersFromP1ToP2).isWithin(0.0001).of(distanceMetersFromP2ToP1)
+        assertEquals(expected = distanceMetersFromP2ToP1, actual = distanceMetersFromP1ToP2, absoluteTolerance = 0.0001)
     }
 }

@@ -57,5 +57,43 @@ hand-written fakes (for `LocationRepository`, `Clock`, `Logger`,
 `TrackingServiceLauncher`) in place of `mockk`.
 
 ---
+## Migration surfaced a pre-existing test gap: order-insensitive assertions on ordered data
+
+While converting Truth's `containsExactly(...)` (order-independent by default,
+unless `.inOrder()` is chained) to kotlin.test, found that all 9 usages across
+RouteProgressTest and UpdateTrackingStateUseCaseTest lacked `.inOrder()` — meaning
+they never verified point order, despite asserting on GPS path data where order is
+semantically meaningful (a traveled path isn't the same if points are reordered).
+
+Preserved the original (order-insensitive) behavior during this migration to keep
+it a pure library swap. Tracked as follow-up: tighten these assertions to check
+order too, since it's a real correctness gap independent of KMP.
+
+---
+
+## Kotlin/Native restricts characters in backtick test names
+
+JVM tests with backtick-quoted display names (e.g. `` `does X, updates Y` ``) allow
+almost any character, since the name is just a JVM method name. Kotlin/Native
+rejects some characters (comma confirmed: "Name contains illegal characters: ',''")
+at compile time — the name has to work as an exported symbol usable from
+Objective-C/Swift, which doesn't allow commas in identifiers.
+
+Practical rule: avoid commas (and likely other punctuation) in backtick test names
+for any file under commonTest, since it must compile for both JVM and Native
+targets. Use "and" or spaces instead.
+
+---
+
+## iOS Simulator tests require a runtime download, separate from Xcode itself
+
+Installing Xcode does not include any iOS Simulator runtime by default (confirmed:
+`xcrun simctl list runtimes` returned empty on a fresh Xcode install). Kotlin/Native
+test tasks like `iosSimulatorArm64Test` need an actual runtime to boot a simulator
+against.
+
+Fix: `xcodebuild -downloadPlatform iOS` (or Xcode > Settings > Platforms > iOS).
+Direct analogy to Android: this is the iOS equivalent of downloading a system image
+via the Android SDK Manager before an AVD can boot.
 
 ## [Next entry goes here — Phase B: Ktor engine swap / Room KMP driver / etc.]

@@ -1,15 +1,15 @@
 package dev.roozbahani.trailmetrics.domain.util
 
-import com.google.common.truth.Truth.assertThat
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
-import org.junit.Before
-import org.junit.Test
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class CalorieCalculatorTest {
 
     private lateinit var calorieCalculator: CalorieCalculator
 
-    @Before
+    @BeforeTest
     fun setup() {
         calorieCalculator = CalorieCalculator()
     }
@@ -30,7 +30,7 @@ class CalorieCalculatorTest {
         val expectedMet = 2.8
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -49,7 +49,7 @@ class CalorieCalculatorTest {
         val expectedMet = 9.0
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -68,7 +68,7 @@ class CalorieCalculatorTest {
         val expectedMet = 8.0
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -87,7 +87,7 @@ class CalorieCalculatorTest {
         val expectedMet = 2.0
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -106,7 +106,7 @@ class CalorieCalculatorTest {
         val expectedMet = 8.3
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -125,7 +125,7 @@ class CalorieCalculatorTest {
         val expectedMet = 4.0
         val expectedCalories = expectedMet * weightKg * durationMins.toHours()
 
-        assertThat(resultCalories).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = resultCalories, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -137,7 +137,7 @@ class CalorieCalculatorTest {
             weightKg = 85.0,
             durationMillis = 0L // <-- Assuming zero duration
         )
-        assertThat(resultCalories).isEqualTo(0.0)
+        assertEquals(expected = 0.0, actual = resultCalories)
     }
 
     @Test
@@ -155,7 +155,7 @@ class CalorieCalculatorTest {
 
         val expectedMet = 2.8
         val expectedCalories = expectedMet * weightKg1 * durationMins.toHours()
-        assertThat(result1).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = result1, absoluteTolerance = 0.01)
 
         val weightKg2 = weightKg1 * 2 // Scaling weight1 2 times
         val result2 = calorieCalculator.calculate(
@@ -165,7 +165,7 @@ class CalorieCalculatorTest {
             durationMillis = durationMins.toMillis()
         )
         // We expected the result2 becomes 2 times of result1
-        assertThat(result2).isWithin(0.01).of(result1 * 2)
+        assertEquals(expected = result1 * 2, actual = result2, absoluteTolerance = 0.01)
     }
 
     @Test
@@ -183,7 +183,7 @@ class CalorieCalculatorTest {
 
         val expectedMet = 2.8
         val expectedCalories = expectedMet * weightKg * durationMins1.toHours()
-        assertThat(result1).isWithin(0.01).of(expectedCalories)
+        assertEquals(expected = expectedCalories, actual = result1, absoluteTolerance = 0.01)
 
         val durationMins2 = durationMins1 * 2 // Scaling durationMins1 2 times (60 mins)
         val result2 = calorieCalculator.calculate(
@@ -193,7 +193,7 @@ class CalorieCalculatorTest {
             durationMillis = durationMins2.toMillis()
         )
         // We expected the result2 becomes 2 times of result1
-        assertThat(result2).isWithin(0.01).of(result1 * 2)
+        assertEquals(expected = result1 * 2, actual = result2, absoluteTolerance = 0.01)
     }
 
     private fun Float.toMetersPerSecond(): Float = this / 3.6f
