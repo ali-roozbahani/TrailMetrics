@@ -57,6 +57,9 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.koin.android)
         }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
         getByName("androidHostTest") {
             dependencies {
                 implementation(libs.junit)

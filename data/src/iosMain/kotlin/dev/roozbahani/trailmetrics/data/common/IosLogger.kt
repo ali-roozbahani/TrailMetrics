@@ -1,12 +1,12 @@
 package dev.roozbahani.trailmetrics.data.common
 
-import android.util.Log
 import dev.roozbahani.trailmetrics.domain.util.Logger
+import platform.Foundation.NSLog
 
-class AndroidLogger : Logger {
+class IosLogger : Logger {
     override fun debug(tag: String, message: String) {
-        Log.d(tag, message)
+        NSLog("[$tag] $message")
     }
 }
 
-actual fun createLogger(): Logger = AndroidLogger()
+actual fun createLogger(): Logger = IosLogger()
