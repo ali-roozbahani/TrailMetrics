@@ -23,7 +23,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class LocationRepositoryImpl(
+class AndroidLocationRepositoryImpl(
     private val locationProvider: FusedLocationProviderClient
 ) : LocationRepository {
 
