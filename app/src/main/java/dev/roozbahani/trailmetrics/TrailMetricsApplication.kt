@@ -3,10 +3,10 @@ package dev.roozbahani.trailmetrics
 import android.app.Application
 import dev.roozbahani.trailmetrics.data.di.activityHistoryModule
 import dev.roozbahani.trailmetrics.data.di.androidCommonModule
+import dev.roozbahani.trailmetrics.data.di.androidLocationModule
 import dev.roozbahani.trailmetrics.data.di.commonModule
 import dev.roozbahani.trailmetrics.data.di.databaseModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
-import dev.roozbahani.trailmetrics.data.di.locationModule
 import dev.roozbahani.trailmetrics.data.di.networkModule
 import dev.roozbahani.trailmetrics.data.di.trackingModule
 import dev.roozbahani.trailmetrics.data.di.useCaseModule
@@ -27,7 +27,7 @@ class TrailMetricsApplication : Application() {
                 androidCommonModule,
                 databaseModule,
                 networkModule,
-                locationModule,
+                androidLocationModule,
                 directionsModule,
                 useCaseModule,
                 routeModule,
