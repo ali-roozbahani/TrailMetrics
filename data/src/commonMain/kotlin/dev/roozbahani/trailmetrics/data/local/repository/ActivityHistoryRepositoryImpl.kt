@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
