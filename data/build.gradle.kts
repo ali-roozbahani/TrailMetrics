@@ -1,10 +1,14 @@
+import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.jetbrains.kotlin.multiplatform)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.room)
+    alias(libs.plugins.buildkonfig)
 }
 
 val localProperties = Properties().apply {
@@ -18,81 +22,72 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-android {
-    namespace = "dev.roozbahani.trailmetrics.data"
-    compileSdk {
-        version = release(37) {
-            minorApiLevel = 1
-        }
-    }
-
-    buildFeatures {
-        buildConfig = true
-    }
-
-    defaultConfig {
+kotlin {
+    android {
+        namespace = "dev.roozbahani.trailmetrics.data"
+        compileSdk = 37
         minSdk = 26
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField(
-            type = "String",
-            name = "DIRECTIONS_API_KEY",
-            "\"${localProperties.getProperty("DIRECTIONS_API_KEY", "")}\""
-        )
-
-        buildConfigField(
-            type = "String",
-            name = "ANDROID_CERT_SHA1",
-            "\"${localProperties.getProperty("ANDROID_CERT_SHA1", "")}\""
-        )
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+        withHostTestBuilder {}.configure {}
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":domain"))
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.room.ktx)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
+        }
+        androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.play.services.location)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.koin.android)
+        }
+        getByName("androidHostTest") {
+            dependencies {
+                implementation(libs.junit)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.truth)
+                implementation(libs.robolectric)
+                implementation(libs.androidx.test.core)
+            }
         }
     }
 }
 
 dependencies {
-    implementation(project(":domain"))
+    add("kspAndroid", libs.androidx.room.compiler)
+}
 
-    implementation(libs.androidx.core.ktx)
+buildkonfig {
+    packageName = "dev.roozbahani.trailmetrics.data"
 
-    // Room
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    defaultConfigs {
+        buildConfigField(
+            STRING,
+            "DIRECTIONS_API_KEY",
+            localProperties.getProperty("DIRECTIONS_API_KEY", "")
+        )
+        buildConfigField(STRING, "ANDROID_CERT_SHA1", "")
+    }
 
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.android)
-
-    // Location
-    implementation(libs.play.services.location)
-
-    // Networking
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.kotlinx.serialization.json)
-
-    // Koin (DI)
-    implementation(platform(libs.koin.bom))
-    implementation(libs.koin.core)
-    implementation(libs.koin.android)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.truth)
-    testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.test.core)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
+    targetConfigs {
+        create("android") {
+            buildConfigField(
+                STRING,
+                "ANDROID_CERT_SHA1",
+                localProperties.getProperty("ANDROID_CERT_SHA1", "")
+            )
+        }
+    }
 }
