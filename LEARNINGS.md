@@ -57,6 +57,7 @@ hand-written fakes (for `LocationRepository`, `Clock`, `Logger`,
 `TrackingServiceLauncher`) in place of `mockk`.
 
 ---
+
 ## Migration surfaced a pre-existing test gap: order-insensitive assertions on ordered data
 
 While converting Truth's `containsExactly(...)` (order-independent by default,
@@ -137,4 +138,76 @@ Android foreground Service (per the original ClaudeCode investigation report).
 
 ---
 
-## [Next entry goes here — Phase B: Ktor engine swap / Room KMP driver / etc.]
+## AGP's built-in Kotlin doesn't support BuildConfig for KMP Android modules
+
+`com.android.kotlin.multiplatform.library` has no BuildConfig feature at all —
+Google's own docs confirm this is intentional: the plugin is "variant-agnostic"
+(no build types/flavors), and BuildConfig is inherently a variant-scoped concept.
+Official recommendation: use a third-party plugin like BuildKonfig, or a custom
+Gradle task.
+
+Chose BuildKonfig (`com.codingfeline.buildkonfig`) since it natively supports the
+exact split needed here: `defaultConfigs` for values shared across platforms
+(`DIRECTIONS_API_KEY`), and `targetConfigs { create("android") { ... } }` for
+values that only make sense on one platform (`ANDROID_CERT_SHA1`). Under the
+hood it generates a real `expect`/`actual` `BuildKonfig` class per source set —
+exactly the pattern we'd have hand-written with `expect`/`actual`, just automated.
+
+---
+
+## AGP 9's "built-in Kotlin" sets a Kotlin Gradle Plugin floor (2.2.10), not a ceiling
+
+AGP 9.0+ has a runtime dependency on KGP 2.2.10 and will auto-upgrade a lower
+project Kotlin version to match — this is a *minimum*, not a strict pin. This
+was easy to misdiagnose as "AGP won't allow a Kotlin version other than 2.2.10."
+
+The actual conflict encountered was different: a Kotlin Gradle plugin dependency
+(BuildKonfig, at any version tried) required a newer transitive `kotlin-gradle-plugin`
+than the version Gradle's own embedded Kotlin (used for kotlin-dsl script
+evaluation) allows, causing an `org.jetbrains:annotations` version conflict
+("Pinned to the embedded Kotlin"). Downgrading BuildKonfig repeatedly only shifted
+which KGP version it wanted — it never fixed the underlying mismatch. The actual
+fix: bump the project's own Kotlin version high enough (2.4.10) that every
+plugin's requirement lines up consistently across the whole buildscript classpath.
+
+Lesson: a version conflict naming a specific transitive artifact (not the plugin
+you're adding) is a signal to check the *whole* dependency graph's alignment,
+not just retry different versions of the one plugin you just added.
+
+---
+
+## KSP decoupled its versioning from Kotlin's around Kotlin 2.3
+
+Older KSP releases used a joined `<kotlin-version>-<ksp-version>` scheme (e.g.
+`2.2.10-2.0.2`), requiring an exact-matching KSP release for every Kotlin version.
+Starting around Kotlin 2.3, KSP switched to independent version numbers (e.g.
+`2.3.11`) that support a *range* of Kotlin versions internally (KSP2 is built on
+the Kotlin Analysis API, which is less tightly coupled to a specific compiler
+build). Check the real published version list
+(`com.google.devtools.ksp.gradle.plugin` on Maven) rather than guessing a
+`<kotlin>-<ksp>` string for recent Kotlin versions — it may no longer exist in
+that format.
+
+---
+
+## `platform(...)` needs a `project.dependencies.` prefix inside KMP source set blocks
+
+`commonMain.dependencies { }` (and other KMP source set dependency blocks) use
+`KotlinDependencyHandler`, not Gradle's normal `DependencyHandler` — so the usual
+`platform(libs.someBom)` helper isn't in scope. Fix: `project.dependencies.platform(libs.someBom)`,
+which reaches back to the project's real `DependencyHandler` where `platform()`
+is defined.
+
+---
+
+## Task names differ between `domain` and `data` under the same KMP Android plugin
+
+`domain`'s Android-target compile task is `compileKotlinIosSimulatorArm64` /
+implied `compileKotlinAndroid`-style naming, but `data`'s equivalent turned out
+to be `compileAndroidMain` — a different naming convention for what's
+conceptually the same operation, likely because `data` has additional KSP-driven
+source generation folded into that task's name. Lesson (repeated from Phase A):
+never guess a task name for this plugin — always confirm with
+`./gradlew :<module>:tasks --all`.
+
+---
