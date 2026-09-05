@@ -1,9 +1,8 @@
 package dev.roozbahani.trailmetrics.data.di
 
-import android.content.Context
-import dev.roozbahani.trailmetrics.data.BuildConfig
+import dev.roozbahani.trailmetrics.data.common.httpClientEngine
+import dev.roozbahani.trailmetrics.data.common.platformDefaultHeaders
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
@@ -13,9 +12,7 @@ import org.koin.dsl.module
 
 val networkModule = module {
     single {
-        val context = get<Context>()
-
-        HttpClient(OkHttp) {
+        HttpClient(httpClientEngine) {
             install(ContentNegotiation) {
                 json(
                     Json {
@@ -26,8 +23,7 @@ val networkModule = module {
             }
 
             defaultRequest {
-                header("X-Android-Package", context.packageName)
-                header("X-Android-Cert", BuildConfig.ANDROID_CERT_SHA1.replace(":", ""))
+                platformDefaultHeaders().forEach { (key, value) -> header(key, value) }
             }
         }
     }

@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics
 
 import android.app.Application
 import dev.roozbahani.trailmetrics.data.di.activityHistoryModule
+import dev.roozbahani.trailmetrics.data.di.androidCommonModule
 import dev.roozbahani.trailmetrics.data.di.commonModule
 import dev.roozbahani.trailmetrics.data.di.databaseModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
@@ -23,6 +24,7 @@ class TrailMetricsApplication : Application() {
             androidContext(this@TrailMetricsApplication)
             modules(
                 commonModule,
+                androidCommonModule,
                 databaseModule,
                 networkModule,
                 locationModule,
