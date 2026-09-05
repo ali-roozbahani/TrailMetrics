@@ -241,3 +241,40 @@ property, which has a real implementation for Native too — no need to fall
 back to `Dispatchers.Default`.
 
 ---
+
+## Kotlin/Native forbids mixing Objective-C and Kotlin supertypes in one class
+
+A class can't simultaneously extend `NSObject` / implement an Objective-C
+protocol (like `CLLocationManagerDelegateProtocol`) AND implement a pure Kotlin
+interface (like domain's `LocationRepository`). Compiler error: "Mixing Kotlin
+and Objective-C supertypes is not supported."
+
+This is a fundamental object-model mismatch (Kotlin vtables vs Objective-C
+message-passing), not a missing flag or workaround. Fix: split into two
+classes using composition instead of one class using multiple inheritance --
+a small private `NSObject`-based delegate class that only implements the
+Objective-C protocol, held as a property inside the main class that
+implements the pure-Kotlin interface. Callbacks flow from the private
+delegate to the outer class via constructor-injected lambdas.
+
+This pattern (private ObjC-interop delegate + composition) is the standard
+approach any time a class needs to both consume a delegate-based Apple API
+and satisfy a shared Kotlin interface -- not a one-off workaround for
+CLLocationManager specifically.
+
+---
+
+## Phase B major milestone: hardest cross-platform boundary (Location) done
+
+`LocationRepositoryImpl` (Android, FusedLocationProviderClient/Play Services,
+callback-based) now has a full iOS counterpart (`IosLocationRepositoryImpl`,
+CLLocationManager/CoreLocation, delegate-based) implementing the same
+`LocationRepository` domain interface. Both compile and both modules
+(:data:compileAndroidMain, :data:compileKotlinIosSimulatorArm64) pass.
+
+Remaining data module work: TrackingService (Android foreground service --
+no iOS equivalent exists, will need a different mechanism entirely for
+background tracking on iOS), UserProfileRepositoryImpl (SharedPreferences ->
+NSUserDefaults), and their DI modules.
+
+---
