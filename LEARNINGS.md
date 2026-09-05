@@ -211,3 +211,33 @@ never guess a task name for this plugin — always confirm with
 `./gradlew :<module>:tasks --all`.
 
 ---
+
+## kotlin.time.Clock replaced the need for kotlinx-datetime for simple "current time" needs
+
+Since Kotlin 2.1.20, `kotlin.time.Clock` and `kotlin.time.Instant` are part of the
+standard library itself — no external dependency needed for basic "get current
+time as epoch millis" use cases (`Clock.System.now().toEpochMilliseconds()`).
+
+Initially added `kotlinx-datetime` as a dependency for this (following older,
+common advice), then discovered it wasn't needed: on a recent Kotlin version
+(2.4.10 here), IDE flagged `kotlinx.datetime.Clock` itself as deprecated in favor
+of `kotlin.time.Clock`. Removed the kotlinx-datetime dependency entirely.
+
+Lesson: verify against current stdlib before reaching for a well-known
+multiplatform library — some historically "you need a library for this" gaps
+get closed by the language itself over time.
+
+---
+
+## `Dispatchers.IO` needs an explicit import for multiplatform code
+
+`Dispatchers.IO` exists as a JVM-only direct member (internal on Native), but
+kotlinx.coroutines also provides a genuinely multiplatform version as a
+top-level extension property in the same package. Without an explicit
+`import kotlinx.coroutines.IO`, common code resolves to the JVM member (which
+fails to compile for Native targets with "internal in 'Dispatchers'").
+Adding the explicit import switches resolution to the multiplatform extension
+property, which has a real implementation for Native too — no need to fall
+back to `Dispatchers.Default`.
+
+---
