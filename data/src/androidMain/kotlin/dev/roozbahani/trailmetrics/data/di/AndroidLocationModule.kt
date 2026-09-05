@@ -7,7 +7,7 @@ import dev.roozbahani.trailmetrics.data.location.AndroidLocationRepositoryImpl
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import org.koin.dsl.module
 
-val locationModule = module {
+val androidLocationModule = module {
     single<FusedLocationProviderClient> {
         LocationServices.getFusedLocationProviderClient(get<Context>())
     }
