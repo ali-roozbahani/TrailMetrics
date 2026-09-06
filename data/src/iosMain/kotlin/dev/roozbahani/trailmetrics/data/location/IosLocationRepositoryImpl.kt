@@ -89,4 +89,9 @@ class IosLocationRepositoryImpl : LocationRepository {
             updatesChannel = null
         }
     }
+
+    fun setBackgroundUpdatesEnabled(enabled: Boolean) {
+        locationManager.allowsBackgroundLocationUpdates = enabled
+        locationManager.pausesLocationUpdatesAutomatically = !enabled
+    }
 }

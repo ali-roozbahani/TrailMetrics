@@ -278,3 +278,35 @@ background tracking on iOS), UserProfileRepositoryImpl (SharedPreferences ->
 NSUserDefaults), and their DI modules.
 
 ---
+
+## iOS has no equivalent to Android's persistent ongoing notification
+
+Android's foreground Service + `NotificationCompat.setOngoing(true)` pattern
+(a silent, continuously-updating notification) has no direct iOS counterpart.
+`UNUserNotificationCenter` is designed for one-shot alerts; repeatedly
+re-posting one to show live status would spam the user with interruptions.
+
+The real iOS analog is **Live Activities** (ActivityKit, Lock Screen +
+Dynamic Island), but it's a Swift-only, async/await-based framework not
+practical to drive from Kotlin/Native. Decision: implement only the
+background-location mechanism in the KMP data module
+(`CLLocationManager.allowsBackgroundLocationUpdates`), and defer any
+Live Activity UI to the native SwiftUI app layer (Phase D) -- notification
+presentation is inherently a platform-UI concern here, not shared logic.
+
+---
+
+## Phase B (data module) core migration complete
+
+`data` now compiles on Android and iOS, with all repositories, DI modules,
+and the Room database working on both platforms. Remaining before Phase B
+is fully closed: migrate the two Robolectric-based tests
+(ActivityHistoryRepositoryImplTest, UserProfileRepositoryImplTest) from
+src/test to androidHostTest (they stay JVM-only, same reasoning as
+domain's mockk-based tests -- Robolectric has no Kotlin/Native artifacts).
+
+Full cross-module verification passed: :app:compileDebugKotlin succeeds,
+confirming feature-route/feature-tracking/feature-history modules are
+still compatible with the new data module surface.
+
+---

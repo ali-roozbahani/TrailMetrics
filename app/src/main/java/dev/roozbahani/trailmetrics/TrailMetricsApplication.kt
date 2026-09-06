@@ -4,11 +4,12 @@ import android.app.Application
 import dev.roozbahani.trailmetrics.data.di.activityHistoryModule
 import dev.roozbahani.trailmetrics.data.di.androidCommonModule
 import dev.roozbahani.trailmetrics.data.di.androidLocationModule
+import dev.roozbahani.trailmetrics.data.di.androidTrackingModule
 import dev.roozbahani.trailmetrics.data.di.commonModule
+import dev.roozbahani.trailmetrics.data.di.commonTrackingModule
 import dev.roozbahani.trailmetrics.data.di.databaseModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
 import dev.roozbahani.trailmetrics.data.di.networkModule
-import dev.roozbahani.trailmetrics.data.di.trackingModule
 import dev.roozbahani.trailmetrics.data.di.useCaseModule
 import dev.roozbahani.trailmetrics.data.di.userProfileModule
 import dev.roozbahani.trailmetrics.feature.history.di.historyUiModule
@@ -31,7 +32,8 @@ class TrailMetricsApplication : Application() {
                 directionsModule,
                 useCaseModule,
                 routeModule,
-                trackingModule,
+                commonTrackingModule,
+                androidTrackingModule,
                 trackingUiModule,
                 userProfileModule,
                 activityHistoryModule,
