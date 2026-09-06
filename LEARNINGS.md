@@ -296,6 +296,76 @@ presentation is inherently a platform-UI concern here, not shared logic.
 
 ---
 
+## Robolectric + Room's BundledSQLiteDriver conflict (UnsatisfiedLinkError)
+
+Room's BundledSQLiteDriver loads a real native SQLite library at runtime.
+Robolectric's own native runtime/classloader setup conflicts with this,
+causing `UnsatisfiedLinkError` -- a known incompatibility, not a
+misconfiguration on our part. Google's own docs explicitly say: "We don't
+recommend Android local unit tests with Robolectric. Use local JVM tests
+using Room KMP instead."
+
+Fix: for pure database tests (no other Android API needed), drop
+`@RunWith(RobolectricTestRunner::class)` entirely and use
+`Room.inMemoryDatabaseBuilder<T>()` with no Context parameter -- Room KMP
+supports Context-free in-memory builders specifically for plain JVM tests.
+This runs faster too (no Robolectric simulation overhead).
+
+Tests that need a genuine Android API (e.g. UserProfileRepositoryImplTest's
+SharedPreferences) still legitimately need Robolectric -- this fix only
+applies to Room/database tests.
+
+---
+
+## Room 3.0.2 doesn't publish iosX64 artifacts yet
+
+Room 3.0's early stable releases (3.0.2 as of this writing) only ship KMP
+artifacts for `iosArm64` and `iosSimulatorArm64` -- not `iosX64` (Intel
+simulator). Since this target was already non-runnable on an Apple Silicon
+Mac ("architecture mismatch" warnings throughout the domain/data KMP
+migration) and Apple is phasing out Intel Mac support generally, removed
+`iosX64()` from `data`'s target list rather than working around a
+dependency gap for a platform with shrinking relevance. `domain` (no Room
+dependency) still declares iosX64() without issue -- this is scoped to
+modules that actually depend on Room.
+
+---
+
+## Room 3.0 renamed more than just the package
+
+Beyond the androidx.room -> androidx.room3 namespace change, some annotations
+were renamed outright, not just relocated: TypeConverter/TypeConverters
+became ColumnTypeConverter/ColumnTypeConverters (identical semantics/usage,
+new name). This wasn't documented clearly in the migration guide encountered
+during this project's research -- discovered by decompiling the actual
+3.0.2 artifact JAR when KSP reported a MissingType error. Lesson: for a
+very recently released major version, verifying against the actual
+compiled artifact can be more reliable than the migration docs, which may
+lag behind the final API.
+
+---
+
+## BundledSQLiteDriver's Android artifact can't run under Robolectric (androidHostTest)
+
+Room's BundledSQLiteDriver publishes a separate native binary per target,
+including one specifically compiled for the Android runtime (ART/Bionic).
+`androidHostTest` (Robolectric) only *simulates* Android APIs -- the actual
+process is a plain JVM running on the host OS (macOS here), so the
+Android-targeted native binary is ABI-incompatible with it
+(UnsatisfiedLinkError: no sqliteJni in java.library.path). This is distinct
+from iOS, where Kotlin/Native compiles tests directly to a real binary for
+the actual iOS Simulator runtime -- no simulation layer involved.
+
+Decision: rely on `commonTest` + `iosSimulatorArm64Test` for
+ActivityHistoryRepositoryImplTest's coverage. Since the tested logic
+(ActivityHistoryRepositoryImpl, Room queries) lives entirely in commonMain,
+the iOS test run already verifies the exact same shared code that runs on
+real Android devices -- androidHostTest coverage for this specific suite
+would require converting it to a device/emulator instrumented test
+(androidDeviceTest), which is a bigger step deferred for now.
+
+---
+
 ## Phase B (data module) core migration complete
 
 `data` now compiles on Android and iOS, with all repositories, DI modules,

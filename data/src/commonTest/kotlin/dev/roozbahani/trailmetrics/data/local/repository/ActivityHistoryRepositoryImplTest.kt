@@ -1,9 +1,8 @@
 package dev.roozbahani.trailmetrics.data.local.repository
 
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
-import com.google.common.truth.Truth.assertThat
+import androidx.room3.Room
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
+import dev.roozbahani.trailmetrics.data.local.database.getRoomDatabase
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -11,15 +10,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
 class ActivityHistoryRepositoryImplTest {
 
     private lateinit var database: TrailMetricsDatabase
@@ -43,19 +41,16 @@ class ActivityHistoryRepositoryImplTest {
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    @Before
+    @BeforeTest
     fun setup() {
-        database = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            TrailMetricsDatabase::class.java
-        ).build()
+        database = getRoomDatabase(Room.inMemoryDatabaseBuilder<TrailMetricsDatabase>())
         repository = ActivityHistoryRepositoryImpl(
             activityDao = database.activityDao(),
             ioDispatcher = UnconfinedTestDispatcher()
         )
     }
 
-    @After
+    @AfterTest
     fun teardown() {
         database.close()
     }
@@ -63,13 +58,13 @@ class ActivityHistoryRepositoryImplTest {
     @Test
     fun `observeActivities returns empty list when no activities are saved`() = runTest {
         val result = repository.observeActivities().first()
-        assertThat(result).isEmpty()
+        assertEquals(emptyList(), result)
     }
 
     @Test
     fun `saveActivity returns a valid generated id`() = runTest {
         val generatedId = repository.saveActivity(defaultActivity)
-        assertThat(generatedId).isNotEqualTo(0)
+        assertNotEquals(0L, generatedId)
     }
 
     @Test
@@ -79,7 +74,7 @@ class ActivityHistoryRepositoryImplTest {
         newRecord = newRecord.copy(id = generatedId)
 
         val observedActivities = repository.observeActivities().first()
-        assertThat(observedActivities).containsExactly(newRecord)
+        assertEquals(listOf(newRecord), observedActivities)
     }
 
     @Test
@@ -89,7 +84,7 @@ class ActivityHistoryRepositoryImplTest {
         newRecord = newRecord.copy(id = generatedId)
 
         val activity = repository.getActivity(generatedId)
-        assertThat(activity).isEqualTo(newRecord)
+        assertEquals(newRecord, activity)
     }
 
     @Test
@@ -97,7 +92,7 @@ class ActivityHistoryRepositoryImplTest {
         repository.saveActivity(defaultActivity)
 
         val activity = repository.getActivity(id = 12L) // only id = 1 exists
-        assertThat(activity).isNull()
+        assertNull(activity)
     }
 
     @Test
@@ -105,11 +100,11 @@ class ActivityHistoryRepositoryImplTest {
         val newRecord = defaultActivity
         val generatedId = repository.saveActivity(newRecord)
 
-        assertThat(repository.getActivity(generatedId)).isNotNull() // assert new activity exists
+        assertNotNull(repository.getActivity(generatedId)) // assert new activity exists
 
         repository.deleteActivity(generatedId) // remove it from database
 
-        assertThat(repository.getActivity(generatedId)).isNull() // assert new activity does not exist anymore
+        assertNull(repository.getActivity(generatedId)) // assert new activity does not exist anymore
     }
 
     @Test
@@ -127,10 +122,9 @@ class ActivityHistoryRepositoryImplTest {
         activity3 = activity3.copy(id = genId3)
 
         val observedActivities = repository.observeActivities().first()
-        assertThat(observedActivities).containsExactly(
-            activity3,
-            activity2,
-            activity1
+        assertEquals(
+            listOf(activity3, activity2, activity1),
+            observedActivities
         ) // ORDERED DESC
     }
 }

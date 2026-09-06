@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
+import dev.roozbahani.trailmetrics.data.common.KeyValueStorage
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -26,7 +27,7 @@ class UserProfileRepositoryImplTest {
     fun setup() {
         val context: Context = ApplicationProvider.getApplicationContext()
         prefs = context.getSharedPreferences("test_prefs", Context.MODE_PRIVATE)
-        repo = UserProfileRepositoryImpl(prefs, UnconfinedTestDispatcher())
+        repo = UserProfileRepositoryImpl(KeyValueStorage(prefs), UnconfinedTestDispatcher())
     }
 
     @Test

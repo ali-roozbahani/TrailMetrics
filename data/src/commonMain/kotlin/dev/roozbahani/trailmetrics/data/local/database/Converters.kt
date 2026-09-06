@@ -1,20 +1,20 @@
 package dev.roozbahani.trailmetrics.data.local.database
 
-import androidx.room.TypeConverter
+import androidx.room3.ColumnTypeConverter
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import kotlinx.serialization.json.Json
 
 internal class Converters {
-    @TypeConverter
+    @ColumnTypeConverter
     fun fromCoordinatesList(points: List<Coordinates>): String = Json.encodeToString(points)
 
-    @TypeConverter
+    @ColumnTypeConverter
     fun toCoordinatesList(json: String): List<Coordinates> = Json.decodeFromString(json)
 
-    @TypeConverter
+    @ColumnTypeConverter
     fun fromActivityType(activityType: ActivityType): String = activityType.name
 
-    @TypeConverter
+    @ColumnTypeConverter
     fun toActivityType(value: String): ActivityType = ActivityType.valueOf(value)
 }
