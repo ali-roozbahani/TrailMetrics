@@ -53,6 +53,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":domain"))
     implementation(project(":data"))
+    implementation(project(":shared"))
     implementation(project(":feature-route"))
     implementation(project(":feature-tracking"))
     implementation(project(":feature-history"))
