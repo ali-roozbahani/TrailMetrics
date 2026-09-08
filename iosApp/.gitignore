@@ -1,0 +1,21 @@
+## Xcode user-specific files
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+## Build artifacts
+build/
+DerivedData/
+
+## Swift Package Manager
+.swiftpm/
+.build/
+
+## CocoaPods
+Pods/
+
+## Obj-C/Swift specific
+*.hmap
+
+## macOS
+.DS_Store
