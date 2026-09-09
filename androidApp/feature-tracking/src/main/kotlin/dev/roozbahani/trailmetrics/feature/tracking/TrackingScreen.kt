@@ -410,7 +410,7 @@ fun MetricsDisplay(
     }
 }
 
-private typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string
+private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string
 
 private const val DEFAULT_ZOOM = 15f
 private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0

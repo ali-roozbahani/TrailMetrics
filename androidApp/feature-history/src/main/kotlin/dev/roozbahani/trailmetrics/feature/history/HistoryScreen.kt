@@ -213,4 +213,4 @@ private fun labelFor(type: ActivityType): String = when (type) {
     ActivityType.Walking -> stringResource(CoreStrings.activity_type_walking)
 }
 
-typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string
+typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string

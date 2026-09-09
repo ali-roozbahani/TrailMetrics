@@ -1,7 +1,7 @@
 package dev.roozbahani.trailmetrics.core.error
 
 import androidx.annotation.StringRes
-import dev.roozbahani.trailmetrics.core.R
+import dev.roozbahani.trailmetrics.core.ui.R
 
 @get:StringRes
 val RouteUiError.stringRes: Int
