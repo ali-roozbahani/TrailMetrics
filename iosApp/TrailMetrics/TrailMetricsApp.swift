@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import TrailMetricsShared
+import SharedKit
 
 @main
 struct TrailMetricsApp: App {

@@ -7,11 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		551756A030517A72008ECF92 /* TrailMetricsShared.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */; };
+		551756AB30518133008ECF92 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AA30518133008ECF92 /* SharedKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TrailMetricsShared.xcframework; path = ../shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework; sourceTree = "<group>"; };
 		55D6B101304F206500D10092 /* TrailMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrailMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -28,7 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				551756A030517A72008ECF92 /* TrailMetricsShared.xcframework in Frameworks */,
+				551756AB30518133008ECF92 /* SharedKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -39,7 +38,6 @@
 			isa = PBXGroup;
 			children = (
 				55D6B103304F206500D10092 /* TrailMetrics */,
-				55D6B10F305076C700D10092 /* Frameworks */,
 				55D6B102304F206500D10092 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,14 +48,6 @@
 				55D6B101304F206500D10092 /* TrailMetrics.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		55D6B10F305076C700D10092 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */,
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -80,6 +70,7 @@
 			);
 			name = TrailMetrics;
 			packageProductDependencies = (
+				551756AA30518133008ECF92 /* SharedKit */,
 			);
 			productName = TrailMetrics;
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
@@ -109,6 +100,9 @@
 			);
 			mainGroup = 55D6B0F8304F206500D10092;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55D6B102304F206500D10092 /* Products */;
 			projectDirPath = "";
@@ -343,6 +337,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SharedKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		551756AA30518133008ECF92 /* SharedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SharedKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 55D6B0F9304F206500D10092 /* Project object */;
 }
