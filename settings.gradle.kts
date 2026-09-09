@@ -23,11 +23,12 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "TrailMetrics"
-include(":app")
+include(":androidApp:app")
+include(":androidApp:feature-route")
+include(":androidApp:feature-tracking")
+include(":androidApp:feature-history")
+
 include(":domain")
 include(":core")
 include(":data")
 include(":shared")
-include(":feature-route")
-include(":feature-tracking")
-include(":feature-history")
