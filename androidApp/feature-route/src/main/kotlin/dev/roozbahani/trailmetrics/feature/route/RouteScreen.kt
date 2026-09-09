@@ -424,4 +424,4 @@ private fun ActivityTypeSelectorPreview() {
 }
 
 private const val DEFAULT_ZOOM = 15f
-typealias CoreStrings = dev.roozbahani.trailmetrics.core.R.string
+private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string

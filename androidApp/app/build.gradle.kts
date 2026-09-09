@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":data"))
     implementation(project(":shared"))
+    implementation(project(":androidApp:core-ui"))
     implementation(project(":androidApp:feature-route"))
     implementation(project(":androidApp:feature-tracking"))
     implementation(project(":androidApp:feature-history"))

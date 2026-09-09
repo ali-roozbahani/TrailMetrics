@@ -30,6 +30,7 @@ kotlin {
             isStatic = true
             export(project(":domain"))
             export(project(":data"))
+            export(project(":core"))
             xcf.add(this)
         }
     }
@@ -38,6 +39,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":domain"))
             api(project(":data"))
+            api(project(":core"))
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.core)
         }
