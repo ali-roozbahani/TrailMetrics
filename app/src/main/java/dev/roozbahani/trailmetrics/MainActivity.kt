@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.core.navigation.AppRoute
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.feature.history.DetailsScreen
 import dev.roozbahani.trailmetrics.feature.history.HistoryScreen
@@ -23,7 +24,6 @@ import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreen
 import dev.roozbahani.trailmetrics.navigation.CoordinatesNavType
 import dev.roozbahani.trailmetrics.navigation.PlannedRoutePointsNavType
 import dev.roozbahani.trailmetrics.navigation.TrailMetricsBottomBar
-import dev.roozbahani.trailmetrics.navigation.TrailMetricsRoute
 import kotlin.reflect.typeOf
 
 class MainActivity : ComponentActivity() {
@@ -44,13 +44,13 @@ fun TrailMetricsNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination = TrailMetricsRoute.RoutePlanning
+        startDestination = AppRoute.RoutePlanning
     ) {
-        composable<TrailMetricsRoute.RoutePlanning> {
+        composable<AppRoute.RoutePlanning> {
             RouteScreen(
                 onStartTrackingClicked = { startPoint, plannedRoutePoints, selectedActivityType ->
                     navController.navigate(
-                        TrailMetricsRoute.Tracking(
+                        AppRoute.Tracking(
                             startPoint,
                             plannedRoutePoints,
                             selectedActivityType
@@ -61,7 +61,7 @@ fun TrailMetricsNavHost() {
             )
         }
 
-        composable<TrailMetricsRoute.Tracking>(
+        composable<AppRoute.Tracking>(
             typeMap = mapOf(
                 typeOf<Coordinates>() to CoordinatesNavType,
                 typeOf<List<Coordinates>>() to PlannedRoutePointsNavType,
@@ -79,7 +79,7 @@ fun TrailMetricsNavHost() {
                 slideOutHorizontally(targetOffsetX = { fullWidth -> fullWidth }) + fadeOut()
             }
         ) { backStackEntry ->
-            val route: TrailMetricsRoute.Tracking = backStackEntry.toRoute()
+            val route: AppRoute.Tracking = backStackEntry.toRoute()
             TrackingScreen(
                 initialStartPoint = route.startPoint,
                 plannedRoutePoints = route.plannedRoutePoints,
@@ -88,17 +88,17 @@ fun TrailMetricsNavHost() {
             )
         }
 
-        composable<TrailMetricsRoute.History> {
+        composable<AppRoute.History> {
             HistoryScreen(
                 onActivityClicked = { activityId ->
-                    navController.navigate(TrailMetricsRoute.ActivityDetails(activityId))
+                    navController.navigate(AppRoute.ActivityDetails(activityId))
                 },
                 bottomBar = { TrailMetricsBottomBar(navController) }
             )
         }
 
-        composable<TrailMetricsRoute.ActivityDetails> { backStackEntry ->
-            val route: TrailMetricsRoute.ActivityDetails = backStackEntry.toRoute()
+        composable<AppRoute.ActivityDetails> { backStackEntry ->
+            val route: AppRoute.ActivityDetails = backStackEntry.toRoute()
             DetailsScreen(activityId = route.activityId)
         }
     }
