@@ -63,6 +63,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
+import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -151,7 +152,7 @@ fun TrackingScreen(
         viewModel.uiEvents.collect { event ->
             when (event) {
                 is TrackingUiEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(context.getString(event.error.errorResId))
+                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
                 }
 
                 is TrackingUiEvent.RequestLocationPermission -> {

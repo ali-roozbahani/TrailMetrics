@@ -3,7 +3,7 @@ package dev.roozbahani.trailmetrics.feature.tracking
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
-import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
+import dev.roozbahani.trailmetrics.core.error.toUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteError
@@ -31,8 +31,7 @@ class TrackingViewModel(
     private val saveActivityUseCase: SaveActivityUseCase,
     private val activityType: ActivityType,
     private val plannedRoutePoints: List<Coordinates>,
-    private val clock: Clock,
-    private val uiErrorMapper: RouteUiErrorMapper
+    private val clock: Clock
 ) : ViewModel() {
 
     private var startedAtEpochMillis: Long = 0L
@@ -78,7 +77,7 @@ class TrackingViewModel(
             if (routeError is RouteError.MissingLocationPermission) {
                 TrackingUiEvent.RequestLocationPermission
             } else {
-                TrackingUiEvent.ShowError(uiErrorMapper.map(routeError))
+                TrackingUiEvent.ShowError(routeError.toUiError())
             }
         }
 
