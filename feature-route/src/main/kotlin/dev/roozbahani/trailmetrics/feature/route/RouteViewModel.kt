@@ -3,7 +3,7 @@ package dev.roozbahani.trailmetrics.feature.route
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
-import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
+import dev.roozbahani.trailmetrics.core.error.toUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
@@ -26,8 +26,7 @@ import kotlinx.coroutines.launch
 class RouteViewModel(
     private val getCurrentLocationUseCase: GetCurrentLocationUseCase,
     private val generateClosedRouteUseCase: GenerateClosedRouteUseCase,
-    private val userProfileRepository: UserProfileRepository,
-    private val uiErrorMapper: RouteUiErrorMapper
+    private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RouteUiState())
@@ -55,7 +54,7 @@ class RouteViewModel(
 
     private fun handleCurrentLocationErrors(error: RouteError?) {
         viewModelScope.launch {
-            _uiEvents.send(RouteUiEvent.ShowError(error = uiErrorMapper.map(error)))
+            _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
 
             if (error is RouteError.MissingLocationPermission) {
                 _uiEvents.send(RouteUiEvent.RequestLocationPermission)
@@ -92,7 +91,7 @@ class RouteViewModel(
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(isLoading = false) }
-                    _uiEvents.send(RouteUiEvent.ShowError(uiErrorMapper.map(error as? RouteError)))
+                    _uiEvents.send(RouteUiEvent.ShowError((error as? RouteError).toUiError()))
                 }
         }
     }

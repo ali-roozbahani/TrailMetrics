@@ -67,6 +67,7 @@ import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -105,7 +106,7 @@ fun RouteScreen(
         viewModel.uiEvents.collect { event ->
             when (event) {
                 is RouteUiEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(context.getString(event.error.errorResId))
+                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
                 }
 
                 is RouteUiEvent.RequestLocationPermission -> {

@@ -1,13 +1,11 @@
 package dev.roozbahani.trailmetrics.feature.tracking.di
 
-import dev.roozbahani.trailmetrics.core.error.RouteUiErrorMapper
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val trackingUiModule = module {
-    factory { RouteUiErrorMapper() }
     factory { CalorieCalculator() }
     viewModel { params ->
         TrackingViewModel(
@@ -17,8 +15,7 @@ val trackingUiModule = module {
             saveActivityUseCase = get(),
             activityType = params.get(),
             plannedRoutePoints = params.get(),
-            clock = get(),
-            uiErrorMapper = get()
+            clock = get()
         )
     }
 }
