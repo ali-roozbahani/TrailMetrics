@@ -27,6 +27,7 @@ ktor = "3.5.0"
 kotlinx-serialization = "1.7.3"
 detekt = "1.23.8"
 androidxSqlite = "2.6.1"
+skie = "0.10.14"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -101,3 +102,4 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 room = { id = "androidx.room3", version.ref = "room" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }

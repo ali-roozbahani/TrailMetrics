@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		55D6B111305076C700D10092 /* TrailMetricsShared.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55D6B110305076C700D10092 /* TrailMetricsShared.xcframework */; };
+		551756A030517A72008ECF92 /* TrailMetricsShared.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TrailMetricsShared.xcframework; path = ../shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework; sourceTree = "<group>"; };
 		55D6B101304F206500D10092 /* TrailMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrailMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		55D6B110305076C700D10092 /* TrailMetricsShared.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TrailMetricsShared.xcframework; path = ../../shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -28,7 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55D6B111305076C700D10092 /* TrailMetricsShared.xcframework in Frameworks */,
+				551756A030517A72008ECF92 /* TrailMetricsShared.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,7 +55,7 @@
 		55D6B10F305076C700D10092 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				55D6B110305076C700D10092 /* TrailMetricsShared.xcframework */,
+				5517569F30517A72008ECF92 /* TrailMetricsShared.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
