@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		551756AB30518133008ECF92 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AA30518133008ECF92 /* SharedKit */; };
+		551756AE3051853C008ECF92 /* History in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AD3051853C008ECF92 /* History */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				551756AB30518133008ECF92 /* SharedKit in Frameworks */,
+				551756AE3051853C008ECF92 /* History in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,6 +59,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 55D6B10C304F206600D10092 /* Build configuration list for PBXNativeTarget "TrailMetrics" */;
 			buildPhases = (
+				551756AF3051A1FF008ECF92 /* Build KMP Shared Framework */,
 				55D6B0FD304F206500D10092 /* Sources */,
 				55D6B0FE304F206500D10092 /* Frameworks */,
 				55D6B0FF304F206500D10092 /* Resources */,
@@ -71,6 +74,7 @@
 			name = TrailMetrics;
 			packageProductDependencies = (
 				551756AA30518133008ECF92 /* SharedKit */,
+				551756AD3051853C008ECF92 /* History */,
 			);
 			productName = TrailMetrics;
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
@@ -102,6 +106,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */,
+				551756AC3051853C008ECF92 /* XCLocalSwiftPackageReference "Packages/History" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55D6B102304F206500D10092 /* Products */;
@@ -122,6 +127,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		551756AF3051A1FF008ECF92 /* Build KMP Shared Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build KMP Shared Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/../shared/build/.xcode_kmp_stamp",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\ncd \"${SRCROOT}/..\"\n\nSTAMP_FILE=\"shared/build/.xcode_kmp_stamp\"\nSOURCE_DIRS=\"domain/src data/src shared/src\"\n\nCURRENT_HASH=$(find $SOURCE_DIRS -type f \\( -name \"*.kt\" -o -name \"*.kts\" \\) -exec stat -f \"%m %N\" {} \\; | sort | shasum | awk '{print $1}')\n\nif [ -f \"$STAMP_FILE\" ] && [ \"$(cat \"$STAMP_FILE\")\" == \"$CURRENT_HASH\" ]; then\n  echo \"KMP shared framework is up to date, skipping Gradle build.\"\nelse\n  echo \"KMP source changed, rebuilding shared framework...\"\n  ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework\n  echo \"$CURRENT_HASH\" > \"$STAMP_FILE\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		55D6B0FD304F206500D10092 /* Sources */ = {
@@ -261,6 +288,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -292,6 +320,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -343,12 +372,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SharedKit;
 		};
+		551756AC3051853C008ECF92 /* XCLocalSwiftPackageReference "Packages/History" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/History;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		551756AA30518133008ECF92 /* SharedKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SharedKit;
+		};
+		551756AD3051853C008ECF92 /* History */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = History;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
