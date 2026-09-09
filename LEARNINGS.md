@@ -380,3 +380,93 @@ confirming feature-route/feature-tracking/feature-history modules are
 still compatible with the new data module surface.
 
 ---
+
+## Phase C — Shared Module & XCFramework Export
+
+- Umbrella module pattern: a dedicated `shared` KMP module (not `data`) owns
+  DI composition and XCFramework export. `data`/`domain` stay focused on
+  their own concerns; `shared` only aggregates + exposes `initKoin()`.
+- `export()` in a Kotlin/Native framework block requires the exported
+  module to be an `api(...)` dependency, not `implementation(...)` —
+  otherwise its symbols aren't visible to Swift even with `export()`.
+- Koin idiom for cross-platform composition root: `expect val platformModules`
+    + a shared `fun initKoin(appDeclaration: KoinAppDeclaration = {})` in
+      commonMain. Android calls `initKoin { androidContext(this) }`; iOS calls
+      a `doInitKoinIos()` wrapper with no args. Feature-only (Compose UI) Koin
+      modules stay out of `shared` and get passed via `appDeclaration` from
+      the platform's real composition root (Android's `Application`).
+- Inline `reified` functions like Koin's `get<T>()` do NOT export to
+  Objective-C/Swift. Need a `KoinHelper : KoinComponent` bridge class in
+  `iosMain` with concrete, non-generic getter functions per dependency.
+- Kotlin `Flow<T>` exports to Swift as a near-unusable generic Objective-C
+  type by default (no `for await`, generic type erased). SKIE
+  (`co.touchlab.skie`, applied only in the framework-exporting module —
+  here `shared`, not `domain`/`data`) rewrites Flow → Swift AsyncSequence
+  and suspend fun → async/await in the generated header, with zero
+  Kotlin-side code changes required.
+- XCFramework must be rebuilt (`:shared:assembleTrailMetricsSharedDebugXCFramework`)
+  after ANY change to `domain`, `data`, or `shared` source — Xcode does not
+  know to do this automatically. Manual builds are risky to forget (solved
+  in Phase D via an automated Run Script phase, see below).
+
+---
+
+## Phase D — iOS SPM Modularization + Xcode/Gradle Integration
+
+- iOS equivalent of Gradle feature modules is local Swift Packages (SPM),
+  one per feature, living under `iosApp/Packages/`.
+- A binary XCFramework can't be depended on directly by multiple sibling
+  SPM packages without repeating the relative path everywhere. Standard
+  fix: wrap it once in a thin `SharedKit` package
+  (`.binaryTarget` + `@_exported import TrailMetricsShared`), and have
+  every feature package depend on `SharedKit` instead of the framework
+  directly. The app target also drops its direct XCFramework link in
+  favor of depending only on `SharedKit`.
+- When creating a new local SPM package, choose "Don't add to any project
+  or workspace" in the save dialog, then manually wire it via
+  File → Add Package Dependencies → Add Local... This avoids Xcode
+  silently doing unexpected project wiring.
+- Xcode Run Script build phases run every build unless given at least one
+  Output File — this is a cosmetic warning check only, unrelated to
+  whether the script's own internal logic actually skips work.
+- Xcode's User Script Sandboxing (`ENABLE_USER_SCRIPT_SANDBOXING`) blocks
+  Gradle/Kotlin-Native subprocess and file operations invoked from a Run
+  Script phase. Must be set to NO in Build Settings for any KMP project
+  that triggers Gradle from an Xcode build phase.
+- Practical incremental-build script pattern: hash `mtime + path` of all
+  `.kt`/`.kts` files across the KMP source dirs (`domain/src data/src
+  shared/src`), compare to a stamp file, only invoke Gradle when the hash
+  changed. Plain Xcode Input/Output File tracking is unreliable here
+  because it only watches direct folder mtimes, not deep recursive
+  content changes.
+
+### Reference: Incremental KMP rebuild script (Xcode Run Script Phase)
+
+Location: TrailMetrics target → Build Phases → "Build KMP Shared Framework"
+(placed as the FIRST build phase, before Sources/Frameworks/Resources).
+Output Files: `$(SRCROOT)/../shared/build/.xcode_kmp_stamp` (silences
+Xcode's "no outputs" warning; the real skip logic lives in the script).
+
+```bash
+set -e
+cd "${SRCROOT}/.."
+
+STAMP_FILE="shared/build/.xcode_kmp_stamp"
+SOURCE_DIRS="domain/src data/src shared/src"
+
+CURRENT_HASH=$(find $SOURCE_DIRS -type f \( -name "*.kt" -o -name "*.kts" \) -exec stat -f "%m %N" {} \; | sort | shasum | awk '{print $1}')
+
+if [ -f "$STAMP_FILE" ] && [ "$(cat "$STAMP_FILE")" == "$CURRENT_HASH" ]; then
+  echo "KMP shared framework is up to date, skipping Gradle build."
+else
+  echo "KMP source changed, rebuilding shared framework..."
+  ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
+  echo "$CURRENT_HASH" > "$STAMP_FILE"
+fi
+```
+
+Also required in Build Settings: `ENABLE_USER_SCRIPT_SANDBOXING = NO`,
+otherwise the Gradle invocation fails with
+`Execution failed for task ':shared:checkSandboxAndWriteProtection'`.
+
+---
