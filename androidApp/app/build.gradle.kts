@@ -54,9 +54,9 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":data"))
     implementation(project(":shared"))
-    implementation(project(":feature-route"))
-    implementation(project(":feature-tracking"))
-    implementation(project(":feature-history"))
+    implementation(project(":androidApp:feature-route"))
+    implementation(project(":androidApp:feature-tracking"))
+    implementation(project(":androidApp:feature-history"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
