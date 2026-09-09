@@ -18,6 +18,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import dev.roozbahani.trailmetrics.R
+import dev.roozbahani.trailmetrics.core.navigation.AppRoute
 
 @Composable
 fun TrailMetricsBottomBar(navController: NavHostController) {
@@ -26,9 +27,9 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
 
     NavigationBar {
         NavigationBarItem(
-            selected = currentDestination.isRouteSelected<TrailMetricsRoute.RoutePlanning>(),
+            selected = currentDestination.isRouteSelected<AppRoute.RoutePlanning>(),
             onClick = {
-                navController.navigate(TrailMetricsRoute.RoutePlanning) {
+                navController.navigate(AppRoute.RoutePlanning) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
@@ -38,9 +39,9 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
             label = { Text(stringResource(R.string.tab_route)) }
         )
         NavigationBarItem(
-            selected = currentDestination.isRouteSelected<TrailMetricsRoute.History>(),
+            selected = currentDestination.isRouteSelected<AppRoute.History>(),
             onClick = {
-                navController.navigate(TrailMetricsRoute.History) {
+                navController.navigate(AppRoute.History) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
@@ -52,5 +53,5 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
     }
 }
 
-private inline fun <reified T : TrailMetricsRoute> NavDestination?.isRouteSelected(): Boolean =
+private inline fun <reified T : AppRoute> NavDestination?.isRouteSelected(): Boolean =
     this?.hierarchy?.any { it.hasRoute<T>() } == true
