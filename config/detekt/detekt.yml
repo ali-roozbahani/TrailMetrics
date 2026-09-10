@@ -20,6 +20,18 @@ style:
     active: false
   ReturnCount:
     active: false
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - reason: 'Use a proper logger (or Koin-injected Logger) instead of println/print.'
+        value: 'kotlin.io.println'
+      - reason: 'Use a proper logger instead of print.'
+        value: 'kotlin.io.print'
+  ForbiddenImport:
+    active: true
+    imports:
+      - value: 'kotlinx.coroutines.GlobalScope'
+        reason: 'GlobalScope leaks coroutines outside any lifecycle. Inject or use viewModelScope/a scoped CoroutineScope instead.'
 
 complexity:
   TooManyFunctions:
