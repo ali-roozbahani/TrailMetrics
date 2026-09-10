@@ -39,6 +39,16 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    targets.all {
+        compilations.all {
+            compileTaskProvider.configure {
+                compilerOptions {
+                    freeCompilerArgs.add("-Xexpect-actual-classes")
+                }
+            }
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             implementation(project(":domain"))
@@ -103,6 +113,26 @@ buildkonfig {
                 "ANDROID_CERT_SHA1",
                 localProperties.getProperty("ANDROID_CERT_SHA1", "")
             )
+        }
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    if (name == "testAndroidHostTest") {
+        filter {
+            excludeTestsMatching("*ActivityHistoryRepositoryImplTest*")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.matching {
+        it.name.startsWith("lint") || it.name.startsWith("generate") && it.name.contains(
+            "LintModel"
+        )
+    }.configureEach {
+        tasks.findByName("kspAndroidHostTest")?.let { kspTask ->
+            mustRunAfter(kspTask)
         }
     }
 }

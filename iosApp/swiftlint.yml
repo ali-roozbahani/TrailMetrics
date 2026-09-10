@@ -1,0 +1,41 @@
+opt_in_rules:
+  - force_unwrapping
+  - unused_import
+  - explicit_init
+  - closure_spacing
+  - empty_count
+  - fatal_error_message
+
+disabled_rules:
+  - todo
+
+force_unwrapping: error
+force_cast: error
+force_try: error
+
+identifier_name:
+  min_length: 3
+  excluded: [id]
+
+line_length:
+  warning: 120
+  error: 160
+
+type_body_length:
+  warning: 300
+  error: 400
+
+function_body_length:
+  warning: 60
+  error: 100
+
+cyclomatic_complexity:
+  warning: 15
+  error: 20
+
+excluded:
+  - Packages/*/\.build
+  - Packages/*/\.swiftpm
+  - "**/*.generated.swift"
+
+reporter: "xcode"

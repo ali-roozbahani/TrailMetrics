@@ -470,3 +470,61 @@ otherwise the Gradle invocation fails with
 `Execution failed for task ':shared:checkSandboxAndWriteProtection'`.
 
 ---
+
+## Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI
+
+- `allWarningsAsErrors = true`, applied project-wide via `subprojects { }`
+  in the root `build.gradle.kts`, needs three separate `plugins.withId(...)`
+  blocks (`org.jetbrains.kotlin.jvm`, `org.jetbrains.kotlin.android`,
+  `org.jetbrains.kotlin.multiplatform`) configuring the matching
+  `Kotlin*ProjectExtension` — a mixed Android+KMP module graph has all
+  three plugin types present across different modules, and there's no
+  single extension type that covers all of them.
+- Turning this on immediately surfaces every pre-existing warning as a
+  build failure. In this project that meant: unnecessary `as` casts in
+  `domain`'s test suite (Kotlin's smart-cast already narrowed the type;
+  the explicit cast was a leftover from before `assertIs<T>()` was
+  introduced), and the `expect`/`actual class` Beta warning in `data`
+  (silenced with the compiler flag below).
+- The `-Xexpect-actual-classes` flag itself needs to be added via
+  `compileTaskProvider.configure { compilerOptions { ... } }`, not the
+  older `compilerOptions.configure { }` on the `KotlinCompilation`
+  directly — the latter is deprecated in current Kotlin Gradle plugin
+  versions. Ironically, the first fix for a warning caused by turning on
+  `allWarningsAsErrors` was itself a deprecated API needing replacement.
+- `ActivityHistoryRepositoryImplTest` (in `data`'s `commonTest`) fails with
+  `UnsatisfiedLinkError` / `NoClassDefFoundError` on `BundledSQLiteDriver`
+  when run under `androidHostTest` (Robolectric) — not because the test
+  itself uses Robolectric, but because Robolectric's `SandboxClassLoader`
+  isolation for *other* tests in the same JVM process (specifically
+  `UserProfileRepositoryImplTest`) interferes with the native SQLite
+  binary's JNI loading, which is a once-per-process operation. Fixed by
+  excluding this test class specifically from `testAndroidHostTest` via
+  `tasks.withType<Test>().configureEach { if (name == "testAndroidHostTest") { filter { excludeTestsMatching(...) } } }`
+  — it still runs correctly under `commonTest`/`iosSimulatorArm64Test`,
+  which is its actual coverage source.
+- `tasks.named("taskName")` is eager and will throw
+  `UnknownTaskException` if the named task hasn't been created yet at the
+  point the build script evaluates that line (task creation order in a
+  KMP module isn't something to rely on). `tasks.withType<Test>().configureEach { }`
+  with an `if (name == ...)` check inside is the lazy, order-independent
+  equivalent — prefer it whenever conditionally configuring a task that a
+  plugin creates.
+- KSP + Android Lint have a known task-ordering gap: `lintAnalyzeAndroidHostTest`
+  and `generateAndroidHostTestLintModel` read KSP's generated sources
+  without Gradle being told about the dependency, causing "implicit
+  dependency" validation failures on a full `./gradlew build`. Fixed with
+  an `afterEvaluate` block adding `mustRunAfter("kspAndroidHostTest")` to
+  the matching lint tasks. This is unrelated to any change made in this
+  project — it surfaces the first time a full `build` (not just `assemble`
+  or `test`) is run against a KMP module using both KSP and Android Lint.
+- SwiftLint needs no separate installation step on GitHub Actions'
+  `macos-latest` runners — it ships preinstalled, same as Xcode and
+  fastlane.
+- iOS CI (`xcodebuild build -destination "generic/platform=iOS Simulator"`)
+  needs the XCFramework built *before* `xcodebuild` runs, via an explicit
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` step —
+  the Xcode project's own Run Script build phase for this exists for local
+  development inside Xcode.app, but isn't guaranteed to behave identically
+  when `xcodebuild` is invoked directly from a CI shell in a fresh
+  checkout with no prior Gradle daemon state.
