@@ -5,16 +5,16 @@
 //  Created by Ali Roozbahani on 07.09.26.
 //
 
-import SwiftUI
 import SharedKit
+import SwiftUI
 
 @main
 struct TrailMetricsApp: App {
-    
-    init () {
+
+    init() {
         KoinInitIosKt.doInitKoinIos()
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()

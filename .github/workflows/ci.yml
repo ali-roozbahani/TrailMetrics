@@ -2,12 +2,13 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ main, 'feature/**' ]
   push:
-    branches: [main]
+    branches: [ main, 'feature/**' ]
 
 jobs:
-  build-and-test:
+  android:
+    name: Android — Lint, Detekt, Tests, Build
     runs-on: ubuntu-latest
 
     steps:
@@ -34,3 +35,47 @@ jobs:
 
       - name: Build
         run: ./gradlew assembleDebug
+
+  ios:
+    name: iOS — SwiftLint, Build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: |
+          cd iosApp
+          swiftlint lint --strict
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build KMP Shared Framework
+        run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
+
+      - name: Build iOS app
+        run: |
+          cd iosApp
+          xcodebuild build \
+            -project TrailMetrics.xcodeproj \
+            -scheme TrailMetrics \
+            -destination "generic/platform=iOS Simulator" \
+            -skipMacroValidation \
+            ARCHS=arm64 \
+            EXCLUDED_ARCHS=x86_64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO
