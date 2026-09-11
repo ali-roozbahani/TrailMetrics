@@ -89,6 +89,10 @@ itself only needs to specify what's actually task-specific:
 Task: <one-line description of the feature, fix, or chore>
 
 Context:
+- Read `docs/workflow/coding_agent_workflow.md` in full before doing
+  anything else — it lists the required reading order (architecture,
+  platform guide, shared conventions) and the standing rules (branching,
+  verification tiers, commit/merge boundaries) that govern this task.
 - Reference implementation (if porting a feature): <path to the Android or
   iOS equivalent, e.g. androidApp/feature-history/>
 - Module(s) this task touches: <list>
