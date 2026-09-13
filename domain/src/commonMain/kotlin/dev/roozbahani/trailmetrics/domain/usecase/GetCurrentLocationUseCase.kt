@@ -6,7 +6,7 @@ import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 class GetCurrentLocationUseCase(
     private val locationRepository: LocationRepository
 ) {
-    suspend operator fun invoke(): Result<Coordinates> {
-        return locationRepository.getCurrentLocation()
+    suspend operator fun invoke(): Coordinates {
+        return locationRepository.getCurrentLocation().getOrThrow()
     }
 }

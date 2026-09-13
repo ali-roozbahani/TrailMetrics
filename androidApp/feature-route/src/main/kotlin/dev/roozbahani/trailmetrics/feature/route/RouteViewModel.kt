@@ -42,23 +42,20 @@ class RouteViewModel(
 
     private fun loadCurrentLocation() {
         viewModelScope.launch {
-            getCurrentLocationUseCase()
-                .onSuccess { coordinates ->
-                    _uiState.update { it.copy(startPoint = coordinates) }
-                }
-                .onFailure { throwable ->
-                    handleCurrentLocationErrors(throwable as? RouteError)
-                }
+            try {
+                val coordinates = getCurrentLocationUseCase()
+                _uiState.update { it.copy(startPoint = coordinates) }
+            } catch (error: RouteError) {
+                handleCurrentLocationErrors(error)
+            }
         }
     }
 
-    private fun handleCurrentLocationErrors(error: RouteError?) {
-        viewModelScope.launch {
-            _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
+    private suspend fun handleCurrentLocationErrors(error: RouteError) {
+        _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
 
-            if (error is RouteError.MissingLocationPermission) {
-                _uiEvents.send(RouteUiEvent.RequestLocationPermission)
-            }
+        if (error is RouteError.MissingLocationPermission) {
+            _uiEvents.send(RouteUiEvent.RequestLocationPermission)
         }
     }
 
@@ -85,14 +82,13 @@ class RouteViewModel(
                 waypoints = state.waypoints
             )
 
-            generateClosedRouteUseCase(draftRoute)
-                .onSuccess { route ->
-                    _uiState.update { it.copy(isLoading = false, generatedRoute = route) }
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false) }
-                    _uiEvents.send(RouteUiEvent.ShowError((error as? RouteError).toUiError()))
-                }
+            try {
+                val route = generateClosedRouteUseCase(draftRoute)
+                _uiState.update { it.copy(isLoading = false, generatedRoute = route) }
+            } catch (error: RouteError) {
+                _uiState.update { it.copy(isLoading = false) }
+                _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
+            }
         }
     }
 
