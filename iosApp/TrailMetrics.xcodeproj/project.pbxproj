@@ -9,15 +9,29 @@
 /* Begin PBXBuildFile section */
 		551756AB30518133008ECF92 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AA30518133008ECF92 /* SharedKit */; };
 		551756AE3051853C008ECF92 /* History in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AD3051853C008ECF92 /* History */; };
+		55AF786F3056BD5C0000E3B3 /* Route in Frameworks */ = {isa = PBXBuildFile; productRef = 55AF786E3056BD5C0000E3B3 /* Route */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		55D6B101304F206500D10092 /* TrailMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrailMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		55AF787C3056C45B0000E3B3 /* Exceptions for "TrailMetrics" folder in "TrailMetrics" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Secrets.xcconfig,
+			);
+			target = 55D6B100304F206500D10092 /* TrailMetrics */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		55D6B103304F206500D10092 /* TrailMetrics */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				55AF787C3056C45B0000E3B3 /* Exceptions for "TrailMetrics" folder in "TrailMetrics" target */,
+			);
 			path = TrailMetrics;
 			sourceTree = "<group>";
 		};
@@ -28,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				55AF786F3056BD5C0000E3B3 /* Route in Frameworks */,
 				551756AB30518133008ECF92 /* SharedKit in Frameworks */,
 				551756AE3051853C008ECF92 /* History in Frameworks */,
 			);
@@ -75,6 +90,7 @@
 			packageProductDependencies = (
 				551756AA30518133008ECF92 /* SharedKit */,
 				551756AD3051853C008ECF92 /* History */,
+				55AF786E3056BD5C0000E3B3 /* Route */,
 			);
 			productName = TrailMetrics;
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
@@ -107,6 +123,7 @@
 			packageReferences = (
 				551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */,
 				551756AC3051853C008ECF92 /* XCLocalSwiftPackageReference "Packages/History" */,
+				55AF786D3056BD5C0000E3B3 /* XCLocalSwiftPackageReference "Packages/Route" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55D6B102304F206500D10092 /* Products */;
@@ -219,6 +236,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -275,6 +293,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -282,6 +301,8 @@
 		};
 		55D6B10D304F206600D10092 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 55D6B103304F206500D10092 /* TrailMetrics */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -290,6 +311,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_GMSApiKey = "$(GMS_API_KEY)";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrailMetrics uses your location to center the map and plan routes that start where you are.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -314,6 +337,8 @@
 		};
 		55D6B10E304F206600D10092 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 55D6B103304F206500D10092 /* TrailMetrics */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -322,6 +347,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_GMSApiKey = "$(GMS_API_KEY)";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrailMetrics uses your location to center the map and plan routes that start where you are.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -376,6 +403,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/History;
 		};
+		55AF786D3056BD5C0000E3B3 /* XCLocalSwiftPackageReference "Packages/Route" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Route;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -386,6 +417,10 @@
 		551756AD3051853C008ECF92 /* History */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = History;
+		};
+		55AF786E3056BD5C0000E3B3 /* Route */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Route;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
