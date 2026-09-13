@@ -20,6 +20,7 @@
 		55AF787C3056C45B0000E3B3 /* Exceptions for "TrailMetrics" folder in "TrailMetrics" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Info.plist,
 				Secrets.xcconfig,
 			);
 			target = 55D6B100304F206500D10092 /* TrailMetrics */;
@@ -310,8 +311,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_GMSApiKey = "$(GMS_API_KEY)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TrailMetrics/Info.plist;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrailMetrics uses your location to center the map and plan routes that start where you are.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -346,8 +347,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_GMSApiKey = "$(GMS_API_KEY)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TrailMetrics/Info.plist;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "TrailMetrics uses your location to center the map and plan routes that start where you are.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
