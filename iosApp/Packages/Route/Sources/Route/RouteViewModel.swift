@@ -52,13 +52,7 @@ public class RouteViewModel: ObservableObject {
     private func loadCurrentLocation() {
         Task {
             do {
-                // GetCurrentLocationUseCase.invoke() returns `Result<Coordinates>` in Kotlin; SKIE
-                // unwraps that to `async throws -> Any?` (the generic success type is erased at the
-                // Result<T> ABI boundary), so the success value needs a runtime cast back to Coordinates.
-                guard let coordinates = try await getCurrentLocationUseCase.invoke() as? Coordinates else {
-                    return
-                }
-                startPoint = coordinates
+                startPoint = try await getCurrentLocationUseCase.invoke()
             } catch {
                 emit(.showError((error as? RouteError)?.toUiError() ?? RouteUiErrorGeneral.shared))
                 if error is RouteError.MissingLocationPermission {
@@ -89,11 +83,7 @@ public class RouteViewModel: ObservableObject {
 
         Task {
             do {
-                guard let route = try await generateClosedRouteUseCase.invoke(draft: draft) as? Route else {
-                    isLoading = false
-                    return
-                }
-                generatedRoute = route
+                generatedRoute = try await generateClosedRouteUseCase.invoke(draft: draft)
                 isLoading = false
             } catch {
                 isLoading = false
