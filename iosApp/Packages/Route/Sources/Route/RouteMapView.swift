@@ -7,6 +7,7 @@ import CoreLocation
 import GoogleMaps
 import SharedKit
 import SwiftUI
+import UIKit
 
 struct RouteMapView: UIViewRepresentable {
     private static let defaultZoom: Float = 15
@@ -16,11 +17,17 @@ struct RouteMapView: UIViewRepresentable {
     let generatedRoute: Route?
     let onMapTapped: (Coordinates) -> Void
     let onWaypointTapped: (RoutePoint) -> Void
+    @Binding var mapView: GMSMapView?
 
     func makeUIView(context: Context) -> GMSMapView {
         let camera = GMSCameraPosition.camera(withLatitude: 0, longitude: 0, zoom: Self.defaultZoom)
         let mapView = GMSMapView(frame: .zero, camera: camera)
         mapView.delegate = context.coordinator
+
+        DispatchQueue.main.async {
+            self.mapView = mapView
+        }
+
         return mapView
     }
 
@@ -73,14 +80,15 @@ struct RouteMapView: UIViewRepresentable {
             self.parent = parent
         }
 
-        func mapView(_ mapView: GMSMapView, didTapAt coordinate: CLLocationCoordinate2D) {
-            parent.onMapTapped(Coordinates(latitude: coordinate.latitude, longitude: coordinate.longitude))
-        }
-
         func mapView(_ mapView: GMSMapView, didTap marker: GMSMarker) -> Bool {
             guard let point = marker.userData as? RoutePoint else { return false }
             parent.onWaypointTapped(point)
             return true
+        }
+
+        func mapView(_ mapView: GMSMapView, didLongPressAt coordinate: CLLocationCoordinate2D) {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            parent.onMapTapped(Coordinates(latitude: coordinate.latitude, longitude: coordinate.longitude))
         }
     }
 }
