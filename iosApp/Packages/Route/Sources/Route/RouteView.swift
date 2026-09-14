@@ -3,6 +3,7 @@
 //  Route
 //
 
+import GoogleMaps
 import SharedKit
 import SwiftUI
 
@@ -10,6 +11,7 @@ public struct RouteView: View {
     @StateObject private var viewModel = RouteViewModel()
     @State private var showProfileSheet = false
     @State private var errorMessage: String?
+    @State private var mapView: GMSMapView?
 
     private let onNavigateToTracking: (Coordinates, [Coordinates], ActivityType) -> Void
 
@@ -24,7 +26,8 @@ public struct RouteView: View {
                 waypoints: viewModel.waypoints,
                 generatedRoute: viewModel.generatedRoute,
                 onMapTapped: viewModel.onMapTapped,
-                onWaypointTapped: viewModel.onWaypointRemoved
+                onWaypointTapped: viewModel.onWaypointRemoved,
+                mapView: $mapView
             )
             .ignoresSafeArea()
 
@@ -35,6 +38,10 @@ public struct RouteView: View {
             VStack {
                 topBar
                 Spacer()
+                HStack {
+                    Spacer()
+                    zoomControls
+                }
                 bottomPanel
             }
             .padding()
@@ -84,10 +91,10 @@ public struct RouteView: View {
                 showProfileSheet = true
             } label: {
                 Image(systemName: "person.fill")
+                    .foregroundStyle(Color.trailGreen)
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
-            .tint(.trailGreen)
 
             Spacer()
 
@@ -95,11 +102,40 @@ public struct RouteView: View {
                 viewModel.onResetClicked()
             } label: {
                 Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(Color.trailGreen)
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
-            .tint(.trailGreen)
         }
+    }
+
+    private var zoomControls: some View {
+        VStack(spacing: 12) {
+            Button {
+                zoom(by: 1)
+            } label: {
+                Image(systemName: "plus")
+                    .foregroundStyle(Color.trailGreen)
+                    .frame(width: 20, height: 20)
+                    .padding(12)
+                    .background(.thinMaterial, in: Circle())
+            }
+
+            Button {
+                zoom(by: -1)
+            } label: {
+                Image(systemName: "minus")
+                    .foregroundStyle(Color.trailGreen)
+                    .frame(width: 20, height: 20)
+                    .padding(12)
+                    .background(.thinMaterial, in: Circle())
+            }
+        }
+    }
+
+    private func zoom(by delta: Float) {
+        guard let mapView else { return }
+        mapView.animate(toZoom: mapView.camera.zoom + delta)
     }
 
     @ViewBuilder
