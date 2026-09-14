@@ -4,10 +4,12 @@ import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RouteDraft
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
+import kotlin.coroutines.cancellation.CancellationException
 
 class GenerateClosedRouteUseCase(
     private val directionsRepository: DirectionsRepository
 ) {
+    @Throws(RouteError::class, CancellationException::class)
     suspend operator fun invoke(draft: RouteDraft): Route {
         if (draft.waypoints.size < MIN_WAYPOINTS) {
             throw RouteError.InsufficientWaypoints(

@@ -54,16 +54,9 @@ public class RouteViewModel: ObservableObject {
             do {
                 startPoint = try await getCurrentLocationUseCase.invoke()
             } catch {
-                emit(.showError((error as? RouteError)?.toUiError() ?? RouteUiErrorGeneral.shared))
-                if error is RouteError.MissingLocationPermission {
-                    emit(.requestLocationPermission)
-                }
+                emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
             }
         }
-    }
-
-    public func onLocationPermissionGranted() {
-        loadCurrentLocation()
     }
 
     public func onMapTapped(_ coordinates: Coordinates) {
@@ -87,7 +80,7 @@ public class RouteViewModel: ObservableObject {
                 isLoading = false
             } catch {
                 isLoading = false
-                emit(.showError((error as? RouteError)?.toUiError() ?? RouteUiErrorGeneral.shared))
+                emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
             }
         }
     }
@@ -149,5 +142,16 @@ public class RouteViewModel: ObservableObject {
         Task {
             userProfile = try await userProfileRepository.getUserProfile()
         }
+    }
+}
+
+private extension Error {
+    /// SKIE bridges a thrown Kotlin exception to an NSError with the real value in userInfo["KotlinException"].
+    var underlyingRouteError: RouteError? {
+        guard let nsError = self as? NSError,
+              let kotlinException = nsError.userInfo["KotlinException"] else {
+            return nil
+        }
+        return kotlinException as? RouteError
     }
 }

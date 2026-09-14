@@ -8,7 +8,6 @@ import SwiftUI
 
 public struct RouteView: View {
     @StateObject private var viewModel = RouteViewModel()
-    @StateObject private var permissionRequester = LocationPermissionRequester()
     @State private var showProfileSheet = false
     @State private var errorMessage: String?
 
@@ -70,8 +69,6 @@ public struct RouteView: View {
 
     private func handle(_ event: RouteUiEvent) {
         switch event {
-        case .requestLocationPermission:
-            permissionRequester.request { viewModel.onLocationPermissionGranted() }
         case .showError(let error):
             errorMessage = error.message
         case .requestUserProfile:
