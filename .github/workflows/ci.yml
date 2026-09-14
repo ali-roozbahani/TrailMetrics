@@ -67,6 +67,13 @@ jobs:
       - name: Build KMP Shared Framework
         run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
 
+      - name: Generate Secrets.xcconfig
+        run: |
+          cat <<EOF > iosApp/TrailMetrics/Secrets.xcconfig
+          GMS_API_KEY = CI_PLACEHOLDER_KEY
+          INFOPLIST_KEY_GMSApiKey = \$(GMS_API_KEY)
+          EOF
+
       - name: Build iOS app
         run: |
           cd iosApp
