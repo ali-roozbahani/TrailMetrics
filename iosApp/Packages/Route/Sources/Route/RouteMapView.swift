@@ -56,7 +56,7 @@ struct RouteMapView: UIViewRepresentable {
             }
             let polyline = GMSPolyline(path: path)
             polyline.strokeWidth = 4
-            polyline.strokeColor = .systemBlue
+            polyline.strokeColor = UIColor(Color.trailGreen)
             polyline.map = mapView
         }
     }
