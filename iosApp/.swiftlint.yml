@@ -1,0 +1,19 @@
+opt_in_rules:
+  - force_unwrapping
+  - unused_import
+  - explicit_init
+
+disabled_rules:
+  - todo
+
+force_unwrapping: error
+force_cast: error
+force_try: error
+
+identifier_name:
+  min_length: 3
+  excluded: [id]
+
+line_length:
+  warning: 120
+  error: 160
