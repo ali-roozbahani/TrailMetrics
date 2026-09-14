@@ -14,6 +14,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
 import platform.CoreLocation.CLLocationManagerDelegateProtocol
+import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
+import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLLocationAccuracyBest
 import platform.Foundation.NSError
 import platform.darwin.NSObject
@@ -74,12 +76,18 @@ class IosLocationRepositoryImpl : LocationRepository {
         delegate = this@IosLocationRepositoryImpl.delegate
     }
 
-    override suspend fun getCurrentLocation(): Result<Coordinates> =
-        suspendCancellableCoroutine { continuation ->
+    override suspend fun getCurrentLocation(): Result<Coordinates> {
+        val status = locationManager.authorizationStatus
+        if (status != kCLAuthorizationStatusAuthorizedWhenInUse && status != kCLAuthorizationStatusAuthorizedAlways) {
+            return Result.failure(RouteError.MissingLocationPermission())
+        }
+
+        return suspendCancellableCoroutine { continuation ->
             pendingCurrentLocation = continuation
             continuation.invokeOnCancellation { pendingCurrentLocation = null }
             locationManager.requestLocation()
         }
+    }
 
     override fun observeLocationUpdates(): Flow<LocationUpdate> = callbackFlow {
         updatesChannel = this
