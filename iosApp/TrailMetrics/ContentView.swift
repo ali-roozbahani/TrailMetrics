@@ -45,6 +45,8 @@ private struct TrackingPlaceholderView: View {
     let route: AppRouteTracking
 
     var body: some View {
+        // Deliberate placeholder for the not-yet-built Tracking feature package, not an oversight.
+        // swiftlint:disable:next todo
         // TODO: Replace with the Tracking feature package once it exists.
         VStack(spacing: 12) {
             Text("Tracking - TODO")
