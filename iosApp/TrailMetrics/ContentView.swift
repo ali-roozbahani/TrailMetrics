@@ -11,6 +11,24 @@ import SharedKit
 import SwiftUI
 
 struct ContentView: View {
+    var body: some View {
+        TabView {
+            RouteTab()
+                .tabItem {
+                    Label("Route", systemImage: "map")
+                }
+
+            NavigationStack {
+                HistoryView()
+            }
+            .tabItem {
+                Label("History", systemImage: "clock.arrow.circlepath")
+            }
+        }
+    }
+}
+
+private struct RouteTab: View {
     @State private var path = NavigationPath()
 
     var body: some View {
@@ -24,18 +42,9 @@ struct ContentView: View {
                     )
                 )
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(value: AppRouteHistory.shared) {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                }
-            }
             .navigationDestination(for: AppRouteTracking.self) { route in
                 TrackingPlaceholderView(route: route)
-            }
-            .navigationDestination(for: AppRouteHistory.self) { _ in
-                HistoryView()
+                    .toolbar(.hidden, for: .tabBar)
             }
         }
     }
