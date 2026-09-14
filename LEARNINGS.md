@@ -528,3 +528,51 @@ otherwise the Gradle invocation fails with
   development inside Xcode.app, but isn't guaranteed to behave identically
   when `xcodebuild` is invoked directly from a CI shell in a fresh
   checkout with no prior Gradle daemon state.
+
+---
+
+## Route feature: four SKIE/Kotlin-Native interop gotchas (relevant to Tracking next)
+
+Discovered building the iOS Route feature (throwing suspend use cases +
+CoreLocation). All four generalize to any future feature consuming
+throwing suspend functions or CoreLocation from Swift — most directly,
+the upcoming Tracking feature.
+
+1. **A throwing `suspend fun` needs `@Throws` to be catchable, not just
+   throwable.** A `suspend fun` returning a plain value (not `Result<T>`)
+   must be annotated
+   `@Throws(SomeException::class, CancellationException::class)` for
+   Kotlin/Native to let Swift catch the exception normally — without it,
+   any thrown exception crashes the process instead of being catchable.
+   See `GetCurrentLocationUseCase.kt` and `GenerateClosedRouteUseCase.kt`
+   (`domain/src/commonMain/.../usecase/`) for the annotation in place.
+
+2. **Swift never sees the concrete exception type — unwrap `NSError`
+   first.** Even with `@Throws`, Swift receives an `NSError` with domain
+   `"KotlinException"`, with the real exception instance in
+   `userInfo["KotlinException"]`. A direct `as? YourExceptionType` cast
+   against the caught `Error`/`NSError` always fails silently; unwrap
+   `userInfo["KotlinException"]` first, then cast that. See the
+   `Error.underlyingRouteError` helper in
+   `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`.
+
+3. **CoreLocation authorization state needs one `CLLocationManager` owner
+   per concern, not one per responsibility.** An earlier version had two
+   separate instances — a Swift-side `LocationPermissionRequester` (its
+   own `CLLocationManager`, just for `requestWhenInUseAuthorization()`)
+   alongside the Kotlin-side `IosLocationRepositoryImpl`'s own manager for
+   fetching location — which could race: a grant becoming visible to one
+   instance's delegate before the other's `authorizationStatus` reflects
+   it. Fix: deleted `LocationPermissionRequester.swift` entirely and
+   consolidated permission request + authorization-change handling +
+   location fetching into the single `CLLocationManager` already owned by
+   `IosLocationRepositoryImpl.kt` (`data/src/iosMain/.../location/`).
+
+4. **A gitignored `.xcconfig` referenced as a required
+   `baseConfigurationReference` must exist before `xcodebuild` runs, even
+   with a placeholder value.** `Secrets.xcconfig` is gitignored but wired
+   into `project.pbxproj` as a required base configuration; CI must
+   generate it (with a placeholder value — the actual value doesn't
+   matter for the build to proceed) before invoking `xcodebuild`, or the
+   build fails at settings-resolution, before any compilation happens.
+   See the "Generate Secrets.xcconfig" step in `.github/workflows/ci.yml`.
