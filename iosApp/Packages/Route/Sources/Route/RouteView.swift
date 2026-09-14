@@ -87,6 +87,7 @@ public struct RouteView: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .tint(.trailGreen)
 
             Spacer()
 
@@ -97,6 +98,7 @@ public struct RouteView: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .tint(.trailGreen)
         }
     }
 
@@ -123,6 +125,7 @@ public struct RouteView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.trailGreen)
                 .disabled(!viewModel.canGenerateRoute)
             }
         }
