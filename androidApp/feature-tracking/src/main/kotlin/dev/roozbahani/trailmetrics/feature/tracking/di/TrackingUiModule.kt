@@ -1,12 +1,12 @@
 package dev.roozbahani.trailmetrics.feature.tracking.di
 
-import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val trackingUiModule = module {
-    factory { CalorieCalculator() }
+    // CalorieCalculator is registered in commonMain's useCaseModule (data/di/UseCaseModule.kt)
+    // so both platforms share one registration.
     viewModel { params ->
         TrackingViewModel(
             trackingSessionManager = get(),

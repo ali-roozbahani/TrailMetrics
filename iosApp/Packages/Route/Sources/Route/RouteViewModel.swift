@@ -21,8 +21,14 @@ public class RouteViewModel: ObservableObject {
         startPoint != nil && waypoints.count >= Self.minWaypoints && !isLoading
     }
 
-    public let events: AsyncStream<RouteUiEvent>
-    private let eventsContinuation: AsyncStream<RouteUiEvent>.Continuation
+    // Not a stored `let events` created once in init(): AsyncStream supports only one
+    // live consumer over its lifetime. RouteView's `.task` consuming this is cancelled
+    // whenever a pushed screen (e.g. Tracking) covers it, and gets a brand-new `Task`
+    // when that screen pops and RouteView is revealed again — but a second `for await`
+    // over an AsyncStream whose first consumer was cancelled (rather than the stream
+    // finishing on its own) exits immediately without ever receiving anything, silently.
+    // Exposing a factory instead lets each fresh `.task` get its own fresh stream.
+    private var eventsContinuation: AsyncStream<RouteUiEvent>.Continuation?
 
     private let getCurrentLocationUseCase: GetCurrentLocationUseCase
     private let generateClosedRouteUseCase: GenerateClosedRouteUseCase
@@ -37,16 +43,18 @@ public class RouteViewModel: ObservableObject {
         self.generateClosedRouteUseCase = generateClosedRouteUseCase
         self.userProfileRepository = userProfileRepository
 
-        let (stream, continuation) = AsyncStream.makeStream(of: RouteUiEvent.self)
-        self.events = stream
-        self.eventsContinuation = continuation
-
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
+    public func makeEventsStream() -> AsyncStream<RouteUiEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: RouteUiEvent.self)
+        eventsContinuation = continuation
+        return stream
+    }
+
     private func emit(_ event: RouteUiEvent) {
-        eventsContinuation.yield(event)
+        eventsContinuation?.yield(event)
     }
 
     private func loadCurrentLocation() {

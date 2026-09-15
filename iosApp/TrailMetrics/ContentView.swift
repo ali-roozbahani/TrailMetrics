@@ -9,6 +9,7 @@ import History
 import Route
 import SharedKit
 import SwiftUI
+import Tracking
 
 struct ContentView: View {
     var body: some View {
@@ -36,34 +37,46 @@ private struct RouteTab: View {
         NavigationStack(path: $path) {
             RouteView { startPoint, plannedRoutePoints, activityType in
                 path.append(
-                    AppRouteTracking(
-                        startPoint: startPoint,
-                        plannedRoutePoints: plannedRoutePoints,
-                        selectedActivityType: activityType
+                    TrackingDestination(
+                        route: AppRouteTracking(
+                            startPoint: startPoint,
+                            plannedRoutePoints: plannedRoutePoints,
+                            selectedActivityType: activityType
+                        )
                     )
                 )
             }
-            .navigationDestination(for: AppRouteTracking.self) { route in
-                TrackingPlaceholderView(route: route)
-                    .toolbar(.hidden, for: .tabBar)
+            .navigationDestination(for: TrackingDestination.self) { destination in
+                TrackingView(
+                    activityType: destination.route.selectedActivityType,
+                    plannedRoutePoints: destination.route.plannedRoutePoints,
+                    startPoint: destination.route.startPoint
+                )
+                .toolbar(.hidden, for: .tabBar)
             }
         }
     }
 }
 
-private struct TrackingPlaceholderView: View {
+/// Pairs an `AppRouteTracking` payload with a UUID so each push gets a distinguishing
+/// identity independent of the payload's own value equality. `AppRouteTracking` (Kotlin's
+/// `AppRoute.Tracking`, bridged) has structural Equatable/Hashable conformance — pushing
+/// it directly meant a second "Start Tracking" tap with unchanged Route state (same
+/// startPoint/plannedRoutePoints/activityType) produced a value-identical path element to
+/// the one just popped, which NavigationPath's diffing silently treated as no change,
+/// never invoking `.navigationDestination(for:)`'s builder again. Hashable/Equatable here
+/// are keyed on `id` alone, so two pushes are never mistaken for the same path element
+/// regardless of what the underlying route data looks like.
+private struct TrackingDestination: Hashable {
+    let id = UUID()
     let route: AppRouteTracking
 
-    var body: some View {
-        // Deliberate placeholder for the not-yet-built Tracking feature package, not an oversight.
-        // swiftlint:disable:next todo
-        // TODO: Replace with the Tracking feature package once it exists.
-        VStack(spacing: 12) {
-            Text("Tracking - TODO")
-                .font(.title2)
-            Text("\(route.plannedRoutePoints.count) planned route point(s)")
-                .foregroundStyle(.secondary)
-        }
+    static func == (lhs: TrackingDestination, rhs: TrackingDestination) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 
