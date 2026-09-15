@@ -35,6 +35,12 @@
     </array>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>TrailMetrics uses your location to center the map and plan routes that start where you are.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>TrailMetrics uses your location in the background to keep tracking your activity while the screen is locked.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
     <key>GMSApiKey</key>
     <string>$(GMS_API_KEY)</string>
 </dict>

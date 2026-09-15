@@ -13,6 +13,7 @@ val useCaseModule = module {
     factory { GenerateClosedRouteUseCase(get()) }
     factory { GetCurrentLocationUseCase(get()) }
     factory { UpdateTrackingStateUseCase() }
+    factory { CalorieCalculator() }
     factory {
         SaveActivityUseCase(
             activityHistoryRepository = get<ActivityHistoryRepository>(),

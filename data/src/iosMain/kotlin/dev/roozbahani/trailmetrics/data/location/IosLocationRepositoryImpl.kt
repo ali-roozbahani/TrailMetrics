@@ -121,8 +121,13 @@ class IosLocationRepositoryImpl : LocationRepository {
     }
 
     override fun observeLocationUpdates(): Flow<LocationUpdate> = callbackFlow {
-        updatesChannel = this
-        locationManager.startUpdatingLocation()
+        if (ensureLocationPermission()) {
+            updatesChannel = this
+            locationManager.startUpdatingLocation()
+        } else {
+            trySend(LocationUpdate.Unavailable(RouteError.MissingLocationPermission()))
+        }
+
         awaitClose {
             locationManager.stopUpdatingLocation()
             updatesChannel = null
@@ -130,6 +135,12 @@ class IosLocationRepositoryImpl : LocationRepository {
     }
 
     fun setBackgroundUpdatesEnabled(enabled: Boolean) {
+        if (enabled) {
+            // Escalates WhenInUse -> Always, specifically for Tracking (never called from
+            // Route's getCurrentLocation() path). A no-op if already Always, already
+            // denied/restricted, or WhenInUse hasn't been granted yet.
+            locationManager.requestAlwaysAuthorization()
+        }
         locationManager.allowsBackgroundLocationUpdates = enabled
         locationManager.pausesLocationUpdatesAutomatically = !enabled
     }
