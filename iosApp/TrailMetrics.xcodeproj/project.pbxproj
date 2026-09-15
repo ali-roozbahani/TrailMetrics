@@ -10,6 +10,7 @@
 		551756AB30518133008ECF92 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AA30518133008ECF92 /* SharedKit */; };
 		551756AE3051853C008ECF92 /* History in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AD3051853C008ECF92 /* History */; };
 		55AF786F3056BD5C0000E3B3 /* Route in Frameworks */ = {isa = PBXBuildFile; productRef = 55AF786E3056BD5C0000E3B3 /* Route */; };
+		E208329822A486DB3639BC20 /* Tracking in Frameworks */ = {isa = PBXBuildFile; productRef = A96D2714254FBEA24A2B2246 /* Tracking */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +47,7 @@
 				55AF786F3056BD5C0000E3B3 /* Route in Frameworks */,
 				551756AB30518133008ECF92 /* SharedKit in Frameworks */,
 				551756AE3051853C008ECF92 /* History in Frameworks */,
+				E208329822A486DB3639BC20 /* Tracking in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +94,7 @@
 				551756AA30518133008ECF92 /* SharedKit */,
 				551756AD3051853C008ECF92 /* History */,
 				55AF786E3056BD5C0000E3B3 /* Route */,
+				A96D2714254FBEA24A2B2246 /* Tracking */,
 			);
 			productName = TrailMetrics;
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
@@ -125,6 +128,7 @@
 				551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */,
 				551756AC3051853C008ECF92 /* XCLocalSwiftPackageReference "Packages/History" */,
 				55AF786D3056BD5C0000E3B3 /* XCLocalSwiftPackageReference "Packages/Route" */,
+				2B173C87F2721BA4B2DA2745 /* XCLocalSwiftPackageReference "Packages/Tracking" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55D6B102304F206500D10092 /* Products */;
@@ -408,6 +412,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/Route;
 		};
+		2B173C87F2721BA4B2DA2745 /* XCLocalSwiftPackageReference "Packages/Tracking" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Tracking;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -422,6 +430,10 @@
 		55AF786E3056BD5C0000E3B3 /* Route */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Route;
+		};
+		A96D2714254FBEA24A2B2246 /* Tracking */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Tracking;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

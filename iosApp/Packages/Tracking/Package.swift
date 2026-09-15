@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "Route",
+    name: "Tracking",
     platforms: [.iOS(.v17)],
     products: [
-        .library(name: "Route", targets: ["Route"])
+        .library(name: "Tracking", targets: ["Tracking"])
     ],
     dependencies: [
         .package(path: "../SharedKit"),
@@ -13,7 +13,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "Route",
+            name: "Tracking",
             dependencies: [
                 "SharedKit",
                 .product(name: "GoogleMaps", package: "ios-maps-sdk")

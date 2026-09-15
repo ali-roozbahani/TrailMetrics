@@ -68,7 +68,7 @@ public struct RouteView: View {
             Text(message)
         }
         .task {
-            for await event in viewModel.events {
+            for await event in viewModel.makeEventsStream() {
                 handle(event)
             }
         }

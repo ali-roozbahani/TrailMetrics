@@ -7,12 +7,14 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import kotlin.coroutines.cancellation.CancellationException
 
 class SaveActivityUseCase(
     private val activityHistoryRepository: ActivityHistoryRepository,
     private val calorieCalculator: CalorieCalculator,
     private val clock: Clock
 ) {
+    @Throws(Throwable::class, CancellationException::class)
     suspend operator fun invoke(
         activityType: ActivityType,
         plannedRoutePoints: List<Coordinates>,
