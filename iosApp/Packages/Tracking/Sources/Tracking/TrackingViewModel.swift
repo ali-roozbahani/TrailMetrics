@@ -43,6 +43,8 @@ public class TrackingViewModel: ObservableObject {
     private var stateObservationTask: Task<Void, Never>?
     private var locationIssuesObservationTask: Task<Void, Never>?
 
+    private var liveActivityController: TrackingLiveActivityController?
+
     public var canStart: Bool {
         switch onEnum(of: trackingState) {
         case .idle, .finished: return true
@@ -105,6 +107,10 @@ public class TrackingViewModel: ObservableObject {
         loadUserProfile()
         observeTrackingState()
         observeLocationIssues()
+
+        liveActivityController = TrackingLiveActivityController { [weak self] in
+            self?.handleStopNotification()
+        }
     }
 
     public func makeEventsStream() -> AsyncStream<TrackingUiEvent> {
@@ -132,6 +138,13 @@ public class TrackingViewModel: ObservableObject {
                 await MainActor.run {
                     self.trackingState = state
                     self.recomputeCalories()
+                    if let metrics = self.currentMetrics {
+                        self.liveActivityController?.update(
+                            distanceMeters: metrics.distanceMeters,
+                            elapsedMillis: metrics.elapsedMillis,
+                            currentSpeedMetersPerSecond: metrics.currentSpeedMetersPerSecond.map { Double($0) }
+                        )
+                    }
                 }
             }
         }
@@ -172,6 +185,7 @@ public class TrackingViewModel: ObservableObject {
     public func onStartClicked() {
         startedAtEpochMillis = clock.nowMillis()
         trackingSessionManager.start(startPoint: startPoint)
+        liveActivityController?.start(activityType: activityTypeDisplayName)
     }
 
     public func onPauseClicked() {
@@ -183,24 +197,42 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onStopClicked() {
-        trackingSessionManager.stop()
-
-        // `stop()` synchronously drives Kotlin's StateFlow to `Finished` before
-        // returning, so read its current value directly here rather than waiting for
-        // that emission to arrive via the (now about-to-be-cancelled) `for await`
-        // loop above — this is the one update `stateObservationTask` would otherwise
-        // need to still be alive to deliver, and capturing it synchronously means
-        // cancelling immediately below can't lose it or race with it.
-        trackingState = trackingSessionManager.currentState.value
-        recomputeCalories()
-
         // No further emission should be allowed to land mid-teardown once Stop has
-        // been pressed — cancel deterministically here rather than relying solely on
-        // `[weak self]` unwinding whenever this instance happens to deallocate.
+        // been pressed — cancel deterministically here, before `stop()` below,
+        // rather than relying solely on `[weak self]` unwinding whenever this
+        // instance happens to deallocate. (`onStopClicked()` has no `await` in its
+        // own body, and MainActor's serial execution means nothing else queued on
+        // it can interleave mid-call regardless — so this ordering doesn't change
+        // behavior, it just matches the intent described above.)
         stateObservationTask?.cancel()
         locationIssuesObservationTask?.cancel()
         stateObservationTask = nil
         locationIssuesObservationTask = nil
+
+        trackingSessionManager.stop()
+
+        // `stop()` synchronously drives Kotlin's StateFlow to `Finished` before
+        // returning, so read its current value directly here rather than relying
+        // on the (already-cancelled) `for await` loop above to deliver it.
+        trackingState = trackingSessionManager.currentState.value
+        recomputeCalories()
+
+        // Reads final metrics straight from `trackingState` (just advanced to
+        // `.finished` above) rather than through `currentMetrics` (which only
+        // covers .tracking/.paused), so the Live Activity's last-shown content
+        // reflects the session's actual final distance/time.
+        let finalMetrics: TrackingMetrics?
+        switch onEnum(of: trackingState) {
+        case .tracking(let data): finalMetrics = data.metrics
+        case .paused(let data): finalMetrics = data.metrics
+        case .finished(let data): finalMetrics = data.metrics
+        case .idle: finalMetrics = nil
+        }
+        liveActivityController?.end(
+            distanceMeters: finalMetrics?.distanceMeters ?? 0,
+            elapsedMillis: finalMetrics?.elapsedMillis ?? 0,
+            currentSpeedMetersPerSecond: finalMetrics?.currentSpeedMetersPerSecond.map { Double($0) }
+        )
     }
 
     public func onFinishClicked(snapshotFilePath: String?, onSaved: @escaping () -> Void) {
@@ -222,5 +254,31 @@ public class TrackingViewModel: ObservableObject {
                 emit(.showError(RouteUiErrorGeneral.shared))
             }
         }
+    }
+
+    // MARK: - Live Activity
+
+    private var activityTypeDisplayName: String {
+        switch activityType {
+        case .running: return "Running"
+        case .cycling: return "Cycling"
+        case .walking: return "Walking"
+        }
+    }
+
+    // Called by TrackingLiveActivityController when the Live Activity's Stop
+    // button posts its Darwin notification (best-effort — only reaches this
+    // app process if it's still alive; see TrackingLiveActivityController).
+    //
+    // Unlike the in-app Stop button (TrackingView's controlsRow/exit alert),
+    // which calls `dismiss()` directly at its own call site right after
+    // `onStopClicked()`, this path has no access to the View's `dismiss`
+    // environment value — so it emits `.dismissed` for TrackingView to act
+    // on instead, producing the same end result (per product decision:
+    // Live Activity Stop should behave exactly like the in-app Stop button).
+    private func handleStopNotification() {
+        guard canStop else { return }
+        onStopClicked()
+        emit(.dismissed)
     }
 }

@@ -12,12 +12,15 @@ import SwiftUI
 import Tracking
 
 struct ContentView: View {
+    @State private var selectedTab: AppTab = .route
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             RouteTab()
                 .tabItem {
                     Label("Route", systemImage: "map")
                 }
+                .tag(AppTab.route)
 
             NavigationStack {
                 HistoryView()
@@ -25,9 +28,37 @@ struct ContentView: View {
             .tabItem {
                 Label("History", systemImage: "clock.arrow.circlepath")
             }
+            .tag(AppTab.history)
         }
         .tint(Color.trailGreen)
+        .onOpenURL(perform: handleOpenURL)
     }
+
+    // Tapping the Live Activity opens the app via this URL (system-handled —
+    // no code needed for that part) and delivers it here. Cold-launch session
+    // recovery is explicitly out of scope for this feature, so this only
+    // needs to work while the app process is already alive: whenever a
+    // tracking session is genuinely live, TrackingView is already the top of
+    // RouteTab's NavigationPath (it only pops on Stop), so opening the app is
+    // enough on its own. The one thing this handler adds is switching back to
+    // the Route tab, covering the case where the user had switched to History
+    // while tracking continued in the background.
+    private func handleOpenURL(_ url: URL) {
+        guard url.scheme == TrackingLiveActivityConstants.urlScheme,
+              url.host == TrackingLiveActivityConstants.trackingHost else { return }
+
+        switch onEnum(of: KoinHelper().trackingSessionManager().currentState.value) {
+        case .tracking, .paused:
+            selectedTab = .route
+        case .idle, .finished:
+            break
+        }
+    }
+}
+
+private enum AppTab: Hashable {
+    case route
+    case history
 }
 
 private struct RouteTab: View {
