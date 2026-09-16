@@ -36,9 +36,9 @@ struct UserProfileSheet: View {
                 }
             }
         }
-        .onAppear {
-            if weightInput.isEmpty, let initialWeightKg {
-                weightInput = String(initialWeightKg)
+        .onChange(of: initialWeightKg, initial: true) { _, newValue in
+            if weightInput.isEmpty, let newValue {
+                weightInput = String(newValue)
             }
         }
     }
