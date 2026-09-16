@@ -286,6 +286,11 @@ fun UserProfileBottomSheet(
     onSave: (weightKg: Double) -> Unit
 ) {
     var weightInput: String by remember { mutableStateOf(initialWeightKg?.toString().orEmpty()) }
+    LaunchedEffect(initialWeightKg) {
+        if (weightInput.isEmpty() && initialWeightKg != null) {
+            weightInput = initialWeightKg.toString()
+        }
+    }
     val weightKg: Double? = weightInput.toDoubleOrNull()
     val isValid: Boolean = weightKg != null && weightKg > 0
 
