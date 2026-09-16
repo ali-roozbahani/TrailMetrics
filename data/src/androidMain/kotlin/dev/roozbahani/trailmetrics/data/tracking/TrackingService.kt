@@ -35,11 +35,6 @@ class TrackingService : Service(), KoinComponent {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            trackingSessionManager.stop()
-            return START_NOT_STICKY
-        }
-
         startForeground(NOTIFICATION_ID, buildNotification(TrackingState.Idle))
         observeTrackingState()
 
@@ -87,25 +82,39 @@ class TrackingService : Service(), KoinComponent {
             else -> "Setting up..."
         }
 
-        val stopIntent = Intent(this, TrackingService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("TrailMetrics")
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_notif_location)
-            .addAction(0, "Stop", stopPendingIntent)
+            .addAction(0, "Stop", buildStopPendingIntent())
             .setOngoing(true)
             .build()
     }
 
-    private companion object {
-        const val NOTIFICATION_ID: Int = 1
-        const val CHANNEL_ID = "tracking_channel"
-        const val ACTION_STOP = "dev.roozbahani.trailmetrics.action.STOP_TRACKING"
+    // Targets the app's launcher Activity (MainActivity, in the androidApp/app module —
+    // not referenced directly here, since `data` can't depend on `app`) rather than this
+    // Service, so tapping Stop matches the in-app Stop button's result exactly: it stops
+    // the session AND brings Route to the front, whether the app is foregrounded,
+    // backgrounded, or not running at all. MainActivity looks for ACTION_STOP_TRACKING to
+    // drive both the stop call and the navigation.
+    private fun buildStopPendingIntent(): PendingIntent {
+        val launchIntent = checkNotNull(packageManager.getLaunchIntentForPackage(packageName)) {
+            "No launcher Activity found for $packageName"
+        }
+        val stopIntent = launchIntent.apply {
+            action = ACTION_STOP_TRACKING
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    companion object {
+        const val ACTION_STOP_TRACKING = "dev.roozbahani.trailmetrics.action.STOP_TRACKING"
+        private const val NOTIFICATION_ID: Int = 1
+        private const val CHANNEL_ID = "tracking_channel"
     }
 }
