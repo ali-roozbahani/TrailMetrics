@@ -115,6 +115,8 @@ public struct TrackingView: View {
         switch event {
         case .showError(let error):
             errorMessage = error.message
+        case .dismissed:
+            dismiss()
         }
     }
 
