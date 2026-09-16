@@ -43,5 +43,18 @@
     </array>
     <key>GMSApiKey</key>
     <string>$(GMS_API_KEY)</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>dev.roozbahani.TrailMetrics.tracking</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>trailmetrics</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

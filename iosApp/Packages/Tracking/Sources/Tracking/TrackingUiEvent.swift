@@ -12,4 +12,11 @@ import SharedKit
 /// applied — Android's equivalent permission-request event has no iOS counterpart there).
 public enum TrackingUiEvent {
     case showError(any RouteUiError)
+
+    // Emitted only when a stop is triggered from outside the View itself —
+    // currently just the Live Activity's Stop button, relayed through
+    // TrackingViewModel.handleStopNotification(). The in-app Stop button
+    // (TrackingView's own controlsRow/exit alert) already calls `dismiss()`
+    // directly at its call site and never emits this.
+    case dismissed
 }
