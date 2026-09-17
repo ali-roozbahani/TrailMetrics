@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		25AAE1AE883F2911382651F9 /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = EF712D4D45EE7BD29310DF7B /* DesignSystem */; };
 		551756AB30518133008ECF92 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AA30518133008ECF92 /* SharedKit */; };
 		551756AE3051853C008ECF92 /* History in Frameworks */ = {isa = PBXBuildFile; productRef = 551756AD3051853C008ECF92 /* History */; };
 		55AF786F3056BD5C0000E3B3 /* Route in Frameworks */ = {isa = PBXBuildFile; productRef = 55AF786E3056BD5C0000E3B3 /* Route */; };
@@ -89,6 +90,7 @@
 				551756AB30518133008ECF92 /* SharedKit in Frameworks */,
 				551756AE3051853C008ECF92 /* History in Frameworks */,
 				E208329822A486DB3639BC20 /* Tracking in Frameworks */,
+				25AAE1AE883F2911382651F9 /* DesignSystem in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -167,6 +169,7 @@
 				551756AD3051853C008ECF92 /* History */,
 				55AF786E3056BD5C0000E3B3 /* Route */,
 				A96D2714254FBEA24A2B2246 /* Tracking */,
+				EF712D4D45EE7BD29310DF7B /* DesignSystem */,
 			);
 			productName = TrailMetrics;
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
@@ -204,6 +207,7 @@
 				551756AC3051853C008ECF92 /* XCLocalSwiftPackageReference "Packages/History" */,
 				55AF786D3056BD5C0000E3B3 /* XCLocalSwiftPackageReference "Packages/Route" */,
 				2B173C87F2721BA4B2DA2745 /* XCLocalSwiftPackageReference "Packages/Tracking" */,
+				DC39D9DDDBFEE567216AA5F0 /* XCLocalSwiftPackageReference "Packages/DesignSystem" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55D6B102304F206500D10092 /* Products */;
@@ -569,6 +573,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/Tracking;
 		};
+		DC39D9DDDBFEE567216AA5F0 /* XCLocalSwiftPackageReference "Packages/DesignSystem" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DesignSystem;
+		};
 		551756A930518133008ECF92 /* XCLocalSwiftPackageReference "Packages/SharedKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SharedKit;
@@ -584,6 +592,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		EF712D4D45EE7BD29310DF7B /* DesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DesignSystem;
+		};
 		551756AA30518133008ECF92 /* SharedKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SharedKit;
