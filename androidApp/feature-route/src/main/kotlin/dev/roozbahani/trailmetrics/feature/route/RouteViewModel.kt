@@ -95,6 +95,7 @@ class RouteViewModel(
     fun onResetClicked() {
         _uiState.update { RouteUiState() }
         loadCurrentLocation()
+        getAndUpdateUserProfile()
     }
 
     fun onWaypointRemoved(removeCandidate: RoutePoint) {
