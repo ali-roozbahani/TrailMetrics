@@ -1,6 +1,6 @@
 //
 //  Color+TrailMetrics.swift
-//  Route
+//  DesignSystem
 //
 
 import SwiftUI
