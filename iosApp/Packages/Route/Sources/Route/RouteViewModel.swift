@@ -101,6 +101,7 @@ public class RouteViewModel: ObservableObject {
         selectedActivityType = .running
         isLoading = false
         loadCurrentLocation()
+        getAndUpdateUserProfile()
     }
 
     public func onWaypointRemoved(_ removeCandidate: RoutePoint) {
