@@ -1,0 +1,32 @@
+# Sample closed-loop route tracing the ring road around Apple Park's ring
+# building, Cupertino, CA — used by scripts/simulate-route.sh's default
+# --route. 16 waypoints evenly spaced on a ~230m-radius circle centered on
+# the ring building (center 37.3349,-122.0090; building diameter 461m /
+# circumference 1,465m per https://en.wikipedia.org/wiki/Apple_Park),
+# approximating the public road/path loop visible at
+# https://maps.app.goo.gl/5S1hSgGAseTbMDMx9
+#
+# Format: one "latitude,longitude" waypoint per line.
+#   - Blank lines and lines starting with # are ignored.
+#   - Do NOT repeat the first waypoint at the end — the script closes the
+#     loop automatically by returning from the last waypoint to the first.
+#
+# Copy this file (or write your own) to try a different route, e.g.
+# a route matching a real Route/Tracking test run, and pass it with:
+#   scripts/simulate-route.sh --route path/to/your-route.csv
+37.336966,-122.009000
+37.336809,-122.008006
+37.336361,-122.007163
+37.335691,-122.006599
+37.334900,-122.006401
+37.334109,-122.006599
+37.333439,-122.007163
+37.332991,-122.008006
+37.332834,-122.009000
+37.332991,-122.009994
+37.333439,-122.010837
+37.334109,-122.011401
+37.334900,-122.011599
+37.335691,-122.011401
+37.336361,-122.010837
+37.336809,-122.009994
