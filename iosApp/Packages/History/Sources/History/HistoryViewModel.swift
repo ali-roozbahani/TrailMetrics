@@ -13,15 +13,19 @@ public class HistoryViewModel: ObservableObject {
     @Published public var activities: [ActivityRecord] = []
     @Published public var isLoading = true
 
-    private let repository: ActivityHistoryRepository
+    public var isEmpty: Bool {
+        activities.isEmpty && !isLoading
+    }
 
-    public init(repository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository()) {
-        self.repository = repository
+    private let activityHistoryRepository: ActivityHistoryRepository
+
+    public init(activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository()) {
+        self.activityHistoryRepository = activityHistoryRepository
     }
 
     public func observe() async {
-        for await list in repository.observeActivities() {
-            self.activities = list
+        for await activities in activityHistoryRepository.observeActivities() {
+            self.activities = activities
             self.isLoading = false
         }
     }
