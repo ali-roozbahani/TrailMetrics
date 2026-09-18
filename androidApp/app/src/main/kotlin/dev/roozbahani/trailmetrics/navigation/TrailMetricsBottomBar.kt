@@ -4,8 +4,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +27,12 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
     val navBackStackEntry: NavBackStackEntry? by navController.currentBackStackEntryAsState()
     val currentDestination: NavDestination? = navBackStackEntry?.destination
 
+    val selectedTabColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.primary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = SELECTED_INDICATOR_ALPHA)
+    )
+
     NavigationBar {
         NavigationBarItem(
             selected = currentDestination.isRouteSelected<AppRoute.RoutePlanning>(),
@@ -36,7 +44,8 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
                 }
             },
             icon = { Icon(Icons.Filled.Map, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_route)) }
+            label = { Text(stringResource(R.string.tab_route)) },
+            colors = selectedTabColors
         )
         NavigationBarItem(
             selected = currentDestination.isRouteSelected<AppRoute.History>(),
@@ -48,10 +57,13 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
                 }
             },
             icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            label = { Text(stringResource(R.string.tab_history)) }
+            label = { Text(stringResource(R.string.tab_history)) },
+            colors = selectedTabColors
         )
     }
 }
 
 private inline fun <reified T : AppRoute> NavDestination?.isRouteSelected(): Boolean =
     this?.hierarchy?.any { it.hasRoute<T>() } == true
+
+private const val SELECTED_INDICATOR_ALPHA = 0.12f

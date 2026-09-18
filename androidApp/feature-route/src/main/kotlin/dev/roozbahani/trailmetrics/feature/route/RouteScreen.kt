@@ -211,7 +211,8 @@ fun RouteScreen(
             FilledIconButton( // Reset Button
                 onClick = viewModel::onResetClicked,
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -227,7 +228,8 @@ fun RouteScreen(
             FilledIconButton(
                 onClick = { showProfileSheet = true },
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
                     .align(Alignment.TopStart)
