@@ -11,6 +11,7 @@ import SwiftUI
 
 public struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
+    @State private var activityPendingDelete: ActivityRecord?
 
     let onActivitySelected: (Int64) -> Void
 
@@ -33,7 +34,10 @@ public struct HistoryView: View {
                             Button {
                                 onActivitySelected(activity.id)
                             } label: {
-                                ActivityRow(activity: activity)
+                                ActivityRow(
+                                    activity: activity,
+                                    onDeleteClicked: { activityPendingDelete = activity }
+                                )
                             }
                             .buttonStyle(.plain)
                         }
@@ -45,11 +49,29 @@ public struct HistoryView: View {
         .task {
             await viewModel.observe()
         }
+        .alert(
+            "Delete this activity?",
+            isPresented: Binding(
+                get: { activityPendingDelete != nil },
+                set: { isPresented in if !isPresented { activityPendingDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let activity = activityPendingDelete {
+                    viewModel.onDeleteActivity(activity)
+                }
+                activityPendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete the activity and its route data. This cannot be undone.")
+        }
     }
 }
 
 private struct ActivityRow: View {
     let activity: ActivityRecord
+    let onDeleteClicked: () -> Void
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -69,9 +91,12 @@ private struct ActivityRow: View {
                 activityTypeBadge
                     .padding(8)
 
-                dateBadge
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                HStack(spacing: 6) {
+                    dateBadge
+                    deleteButton
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             HStack(spacing: 8) {
@@ -119,22 +144,12 @@ private struct ActivityRow: View {
         }
     }
 
-    // `activity.snapshotFilePath` is a full path captured at save time (see
-    // MapSnapshotSaver.swift), but the Application Support directory's container UUID
-    // is not stable across reinstalls (confirmed on-device: a plain reinstall mints a
-    // new container while carrying the same file over under the same name) — the old
-    // absolute path then points at a container that no longer exists, and AsyncImage
-    // fails with NSURLErrorFileDoesNotExist (-1100). Re-resolving just the filename
-    // against the *current* Application Support directory keeps this working across
-    // reinstalls without needing to change what's stored.
+    // See `resolvedSnapshotURL(forStoredPath:)` (SnapshotFile.swift) for why this
+    // re-resolves the filename against the current Application Support directory
+    // rather than trusting the stored absolute path (which goes stale across
+    // reinstalls, causing AsyncImage to fail with NSURLErrorFileDoesNotExist).
     private var snapshotURL: URL? {
-        guard let path = activity.snapshotFilePath, !path.isEmpty else { return nil }
-        guard let supportDirectory = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first else { return nil }
-        let fileName = (path as NSString).lastPathComponent
-        return supportDirectory.appendingPathComponent(fileName)
+        resolvedSnapshotURL(forStoredPath: activity.snapshotFilePath)
     }
 
     private var activityTypeBadge: some View {
@@ -155,6 +170,17 @@ private struct ActivityRow: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var deleteButton: some View {
+        Button(action: onDeleteClicked) {
+            Image(systemName: "trash")
+                .font(.caption2)
+                .foregroundStyle(Color.trailRed)
+                .padding(6)
+                .background(.regularMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
