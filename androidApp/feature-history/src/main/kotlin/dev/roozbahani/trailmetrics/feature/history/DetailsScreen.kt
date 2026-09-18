@@ -8,22 +8,34 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,10 +58,12 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun DetailsScreen(
     activityId: Long,
+    onNavigateBack: () -> Unit = {},
     viewModel: DetailsViewModel = koinViewModel(parameters = { parametersOf(activityId) })
 ) {
     val uiState: DetailsUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activity = uiState.activity
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
         Box(
@@ -63,7 +77,11 @@ fun DetailsScreen(
                 }
 
                 activity != null -> {
-                    ActivityDetailsContent(activity = activity)
+                    ActivityDetailsContent(
+                        activity = activity,
+                        onBackClicked = onNavigateBack,
+                        onDeleteClicked = { showDeleteConfirmation = true }
+                    )
                 }
 
                 else -> {
@@ -74,10 +92,35 @@ fun DetailsScreen(
             }
         }
     }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.dialog_delete_activity_title)) },
+            text = { Text(stringResource(R.string.dialog_delete_activity_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirmation = false
+                    viewModel.onDeleteConfirmed(onDeleted = onNavigateBack)
+                }) {
+                    Text(stringResource(R.string.dialog_delete_activity_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.dialog_delete_activity_dismiss))
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun ActivityDetailsContent(activity: ActivityRecord) {
+private fun ActivityDetailsContent(
+    activity: ActivityRecord,
+    onBackClicked: () -> Unit,
+    onDeleteClicked: () -> Unit
+) {
     val cameraPositionState = rememberCameraPositionState()
 
     LaunchedEffect(activity.actualPath) {
@@ -92,31 +135,66 @@ private fun ActivityDetailsContent(activity: ActivityRecord) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TrailGoogleMap(
-            cameraPositionState = cameraPositionState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp)
-        ) {
-            if (activity.plannedRoutePoints.isNotEmpty()) {
-                RoutePolyline(
-                    points = activity.plannedRoutePoints,
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TrailGoogleMap(
+                cameraPositionState = cameraPositionState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp)
+            ) {
+                if (activity.plannedRoutePoints.isNotEmpty()) {
+                    RoutePolyline(
+                        points = activity.plannedRoutePoints,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                }
+                if (activity.actualPath.isNotEmpty()) {
+                    RoutePolyline(
+                        points = activity.actualPath,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                val startPoint = activity.plannedRoutePoints.firstOrNull()
+                    ?: activity.actualPath.firstOrNull()
+                startPoint?.let {
+                    StartFinishMarker(
+                        coordinates = it,
+                        title = stringResource(CoreStrings.marker_title_start_finish)
+                    )
+                }
             }
-            if (activity.actualPath.isNotEmpty()) {
-                RoutePolyline(
-                    points = activity.actualPath,
-                    color = MaterialTheme.colorScheme.primary
+
+            FilledIconButton( // Back Button
+                onClick = onBackClicked,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .shadow(elevation = 4.dp, shape = CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.cd_navigate_back)
                 )
             }
 
-            val startPoint = activity.plannedRoutePoints.firstOrNull()
-                ?: activity.actualPath.firstOrNull()
-            startPoint?.let {
-                StartFinishMarker(
-                    coordinates = it,
-                    title = stringResource(CoreStrings.marker_title_start_finish)
+            FilledIconButton( // Delete Button
+                onClick = onDeleteClicked,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .shadow(elevation = 4.dp, shape = CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.cd_delete_activity),
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }

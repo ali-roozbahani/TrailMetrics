@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
+import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,14 @@ class DetailsViewModel(
         viewModelScope.launch {
             val activity = activityHistoryRepository.getActivity(activityId)
             _uiState.update { it.copy(activity = activity, isLoading = false) }
+        }
+    }
+
+    fun onDeleteConfirmed(onDeleted: () -> Unit) {
+        viewModelScope.launch {
+            activityHistoryRepository.deleteActivity(activityId)
+            deleteSnapshotFile(_uiState.value.activity?.snapshotFilePath)
+            onDeleted()
         }
     }
 }
