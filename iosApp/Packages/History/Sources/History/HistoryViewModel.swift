@@ -29,4 +29,11 @@ public class HistoryViewModel: ObservableObject {
             self.isLoading = false
         }
     }
+
+    public func onDeleteActivity(_ activity: ActivityRecord) {
+        Task {
+            try? await activityHistoryRepository.deleteActivity(id: activity.id)
+            deleteSnapshotFile(forStoredPath: activity.snapshotFilePath)
+        }
+    }
 }
