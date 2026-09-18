@@ -10,4 +10,5 @@
     <string name="dialog_exit_tracking_message">Going back will stop your current tracking session. This cannot be undone.</string>
     <string name="dialog_exit_tracking_confirm">Stop</string>
     <string name="dialog_exit_tracking_dismiss">Cancel</string>
+    <string name="cd_navigate_back">Back</string>
 </resources>
