@@ -23,13 +23,11 @@ struct ContentView: View {
                 }
                 .tag(AppTab.route)
 
-            NavigationStack {
-                HistoryView()
-            }
-            .tabItem {
-                Label("History", systemImage: "clock.arrow.circlepath")
-            }
-            .tag(AppTab.history)
+            HistoryTab()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+                .tag(AppTab.history)
         }
         .tint(Color.trailGreen)
         .onOpenURL(perform: handleOpenURL)
@@ -104,6 +102,42 @@ private struct TrackingDestination: Hashable {
     let route: AppRouteTracking
 
     static func == (lhs: TrackingDestination, rhs: TrackingDestination) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
+private struct HistoryTab: View {
+    @State private var path = NavigationPath()
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            HistoryView { activityId in
+                path.append(
+                    ActivityDetailsDestination(
+                        route: AppRouteActivityDetails(activityId: activityId)
+                    )
+                )
+            }
+            .navigationDestination(for: ActivityDetailsDestination.self) { destination in
+                DetailsView(activityId: destination.route.activityId)
+            }
+        }
+    }
+}
+
+/// Same UUID-keyed wrapper pattern as `TrackingDestination` above, for the same reason:
+/// `AppRouteActivityDetails` (Kotlin's `AppRoute.ActivityDetails`, bridged) has structural
+/// Equatable/Hashable conformance, so pushing it directly would make a second tap on the
+/// same activity row (after popping back) a value-identical, silently-ignored path element.
+private struct ActivityDetailsDestination: Hashable {
+    let id = UUID()
+    let route: AppRouteActivityDetails
+
+    static func == (lhs: ActivityDetailsDestination, rhs: ActivityDetailsDestination) -> Bool {
         lhs.id == rhs.id
     }
 
