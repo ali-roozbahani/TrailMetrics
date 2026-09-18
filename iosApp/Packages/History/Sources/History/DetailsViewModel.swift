@@ -26,4 +26,12 @@ public class DetailsViewModel: ObservableObject {
             isLoading = false
         }
     }
+
+    public func onDeleteConfirmed(onDeleted: @escaping () -> Void) {
+        Task {
+            try? await activityHistoryRepository.deleteActivity(id: activityId)
+            deleteSnapshotFile(forStoredPath: activity?.snapshotFilePath)
+            onDeleted()
+        }
+    }
 }
