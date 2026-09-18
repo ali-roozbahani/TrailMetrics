@@ -2,4 +2,10 @@
 <resources>
     <string name="msg_no_activities">No Activities yet</string>
     <string name="msg_activity_not_found">Activity Not Found</string>
+    <string name="dialog_delete_activity_title">Delete this activity?</string>
+    <string name="dialog_delete_activity_message">This will permanently delete the activity and its route data. This cannot be undone.</string>
+    <string name="dialog_delete_activity_confirm">Delete</string>
+    <string name="dialog_delete_activity_dismiss">Cancel</string>
+    <string name="cd_delete_activity">Delete activity</string>
+    <string name="cd_navigate_back">Back</string>
 </resources>
