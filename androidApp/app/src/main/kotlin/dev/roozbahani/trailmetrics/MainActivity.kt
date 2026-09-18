@@ -140,7 +140,10 @@ fun TrailMetricsNavHost(stopTrackingRequested: MutableState<Boolean> = mutableSt
 
         composable<AppRoute.ActivityDetails> { backStackEntry ->
             val route: AppRoute.ActivityDetails = backStackEntry.toRoute()
-            DetailsScreen(activityId = route.activityId)
+            DetailsScreen(
+                activityId = route.activityId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }
