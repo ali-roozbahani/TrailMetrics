@@ -4,27 +4,48 @@
 
 A cross-platform (Android + iOS) app for tracking outdoor activities (running, cycling, walking) in real time — built with Kotlin Multiplatform, Jetpack Compose, and SwiftUI as a portfolio project.
 
-<div align="center">
-  <img width="280" alt="TrailMetrics demo" src="https://github.com/user-attachments/assets/732abec0-d954-47f5-ac7a-3f45f165238c" />
-</div>
+<!-- SCREENSHOTS: one row per platform, one column per feature — spans the full README width
+     instead of stacking two tall phone screenshots on top of each other per cell. -->
+<table width="100%">
+  <tr>
+    <th width="16%"></th>
+    <th width="28%">Route planning</th>
+    <th width="28%">Tracking</th>
+    <th width="28%">History</th>
+  </tr>
+  <tr>
+    <td align="center"><b>Android</b></td>
+    <td><img width="100%" alt="Android — Route planning" src="docs/screenshots/android-route.png" /></td>
+    <td><img width="100%" alt="Android — Tracking" src="docs/screenshots/android-tracking.png" /></td>
+    <td><img width="100%" alt="Android — History" src="docs/screenshots/android-history.png" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>iOS</b></td>
+    <td><img width="100%" alt="iOS — Route planning" src="docs/screenshots/ios-route.png" /></td>
+    <td><img width="100%" alt="iOS — Tracking" src="docs/screenshots/ios-tracking.png" /></td>
+    <td><img width="100%" alt="iOS — History" src="docs/screenshots/ios-history.png" /></td>
+  </tr>
+</table>
 
 ---
 
 ## Overview
 
-TrailMetrics lets a user plan a route by tapping waypoints on a map, start a live GPS-tracked activity session (running, cycling, or walking), and see real-time metrics — distance, elapsed time, speed, and calories burned — while the route is followed. On finish, the session is saved with a map snapshot and viewable later in an activity history, with a detail view comparing the planned route against the actual GPS path.
+TrailMetrics lets a user plan a route by tapping waypoints on a map, start a live GPS-tracked activity session (running, cycling, or walking), and see real-time metrics — distance, elapsed time, speed, and calories burned — while the route is followed. On finish, the session is saved with a map snapshot and viewable later in an activity history, with a detail view comparing the planned route against the actual GPS path. Both platforms also support a Live Activity / persistent tracking notification with a Stop control, and deleting a saved activity from either the history list or its detail view.
 
-The project started as an Android-only app and is being migrated to Kotlin Multiplatform, sharing business logic, persistence, networking, and navigation identity between a Jetpack Compose Android app and a native SwiftUI iOS app — while keeping the UI layer 100% native per platform (see [`docs/architecture/ADR-001-no-compose-multiplatform.md`](docs/architecture/ADR-001-no-compose-multiplatform.md) for why).
+The project started as an Android-only app and was migrated to Kotlin Multiplatform, sharing business logic, persistence, networking, and navigation identity between a Jetpack Compose Android app and a native SwiftUI iOS app — while keeping the UI layer 100% native per platform (see [`docs/architecture/ADR-001-no-compose-multiplatform.md`](docs/architecture/ADR-001-no-compose-multiplatform.md) for why).
 
-It doubles as a hands-on space to practice and demonstrate production-grade patterns on both platforms: strict Clean Architecture with a framework-free domain layer, a Foreground Service–backed tracking pipeline, structured concurrency with Kotlin Flow, Room persistence shared across platforms, Koin dependency injection with a cross-platform composition root, and a fully modular, statically-analyzed, CI-enforced codebase.
+It doubles as a hands-on space to practice and demonstrate production-grade patterns on both platforms: strict Clean Architecture with a framework-free domain layer, a Foreground Service–backed tracking pipeline (with an iOS Live Activity counterpart), structured concurrency with Kotlin Flow, Room persistence shared across platforms, Koin dependency injection with a cross-platform composition root, and a fully modular, statically-analyzed, CI-enforced codebase.
 
-**Core features so far (Android — complete; iOS — in progress, feature by feature):**
+**Core features (feature-complete on both Android and iOS):**
 - Interactive route planning on a map with waypoint tapping and closed-route generation (Google Directions API)
 - Live GPS tracking with a background-location pipeline and Start / Pause / Resume / Stop session state machine
 - Real-time distance, elapsed time, speed, and MET-based calorie estimation
 - Per-user profile (weight) and activity-type selection feeding into the calorie calculation
 - Robust route-progress tracking on closed-loop routes (windowed nearest-point search)
 - Activity history persisted with Room: list view with map-snapshot thumbnails, detail view with an interactive planned-vs-actual route map
+- Delete an activity from the history list or its detail view, with confirmation and cleanup of its saved map snapshot
+- Live tracking status while backgrounded: an Android foreground-service notification and an iOS ActivityKit Live Activity (Lock Screen + Dynamic Island), each with a Stop control and tap-to-return-to-app
 - Cross-platform navigation identity (`AppRoute`) shared between Android's Navigation Compose and iOS's `NavigationStack`
 
 ---
@@ -50,8 +71,10 @@ androidApp/
 
 iosApp/
   TrailMetrics.xcodeproj → iOS composition root: SwiftUI App struct, Koin init
+  TrackingWidget/         → native widget extension: ActivityKit Live Activity (Lock Screen + Dynamic Island)
   Packages/SharedKit      → thin Swift Package wrapping the shared XCFramework
-  Packages/<Feature>      → one local Swift Package per feature (History done; Route, Tracking in progress)
+  Packages/DesignSystem   → shared SwiftUI colors/design tokens used across feature packages
+  Packages/<Feature>      → one local Swift Package per feature (Route, Tracking, History)
 ```
 
 ### Notable engineering decisions
@@ -93,6 +116,7 @@ The goal is that anyone reading this repository — human or automated — can t
 | Persistence | Room 3.x (KMP, shared between Android and iOS), SharedPreferences / NSUserDefaults for user profile |
 | Image loading | Coil (Android) |
 | Concurrency | Kotlin Coroutines & Flow |
+| Live tracking UI | Android foreground service notification, iOS ActivityKit Live Activity (Lock Screen + Dynamic Island) |
 | Testing | `kotlin.test` + hand-written fakes (shared), JUnit4 + Google Truth + MockK + Robolectric (Android-only) |
 | Static analysis | Detekt (`config/detekt/detekt.yml`), SwiftLint (`iosApp/.swiftlint.yml`), Android Lint |
 | CI/CD | GitHub Actions — separate Android (`ubuntu-latest`) and iOS (`macos-latest`) jobs on every PR and push to `main` |
@@ -124,7 +148,7 @@ The goal is that anyone reading this repository — human or automated — can t
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
    ```
 3. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. Its build phases rebuild the shared framework automatically (incrementally, only when `domain`/`data`/`shared` Kotlin source changes) — see `docs/architecture/OVERVIEW.md`.
-4. Run on an iOS Simulator or device.
+4. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
 
 ---
 
@@ -166,9 +190,11 @@ Both Android and iOS have their own CI job (`.github/workflows/ci.yml`) running 
 - [x] **KMP migration, Phase D** — iOS app skeleton, SPM modularization, first feature (History) ported end-to-end
 - [x] **KMP migration, Phase E–H** — shared `AppRoute` navigation identity, `androidApp` restructuring, `core`/`core-ui` split
 - [x] **KMP migration, Phase I** — enforced coding standards (Detekt + SwiftLint), architecture documentation, dual-platform CI
-- [ ] iOS: Route feature
-- [ ] iOS: Tracking feature
-- [ ] iOS: cross-feature navigation, full app parity with Android
+- [x] iOS: Route feature
+- [x] iOS: Tracking feature, including a native ActivityKit Live Activity (Lock Screen + Dynamic Island)
+- [x] iOS: History and Activity Details, full parity with Android
+- [x] Delete an activity (Android + iOS), from the history list and the detail view
+- [x] iOS: cross-feature navigation, full app parity with Android
 - [ ] Stretch goals (battery-aware location updates, Doze-mode resilience, Compose/SwiftUI UI tests)
 
 ---
