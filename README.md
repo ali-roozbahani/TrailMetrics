@@ -138,17 +138,28 @@ The goal is that anyone reading this repository — human or automated — can t
    ANDROID_CERT_SHA1=YOUR_DEBUG_SHA1_FINGERPRINT_NO_COLONS
    ```
    > Note: `ANDROID_CERT_SHA1` must be provided **without colons** — the Directions API otherwise returns `REQUEST_DENIED`.
+   >
+   > `DIRECTIONS_API_KEY` is shared by both platforms — the Directions API call lives in the KMP `data` module, so this single key is baked into the `shared` XCFramework when it's built and used by iOS too. It only needs to be set here, not in iOS's own config.
 3. Open the project in Android Studio and let Gradle sync.
 4. Run the `androidApp:app` configuration on a device or emulator with Google Play services (min SDK 26).
 
 ### iOS
 1. Requires a Mac with Xcode installed.
-2. Build the shared Kotlin framework once before first open:
+2. Create `iosApp/TrailMetrics/Secrets.xcconfig` (git-ignored) from the provided template:
+   ```bash
+   cp iosApp/TrailMetrics/Secrets.xcconfig.example iosApp/TrailMetrics/Secrets.xcconfig
+   ```
+   and fill in your **iOS** Google Maps SDK key (a separate key from Android's `MAPS_API_KEY`, since each platform's native Maps SDK is configured independently):
+   ```
+   GMS_API_KEY = YOUR_IOS_MAPS_API_KEY
+   INFOPLIST_KEY_GMSApiKey = $(GMS_API_KEY)
+   ```
+3. Build the shared Kotlin framework once before first open (this is also where `DIRECTIONS_API_KEY` from Android's `local.properties` gets picked up, since the shared module is compiled once for both platforms):
    ```bash
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
    ```
-3. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. Its build phases rebuild the shared framework automatically (incrementally, only when `domain`/`data`/`shared` Kotlin source changes) — see `docs/architecture/OVERVIEW.md`.
-4. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
+4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. Its build phases rebuild the shared framework automatically (incrementally, only when `domain`/`data`/`shared` Kotlin source changes) — see `docs/architecture/OVERVIEW.md`.
+5. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
 
 ---
 
