@@ -34,8 +34,8 @@ cyclomatic_complexity:
   error: 20
 
 excluded:
-  - Packages/*/\.build
-  - Packages/*/\.swiftpm
+  - Packages/*/.build/**
+  - Packages/*/.swiftpm/**
   - "**/*.generated.swift"
 
 reporter: "xcode"
