@@ -15,7 +15,7 @@ struct StopTrackingIntent: LiveActivityIntent {
     // main app process, so this intent has no direct way to reach it. This
     // posts a Darwin notification instead — a best-effort, no-payload signal
     // that only reaches the main app if its process is still alive (see
-    // TrackingViewModel's observer). Per this feature's confirmed scope, the
+    // TrackingLiveActivityController's observer). Per this feature's confirmed scope, the
     // rare case where the app process has been fully terminated is not
     // handled here.
     func perform() async throws -> some IntentResult {

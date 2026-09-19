@@ -576,3 +576,121 @@ the upcoming Tracking feature.
    matter for the build to proceed) before invoking `xcodebuild`, or the
    build fails at settings-resolution, before any compilation happens.
    See the "Generate Secrets.xcconfig" step in `.github/workflows/ci.yml`.
+
+---
+
+## Tracking Live Activity: five ActivityKit/SwiftUI/SKIE gotchas
+
+Discovered building the iOS Tracking screen and its Live Activity (Lock Screen
++ Dynamic Island, with a Stop button). The first three are ActivityKit/widget
+extension behavior; the last two are SwiftUI navigation behavior that bit
+Tracking but apply to any pushed screen fed by a Kotlin-side stream or value.
+
+1. **ActivityKit's update budget (~1/sec) is enforced, and exceeding it can
+   kill the process.** Calling `Activity.update()` on every location-driven
+   state emission (several per second) got the app SIGKILLed mid-session —
+   confirmed from the console: 16 rapid "Updating content for activity" lines
+   immediately followed by "Debug session ended with code 9: killed". Fix:
+   throttle intermediate updates to once per second *inside the controller*
+   (callers keep calling on every emission, unaware of the limit), while the
+   first update of a session and `end()` are deliberately never throttled.
+   See `TrackingLiveActivityController.swift`
+   (`iosApp/Packages/Tracking/Sources/Tracking/`).
+
+2. **A Live Activity button's `LiveActivityIntent` runs in the widget
+   extension's process, not the main app's.** The Stop button's intent can't
+   touch anything in the main app's memory (here, the in-memory Kotlin
+   `TrackingSessionManager` singleton), so it needs its own cross-process
+   channel. This project uses a Darwin notification
+   (`CFNotificationCenterGetDarwinNotifyCenter()`): the intent posts a
+   no-payload signal, and the controller's observer turns it into a real stop.
+   Deliberately best-effort — it only works while the main app process is
+   alive; cold-launch/terminated-process handling was explicitly out of scope
+   and is not attempted. See `StopTrackingIntent.swift`
+   (`iosApp/TrackingWidget/`) for the poster and
+   `TrackingLiveActivityController.swift` for the observer.
+
+3. **A full-system hang on Stop was very likely the point-1 update burst,
+   not a same-turn `end()` hazard.** Calling `Activity.end()` directly from
+   the Darwin-notification observer (itself fired off the system's own
+   button-tap handling) coincided with a full-system hang that needed a
+   device restart. It was first "fixed" by decoupling `end()` into separately
+   scheduled async work — a short `Task.sleep` before the call, on the
+   notification-triggered path only — which made the hang stop and looked
+   like a same-turn timing problem. Separately, a SIGKILL was later observed
+   from `update()` bursts exceeding ActivityKit's rate budget (point 1).
+   Once the update throttle was added and verified working, the delay was
+   removed entirely and the hang did not recur across repeated testing. The
+   most likely reading: the delay was masking the same rapid-update-burst
+   root cause that throttling later fixed properly, not a separate,
+   still-unexplained issue. Not proven with certainty — no test isolated
+   the two causes — just strongly suggested by the delay coming out safely
+   once throttling was in place. Lesson: when a delay/`sleep` "fixes" a
+   system-level hang, treat it as a symptom patch and keep looking for what
+   the delay is hiding; here, that was the update rate.
+
+4. **A stream vended once from `init()` supports one live consumer — and
+   SwiftUI's `.task` on a NavigationStack root gets cancelled and restarted.**
+   `.task` on a root view is cancelled when a pushed screen covers it and
+   restarted when that screen pops. A stored `let events: AsyncStream<...>`
+   can only be consumed once over its lifetime, so the restarted `.task`'s
+   `for await` loop over the already-cancelled stream exits immediately —
+   silently, no crash, no error — and all further event delivery stops (the
+   visible symptom: a second "Start Tracking" tap does nothing). Fix: expose
+   a `makeEventsStream()` factory instead of a stored property, so each fresh
+   `.task` attachment gets a genuinely new stream. See
+   `RouteViewModel.swift` (`iosApp/Packages/Route/Sources/Route/`) and
+   `TrackingViewModel.swift`, plus their call sites in `RouteView.swift` and
+   `TrackingView.swift`.
+
+5. **SKIE-bridged Kotlin data classes get structural `Hashable`/`Equatable`,
+   which makes value-equal `NavigationPath` pushes a silent no-op.** Pushing
+   an instance that's value-equal to the one just popped (same route data,
+   second tap) is treated by the path's diffing as "no change", so
+   `.navigationDestination(for:)`'s builder never runs again. Fix: push a
+   small local Swift struct wrapping the payload with `let id = UUID()`, with
+   `Hashable`/`Equatable` implemented on `id` alone and the payload's own
+   equality ignored entirely. See `TrackingDestination` and
+   `ActivityDetailsDestination` in `iosApp/TrailMetrics/ContentView.swift`.
+
+---
+
+## History/Details: three iOS persistence and UI gotchas
+
+Discovered building the iOS History list and Activity Details screens
+(including delete support). None are specific to History — each applies to
+any screen that displays stored files, tappable image rows, or custom
+overlay buttons.
+
+1. **Never persist an absolute file path for something in the app container
+   and trust it on read.** `ActivityRecord.snapshotFilePath` was stored as a
+   full path into Application Support, but each reinstall mints a new
+   container UUID (confirmed on-device) while carrying the existing files
+   over under the same name — so the stored absolute path then points at a
+   container that no longer exists. Fix: treat the stored value as a
+   filename only, and re-join it against the *current* Application Support
+   directory at read time; both display and deletion go through the same
+   resolver, and nothing about what's stored had to change. See
+   `SnapshotFile.swift` (`iosApp/Packages/History/Sources/History/`); the
+   path is originally captured in `MapSnapshotSaver.swift`
+   (`iosApp/Packages/Tracking/Sources/Tracking/`).
+
+2. **Live Text can silently swallow taps on an image inside a `Button`.**
+   iOS's Live Text/Image Analysis auto-attaches to images containing
+   recognizable text (a map snapshot's street labels here) and can intercept
+   single-tap gestures meant for the `Button` the image sits in. There was
+   no visible symptom to reason from — no frame overlap, and debug prints
+   confirmed the row's id was captured correctly — so static analysis alone
+   wouldn't have found it. Fix: `.allowsHitTesting(false)` on the raw image
+   content specifically (not the surrounding view), which lets taps fall
+   through to the button while the image still renders normally. See the
+   `snapshot` view in `HistoryView.swift`.
+
+3. **Align a custom button with a system one by replacing the system one and
+   sharing a container — not by matching padding numbers.** Lining up a
+   custom Delete button against `NavigationStack`'s default back chevron by
+   tuning padding constants across two separately styled elements is
+   fragile. Fix: hide the system nav bar, build a matching custom back
+   button, and compose both in one `HStack` (with a `Spacer` between) so
+   alignment is structural. See `DetailsView.swift`'s top bar, which mirrors Route's
+   `topBar` in `RouteView.swift`.
