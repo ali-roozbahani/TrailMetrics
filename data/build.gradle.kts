@@ -80,7 +80,6 @@ kotlin {
             dependencies {
                 implementation(libs.junit)
                 implementation(libs.kotlinx.coroutines.test)
-                implementation(libs.truth)
                 implementation(libs.robolectric)
                 implementation(libs.androidx.test.core)
             }
