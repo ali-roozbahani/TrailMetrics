@@ -31,7 +31,7 @@ jobs:
         run: ./gradlew detekt
 
       - name: Run unit tests
-        run: ./gradlew test
+        run: ./gradlew allTests test
 
       - name: Build
         run: ./gradlew assembleDebug
