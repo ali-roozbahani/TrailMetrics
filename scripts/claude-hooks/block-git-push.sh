@@ -4,19 +4,27 @@
 # passed, block the push so the agent fixes things locally instead of pushing
 # broken code and looping against GitHub CI.
 #
-# NOTE: wire-format for hook input/output (stdin JSON shape, exit-code
-# semantics, matcher syntax) should be verified against the Claude Code docs
-# current at setup time — hook mechanics have changed across versions. This
-# script assumes: stdin is JSON with a `.tool_input.command` field, exit 0
-# = allow, exit 2 = block and feed stderr back to the agent as the reason.
+# Wire format verified 2026-09-28 against the Claude Code hooks reference
+# (https://code.claude.com/docs/en/hooks): stdin is a JSON object with the
+# shell command at `.tool_input.command`; exit 0 = no decision (normal
+# permission flow), exit 2 = block, with stderr fed back to Claude as the reason.
+# Registered in .claude/settings.json under PreToolUse with matcher "Bash".
 
 set -euo pipefail
 
 INPUT="$(cat)"
-COMMAND="$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*"command"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')"
 
-# Only act on git push; let every other command through untouched.
-if ! echo "$COMMAND" | grep -qE '\bgit\s+push\b'; then
+# jq handles escaped quotes inside the command (e.g. `git commit -m \"x\" && git push`).
+# Without jq, fall back to scanning the raw JSON: it may over-match, which blocks
+# rather than lets a push through.
+if command -v jq >/dev/null 2>&1 && COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)"; then
+    :
+else
+    COMMAND="$INPUT"
+fi
+
+# Only act on git push (including `git -C <dir> push`); let every other command through untouched.
+if ! printf '%s\n' "$COMMAND" | grep -qE '(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push([^[:alnum:]_-]|$)'; then
     exit 0
 fi
 
