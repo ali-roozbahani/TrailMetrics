@@ -67,6 +67,12 @@ jobs:
       - name: Build KMP Shared Framework
         run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
 
+      # iOS simulator tests can't run on the ubuntu android job. data's
+      # ActivityHistoryRepositoryImplTest runs only here: it's excluded from
+      # testAndroidHostTest (BundledSQLiteDriver has no host-JVM native lib).
+      - name: Run iOS simulator tests
+        run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test
+
       - name: Generate Secrets.xcconfig
         run: |
           cat <<EOF > iosApp/TrailMetrics/Secrets.xcconfig
