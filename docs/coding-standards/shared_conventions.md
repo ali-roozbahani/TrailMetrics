@@ -5,10 +5,11 @@ Swift/iOS codebase. Platform-specific rules live in
 `android_developer_guide.md` and `ios_developer_guide.md`.
 
 These rules are **enforced by tooling** (Detekt for Kotlin, SwiftLint for
-Swift, both run in CI — see `ci.yml`). A coding agent must not treat these
-as optional style preferences: CI fails the build on violation, and there
-is no override short of an explicit, human-approved suppression comment
-with a stated reason.
+Swift, both run locally via `scripts/pre-push-check.sh` and again in CI —
+see `ci.yml`). A coding agent must not treat these as optional style
+preferences: the local gate and CI both fail the build on violation, and
+there is no override short of an explicit, human-approved suppression
+comment with a stated reason.
 
 ## No deprecated APIs
 
@@ -48,7 +49,8 @@ delete it — git history is the backup, not a comment block.
 ## Module boundaries are load-bearing
 
 Before adding an import that crosses a module boundary, check
-`docs/architecture/OVERVIEW.md`'s module graph. In particular:
+`docs/architecture/OVERVIEW.md`'s module graph and the `tm-kmp-shared`
+Skill. In particular:
 - Nothing in `domain` may import `android.*`, `androidx.*`, `UIKit`, or any
   Compose/SwiftUI type.
 - Nothing in `core`'s `commonMain` may import a UI framework of any kind
@@ -59,13 +61,17 @@ If a task seems to require violating one of these boundaries, stop and
 flag it rather than working around it — it usually means the task needs a
 different module, not an exception to the rule.
 
-## Commit and branch discipline
+## Commit, branch & PR discipline
 
-- One feature or fix per branch, branched from `feature/kmp-migration-main`
-  (or `main` once migration is complete).
+- One feature or fix per branch, branched from `main` (or an epic's
+  integration branch for a multi-agent epic — see
+  `docs/workflow/coding_agent_workflow.md`).
 - Commit messages: `type(scope): summary` — see recent git history for the
   established `type` vocabulary (`feat`, `fix`, `refactor`, `build`, `docs`,
   `test`).
-- A coding agent never commits or merges on its own initiative. It prepares
-  the diff; the human reviews, tests, commits, and merges. See
-  `docs/workflow/coding_agent_workflow.md`.
+- A coding agent may commit, push, and open a PR once its local quality
+  gate (`scripts/pre-push-check.sh`) passes — enforced by a pre-push hook,
+  not left to discipline alone. It never pushes to or merges `main`
+  directly; `main` is branch-protected. See
+  `docs/workflow/coding_agent_workflow.md` for the full commit/push/PR and
+  Tier 1/Tier 2 rules.
