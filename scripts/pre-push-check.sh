@@ -39,7 +39,7 @@ echo
 # --- Android / KMP (always) ---
 run_step "detekt"        ./gradlew detekt --console=plain
 run_step "android lint"  ./gradlew lint --console=plain
-run_step "unit tests"    ./gradlew test --console=plain
+run_step "unit tests"    ./gradlew allTests test --console=plain
 run_step "assembleDebug" ./gradlew assembleDebug --console=plain
 
 # --- iOS (only when relevant files changed) ---
