@@ -296,24 +296,26 @@ presentation is inherently a platform-UI concern here, not shared logic.
 
 ---
 
-## Robolectric + Room's BundledSQLiteDriver conflict (UnsatisfiedLinkError)
+## Room's BundledSQLiteDriver has no host-JVM native lib (UnsatisfiedLinkError)
 
 Room's BundledSQLiteDriver loads a real native SQLite library at runtime.
-Robolectric's own native runtime/classloader setup conflicts with this,
-causing `UnsatisfiedLinkError` -- a known incompatibility, not a
-misconfiguration on our part. Google's own docs explicitly say: "We don't
-recommend Android local unit tests with Robolectric. Use local JVM tests
-using Room KMP instead."
+In `data`'s host tests it resolves to the Android artifact, which only
+ships SQLite binaries compiled for Android, so the host JVM fails with
+`UnsatisfiedLinkError: no sqliteJni in java.library.path`. Robolectric is
+not the cause: a Room test with no Robolectric runner and a Context-free
+`Room.inMemoryDatabaseBuilder<T>()` fails the same way, even run alone
+(verified in #34). Google's own docs explicitly say: "We don't recommend
+Android local unit tests with Robolectric. Use local JVM tests using Room
+KMP instead."
 
-Fix: for pure database tests (no other Android API needed), drop
-`@RunWith(RobolectricTestRunner::class)` entirely and use
-`Room.inMemoryDatabaseBuilder<T>()` with no Context parameter -- Room KMP
-supports Context-free in-memory builders specifically for plain JVM tests.
-This runs faster too (no Robolectric simulation overhead).
+Current handling: Room/database tests live in `commonTest` with a
+Context-free in-memory builder and get their coverage from
+`iosSimulatorArm64Test` (see "BundledSQLiteDriver's Android artifact has
+no host-JVM native lib (androidHostTest)" below).
 
 Tests that need a genuine Android API (e.g. UserProfileRepositoryImplTest's
-SharedPreferences) still legitimately need Robolectric -- this fix only
-applies to Room/database tests.
+SharedPreferences) still legitimately need Robolectric -- that's unrelated
+to the SQLite native-lib problem.
 
 ---
 
@@ -345,7 +347,7 @@ lag behind the final API.
 
 ---
 
-## BundledSQLiteDriver's Android artifact can't run under Robolectric (androidHostTest)
+## BundledSQLiteDriver's Android artifact has no host-JVM native lib (androidHostTest)
 
 Room's BundledSQLiteDriver publishes a separate native binary per target,
 including one specifically compiled for the Android runtime (ART/Bionic).
@@ -493,16 +495,20 @@ otherwise the Gradle invocation fails with
   versions. Ironically, the first fix for a warning caused by turning on
   `allWarningsAsErrors` was itself a deprecated API needing replacement.
 - `ActivityHistoryRepositoryImplTest` (in `data`'s `commonTest`) fails with
-  `UnsatisfiedLinkError` / `NoClassDefFoundError` on `BundledSQLiteDriver`
-  when run under `androidHostTest` (Robolectric) — not because the test
-  itself uses Robolectric, but because Robolectric's `SandboxClassLoader`
-  isolation for *other* tests in the same JVM process (specifically
-  `UserProfileRepositoryImplTest`) interferes with the native SQLite
-  binary's JNI loading, which is a once-per-process operation. Fixed by
-  excluding this test class specifically from `testAndroidHostTest` via
+  `UnsatisfiedLinkError: no sqliteJni in java.library.path` (then
+  `NoClassDefFoundError` at `BundledSQLiteDriver.jvmAndAndroid.kt`) when
+  run under `testAndroidHostTest`. Cause: the Android build of Room's
+  `BundledSQLiteDriver` (`androidx.sqlite:sqlite-bundled`) only ships
+  SQLite binaries compiled for Android, and `testAndroidHostTest` runs on
+  a plain host JVM, which has no native SQLite library it can load. Not
+  Robolectric or other tests in the same JVM: it fails identically when
+  run alone (verified in #34). It's excluded from `testAndroidHostTest` in
+  `data/build.gradle.kts` via
   `tasks.withType<Test>().configureEach { if (name == "testAndroidHostTest") { filter { excludeTestsMatching(...) } } }`
-  — it still runs correctly under `commonTest`/`iosSimulatorArm64Test`,
-  which is its actual coverage source.
+  — it still runs under `iosSimulatorArm64Test`, which is its actual
+  coverage source (run in CI's macOS `ios` job since #34). See also
+  "BundledSQLiteDriver's Android artifact has no host-JVM native lib
+  (androidHostTest)" above.
 - `tasks.named("taskName")` is eager and will throw
   `UnknownTaskException` if the named task hasn't been created yet at the
   point the build script evaluates that line (task creation order in a
