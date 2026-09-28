@@ -3,7 +3,6 @@ package dev.roozbahani.trailmetrics.data.user
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
-import com.google.common.truth.Truth.assertThat
 import dev.roozbahani.trailmetrics.data.common.KeyValueStorage
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +13,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -33,7 +34,7 @@ class UserProfileRepositoryImplTest {
     @Test
     fun `getUserProfile returns null when nothing is saved`() = runTest {
         val userProfile = repo.getUserProfile()
-        assertThat(userProfile).isNull()
+        assertNull(userProfile)
     }
 
     @Test
@@ -42,7 +43,7 @@ class UserProfileRepositoryImplTest {
         repo.saveUserProfile(userProfile)
 
         val result = repo.getUserProfile()
-        assertThat(result).isEqualTo(userProfile)
+        assertEquals(userProfile, result)
     }
 
     @Test
@@ -53,7 +54,7 @@ class UserProfileRepositoryImplTest {
             .apply()
 
         val result = repo.getUserProfile()
-        assertThat(result).isNull()
+        assertNull(result)
     }
 
 }
