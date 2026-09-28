@@ -493,16 +493,20 @@ otherwise the Gradle invocation fails with
   versions. Ironically, the first fix for a warning caused by turning on
   `allWarningsAsErrors` was itself a deprecated API needing replacement.
 - `ActivityHistoryRepositoryImplTest` (in `data`'s `commonTest`) fails with
-  `UnsatisfiedLinkError` / `NoClassDefFoundError` on `BundledSQLiteDriver`
-  when run under `androidHostTest` (Robolectric) — not because the test
-  itself uses Robolectric, but because Robolectric's `SandboxClassLoader`
-  isolation for *other* tests in the same JVM process (specifically
-  `UserProfileRepositoryImplTest`) interferes with the native SQLite
-  binary's JNI loading, which is a once-per-process operation. Fixed by
-  excluding this test class specifically from `testAndroidHostTest` via
+  `UnsatisfiedLinkError: no sqliteJni in java.library.path` (then
+  `NoClassDefFoundError` at `BundledSQLiteDriver.jvmAndAndroid.kt`) when
+  run under `testAndroidHostTest`. Cause: the Android build of Room's
+  `BundledSQLiteDriver` (`androidx.sqlite:sqlite-bundled`) only ships
+  SQLite binaries compiled for Android, and `testAndroidHostTest` runs on
+  a plain host JVM, which has no native SQLite library it can load. Not
+  Robolectric or other tests in the same JVM: it fails identically when
+  run alone (verified in #34). It's excluded from `testAndroidHostTest` in
+  `data/build.gradle.kts` via
   `tasks.withType<Test>().configureEach { if (name == "testAndroidHostTest") { filter { excludeTestsMatching(...) } } }`
-  — it still runs correctly under `commonTest`/`iosSimulatorArm64Test`,
-  which is its actual coverage source.
+  — it still runs under `iosSimulatorArm64Test`, which is its actual
+  coverage source (run in CI's macOS `ios` job since #34). See also
+  "BundledSQLiteDriver's Android artifact can't run under Robolectric
+  (androidHostTest)" above.
 - `tasks.named("taskName")` is eager and will throw
   `UnknownTaskException` if the named task hasn't been created yet at the
   point the build script evaluates that line (task creation order in a
