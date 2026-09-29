@@ -73,11 +73,15 @@ import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.RoutePoint
+import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * NavHost entry point. Keeps the call site in MainActivity unchanged; delegates to [RouteRoot].
+ */
 @Composable
 fun RouteScreen(
-    viewModel: RouteViewModel = koinViewModel(),
     onStartTrackingClicked: (
         startPoint: Coordinates,
         plannedRoutePoints: List<Coordinates>,
@@ -85,10 +89,24 @@ fun RouteScreen(
     ) -> Unit,
     bottomBar: @Composable () -> Unit = {}
 ) {
-    val uiState: RouteUiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val cameraPositionState = rememberCameraPositionState()
+    RouteRoot(
+        onStartTrackingClicked = onStartTrackingClicked,
+        bottomBar = bottomBar
+    )
+}
+
+@Composable
+fun RouteRoot(
+    onStartTrackingClicked: (
+        startPoint: Coordinates,
+        plannedRoutePoints: List<Coordinates>,
+        activityType: ActivityType
+    ) -> Unit,
+    bottomBar: @Composable () -> Unit = {}
+) {
+    val viewModel: RouteViewModel = koinViewModel()
+    val state: RouteState by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
-    val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
     var showProfileSheet: Boolean by remember { mutableStateOf(false) }
 
@@ -97,19 +115,19 @@ fun RouteScreen(
     ) { permissions ->
         val granted = permissions.values.any { granted -> granted }
         if (granted) {
-            viewModel.onLocationPermissionGranted()
+            viewModel.onAction(RouteAction.LocationPermissionGranted)
         }
     }
 
     @Suppress("LocalContextGetResourceValueCall")
     LaunchedEffect(Unit) {
-        viewModel.uiEvents.collect { event ->
+        viewModel.events.collect { event ->
             when (event) {
-                is RouteUiEvent.ShowError -> {
+                is RouteEvent.ShowError -> {
                     snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
                 }
 
-                is RouteUiEvent.RequestLocationPermission -> {
+                is RouteEvent.RequestLocationPermission -> {
                     permissionHandler.launch(
                         arrayOf(
                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -118,11 +136,11 @@ fun RouteScreen(
                     )
                 }
 
-                is RouteUiEvent.RequestUserProfile -> {
+                is RouteEvent.RequestUserProfile -> {
                     showProfileSheet = true
                 }
 
-                is RouteUiEvent.NavigateToTracking -> {
+                is RouteEvent.NavigateToTracking -> {
                     onStartTrackingClicked(
                         event.startPoint,
                         event.plannedRoutePoints,
@@ -133,8 +151,30 @@ fun RouteScreen(
         }
     }
 
-    LaunchedEffect(uiState.startPoint) {
-        uiState.startPoint?.let { coordinates ->
+    RouteScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        snackBarHostState = snackBarHostState,
+        showProfileSheet = showProfileSheet,
+        onShowProfileSheetChange = { showProfileSheet = it },
+        bottomBar = bottomBar
+    )
+}
+
+@Composable
+fun RouteScreen(
+    state: RouteState,
+    onAction: (RouteAction) -> Unit,
+    snackBarHostState: SnackbarHostState,
+    showProfileSheet: Boolean,
+    onShowProfileSheetChange: (Boolean) -> Unit,
+    bottomBar: @Composable () -> Unit = {}
+) {
+    val cameraPositionState = rememberCameraPositionState()
+    val hapticFeedback = LocalHapticFeedback.current
+
+    LaunchedEffect(state.startPoint) {
+        state.startPoint?.let { coordinates ->
             cameraPositionState.position = CameraPosition.fromLatLngZoom(
                 LatLng(coordinates.latitude, coordinates.longitude),
                 DEFAULT_ZOOM
@@ -144,9 +184,9 @@ fun RouteScreen(
 
     if (showProfileSheet) {
         UserProfileBottomSheet(
-            initialWeightKg = uiState.userProfile?.weightKg,
-            onDismiss = { showProfileSheet = false },
-            onSave = { viewModel.saveUserProfile(it) }
+            initialWeightKg = state.userProfile?.weightKg,
+            onDismiss = { onShowProfileSheetChange(false) },
+            onSave = { onAction(RouteAction.UserProfileSaved(it)) }
         )
     }
 
@@ -163,19 +203,21 @@ fun RouteScreen(
                 cameraPositionState = cameraPositionState,
                 onMapLongClicked = { latLng ->
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    viewModel.onMapTapped(
-                        Coordinates(latitude = latLng.latitude, longitude = latLng.longitude)
+                    onAction(
+                        RouteAction.MapTapped(
+                            Coordinates(latitude = latLng.latitude, longitude = latLng.longitude)
+                        )
                     )
                 }
             ) {
-                uiState.startPoint?.let { startPoint ->
+                state.startPoint?.let { startPoint ->
                     StartFinishMarker(
                         title = stringResource(CoreStrings.marker_title_start_finish),
                         coordinates = startPoint,
                     )
                 }
 
-                uiState.waypoints.forEach { point ->
+                state.waypoints.forEach { point ->
                     MarkerComposable(
                         state = rememberUpdatedMarkerState(
                             position = LatLng(
@@ -184,7 +226,7 @@ fun RouteScreen(
                             )
                         ),
                         onClick = {
-                            viewModel.onWaypointRemoved(point)
+                            onAction(RouteAction.WaypointRemoved(point))
                             true
                         }
                     ) {
@@ -197,19 +239,19 @@ fun RouteScreen(
                     }
                 }
 
-                uiState.generatedRoute?.let { route ->
+                state.generatedRoute?.let { route ->
                     RoutePolyline(points = route.points.map { it.coordinates })
                 }
             }
 
-            if (uiState.startPoint == null) {
+            if (state.startPoint == null) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
 
             FilledIconButton( // Reset Button
-                onClick = viewModel::onResetClicked,
+                onClick = { onAction(RouteAction.ResetClicked) },
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary
@@ -226,7 +268,7 @@ fun RouteScreen(
             }
 
             FilledIconButton(
-                onClick = { showProfileSheet = true },
+                onClick = { onShowProfileSheetChange(true) },
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.primary
@@ -249,23 +291,23 @@ fun RouteScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val startPoint = uiState.startPoint
-                val generatedRoute = uiState.generatedRoute
+                val startPoint = state.startPoint
+                val generatedRoute = state.generatedRoute
                 if (generatedRoute != null && startPoint != null) {
                     StartTrackingPanel(
-                        selectedActivityType = uiState.selectedActivityType,
-                        onActivityTypeSelected = { viewModel.onActivityTypeSelected(it) },
-                        onResetClicked = viewModel::onResetClicked,
-                        onStartTrackingClicked = viewModel::onStartTrackingClicked
+                        selectedActivityType = state.selectedActivityType,
+                        onActivityTypeSelected = { onAction(RouteAction.ActivityTypeSelected(it)) },
+                        onResetClicked = { onAction(RouteAction.ResetClicked) },
+                        onStartTrackingClicked = { onAction(RouteAction.StartTrackingClicked) }
                     )
                 }
 
-                if (uiState.generatedRoute == null) {
+                if (state.generatedRoute == null) {
                     Button( // Generate Button
-                        onClick = { viewModel.onGenerateRouteClicked() },
-                        enabled = uiState.canGenerateRoute
+                        onClick = { onAction(RouteAction.GenerateRouteClicked) },
+                        enabled = state.canGenerateRoute
                     ) {
-                        if (uiState.isLoading) {
+                        if (state.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
@@ -427,6 +469,31 @@ private fun ActivityTypeSelectorPreview() {
                 onSelected = { selected = it }
             )
         }
+    }
+}
+
+// Detekt counts private @Preview functions as unused; they are only used by the IDE preview.
+@Suppress("UnusedPrivateMember")
+@Preview(showBackground = true)
+@Composable
+private fun RouteScreenPreview() {
+    val start = Coordinates(latitude = 52.52, longitude = 13.405)
+    TrailMetricsTheme {
+        RouteScreen(
+            state = RouteState(
+                startPoint = start,
+                waypoints = listOf(
+                    RoutePoint(Coordinates(latitude = 52.523, longitude = 13.401), order = 0),
+                    RoutePoint(Coordinates(latitude = 52.525, longitude = 13.410), order = 1),
+                    RoutePoint(Coordinates(latitude = 52.519, longitude = 13.412), order = 2)
+                ),
+                userProfile = UserProfile(weightKg = 70.0)
+            ),
+            onAction = {},
+            snackBarHostState = remember { SnackbarHostState() },
+            showProfileSheet = false,
+            onShowProfileSheetChange = {}
+        )
     }
 }
 
