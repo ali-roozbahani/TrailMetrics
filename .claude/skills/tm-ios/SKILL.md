@@ -137,12 +137,11 @@ public class HistoryViewModel: ObservableObject {
 
 - The `TrailMetrics` target has a "Build KMP Shared Framework" Run Script phase that runs
   before `Sources`. It hashes the mtime and path of every `*.kt`/`*.kts` under
-  `domain/src data/src shared/src`, compares against `shared/build/.xcode_kmp_stamp`, and
-  runs `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` only when the hash
+  `domain/src data/src core/src shared/src`, compares against
+  `shared/build/.xcode_kmp_stamp`, and runs
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` only when the hash
   changed. `SharedKit/Package.swift` points at the **debug** XCFramework output.
 - It does **not** re-run for:
-  - `core/src` changes, even though `shared` exports `core` (`AppRoute`, `RouteUiError`).
-    This is a known gap.
   - Gradle files outside those `src` dirs (`shared/build.gradle.kts`, SKIE/export config,
     `gradle/libs.versions.toml`).
 
