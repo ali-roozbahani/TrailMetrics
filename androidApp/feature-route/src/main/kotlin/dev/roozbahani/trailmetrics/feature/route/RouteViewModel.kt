@@ -29,22 +29,35 @@ class RouteViewModel(
     private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RouteUiState())
-    val uiState: StateFlow<RouteUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(RouteState())
+    val state: StateFlow<RouteState> = _state.asStateFlow()
 
-    private val _uiEvents = Channel<RouteUiEvent>(Channel.BUFFERED)
-    val uiEvents: Flow<RouteUiEvent> = _uiEvents.receiveAsFlow()
+    private val _events = Channel<RouteEvent>(Channel.BUFFERED)
+    val events: Flow<RouteEvent> = _events.receiveAsFlow()
 
     init {
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
+    fun onAction(action: RouteAction) {
+        when (action) {
+            is RouteAction.MapTapped -> addWaypoint(action.coordinates)
+            is RouteAction.WaypointRemoved -> removeWaypoint(action.waypoint)
+            is RouteAction.ActivityTypeSelected -> _state.update { it.copy(selectedActivityType = action.activityType) }
+            is RouteAction.UserProfileSaved -> saveUserProfile(action.weightKg)
+            RouteAction.GenerateRouteClicked -> generateRoute()
+            RouteAction.ResetClicked -> reset()
+            RouteAction.StartTrackingClicked -> startTracking()
+            RouteAction.LocationPermissionGranted -> loadCurrentLocation()
+        }
+    }
+
     private fun loadCurrentLocation() {
         viewModelScope.launch {
             try {
                 val coordinates = getCurrentLocationUseCase()
-                _uiState.update { it.copy(startPoint = coordinates) }
+                _state.update { it.copy(startPoint = coordinates) }
             } catch (error: RouteError) {
                 handleCurrentLocationErrors(error)
             }
@@ -52,30 +65,26 @@ class RouteViewModel(
     }
 
     private suspend fun handleCurrentLocationErrors(error: RouteError) {
-        _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
+        _events.send(RouteEvent.ShowError(error.toUiError()))
 
         if (error is RouteError.MissingLocationPermission) {
-            _uiEvents.send(RouteUiEvent.RequestLocationPermission)
+            _events.send(RouteEvent.RequestLocationPermission)
         }
     }
 
-    fun onLocationPermissionGranted() {
-        loadCurrentLocation()
-    }
-
-    fun onMapTapped(coordinates: Coordinates) {
-        _uiState.update { state ->
+    private fun addWaypoint(coordinates: Coordinates) {
+        _state.update { state ->
             val newWaypoint = RoutePoint(coordinates = coordinates, order = state.waypoints.size)
             state.copy(waypoints = state.waypoints + newWaypoint)
         }
     }
 
-    fun onGenerateRouteClicked() {
-        val state = _uiState.value
+    private fun generateRoute() {
+        val state = _state.value
         val startPoint = state.startPoint ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true) }
 
             val draftRoute = RouteDraft(
                 startPoint = RoutePoint(coordinates = startPoint, order = 0),
@@ -84,22 +93,22 @@ class RouteViewModel(
 
             try {
                 val route = generateClosedRouteUseCase(draftRoute)
-                _uiState.update { it.copy(isLoading = false, generatedRoute = route) }
+                _state.update { it.copy(isLoading = false, generatedRoute = route) }
             } catch (error: RouteError) {
-                _uiState.update { it.copy(isLoading = false) }
-                _uiEvents.send(RouteUiEvent.ShowError(error.toUiError()))
+                _state.update { it.copy(isLoading = false) }
+                _events.send(RouteEvent.ShowError(error.toUiError()))
             }
         }
     }
 
-    fun onResetClicked() {
-        _uiState.update { RouteUiState() }
+    private fun reset() {
+        _state.update { RouteState() }
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
-    fun onWaypointRemoved(removeCandidate: RoutePoint) {
-        _uiState.update { state ->
+    private fun removeWaypoint(removeCandidate: RoutePoint) {
+        _state.update { state ->
             val updatedWaypoints = state.waypoints
                 .filterNot { it == removeCandidate }
                 .mapIndexed { index, point -> point.copy(order = index) }
@@ -108,34 +117,28 @@ class RouteViewModel(
         }
     }
 
-    fun onActivityTypeSelected(activityType: ActivityType) {
-        _uiState.update { state ->
-            state.copy(selectedActivityType = activityType)
-        }
-    }
-
-    fun saveUserProfile(weightKg: Double) {
+    private fun saveUserProfile(weightKg: Double) {
         viewModelScope.launch {
             val userProfile = UserProfile(weightKg)
             userProfileRepository.saveUserProfile(userProfile)
-            _uiState.update { state -> state.copy(userProfile = userProfile) }
+            _state.update { state -> state.copy(userProfile = userProfile) }
         }
     }
 
-    fun onStartTrackingClicked() {
+    private fun startTracking() {
         viewModelScope.launch {
             val profile = userProfileRepository.getUserProfile()
             if (profile == null) {
-                _uiEvents.send(RouteUiEvent.RequestUserProfile)
+                _events.send(RouteEvent.RequestUserProfile)
             } else {
-                val startPoint = uiState.value.startPoint
-                val plannedRoutePoints = uiState.value.generatedRoute?.points?.map { it.coordinates }
+                val startPoint = state.value.startPoint
+                val plannedRoutePoints = state.value.generatedRoute?.points?.map { it.coordinates }
                 if (startPoint != null && !plannedRoutePoints.isNullOrEmpty()) {
-                    _uiEvents.send(
-                        RouteUiEvent.NavigateToTracking(
+                    _events.send(
+                        RouteEvent.NavigateToTracking(
                             startPoint = startPoint,
                             plannedRoutePoints = plannedRoutePoints,
-                            activityType = uiState.value.selectedActivityType
+                            activityType = state.value.selectedActivityType
                         )
                     )
                 }
@@ -146,12 +149,12 @@ class RouteViewModel(
     private fun getAndUpdateUserProfile() {
         viewModelScope.launch {
             val userProfile = userProfileRepository.getUserProfile()
-            _uiState.update { state -> state.copy(userProfile = userProfile) }
+            _state.update { state -> state.copy(userProfile = userProfile) }
         }
     }
 }
 
-data class RouteUiState(
+data class RouteState(
     val startPoint: Coordinates? = null,
     val waypoints: List<RoutePoint> = emptyList(),
     val generatedRoute: Route? = null,
@@ -167,13 +170,24 @@ data class RouteUiState(
     }
 }
 
-sealed interface RouteUiEvent {
-    data object RequestLocationPermission : RouteUiEvent
-    data class ShowError(val error: RouteUiError) : RouteUiEvent
-    data object RequestUserProfile : RouteUiEvent
+sealed interface RouteAction {
+    data class MapTapped(val coordinates: Coordinates) : RouteAction
+    data class WaypointRemoved(val waypoint: RoutePoint) : RouteAction
+    data class ActivityTypeSelected(val activityType: ActivityType) : RouteAction
+    data class UserProfileSaved(val weightKg: Double) : RouteAction
+    data object GenerateRouteClicked : RouteAction
+    data object ResetClicked : RouteAction
+    data object StartTrackingClicked : RouteAction
+    data object LocationPermissionGranted : RouteAction
+}
+
+sealed interface RouteEvent {
+    data object RequestLocationPermission : RouteEvent
+    data class ShowError(val error: RouteUiError) : RouteEvent
+    data object RequestUserProfile : RouteEvent
     data class NavigateToTracking(
         val startPoint: Coordinates,
         val plannedRoutePoints: List<Coordinates>,
         val activityType: ActivityType
-    ) : RouteUiEvent
+    ) : RouteEvent
 }

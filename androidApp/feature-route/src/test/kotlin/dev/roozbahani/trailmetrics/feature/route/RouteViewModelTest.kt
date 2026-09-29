@@ -58,14 +58,14 @@ class RouteViewModelTest {
     )
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private fun TestScope.collectEvents(viewModel: RouteViewModel): List<RouteUiEvent> {
-        val events = mutableListOf<RouteUiEvent>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiEvents.toList(events) }
+    private fun TestScope.collectEvents(viewModel: RouteViewModel): List<RouteEvent> {
+        val events = mutableListOf<RouteEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
         return events
     }
 
     private fun RouteViewModel.tapWaypoints(vararg coordinates: Coordinates) {
-        coordinates.forEach { onMapTapped(it) }
+        coordinates.forEach { onAction(RouteAction.MapTapped(it)) }
     }
 
     // region init
@@ -77,7 +77,7 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         testScheduler.runCurrent()
 
-        assertEquals(RouteUiState(startPoint = START, userProfile = PROFILE), viewModel.uiState.value)
+        assertEquals(RouteState(startPoint = START, userProfile = PROFILE), viewModel.state.value)
         assertEquals(1, locationRepository.getCurrentLocationCalls)
         assertEquals(1, userProfileRepository.getUserProfileCalls)
     }
@@ -93,12 +93,12 @@ class RouteViewModelTest {
 
             assertEquals(
                 listOf(
-                    RouteUiEvent.ShowError(RouteUiError.MissingLocationPermission),
-                    RouteUiEvent.RequestLocationPermission
+                    RouteEvent.ShowError(RouteUiError.MissingLocationPermission),
+                    RouteEvent.RequestLocationPermission
                 ),
                 events
             )
-            assertNull(viewModel.uiState.value.startPoint)
+            assertNull(viewModel.state.value.startPoint)
         }
 
     @Test
@@ -109,8 +109,8 @@ class RouteViewModelTest {
         val events = collectEvents(viewModel)
         testScheduler.runCurrent()
 
-        assertEquals(listOf<RouteUiEvent>(RouteUiEvent.ShowError(RouteUiError.LocationUnavailable)), events)
-        assertNull(viewModel.uiState.value.startPoint)
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.LocationUnavailable)), events)
+        assertNull(viewModel.state.value.startPoint)
     }
 
     @Test
@@ -120,10 +120,10 @@ class RouteViewModelTest {
         testScheduler.runCurrent()
         locationRepository.currentLocationResult = Result.success(START)
 
-        viewModel.onLocationPermissionGranted()
+        viewModel.onAction(RouteAction.LocationPermissionGranted)
         testScheduler.runCurrent()
 
-        assertEquals(START, viewModel.uiState.value.startPoint)
+        assertEquals(START, viewModel.state.value.startPoint)
         assertEquals(2, locationRepository.getCurrentLocationCalls)
     }
 
@@ -139,7 +139,7 @@ class RouteViewModelTest {
 
         assertEquals(
             listOf(RoutePoint(WP_A, 0), RoutePoint(WP_B, 1), RoutePoint(WP_C, 2)),
-            viewModel.uiState.value.waypoints
+            viewModel.state.value.waypoints
         )
     }
 
@@ -148,11 +148,11 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C, WP_D)
 
-        viewModel.onWaypointRemoved(RoutePoint(WP_B, 1))
+        viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_B, 1)))
 
         assertEquals(
             listOf(RoutePoint(WP_A, 0), RoutePoint(WP_C, 1), RoutePoint(WP_D, 2)),
-            viewModel.uiState.value.waypoints
+            viewModel.state.value.waypoints
         )
     }
 
@@ -161,13 +161,13 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C, WP_D)
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
-        assertEquals(GENERATED_ROUTE, viewModel.uiState.value.generatedRoute)
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
 
-        viewModel.onWaypointRemoved(RoutePoint(WP_D, 3))
+        viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_D, 3)))
 
-        assertNull(viewModel.uiState.value.generatedRoute)
+        assertNull(viewModel.state.value.generatedRoute)
     }
 
     @Test
@@ -176,16 +176,16 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-        assertFalse(viewModel.uiState.value.canGenerateRoute, "no start point")
+        assertFalse(viewModel.state.value.canGenerateRoute, "no start point")
 
         locationRepository.currentLocationResult = Result.success(START)
-        viewModel.onLocationPermissionGranted()
+        viewModel.onAction(RouteAction.LocationPermissionGranted)
         testScheduler.runCurrent()
-        viewModel.onWaypointRemoved(RoutePoint(WP_C, 2))
-        assertFalse(viewModel.uiState.value.canGenerateRoute, "two waypoints")
+        viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_C, 2)))
+        assertFalse(viewModel.state.value.canGenerateRoute, "two waypoints")
 
-        viewModel.onMapTapped(WP_C)
-        assertTrue(viewModel.uiState.value.canGenerateRoute, "three waypoints")
+        viewModel.onAction(RouteAction.MapTapped(WP_C))
+        assertTrue(viewModel.state.value.canGenerateRoute, "three waypoints")
     }
 
     // endregion
@@ -200,18 +200,18 @@ class RouteViewModelTest {
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
 
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
 
-        assertTrue(viewModel.uiState.value.isLoading)
-        assertFalse(viewModel.uiState.value.canGenerateRoute, "not while loading")
+        assertTrue(viewModel.state.value.isLoading)
+        assertFalse(viewModel.state.value.canGenerateRoute, "not while loading")
         assertEquals(listOf(START to listOf(WP_A, WP_B, WP_C)), directionsRepository.requests)
 
         gate.complete(Unit)
         testScheduler.runCurrent()
 
-        assertFalse(viewModel.uiState.value.isLoading)
-        assertEquals(GENERATED_ROUTE, viewModel.uiState.value.generatedRoute)
+        assertFalse(viewModel.state.value.isLoading)
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
     }
 
     @Test
@@ -223,12 +223,12 @@ class RouteViewModelTest {
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
 
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
 
-        assertFalse(viewModel.uiState.value.isLoading)
-        assertNull(viewModel.uiState.value.generatedRoute)
-        assertEquals(listOf<RouteUiEvent>(RouteUiEvent.ShowError(RouteUiError.General)), events)
+        assertFalse(viewModel.state.value.isLoading)
+        assertNull(viewModel.state.value.generatedRoute)
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
     }
 
     @Test
@@ -238,12 +238,12 @@ class RouteViewModelTest {
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B)
 
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
 
-        assertFalse(viewModel.uiState.value.isLoading)
+        assertFalse(viewModel.state.value.isLoading)
         assertTrue(directionsRepository.requests.isEmpty())
-        assertEquals(listOf<RouteUiEvent>(RouteUiEvent.ShowError(RouteUiError.General)), events)
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
     }
 
     @Test
@@ -254,13 +254,13 @@ class RouteViewModelTest {
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
 
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
 
-        assertFalse(viewModel.uiState.value.isLoading)
+        assertFalse(viewModel.state.value.isLoading)
         assertTrue(directionsRepository.requests.isEmpty())
         // Only the init location error; the generate click itself emits nothing.
-        assertEquals(listOf<RouteUiEvent>(RouteUiEvent.ShowError(RouteUiError.LocationUnavailable)), events)
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.LocationUnavailable)), events)
     }
 
     // endregion
@@ -270,11 +270,11 @@ class RouteViewModelTest {
     @Test
     fun `selecting an activity type updates the state`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        assertEquals(ActivityType.Running, viewModel.uiState.value.selectedActivityType)
+        assertEquals(ActivityType.Running, viewModel.state.value.selectedActivityType)
 
-        viewModel.onActivityTypeSelected(ActivityType.Cycling)
+        viewModel.onAction(RouteAction.ActivityTypeSelected(ActivityType.Cycling))
 
-        assertEquals(ActivityType.Cycling, viewModel.uiState.value.selectedActivityType)
+        assertEquals(ActivityType.Cycling, viewModel.state.value.selectedActivityType)
     }
 
     @Test
@@ -282,11 +282,11 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         testScheduler.runCurrent()
 
-        viewModel.saveUserProfile(72.5)
+        viewModel.onAction(RouteAction.UserProfileSaved(72.5))
         testScheduler.runCurrent()
 
         assertEquals(listOf(UserProfile(72.5)), userProfileRepository.savedProfiles)
-        assertEquals(UserProfile(72.5), viewModel.uiState.value.userProfile)
+        assertEquals(UserProfile(72.5), viewModel.state.value.userProfile)
     }
 
     // endregion
@@ -299,13 +299,13 @@ class RouteViewModelTest {
         val events = collectEvents(viewModel)
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
 
-        viewModel.onStartTrackingClicked()
+        viewModel.onAction(RouteAction.StartTrackingClicked)
         testScheduler.runCurrent()
 
-        assertEquals(listOf<RouteUiEvent>(RouteUiEvent.RequestUserProfile), events)
+        assertEquals(listOf<RouteEvent>(RouteEvent.RequestUserProfile), events)
     }
 
     @Test
@@ -315,16 +315,16 @@ class RouteViewModelTest {
         val events = collectEvents(viewModel)
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
-        viewModel.onActivityTypeSelected(ActivityType.Walking)
+        viewModel.onAction(RouteAction.ActivityTypeSelected(ActivityType.Walking))
 
-        viewModel.onStartTrackingClicked()
+        viewModel.onAction(RouteAction.StartTrackingClicked)
         testScheduler.runCurrent()
 
         assertEquals(
-            listOf<RouteUiEvent>(
-                RouteUiEvent.NavigateToTracking(
+            listOf<RouteEvent>(
+                RouteEvent.NavigateToTracking(
                     startPoint = START,
                     plannedRoutePoints = GENERATED_ROUTE.points.map { it.coordinates },
                     activityType = ActivityType.Walking
@@ -341,7 +341,7 @@ class RouteViewModelTest {
         val events = collectEvents(viewModel)
         testScheduler.runCurrent()
 
-        viewModel.onStartTrackingClicked()
+        viewModel.onAction(RouteAction.StartTrackingClicked)
         testScheduler.runCurrent()
 
         assertTrue(events.isEmpty())
@@ -356,16 +356,16 @@ class RouteViewModelTest {
         val viewModel = createViewModel()
         testScheduler.runCurrent()
         viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-        viewModel.onGenerateRouteClicked()
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
-        viewModel.onActivityTypeSelected(ActivityType.Cycling)
+        viewModel.onAction(RouteAction.ActivityTypeSelected(ActivityType.Cycling))
         locationRepository.currentLocationResult = Result.success(OTHER_START)
         userProfileRepository.userProfile = PROFILE
 
-        viewModel.onResetClicked()
+        viewModel.onAction(RouteAction.ResetClicked)
         testScheduler.runCurrent()
 
-        assertEquals(RouteUiState(startPoint = OTHER_START, userProfile = PROFILE), viewModel.uiState.value)
+        assertEquals(RouteState(startPoint = OTHER_START, userProfile = PROFILE), viewModel.state.value)
         assertEquals(2, locationRepository.getCurrentLocationCalls)
         assertEquals(2, userProfileRepository.getUserProfileCalls)
     }
