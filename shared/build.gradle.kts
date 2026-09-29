@@ -49,5 +49,13 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.koin.android)
         }
+        iosMain.dependencies {
+            // For testsupport/SwiftTestSupport.kt. domain/data use coroutines as
+            // implementation, so it isn't on shared's compile classpath otherwise.
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        iosTest.dependencies {
+            implementation(libs.kotlinx.coroutines.test)
+        }
     }
 }
