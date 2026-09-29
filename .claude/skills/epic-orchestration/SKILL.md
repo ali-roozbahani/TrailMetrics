@@ -5,15 +5,16 @@ description: Use when a TrailMetrics change is big enough to split across layers
 
 # TrailMetrics multi-agent epics
 
-Source of truth: the "Multi-agent epics" section of `docs/workflow/coding_agent_workflow.md`.
-It has four rules: a human-reviewed plan comes first; subtasks whose `allowed_paths` don't
-overlap and whose `depends_on` are all met may run in parallel, each on its own branch and
-PR against the epic's integration branch; every standing rule applies per subtask; the
-human merges the epic into `main` once all subtasks are in and Tier 2 passes on the
-integrated result. This skill turns those rules into concrete mechanics for this repo.
+This skill is the source of truth for multi-agent epics (it replaced the "Multi-agent epics"
+section of the retired `coding_agent_workflow.md`). It rests on four rules: a human-reviewed
+plan comes first; subtasks whose `allowed_paths` don't overlap and whose `depends_on` are
+all met may run in parallel, each on its own branch and PR against the epic's integration
+branch; every standing rule applies per subtask; the human merges the epic into `main` once
+all subtasks are in and Tier 2 passes on the integrated result. The rest of this skill turns
+those rules into concrete mechanics for this repo.
 
 **The pattern has never been run here.** No epic branch exists in history. Everything
-below comes from the workflow doc, `ci.yml`, the gate script, the push hook and `main`'s
+below comes from the retired workflow doc, `ci.yml`, the gate script, the push hook and `main`'s
 protection as of 2026-09-28. It has not been tested on a real epic. The first epic should
 check each assumption and report under "Drift found" where reality differs.
 
@@ -34,7 +35,7 @@ conditions.
 - **Subtask agent**: one per subtask. It follows `tm-pr-workflow` plus the code skills
   for its paths, and opens one PR against the epic branch.
 
-No agent merges any PR, into `main` or into the epic branch. The workflow doc only
+No agent merges any PR, into `main` or into the epic branch. The retired workflow doc only
 forbids merging into `main`. This skill applies the same rule to the epic branch
 (conservative reading: the human keeps every merge decision).
 
@@ -276,8 +277,6 @@ one of them.
 `main` today (checked 2026-09-28): PR required, required status checks
 `Android — Lint, Detekt, Tests, Build` and `iOS — SwiftLint, Build` with **strict**
 (up-to-date) on, 0 approvals, `enforce_admins` on, no force pushes, no deletions.
-(`tm-pr-workflow`'s "Where the docs disagree" section still says the check list is
-empty. That's stale since this change. It's a follow-up there, not edited here.)
 
 **Recommendation: give epic branches the same protection as `main`, via one
 repository ruleset that targets the pattern.** Don't set up classic protection per
@@ -411,7 +410,7 @@ command the hook's pattern doesn't match). That's a gate bypass, not a fix.
 
 ### What a subtask agent is told
 
-The subtask prompt is the standard template from `coding_agent_workflow.md` with an
+The subtask prompt is the standard task prompt template from `tm-pr-workflow` with an
 **Epic** block added. Write the block into the prompt itself: a spawned agent starts with
 no memory of the planning conversation.
 
@@ -495,17 +494,18 @@ collapse the epic into one commit and lose that. The repo allows all three metho
 epic PR title is still a valid `type(scope): summary`, because it appears in the merge
 commit.
 
-## Where this skill made calls the doc doesn't
+## Where this skill made calls the retired workflow doc didn't
 
 Recorded so the first real epic can confirm or correct them:
 
-- Branch naming `feature/epic/<slug>` and sibling subtask branches: the doc names no
-  convention. `ci.yml`'s `feature/**` trigger forces the prefix.
-- Protection for epic branches through a single ruleset: the doc predates required checks
-  on `main` and says nothing about epic branches.
-- No agent merges into the epic branch: the doc only forbids merging into `main`.
-- The plan lives in `docs/epics/<slug>.md`: the doc says the plan must be reviewed, not
-  where it goes.
+- Branch naming `feature/epic/<slug>` and sibling subtask branches: the retired workflow doc
+  named no convention. `ci.yml`'s `feature/**` trigger forces the prefix.
+- Protection for epic branches through a single ruleset: the retired workflow doc
+  predated required checks on `main` and said nothing about epic branches.
+- No agent merges into the epic branch: the retired workflow doc only forbade merging into
+  `main`.
+- The plan lives in `docs/epics/<slug>.md`: the retired workflow doc said the plan must be
+  reviewed, not where it goes.
 - "Ready" means the dependency is merged, not just its PR opened.
 - Merge commit for epic → `main`, where every other PR is squash-merged.
 - Worktree isolation is blocked by the gate/hook marker location (from reading the

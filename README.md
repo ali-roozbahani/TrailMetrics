@@ -94,8 +94,7 @@ iosApp/
 This project is developed with an AI coding agent (Claude, via Claude Code) as a core part of the workflow, not an ad-hoc add-on — and it's set up deliberately to keep that assistance safe, reviewable, and drift-resistant:
 
 - **`docs/architecture/`** — the module graph, platform strategy, and every non-obvious architectural decision, written as ADRs with their reasoning, not just their conclusion.
-- **`docs/coding-standards/`** — naming, dependency, and API-usage rules for each platform, most of which are **enforced by tooling** (Detekt for Kotlin, SwiftLint for Swift — both run in CI), not left to convention alone.
-- **`docs/workflow/coding_agent_workflow.md`** — the standard process and prompt template for delegating a feature or fix to a coding agent: what context it must read first, what it's never allowed to do unprompted (commit, merge, add a dependency, cross a module boundary), and how its output gets reviewed before merging.
+- **`.claude/skills/`** — the coding standards and agent workflow, as Claude Code Skills routed from `CLAUDE.md`: `tm-kmp-shared`, `tm-android` and `tm-ios` hold the naming, dependency, and API-usage rules for each layer and platform, most of which are **enforced by tooling** (Detekt for Kotlin, SwiftLint for Swift — both run in CI), not left to convention alone; `tm-testing` fixes the testing stack; `tm-pr-workflow` is the standard process and prompt template for delegating a feature or fix to a coding agent: what context it must read first, what it's never allowed to do unprompted (merge, add a dependency, cross a module boundary), and how its output gets reviewed before merging; `epic-orchestration` covers splitting a large change across parallel agents.
 - Every module has its own `README.md` describing its role and boundaries, so an agent (or a new contributor) can answer "does this belong here?" without guessing.
 
 The goal is that anyone reading this repository — human or automated — can tell what's allowed to change, what isn't, and why, before writing a single line of code.
@@ -186,8 +185,7 @@ Both Android and iOS have their own CI job (`.github/workflows/ci.yml`) running 
 
 - [`docs/architecture/OVERVIEW.md`](docs/architecture/OVERVIEW.md) — module graph, platform strategy, DI, navigation
 - [`docs/architecture/ADR-001-no-compose-multiplatform.md`](docs/architecture/ADR-001-no-compose-multiplatform.md), [`ADR-002-shared-umbrella-module.md`](docs/architecture/ADR-002-shared-umbrella-module.md), [`ADR-003-core-ui-split.md`](docs/architecture/ADR-003-core-ui-split.md)
-- [`docs/coding-standards/shared_conventions.md`](docs/coding-standards/shared_conventions.md), [`android_developer_guide.md`](docs/coding-standards/android_developer_guide.md), [`ios_developer_guide.md`](docs/coding-standards/ios_developer_guide.md)
-- [`docs/workflow/coding_agent_workflow.md`](docs/workflow/coding_agent_workflow.md)
+- [`.claude/skills/`](.claude/skills/) — coding standards and agent workflow: `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow`, `epic-orchestration`
 - [`LEARNINGS.md`](LEARNINGS.md) — chronological log of concrete technical gotchas hit during development
 - Per-module `README.md` in `domain/`, `data/`, `core/`, `shared/`, `androidApp/core-ui/`
 

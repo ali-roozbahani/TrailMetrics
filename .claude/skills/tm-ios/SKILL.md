@@ -5,10 +5,10 @@ description: Use when writing or changing iOS code in TrailMetrics under iosApp/
 
 # TrailMetrics iOS
 
-Source of truth: `docs/coding-standards/ios_developer_guide.md` and
-`docs/coding-standards/shared_conventions.md`. This skill condenses them and adds what the
-current code under `iosApp/` actually does. Where they disagree, the code wins for "what
-exists", the guide wins for "what new code should look like".
+This skill is the source of truth for iOS conventions (it replaced the retired
+`ios_developer_guide.md` and `shared_conventions.md`). It records both the rules and what the
+current code under `iosApp/` actually does. Where they differ, the code wins for "what
+exists", the rules here win for "what new code should look like".
 
 ## Architecture
 
@@ -19,8 +19,7 @@ exists", the guide wins for "what new code should look like".
 - Every feature package depends on `SharedKit`, never on `TrailMetricsShared.xcframework`
   directly. `SharedKit` is just `@_exported import TrailMetricsShared`, so Swift files
   `import SharedKit` — never `import TrailMetricsShared`.
-- `DesignSystem` already exists (`Color.trailGreen`, `.trailRed`, ...). The guide's "none
-  exists yet" line is stale. SwiftUI components used by 2+ features go there; don't
+- `DesignSystem` already exists (`Color.trailGreen`, `.trailRed`, ...). SwiftUI components used by 2+ features go there; don't
   create a second shared UI package.
 - Feature packages do not depend on each other. Cross-feature navigation is wired in the
   app target (`iosApp/TrailMetrics/ContentView.swift`), not inside a feature.
@@ -161,8 +160,8 @@ public class HistoryViewModel: ObservableObject {
 - Types `PascalCase`, functions/properties `camelCase`. Protocols carry no `I` prefix
   (`ActivityHistoryRepository`, not `IActivityHistoryRepository`).
 - SPM packages and Swift modules are `PascalCase` single words (`History`, `DesignSystem`).
-  The shared convention's "lowercase, no underscores" applies to Kotlin packages and Gradle
-  modules; the Swift form of it is: no underscores or hyphens in package names.
+  The Kotlin "lowercase, no underscores" rule applies to Kotlin packages and Gradle modules;
+  the Swift form of it is: no underscores or hyphens in package names.
 - Per-feature types: `<Feature>View`, `<Feature>ViewModel`, `<Feature>UiEvent`.
   Extension files: `Type+Purpose.swift` (`RouteUiError+Message.swift`,
   `Color+TrailMetrics.swift`).
