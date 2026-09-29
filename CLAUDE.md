@@ -18,9 +18,12 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 
 ## Skills (load the matching one before working)
 
-- `tm-kmp-shared`  anything in domain / data / core / shared, or a change that crosses platforms
-- `tm-android`     anything under androidApp/
-- `tm-testing`     writing or changing tests on any platform
+- `tm-kmp-shared`       anything in domain / data / core / shared, or a change that crosses platforms
+- `tm-android`          anything under androidApp/
+- `tm-ios`              anything under iosApp/
+- `tm-testing`          writing or changing tests on any platform
+- `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
+- `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
 
 ## Presentation layer: migration in progress
 
@@ -42,8 +45,9 @@ in-progress migration task, that's stale, flag it rather than adding more.
 - Never commit to or push to `main`. Work on a branch: `feature/`, `bugfix/` or `chore/` prefix.
 - Never call a deprecated API. Never add a third-party dependency unless the task names it.
 - Never cross a module boundary listed in `tm-kmp-shared`; stop and report instead.
-- Before any push, all of these must pass locally: `./gradlew detekt lint test assembleDebug`
-  (plus SwiftLint and the iOS build when iOS code or shared code changed).
+- Before any push, `scripts/pre-push-check.sh` must pass locally. It runs Gradle `detekt`,
+  `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when iOS
+  code or shared code changed). `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
   of an unrelated task.
 - If docs or conventions are ambiguous for the task, state the assumption you made.

@@ -100,14 +100,15 @@ project — read this before touching any module.
 ## Coding standards and enforcement
 
 Coding standards (naming, deprecated-API policy, module dependency rules,
-etc.) are documented in `docs/coding-standards/` and are **enforced by
-tooling, not just convention**:
-- Android/Kotlin: Detekt (`config/detekt.yml`), run in CI (`ci.yml`).
-- iOS/Swift: SwiftLint (`.swiftlint.yml`), run in CI (`ci.yml`, iOS job).
+etc.) are documented in the Skills under `.claude/skills/` (`tm-kmp-shared`,
+`tm-android`, `tm-ios`, `tm-testing`) and are **enforced by tooling, not
+just convention**:
+- Android/Kotlin: Detekt (`config/detekt/detekt.yml`), run in CI (`ci.yml`).
+- iOS/Swift: SwiftLint (`iosApp/.swiftlint.yml`), run in CI (`ci.yml`, iOS job).
 
-Any coding agent (human or AI) working on this project must read
-`docs/coding-standards/shared_conventions.md` plus the platform-specific
-guide before writing code, and must not rely on lint/CI to catch violations
+Any coding agent (human or AI) working on this project must read the Skill
+for every layer or platform it touches, plus `tm-pr-workflow`, before
+writing code, and must not rely on lint/CI to catch violations
 after the fact — the rules exist to make correctness the path of least
 resistance, not a safety net.
 
@@ -116,8 +117,6 @@ resistance, not a safety net.
 - `docs/architecture/ADR-001-no-compose-multiplatform.md`
 - `docs/architecture/ADR-002-shared-umbrella-module.md`
 - `docs/architecture/ADR-003-core-ui-split.md`
-- `docs/coding-standards/android_developer_guide.md`
-- `docs/coding-standards/ios_developer_guide.md`
-- `docs/coding-standards/shared_conventions.md`
-- `docs/workflow/coding_agent_workflow.md`
+- `.claude/skills/` — `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`,
+  `tm-pr-workflow`, `epic-orchestration`
 - `LEARNINGS.md` (chronological gotchas log, complements this document)

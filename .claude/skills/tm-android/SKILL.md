@@ -5,11 +5,10 @@ description: Use when writing or changing Android code in TrailMetrics under and
 
 # TrailMetrics Android
 
-Source of truth: `docs/coding-standards/android_developer_guide.md` and
-`docs/coding-standards/shared_conventions.md`. This skill condenses them and adds what the
-current code under `androidApp/` actually does. Where they disagree, the code wins for "what
-exists", this skill's MVI section wins for "what new ViewModels should look like" (the guide
-still describes the pre-MVI shape).
+This skill is the source of truth for Android conventions (it replaced the retired
+`android_developer_guide.md` and `shared_conventions.md`). It records both the rules and what
+the current code under `androidApp/` actually does. Where they differ, the code wins for "what
+exists", this skill's MVI section wins for "what new ViewModels should look like".
 
 ## Architecture
 
@@ -186,8 +185,8 @@ stale behavior right after a shared-module change, suspect this first.
 - Never call anything marked `@Deprecated`, including AndroidX/Compose/Material APIs
   deprecated in the current BOM. Use the documented replacement (for example
   `Icons.AutoMirrored.Filled.DirectionsRun`, not `Icons.Filled.DirectionsRun`).
-- The docs say `allWarningsAsErrors = true` enforces this in every Kotlin module. **That is
-  only true for the KMP modules** (`domain`, `data`, `core`, `shared`). The root
+- `allWarningsAsErrors = true` is often assumed to enforce this in every Kotlin module.
+  **That is only true for the KMP modules** (`domain`, `data`, `core`, `shared`). The root
   `build.gradle.kts` sets it via `plugins.withId("org.jetbrains.kotlin.android")`, but
   `androidApp/*` modules use AGP 9 built-in Kotlin, never apply that plugin id, and compile
   with `allWarningsAsErrors = false`. A deprecation in `androidApp/` is only a warning. Read
@@ -245,26 +244,15 @@ Test code follows `tm-testing`. In short: JUnit4 + MockK for Android-framework t
 `kotlin.test` assertions; `kotlin.test` + hand-written fakes in `domain`; no Truth, no
 JUnit5; `UnconfinedTestDispatcher` unless a test needs to control dispatch order;
 Robolectric only when a test genuinely needs the Android framework. `androidApp/` has no
-test source sets yet. The guide's "JUnit4 + MockK + Google Truth" line is stale, since
-Truth was removed in #32.
+test source sets yet. Truth was removed in #32.
 
-## Where the docs disagree with the code
+## Known deviations in the current code
 
-Noted here; the source docs are not changed by this skill.
-- `android_developer_guide.md` → Architecture: describes MVVM with `StateFlow<UiState>` +
-  `Flow<UiEvent>` and says to copy any existing ViewModel. The MVI section above is the
-  target, and none of the existing ViewModels has been migrated. `HistoryViewModel` has no event flow,
-  and `DetailsViewModel` uses a callback.
-- `android_developer_guide.md` → "Screens are stateless Composables that take a `UiState`":
-  every current screen takes its ViewModel directly (`viewModel = koinViewModel()`).
-- `android_developer_guide.md` / `shared_conventions.md` → `allWarningsAsErrors` "in every
-  Kotlin module": false for all five `androidApp/*` modules (see No deprecated APIs).
-- `android_developer_guide.md` → Detekt config path `config/detekt.yml`: the real path is
-  `config/detekt/detekt.yml`.
-- `android_developer_guide.md` → Testing: still lists Google Truth.
-- `android_developer_guide.md` → "avoid field injection": `MainActivity` uses `by inject()`.
-- `shared_conventions.md` → suppressions need "a stated reason": the existing
-  `@Suppress("UnusedPrivateMember")` and `@Suppress("LocalContextGetResourceValueCall")` in
-  `RouteScreen.kt`/`TrackingScreen.kt` carry no reason comment.
-- `android_developer_guide.md` says `@Preview` is "encouraged", but this skill requires one
-  for every new screen. Only one preview exists in the codebase.
+Don't copy these as a pattern for new code.
+- ViewModels are pre-MVI and screens take their ViewModel directly (see the MVI section).
+- `MainActivity` field-injects with `by inject()` (see Koin).
+- `androidApp/*` modules compile with `allWarningsAsErrors = false` (see No deprecated APIs).
+- The existing `@Suppress("UnusedPrivateMember")` and
+  `@Suppress("LocalContextGetResourceValueCall")` in `RouteScreen.kt`/`TrackingScreen.kt`
+  carry no reason comment. New suppressions need one.
+- Only one `@Preview` exists in the codebase, although every new screen needs one.

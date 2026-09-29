@@ -5,11 +5,12 @@ description: Use for every TrailMetrics task that will end in a commit, push or 
 
 # TrailMetrics PR workflow
 
-Source of truth: `docs/workflow/coding_agent_workflow.md` (plus the "Commit, branch & PR
-discipline" section of `docs/coding-standards/shared_conventions.md`, which repeats it).
-This skill condenses them and adds what the repo, the gate script, the push hook and recent
-PRs actually do. Where they disagree, the repo wins for "what is enforced", the doc wins
-for "what the agent should do". Multi-agent epics are not covered here.
+This skill is the source of truth for the agent workflow (it replaced the retired
+`docs/workflow/coding_agent_workflow.md` and the "Commit, branch & PR discipline" section of
+`shared_conventions.md`). It records both the rules and what the repo, the gate script, the
+push hook and recent PRs actually do. Where they differ, the repo wins for "what is
+enforced", the rules here win for "what the agent should do". Multi-agent epics are covered
+in `epic-orchestration`.
 
 The task prompt only says *what* to do. Everything below applies to every task without the
 prompt restating it, including committing, pushing and opening the PR: the agent does
@@ -17,17 +18,31 @@ those on its own initiative once Tier 1 passes.
 
 ## Before starting
 
-- Read `docs/architecture/OVERVIEW.md`, the platform guide under `docs/coding-standards/`,
-  the `README.md` of every module the task touches, and `LEARNINGS.md` for known
-  KMP/Xcode/Gradle gotchas.
+- Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,
+  and `LEARNINGS.md` for known KMP/Xcode/Gradle gotchas.
 - Load the code skill(s) for the modules touched (`tm-kmp-shared`, `tm-android`, `tm-ios`,
   `tm-testing`) as well as this one.
-- Task prompts follow the template at the end of `coding_agent_workflow.md`: `Task`,
-  `Context` (reference implementation, modules touched), `Scope` (what should and should
-  **not** change), `Branch`. Treat the "should not change" part of `Scope` as a hard limit.
+- Task prompts follow the standard template below. Treat the "should not change" part of
+  `Scope` as a hard limit.
+
+```
+Task: <one-line description of the feature, fix, or chore>
+
+Context:
+- Reference implementation (if porting a feature): <path to the Android or
+  iOS equivalent>
+- Module(s) this task touches: <list>
+- Anything else specific to this task the agent wouldn't otherwise know
+
+Scope:
+<what should change, and explicitly what should NOT change>
+
+Branch: <type>/<slug>
+```
 
 ## Branching
 
+- One feature or fix per branch.
 - Create and check out the branch **before the first edit**. Never leave changes on the
   branch you started from, and never commit to `main`.
 - Name: `<type>/<slug>`, where type is one of exactly three prefixes:
@@ -99,9 +114,8 @@ that there is nothing to check on a device (see #32, #35).
 
 - Format: `type(scope): summary`, imperative, lowercase after the colon, no trailing
   period. Explain the *why* in the body when it isn't obvious.
-- Types in use: `feat`, `fix`, `refactor`, `build`, `docs`, `test` (the documented set),
-  plus `chore`, which is the most common type in recent history even though the docs
-  don't list it. Use `chore` for work that fits the `chore/` branch prefix but isn't a
+- Types in use: `feat`, `fix`, `refactor`, `build`, `docs`, `test` (the set the retired docs listed),
+  plus `chore`, which is the most common type in recent history. Use `chore` for work that fits the `chore/` branch prefix but isn't a
   better fit for `docs`, `build` or `test`.
 - Scopes in use: a module or platform (`android`, `ios`, `domain`, `data`, `shared`,
   `core`, `route`) or an area (`ci`, `hooks`, `skills`, `learnings`). Omit the scope
@@ -121,13 +135,12 @@ that there is nothing to check on a device (see #32, #35).
 
 ### PR description
 
-Required by the workflow doc. Use these headings, and keep all four even when one is
+Required. Use these headings, and keep all four even when one is
 "nothing to check":
 
 1. **What changed**: the diff in reviewer terms, including what was deliberately *not*
    changed if the Scope named it.
-2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-testing`,
-   `docs/workflow/coding_agent_workflow.md`.
+2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-testing`, `tm-pr-workflow`.
 3. **Tier 1**: the gate result on the pushed HEAD, which steps ran, and why the iOS steps
    were skipped if they were. For test changes, include test counts before and after
    (from `allTests` JUnit XML, not `./gradlew test`).
@@ -151,8 +164,6 @@ End the description with the attribution line the session specifies.
 - Never change any of these as a side effect of an unrelated task. They change only
   through their own explicitly scoped task and review:
   - `docs/architecture/*`
-  - `docs/coding-standards/shared_conventions.md`
-  - `docs/workflow/coding_agent_workflow.md`
   - `CLAUDE.md`
   - CI config (`.github/workflows/`)
   - lint config (`config/detekt/detekt.yml`, `iosApp/.swiftlint.yml`, Android lint
@@ -165,7 +176,7 @@ End the description with the attribution line the session specifies.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
-- Never cross a module boundary listed in `tm-kmp-shared` or `shared_conventions.md`. If
+- Never cross a module boundary listed in `tm-kmp-shared`. If
   the task seems to need it, stop and report. Don't work around it.
 - Never call a deprecated API (details per platform in `tm-android` / `tm-ios`).
 - If the docs or conventions are ambiguous or silent on something the task needs, pick the
@@ -187,18 +198,17 @@ Review comments turn into new commits on the same branch, each through the gate 
 Answer them in the PR (see #35's comment summarising its second commit) rather than
 silently force-pushing.
 
-## Where the docs disagree with the repo
+## Where enforcement and history differ from the rules
 
-Noted here; the source docs are not changed by this skill.
-
-- **Branch protection is weaker than "required status checks + review".** `main` requires
-  a PR and `enforce_admins` is on, so a direct push to `main` is rejected. But the
-  required-status-check list is **empty** and the required approval count is **0**. A PR
-  with red CI can be merged, and #30–#37 were all merged with no review. "CI green
-  before merge" is enforced by the human, not by GitHub.
-- **The gate is a Claude Code hook, not a git hook.** `shared_conventions.md` calls it a
-  "pre-push hook". It is a `PreToolUse` hook, so it only gates pushes made from a Claude
-  Code session. A push from a terminal skips it.
+- **Branch protection enforces CI but not review.** `main` requires a PR and
+  `enforce_admins` is on, so a direct push to `main` is rejected. Both CI checks
+  (`Android — Lint, Detekt, Tests, Build` and `iOS — SwiftLint, Build`) are required with
+  `strict` on, so a PR can't merge with red CI or while it's behind `main`. The required
+  approval count is **0**: review before merge is enforced by the human, not by GitHub
+  (#30–#37 were all merged with no review). The required checks were added before #38
+  merged.
+- **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it
+  only gates pushes made from a Claude Code session. A push from a terminal skips it.
 - **CI doesn't mirror the gate exactly.** CI's `ios` job always runs SwiftLint, the iOS
   build and the iOS simulator tests, even when the gate skipped its iOS steps. So an
   `iosApp/` problem that already existed on `main` can make CI red on an unrelated
@@ -206,10 +216,7 @@ Noted here; the source docs are not changed by this skill.
   skipped; they run in the `ios` job since #34.
 - **CI only runs on push for `main` and `feature/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
-- **`CLAUDE.md`'s gate command is out of date.** It says
-  `./gradlew detekt lint test assembleDebug`. The gate and CI run `allTests test`, and
-  `test` alone runs zero tests (#32, #33).
-- **The commit type list omits `chore`.** Both docs list
+- **Commit types have been used inconsistently.** The retired docs listed only
   `feat`/`fix`/`refactor`/`build`/`docs`/`test`. `chore` is the most-used type since #30,
   and the same kind of change has been typed differently (`chore(ci)` in #33,
   `build(ci)` in #34).
@@ -222,16 +229,11 @@ Noted here; the source docs are not changed by this skill.
 - **Three commits reached `main` without a PR** (`0add288`, `0ff3ccc`, `6c37a62`, all on
   2026-09-19). That was before #30 turned on the current protection. Every change since
   has gone through a PR.
-- **Boundaries lists differ.** The workflow doc lists `docs/architecture/*`,
-  `shared_conventions.md`, itself, CI and lint config. `CLAUDE.md` lists
-  `docs/architecture`, CI, lint config and itself, but not `shared_conventions.md` or
-  the workflow doc. Neither lists the gate script, the hook, `.claude/settings.json` or the
-  skills. This skill uses the union and adds those (assumption: they're as load-bearing as
-  CI config).
-- **Skill routing.** The workflow doc says `CLAUDE.md` routes to `tm-kmp-shared`,
-  `tm-android` and `tm-testing`. `tm-ios` and this skill exist but aren't routed from
-  `CLAUDE.md` yet.
-- **The retry budget is ambiguous in the doc.** It says "2 fix attempts" without defining
-  an attempt or saying whether review rounds and follow-up PRs count. The definition above
-  is this skill's reading. GitHub doesn't record local gate failures, so recent PRs can't
-  show how often the budget is actually hit.
+- **The Boundaries list is wider than `CLAUDE.md`'s.** `CLAUDE.md` lists
+  `docs/architecture`, CI, lint config and itself. It doesn't list the gate script, the
+  hook, `.claude/settings.json` or the skills. This skill adds those (assumption: they're
+  as load-bearing as CI config).
+- **The retry budget was never defined precisely.** The retired workflow doc said
+  "2 fix attempts" without defining an attempt or saying whether review rounds and
+  follow-up PRs count. The definition above is this skill's reading. GitHub doesn't record
+  local gate failures, so recent PRs can't show how often the budget is actually hit.

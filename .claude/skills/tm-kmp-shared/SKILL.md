@@ -95,6 +95,23 @@ For a feature touching shared + both UIs: shared layer changes go in first and m
 the epic branch; Android UI and iOS UI then proceed independently since they only touch
 `androidApp/` and `iosApp/` respectively.
 
+## Kotlin conventions (domain / data / core / shared)
+
+The same Kotlin rules `tm-android` applies under `androidApp/` apply here too:
+- Naming: Gradle modules lowercase and hyphenated; packages lowercase dot segments with no
+  underscores. Classes/interfaces `PascalCase` with no `I` prefix
+  (`ActivityHistoryRepository`, not `IActivityHistoryRepository`); functions/properties
+  `camelCase`. Booleans read as questions (`isLoading`, `canStart`, `hasPermission`), never
+  a bare noun. Test names are backtick sentences, never `test1` (see `tm-testing`).
+- No deprecated APIs. These modules compile with `allWarningsAsErrors = true`, so a
+  deprecation call fails the build. Use the replacement. If one is genuinely unavoidable
+  (a third-party library with no replacement yet), suppress it narrowly at the call site
+  with `@Suppress("DEPRECATION")` and a comment stating why, never at file or module
+  level, and only with human approval. Don't mark your own APIs `@Deprecated` to phase
+  them out; update the callers and delete the old API in the same change.
+- No dead code: no commented-out blocks, no unused declarations or imports left behind
+  after a refactor. Git history is the backup. Comments explaining *why* are welcome.
+
 ## Detekt reminders (CI-enforced, see `config/detekt.yml`)
 
 No `println`/`print` (`ForbiddenMethodCall` — use the injected `Logger`), no
