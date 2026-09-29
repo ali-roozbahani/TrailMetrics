@@ -34,10 +34,17 @@ subprojects {
         }
     }
 
-    plugins.withId("org.jetbrains.kotlin.android") {
-        configure<KotlinAndroidProjectExtension> {
-            compilerOptions {
-                allWarningsAsErrors.set(true)
+    // androidApp/* modules use AGP 9's built-in Kotlin: AGP registers the `kotlin`
+    // extension itself and the org.jetbrains.kotlin.android plugin id is never applied,
+    // so hook on the AGP plugin ids instead. The KMP modules apply
+    // com.android.kotlin.multiplatform.library, which is covered by the multiplatform
+    // block below, not by these ids.
+    listOf("com.android.application", "com.android.library").forEach { agpPluginId ->
+        plugins.withId(agpPluginId) {
+            configure<KotlinAndroidProjectExtension> {
+                compilerOptions {
+                    allWarningsAsErrors.set(true)
+                }
             }
         }
     }
