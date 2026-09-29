@@ -1,6 +1,6 @@
 ---
 name: tm-testing
-description: Use whenever writing or reviewing tests anywhere in TrailMetrics — domain, data, ViewModel/MVI, or Compose UI tests, on Android or in commonTest/KMP code. Fixes the testing stack (JUnit4 + MockK for Android, kotlin.test for KMP, no Truth, no JUnit5) and testing patterns per layer. Not for the code under test itself — see tm-kmp-shared or tm-android for that.
+description: Use whenever writing or reviewing tests anywhere in TrailMetrics — domain, data, ViewModel/MVI, or Compose UI tests, on Android or in commonTest/KMP code. Fixes the testing stack (JUnit4 for Android, kotlin.test for KMP and assertions, hand-written fakes; MockK/Turbine are intended but not yet in the catalog; no Truth, no JUnit5) and testing patterns per layer. Not for the code under test itself — see tm-kmp-shared or tm-android for that.
 ---
 
 # TrailMetrics testing
@@ -10,7 +10,27 @@ description: Use whenever writing or reviewing tests anywhere in TrailMetrics �
 | Layer | Framework | Assertions | Mocking |
 |---|---|---|---|
 | `domain`, other commonTest/KMP | `kotlin.test` | `kotlin.test` (`assertEquals`, `assertTrue`, ...) | fakes, not mocks — MockK has no Kotlin/Native artifact |
-| `data`, Android-framework code (Robolectric, Compose) | JUnit4 | `kotlin.test` | MockK |
+| `data`, Android-framework code (Robolectric, Compose), Android ViewModels | JUnit4 | `kotlin.test` | hand-written fakes today; MockK once added (see below) |
+
+### What's actually available today
+
+MockK and Turbine are the intended additions for Android-side tests, but **neither is in
+`gradle/libs.versions.toml` and no module depends on either** (checked 2026-09-29; no
+file in the repo imports `io.mockk` or `app.cash.turbine`). CLAUDE.md forbids adding a
+third-party dependency the task doesn't name, so until a task explicitly adds them:
+
+- Android ViewModel/MVI tests use JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` +
+  hand-written fakes. All three libraries are already catalog entries (`junit`,
+  `kotlin-test`, `kotlinx-coroutines-test`).
+- Flow assertions read `StateFlow.value` after driving the test scheduler, or collect
+  into a list from `backgroundScope` (see "Coroutines / Flow"). Don't use Turbine's
+  `.test { awaitItem() }`.
+- Android feature modules have no test source sets or test dependencies yet
+  (`androidApp/feature-*/build.gradle.kts`). The first test in a module adds
+  `testImplementation` lines for those existing catalog entries to that module's own
+  `build.gradle.kts`. That is not a new dependency.
+- A task that adds MockK or Turbine must name it, add it to the catalog, and update this
+  section in the same change.
 
 No JUnit5 anywhere in this project (evaluated and rejected — see
 `docs/architecture` for the reasoning if resurrected later). No AssertK. No Truth —
@@ -34,20 +54,30 @@ class TrackingSessionManagerTest {
 
 (`@Before`/`@After` — JUnit4 annotations, not JUnit5's `@BeforeEach`/`@AfterEach`.)
 
-Use Turbine for `StateFlow`/`SharedFlow` assertions:
+For a `StateFlow`, drive the scheduler and assert on `.value`. This is what
+`domain/src/commonTest/.../tracking/TrackingSessionManagerTest.kt` does:
 
 ```kotlin
 @Test
-fun `starting tracking transitions Idle to Tracking`() = runTest {
-    val manager = TrackingSessionManager(fakeLocationRepo, useCase, fakeLauncher, speedCalc, fakeClock, logger, this)
+fun `start transitions to Tracking`() = runTest(testScheduler) {
+    manager.start(point1)
+    testScheduler.runCurrent()
 
-    manager.currentState.test {
-        assertEquals(TrackingState.Idle, awaitItem())
-        manager.start(someCoordinates)
-        assertTrue(awaitItem() is TrackingState.Tracking)
-    }
+    assertIs<TrackingState.Tracking>(manager.currentState.value)
 }
 ```
+
+For a one-shot stream (a `Channel`-backed `events` flow, a `SharedFlow`), or a `StateFlow`
+built with `stateIn(WhileSubscribed)` that needs a subscriber, collect from
+`backgroundScope`. It is cancelled automatically when the test ends:
+
+```kotlin
+val events = mutableListOf<RouteEvent>()
+backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+```
+
+Turbine (`.test { awaitItem() }`) replaces both once a task adds it (see "What's actually
+available today").
 
 ## Fakes over mocks in `domain`
 
@@ -62,10 +92,16 @@ class FakeLocationRepository : LocationRepository {
 }
 ```
 
-In Android-only tests (ViewModels, repositories), MockK is fine for collaborators that
-are tedious to fake, but prefer a fake for anything with real behavior worth exercising
-(e.g. a fake `TrackingSessionManager` backed by a `MutableStateFlow`, so ViewModel tests
-drive real state transitions instead of stubbing return values).
+Android-only tests (ViewModels, repositories) use fakes too, since MockK isn't available
+yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules, so
+each Android test source set writes its own. Only interfaces can be faked this way.
+Concrete classes such as the use cases and `TrackingSessionManager` are final. Build the
+real class around fakes of its interface collaborators (`TrackingSessionManager` from a
+fake `LocationRepository`, `TrackingServiceLauncher`, `Clock` and `Logger` plus a
+`TestScope`, as the domain test does). That way ViewModel tests drive real state
+transitions instead of stubbing return values. Once MockK is added, it's fine for
+collaborators that are tedious to fake, but a fake stays preferred for anything with real
+behavior worth exercising.
 
 ## Testing MVI ViewModels
 
@@ -77,28 +113,37 @@ the test both specifies and locks the target behavior.
 
 ```kotlin
 @Test
-fun `Pause action pauses an active tracking session`() = runTest {
-    val viewModel = TrackingViewModel(fakeSessionManager, fakeProfileRepo, calorieCalc, fakeSaveUseCase, ActivityType.Running, emptyList(), fakeClock)
+fun `Pause action pauses an active tracking session`() = runTest(testScheduler) {
+    // sessionManager: a real TrackingSessionManager built from fakes (see "Fakes over mocks")
+    val viewModel = TrackingViewModel(sessionManager, fakeProfileRepo, CalorieCalculator(), saveActivityUseCase, ActivityType.Running, emptyList(), fakeClock)
+    // state is stateIn(WhileSubscribed): keep a subscriber for the whole test
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 
-    viewModel.state.test {
-        awaitItem() // initial
-        viewModel.onAction(TrackingAction.Start(someCoordinates))
-        assertTrue(awaitItem().trackingState is TrackingState.Tracking)
-        viewModel.onAction(TrackingAction.Pause)
-        assertTrue(awaitItem().trackingState is TrackingState.Paused)
-    }
+    viewModel.onAction(TrackingAction.Start(someCoordinates))
+    testScheduler.runCurrent()
+    assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+
+    viewModel.onAction(TrackingAction.Pause)
+    testScheduler.runCurrent()
+    assertIs<TrackingState.Paused>(viewModel.state.value.trackingState)
 }
 
 @Test
-fun `Finish action emits Saved event on success`() = runTest {
-    val viewModel = TrackingViewModel(/* session manager already in Finished state */ ...)
+fun `Finish action emits Saved event on success`() = runTest(testScheduler) {
+    val viewModel = TrackingViewModel(/* session manager driven to Finished */ ...)
+    val events = mutableListOf<TrackingEvent>()
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
 
-    viewModel.events.test {
-        viewModel.onAction(TrackingAction.Finish(snapshotFilePath = null))
-        assertEquals(TrackingEvent.Saved, awaitItem())
-    }
+    viewModel.onAction(TrackingAction.Finish(snapshotFilePath = null))
+    testScheduler.advanceUntilIdle()
+
+    assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
 }
 ```
+
+`viewModelScope` runs on `Dispatchers.Main`, so these tests also need the
+`Dispatchers.setMain(...)`/`resetMain()` setup from "Coroutines / Flow", using a
+dispatcher on the same `testScheduler`.
 
 ## Compose UI tests
 

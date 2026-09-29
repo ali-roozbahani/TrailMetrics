@@ -379,31 +379,46 @@ same path, so also compare the new file paths the plan names.
 ### Isolation (read before running two subtasks at once)
 
 Parallel subtasks need separate working trees: two agents on one checkout would switch
-branches under each other. The natural tool is the Agent tool with
-`isolation: "worktree"`. **But the current gate and push hook probably don't work in a
-linked git worktree.** This was read from the scripts, not tested: running the hook
-directly was blocked in the session that wrote this skill. What the scripts do:
+branches under each other. The tool for this is the Agent tool with
+`isolation: "worktree"`, and **the gate and push hook work in a linked worktree** since #40
+(`fix(hooks): resolve the gate pass marker per worktree`):
 
-- `scripts/pre-push-check.sh` writes its pass marker with
-  `mkdir -p "$REPO_ROOT/.git"` and `touch "$REPO_ROOT/.git/.pre-push-check-passed"`. In a
-  linked worktree `.git` is a *file*, so both commands fail. The script still exits 0,
-  but no marker gets written.
-- `scripts/claude-hooks/block-git-push.sh` reads the marker from `.git/` under the
-  directory it's installed in, which is `$CLAUDE_PROJECT_DIR`. It compares the marker
-  with *that* checkout's last commit. From a worktree, it either blocks every push
-  (no marker) or checks the wrong checkout.
+- `scripts/pre-push-check.sh` writes its pass marker at
+  `git rev-parse --path-format=absolute --git-path .pre-push-check-passed`. That is
+  `.git/` in the main checkout and `.git/worktrees/<name>/` in a linked worktree. If the
+  marker can't be written, the gate fails instead of exiting 0.
+- `scripts/claude-hooks/block-git-push.sh` resolves the checkout from the `cwd` in its
+  hook input (falling back to its own checkout), then finds that checkout's marker the
+  same way, and compares it with that checkout's last commit.
 
-Until that's fixed (a separate `chore` task that makes both scripts use
-`git rev-parse --git-path .pre-push-check-passed`, which is not part of this skill), pick
-one of these:
+Verified on 2026-09-29 against `main` at `09a86a8`:
+- In a throwaway linked worktree, the full gate passed (exit 0) and wrote the marker under
+  `.git/worktrees/<name>/`.
+- The hook, fed a push command with that worktree as `cwd`, allowed it (exit 0).
+- With a fresh worktree that had no marker as `cwd`, it blocked (exit 2).
 
-- **Sequential in the main checkout (default until fixed):** run the "parallel" subtasks
-  of a wave one after another in the normal checkout. The ordering, scoping and
-  PR-per-subtask rules stay the same, and the hook works. You lose only wall-clock
-  parallelism.
-- **Parallel in worktrees, human pushes:** each subtask agent commits, runs the gate,
-  reports the result and stops without pushing. The human pushes and opens each PR. Use
-  this only if the human asks for it.
+Not yet verified: a real push from an Agent-tool worktree session, i.e. that the hook
+input's `cwd` there is the worktree. The first epic that runs parallel subtasks should
+confirm it and report under "Drift found" if it isn't.
+
+The caution that still applies to parallel worktrees:
+
+- **Resource contention.** Every subtask runs the full gate: Gradle `detekt`, `lint`,
+  `allTests test`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild`
+  once the diff touches `iosApp/` or the shared layer. Each worktree has its own build
+  directories and Gradle daemon. Several gates at once on one machine compete for CPU,
+  memory and the shared `~/.gradle` cache locks, and can be slower in total than running
+  them one after another. Default to **at most two** concurrent subtasks, and fewer when
+  more than one of them runs the iOS steps. The human can raise the limit.
+- **Untracked local files don't come along.** A new worktree has no `local.properties`
+  (Android SDK path, `MAPS_API_KEY`) and no `iosApp/TrailMetrics/Secrets.xcconfig`, which
+  the iOS build needs. Both are gitignored. The orchestrator copies them from the main
+  checkout into each worktree before the subtask runs its gate. Never commit them.
+- **Sequential in the main checkout is still fine.** It's the right choice when the
+  machine can't take concurrent builds or a wave has only one subtask. The ordering,
+  scoping and PR-per-subtask rules are the same either way.
+- Each worktree is cleaned up after its subtask's PR is opened. The branch lives on in
+  the remote.
 
 Never work around the hook (for example by touching the marker by hand, or pushing from a
 command the hook's pattern doesn't match). That's a gate bypass, not a fix.
@@ -508,5 +523,7 @@ Recorded so the first real epic can confirm or correct them:
   reviewed, not where it goes.
 - "Ready" means the dependency is merged, not just its PR opened.
 - Merge commit for epic → `main`, where every other PR is squash-merged.
-- Worktree isolation is blocked by the gate/hook marker location (from reading the
-  scripts). Until that's fixed, the default is sequential subtasks in one checkout.
+- Parallel subtasks run in linked worktrees, which the gate and hook support since #40
+  (verified 2026-09-29, see "Isolation"), with a default cap of two concurrent subtasks
+  to limit build contention. An earlier version of this skill said the gate/hook
+  probably broke in worktrees and made sequential the default; that was true before #40.
