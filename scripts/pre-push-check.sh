@@ -62,6 +62,33 @@ if [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO
     '
+
+    # Runs after "iOS build": the packages link the XCFramework that build produces.
+    # Every iosApp/Packages/<Name>/ with a Tests/ directory is tested; others are skipped.
+    run_step "iOS package tests" bash -c '
+        set -uo pipefail
+        SIM_ID="$(xcrun simctl list devices available iPhone \
+            | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}" | tail -1)"
+        if [ -z "$SIM_ID" ]; then
+            echo "No available iPhone simulator (see LEARNINGS.md: xcodebuild -downloadPlatform iOS)"
+            exit 1
+        fi
+        status=0
+        for pkg in iosApp/Packages/*/; do
+            name="$(basename "$pkg")"
+            if [ ! -d "$pkg/Tests" ]; then
+                echo "--- $name: no Tests/, skipped"
+                continue
+            fi
+            echo "--- $name: xcodebuild test"
+            (cd "$pkg" && xcodebuild test \
+                -scheme "$name" \
+                -destination "platform=iOS Simulator,id=$SIM_ID" \
+                -skipMacroValidation \
+                CODE_SIGNING_ALLOWED=NO) || status=1
+        done
+        exit $status
+    '
 fi
 
 echo
