@@ -67,8 +67,12 @@ fi
 echo
 if [ ${#FAILURES[@]} -eq 0 ]; then
     echo "All required checks passed. Safe to commit/push."
-    mkdir -p "$REPO_ROOT/.git"
-    touch "$REPO_ROOT/.git/.pre-push-check-passed"
+    # --git-path resolves to this checkout's own git dir: .git/ in the main checkout,
+    # .git/worktrees/<name>/ in a linked worktree (where .git is a file, not a directory).
+    # block-git-push.sh resolves the marker the same way.
+    MARKER="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .pre-push-check-passed)" \
+        && touch "$MARKER" \
+        || { echo "!!  could not write the pass marker; the push hook will block. Re-run once fixed."; exit 1; }
     exit 0
 else
     echo "FAILED checks:"
