@@ -6,6 +6,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class SwiftTestSupportTest {
@@ -33,5 +36,22 @@ class SwiftTestSupportTest {
         scope.cancel()
 
         assertTrue(job.isCancelled)
+    }
+
+    @Test
+    fun `SwiftTestResult success boxes a Result holding the value`() {
+        val boxed = SwiftTestResult.success("value")
+
+        val result = assertIs<Result<*>>(boxed)
+        assertEquals("value", result.getOrThrow())
+    }
+
+    @Test
+    fun `SwiftTestResult failure boxes a Result that rethrows the exception`() {
+        val exception = IllegalStateException("boom")
+
+        val result = assertIs<Result<*>>(SwiftTestResult.failure(exception))
+
+        assertSame(exception, assertFailsWith<IllegalStateException> { result.getOrThrow() })
     }
 }
