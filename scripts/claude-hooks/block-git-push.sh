@@ -28,9 +28,19 @@ if ! printf '%s\n' "$COMMAND" | grep -qE '(^|[^[:alnum:]_-])git([[:space:]]+-[cC
     exit 0
 fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Check the checkout the push runs from (the session's cwd, which may be a linked
+# worktree), not the one this script lives in. Fall back to this script's checkout
+# when the cwd isn't inside a git work tree.
+HOOK_CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)"
+REPO_ROOT="$(git -C "${HOOK_CWD:-$PWD}" rev-parse --show-toplevel 2>/dev/null \
+    || { cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd; })"
 GATE_SCRIPT="$REPO_ROOT/scripts/pre-push-check.sh"
-MARKER="$REPO_ROOT/.git/.pre-push-check-passed"
+# Same resolution as pre-push-check.sh: .git/ in the main checkout,
+# .git/worktrees/<name>/ in a linked worktree. Exit 2 on failure: exit 1 wouldn't block.
+MARKER="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .pre-push-check-passed 2>/dev/null)" || {
+    echo "Blocked: could not locate the pre-push marker for $REPO_ROOT." >&2
+    exit 2
+}
 
 # The gate script must have been run and passed since the last commit.
 if [ ! -f "$MARKER" ]; then
