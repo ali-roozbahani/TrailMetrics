@@ -313,6 +313,7 @@ it. Suggested ruleset (same checks, integration id 15368 = GitHub Actions, as on
         "required_review_thread_resolution": false } },
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": true,
         "required_status_checks": [
           { "context": "Android — Lint, Detekt, Tests, Build", "integration_id": 15368 },
           { "context": "iOS — SwiftLint, Build", "integration_id": 15368 } ] } },
@@ -320,6 +321,9 @@ it. Suggested ruleset (same checks, integration id 15368 = GitHub Actions, as on
   ]
 }
 ```
+
+`do_not_enforce_on_create: true` is explicit because GitHub defaults it to `false`, which
+rejects creating the branch unless its base commit already has both checks green.
 
 Apply it with `gh api -X POST repos/ali-roozbahani/TrailMetrics/rulesets --input <file>`,
 or through Settings → Rules. There are no bypass actors, which matches `enforce_admins` on
