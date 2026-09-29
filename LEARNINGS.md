@@ -454,7 +454,7 @@ set -e
 cd "${SRCROOT}/.."
 
 STAMP_FILE="shared/build/.xcode_kmp_stamp"
-SOURCE_DIRS="domain/src data/src shared/src"
+SOURCE_DIRS="domain/src data/src core/src shared/src"
 
 CURRENT_HASH=$(find $SOURCE_DIRS -type f \( -name "*.kt" -o -name "*.kts" \) -exec stat -f "%m %N" {} \; | sort | shasum | awk '{print $1}')
 
