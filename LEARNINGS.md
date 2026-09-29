@@ -476,18 +476,40 @@ otherwise the Gradle invocation fails with
 ## Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI
 
 - `allWarningsAsErrors = true`, applied project-wide via `subprojects { }`
-  in the root `build.gradle.kts`, needs three separate `plugins.withId(...)`
-  blocks (`org.jetbrains.kotlin.jvm`, `org.jetbrains.kotlin.android`,
-  `org.jetbrains.kotlin.multiplatform`) configuring the matching
-  `Kotlin*ProjectExtension` — a mixed Android+KMP module graph has all
-  three plugin types present across different modules, and there's no
-  single extension type that covers all of them.
+  in the root `build.gradle.kts`, needs separate `plugins.withId(...)`
+  blocks configuring the matching `Kotlin*ProjectExtension` — a mixed
+  Android+KMP module graph has several plugin types present across
+  different modules, and there's no single extension type that covers all
+  of them. The blocks are `org.jetbrains.kotlin.jvm`,
+  `org.jetbrains.kotlin.multiplatform` (the KMP modules), and
+  `com.android.application` / `com.android.library` (the `androidApp/*`
+  modules).
+- AGP 9 built-in Kotlin: `androidApp/*` modules never apply
+  `org.jetbrains.kotlin.android`. AGP applies `KotlinBaseApiPlugin` and
+  registers the `kotlin` extension (still typed
+  `KotlinAndroidProjectExtension`) itself. The original Phase I setup
+  guarded on `org.jetbrains.kotlin.android`, which never fired, so all
+  five `androidApp/*` modules silently compiled with
+  `allWarningsAsErrors = false` until
+  `bugfix/android-warnings-as-errors` switched the guard to the AGP plugin
+  ids. `com.android.kotlin.multiplatform.library` (the KMP modules) is a
+  different id, so the AGP guard doesn't double-configure them. To check
+  which extension a module really has, print
+  `extensions.extensionsSchema.elements` from an init script (an init
+  script can't reference KGP types, so it can't read the flag directly).
+  The reliable proof is a temporary `@Deprecated` call that must fail
+  with `warnings found and -Werror specified`.
 - Turning this on immediately surfaces every pre-existing warning as a
   build failure. In this project that meant: unnecessary `as` casts in
   `domain`'s test suite (Kotlin's smart-cast already narrowed the type;
   the explicit cast was a leftover from before `assertIs<T>()` was
   introduced), and the `expect`/`actual class` Beta warning in `data`
   (silenced with the compiler flag below).
+- Turning it on for `androidApp/*` surfaced exactly one warning: maps-compose's
+  `MapEffect` in `TrackingScreen.kt` is `@MapsComposeExperimentalApi`
+  (a warning-level `@RequiresOptIn`). It's the only way to get the raw
+  `GoogleMap` for `snapshot { }`, so it's opted in at the call expression
+  with `@OptIn(MapsComposeExperimentalApi::class)`, not suppressed.
 - The `-Xexpect-actual-classes` flag itself needs to be added via
   `compileTaskProvider.configure { compilerOptions { ... } }`, not the
   older `compilerOptions.configure { }` on the `KotlinCompilation`

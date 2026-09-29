@@ -185,13 +185,18 @@ stale behavior right after a shared-module change, suspect this first.
 - Never call anything marked `@Deprecated`, including AndroidX/Compose/Material APIs
   deprecated in the current BOM. Use the documented replacement (for example
   `Icons.AutoMirrored.Filled.DirectionsRun`, not `Icons.Filled.DirectionsRun`).
-- `allWarningsAsErrors = true` is often assumed to enforce this in every Kotlin module.
-  **That is only true for the KMP modules** (`domain`, `data`, `core`, `shared`). The root
-  `build.gradle.kts` sets it via `plugins.withId("org.jetbrains.kotlin.android")`, but
-  `androidApp/*` modules use AGP 9 built-in Kotlin, never apply that plugin id, and compile
-  with `allWarningsAsErrors = false`. A deprecation in `androidApp/` is only a warning. Read
-  the compiler output (`w: ... is deprecated`) and treat it as an error yourself. Don't fix
-  the build config as a side effect of an unrelated task. Report it.
+- `allWarningsAsErrors = true` enforces this in every Kotlin module, `androidApp/*` included.
+  The root `build.gradle.kts` sets it for `androidApp/*` via
+  `plugins.withId("com.android.application")` / `plugins.withId("com.android.library")`
+  configuring `KotlinAndroidProjectExtension`. Those modules use AGP 9 built-in Kotlin, so
+  AGP registers the `kotlin` extension itself and `org.jetbrains.kotlin.android` is never
+  applied (hooking on that id is what left the flag off before). KMP modules are covered by
+  the separate `org.jetbrains.kotlin.multiplatform` block. Any compiler warning, including
+  a deprecation or an unacknowledged `@RequiresOptIn` warning, fails the build.
+- Experimental APIs (`@RequiresOptIn`, e.g. maps-compose's `MapsComposeExperimentalApi`)
+  also warn. If there's no stable alternative, opt in as narrowly as possible, at the call
+  expression or the smallest enclosing declaration, with a comment saying why (see
+  `MapEffect` in `TrackingScreen.kt`). Never opt in module-wide via `optIn` compiler options.
 - If a deprecation is genuinely unavoidable (a third-party library with no replacement
   yet), suppress it narrowly at the call site with `@Suppress("DEPRECATION")` and a comment
   stating why. Never suppress at file or module level.
@@ -251,7 +256,6 @@ test source sets yet. Truth was removed in #32.
 Don't copy these as a pattern for new code.
 - ViewModels are pre-MVI and screens take their ViewModel directly (see the MVI section).
 - `MainActivity` field-injects with `by inject()` (see Koin).
-- `androidApp/*` modules compile with `allWarningsAsErrors = false` (see No deprecated APIs).
 - The existing `@Suppress("UnusedPrivateMember")` and
   `@Suppress("LocalContextGetResourceValueCall")` in `RouteScreen.kt`/`TrackingScreen.kt`
   carry no reason comment. New suppressions need one.

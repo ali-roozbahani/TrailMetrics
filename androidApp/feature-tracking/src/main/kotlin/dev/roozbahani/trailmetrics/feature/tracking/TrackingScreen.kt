@@ -66,6 +66,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.MapEffect
+import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.error.stringRes
@@ -244,6 +245,9 @@ fun TrackingScreen(
 
                 CurrentLocationMarker(coordinates = currentLocation ?: initialStartPoint)
 
+                // MapEffect is the only maps-compose hook that exposes the raw GoogleMap,
+                // which the Finish button needs for map.snapshot { }.
+                @OptIn(MapsComposeExperimentalApi::class)
                 MapEffect(Unit) { map ->
                     googleMapRef = map
                 }
