@@ -437,8 +437,8 @@ still compatible with the new data module surface.
   that triggers Gradle from an Xcode build phase.
 - Practical incremental-build script pattern: hash `mtime + path` of all
   `.kt`/`.kts` files across the KMP source dirs (`domain/src data/src
-  shared/src`), compare to a stamp file, only invoke Gradle when the hash
-  changed. Plain Xcode Input/Output File tracking is unreliable here
+  core/src shared/src`), compare to a stamp file, only invoke Gradle when
+  the hash changed. Plain Xcode Input/Output File tracking is unreliable here
   because it only watches direct folder mtimes, not deep recursive
   content changes.
 
