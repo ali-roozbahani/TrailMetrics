@@ -20,6 +20,10 @@ let package = Package(
                 "SharedKit",
                 .product(name: "GoogleMaps", package: "ios-maps-sdk")
             ]
+        ),
+        .testTarget(
+            name: "RouteTests",
+            dependencies: ["Route"]
         )
     ]
 )
