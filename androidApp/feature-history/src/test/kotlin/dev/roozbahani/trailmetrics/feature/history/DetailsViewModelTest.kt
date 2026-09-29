@@ -5,7 +5,9 @@ import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -49,13 +51,16 @@ class DetailsViewModelTest {
     private data class DeleteCompletion(val deletedIds: List<Long>, val snapshotExists: Boolean)
 
     /** Confirms deletion and records every completion signal. */
-    private fun DetailsViewModel.confirmDelete(snapshot: File): List<DeleteCompletion> {
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private fun TestScope.confirmDelete(viewModel: DetailsViewModel, snapshot: File): List<DeleteCompletion> {
         val completions = mutableListOf<DeleteCompletion>()
-        onDeleteConfirmed(
-            onDeleted = {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.events.collect { event ->
+                assertEquals(DetailsEvent.Deleted, event)
                 completions += DeleteCompletion(activityHistoryRepository.deletedIds.toList(), snapshot.exists())
             }
-        )
+        }
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
         return completions
     }
 
@@ -68,12 +73,12 @@ class DetailsViewModelTest {
         val viewModel = createViewModel(activityId = 1L)
         testScheduler.runCurrent()
 
-        assertEquals(DetailsUiState(activity = null, isLoading = true), viewModel.uiState.value)
+        assertEquals(DetailsState(activity = null, isLoading = true), viewModel.state.value)
 
         gate.complete(Unit)
         testScheduler.runCurrent()
 
-        assertEquals(DetailsUiState(activity = FIRST, isLoading = false), viewModel.uiState.value)
+        assertEquals(DetailsState(activity = FIRST, isLoading = false), viewModel.state.value)
     }
 
     @Test
@@ -83,7 +88,7 @@ class DetailsViewModelTest {
         val viewModel = createViewModel(activityId = 2L)
         testScheduler.runCurrent()
 
-        assertEquals(DetailsUiState(activity = SECOND, isLoading = false), viewModel.uiState.value)
+        assertEquals(DetailsState(activity = SECOND, isLoading = false), viewModel.state.value)
         assertEquals(listOf(2L), activityHistoryRepository.requestedIds)
     }
 
@@ -94,7 +99,7 @@ class DetailsViewModelTest {
         val viewModel = createViewModel(activityId = 99L)
         testScheduler.runCurrent()
 
-        assertEquals(DetailsUiState(activity = null, isLoading = false), viewModel.uiState.value)
+        assertEquals(DetailsState(activity = null, isLoading = false), viewModel.state.value)
     }
 
     @Test
@@ -109,7 +114,7 @@ class DetailsViewModelTest {
             val deleteGate = CompletableDeferred<Unit>()
             activityHistoryRepository.deleteActivityGate = deleteGate
 
-            val completions = viewModel.confirmDelete(snapshot)
+            val completions = confirmDelete(viewModel, snapshot)
             testScheduler.runCurrent()
 
             // Nothing is signalled while the record deletion is still in flight.
@@ -133,7 +138,7 @@ class DetailsViewModelTest {
         val viewModel = createViewModel(activityId = 1L)
         testScheduler.runCurrent()
 
-        val completions = viewModel.confirmDelete(snapshot)
+        val completions = confirmDelete(viewModel, snapshot)
         testScheduler.runCurrent()
 
         // The snapshot path is read from the loaded state, so nothing is known to delete yet.

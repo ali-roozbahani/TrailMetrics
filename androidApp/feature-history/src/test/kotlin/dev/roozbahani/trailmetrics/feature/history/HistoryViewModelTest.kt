@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.feature.history.fakes.FakeActivityHistoryRepo
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
@@ -46,7 +47,7 @@ class HistoryViewModelTest {
     // The state is stateIn(WhileSubscribed): keep a subscriber for the whole test.
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private fun TestScope.subscribe(viewModel: HistoryViewModel) {
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
     }
 
     @Test
@@ -55,8 +56,8 @@ class HistoryViewModelTest {
         subscribe(viewModel)
         testScheduler.runCurrent()
 
-        assertEquals(HistoryUiState(activities = emptyList(), isLoading = true), viewModel.uiState.value)
-        assertFalse(viewModel.uiState.value.isEmpty)
+        assertEquals(HistoryState(activities = emptyList(), isLoading = true), viewModel.state.value)
+        assertFalse(viewModel.state.value.isEmpty)
     }
 
     @Test
@@ -66,8 +67,8 @@ class HistoryViewModelTest {
         activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
         testScheduler.runCurrent()
 
-        assertEquals(HistoryUiState(activities = listOf(FIRST, SECOND), isLoading = false), viewModel.uiState.value)
-        assertFalse(viewModel.uiState.value.isEmpty)
+        assertEquals(HistoryState(activities = listOf(FIRST, SECOND), isLoading = false), viewModel.state.value)
+        assertFalse(viewModel.state.value.isEmpty)
     }
 
     @Test
@@ -77,8 +78,8 @@ class HistoryViewModelTest {
         activityHistoryRepository.setActivities(emptyList())
         testScheduler.runCurrent()
 
-        assertEquals(HistoryUiState(activities = emptyList(), isLoading = false), viewModel.uiState.value)
-        assertTrue(viewModel.uiState.value.isEmpty)
+        assertEquals(HistoryState(activities = emptyList(), isLoading = false), viewModel.state.value)
+        assertTrue(viewModel.state.value.isEmpty)
     }
 
     @Test
@@ -90,7 +91,7 @@ class HistoryViewModelTest {
         activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
         testScheduler.runCurrent()
 
-        assertEquals(listOf(FIRST, SECOND), viewModel.uiState.value.activities)
+        assertEquals(listOf(FIRST, SECOND), viewModel.state.value.activities)
     }
 
     @Test
@@ -102,12 +103,12 @@ class HistoryViewModelTest {
         subscribe(viewModel)
         testScheduler.runCurrent()
 
-        viewModel.onDeleteActivity(withSnapshot)
+        viewModel.onAction(HistoryAction.DeleteConfirmed(withSnapshot))
         testScheduler.runCurrent()
 
         assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
         assertFalse(snapshot.exists())
-        assertEquals(HistoryUiState(activities = listOf(SECOND), isLoading = false), viewModel.uiState.value)
+        assertEquals(HistoryState(activities = listOf(SECOND), isLoading = false), viewModel.state.value)
     }
 
     @Test
@@ -117,11 +118,11 @@ class HistoryViewModelTest {
         subscribe(viewModel)
         testScheduler.runCurrent()
 
-        viewModel.onDeleteActivity(FIRST)
+        viewModel.onAction(HistoryAction.DeleteConfirmed(FIRST))
         testScheduler.runCurrent()
 
         assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
-        assertTrue(viewModel.uiState.value.isEmpty)
+        assertTrue(viewModel.state.value.isEmpty)
     }
 
     @Test
@@ -132,12 +133,27 @@ class HistoryViewModelTest {
         subscribe(viewModel)
         testScheduler.runCurrent()
 
-        viewModel.onDeleteActivity(SECOND)
+        viewModel.onAction(HistoryAction.DeleteConfirmed(SECOND))
         testScheduler.runCurrent()
 
         assertEquals(listOf(2L), activityHistoryRepository.deletedIds)
         assertTrue(unrelatedFile.exists())
-        assertEquals(listOf(FIRST), viewModel.uiState.value.activities)
+        assertEquals(listOf(FIRST), viewModel.state.value.activities)
+    }
+
+    // New Action/Event surface with no pre-migration counterpart: the row click used to call
+    // the screen's callback directly and never reached the ViewModel.
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `clicking an activity emits NavigateToDetails with its id`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        val events = mutableListOf<HistoryEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+
+        viewModel.onAction(HistoryAction.ActivityClicked(activityId = 2L))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<HistoryEvent>(HistoryEvent.NavigateToDetails(activityId = 2L)), events)
     }
 
     private companion object {

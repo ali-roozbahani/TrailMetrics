@@ -35,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,12 +46,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
+import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
@@ -58,14 +62,49 @@ import org.koin.androidx.compose.koinViewModel
 import java.text.DateFormat
 import java.util.Date
 
+/**
+ * NavHost entry point. Keeps the call site in MainActivity unchanged; delegates to [HistoryRoot].
+ */
 @Composable
 fun HistoryScreen(
     onActivityClicked: (activityId: Long) -> Unit,
-    bottomBar: @Composable () -> Unit = {},
-    viewModel: HistoryViewModel = koinViewModel()
+    bottomBar: @Composable () -> Unit = {}
 ) {
+    HistoryRoot(
+        onActivityClicked = onActivityClicked,
+        bottomBar = bottomBar
+    )
+}
 
-    val uiState: HistoryUiState by viewModel.uiState.collectAsStateWithLifecycle()
+@Composable
+fun HistoryRoot(
+    onActivityClicked: (activityId: Long) -> Unit,
+    bottomBar: @Composable () -> Unit = {}
+) {
+    val viewModel: HistoryViewModel = koinViewModel()
+    val state: HistoryState by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HistoryEvent.NavigateToDetails -> onActivityClicked(event.activityId)
+            }
+        }
+    }
+
+    HistoryScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        bottomBar = bottomBar
+    )
+}
+
+@Composable
+fun HistoryScreen(
+    state: HistoryState,
+    onAction: (HistoryAction) -> Unit,
+    bottomBar: @Composable () -> Unit = {}
+) {
     var activityPendingDelete by remember { mutableStateOf<ActivityRecord?>(null) }
 
     Scaffold(
@@ -77,11 +116,11 @@ fun HistoryScreen(
                 .padding(innerPadding)
         ) {
             when {
-                uiState.isLoading -> {
+                state.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                uiState.isEmpty -> {
+                state.isEmpty -> {
                     Text(
                         text = stringResource(R.string.msg_no_activities),
                         modifier = Modifier.align(Alignment.Center),
@@ -97,12 +136,12 @@ fun HistoryScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
-                            items = uiState.activities,
+                            items = state.activities,
                             key = { activity -> activity.id }
                         ) { activity ->
                             ActivityRow(
                                 activity = activity,
-                                onClick = { onActivityClicked(activity.id) },
+                                onClick = { onAction(HistoryAction.ActivityClicked(activity.id)) },
                                 onDeleteClicked = { activityPendingDelete = activity }
                             )
                         }
@@ -119,7 +158,7 @@ fun HistoryScreen(
             text = { Text(stringResource(R.string.dialog_delete_activity_message)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.onDeleteActivity(activity)
+                    onAction(HistoryAction.DeleteConfirmed(activity))
                     activityPendingDelete = null
                 }) {
                     Text(stringResource(R.string.dialog_delete_activity_confirm))
@@ -262,6 +301,50 @@ private fun labelFor(type: ActivityType): String = when (type) {
     ActivityType.Running -> stringResource(CoreStrings.activity_type_running)
     ActivityType.Cycling -> stringResource(CoreStrings.activity_type_cycling)
     ActivityType.Walking -> stringResource(CoreStrings.activity_type_walking)
+}
+
+// Detekt counts private @Preview functions as unused; they are only used by the IDE preview.
+@Suppress("UnusedPrivateMember")
+@Preview(showBackground = true)
+@Composable
+private fun HistoryScreenPreview() {
+    val start = Coordinates(latitude = 52.52, longitude = 13.405)
+    TrailMetricsTheme {
+        HistoryScreen(
+            state = HistoryState(
+                activities = listOf(
+                    ActivityRecord(
+                        id = 1L,
+                        activityType = ActivityType.Running,
+                        startedAtEpochMillis = 1_758_000_000_000L,
+                        endedAtEpochMillis = 1_758_001_800_000L,
+                        distanceMeters = 5_230.0,
+                        durationMillis = 1_800_000L,
+                        averageSpeedMetersPerSecond = 2.9f,
+                        calories = 412.0,
+                        plannedRoutePoints = listOf(start),
+                        actualPath = listOf(start),
+                        snapshotFilePath = null
+                    ),
+                    ActivityRecord(
+                        id = 2L,
+                        activityType = ActivityType.Cycling,
+                        startedAtEpochMillis = 1_758_100_000_000L,
+                        endedAtEpochMillis = 1_758_103_600_000L,
+                        distanceMeters = 21_400.0,
+                        durationMillis = 3_600_000L,
+                        averageSpeedMetersPerSecond = 5.9f,
+                        calories = null,
+                        plannedRoutePoints = listOf(start),
+                        actualPath = listOf(start),
+                        snapshotFilePath = null
+                    )
+                ),
+                isLoading = false
+            ),
+            onAction = {}
+        )
+    }
 }
 
 typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string
