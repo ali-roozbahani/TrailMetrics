@@ -178,7 +178,7 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 
 ## What to test, and coverage priorities (current state: near-zero coverage)
 
-Domain and data have some tests; ViewModels have none yet. When asked to raise
+Domain and data have some tests; the route, history and tracking ViewModels have tests too. When asked to raise
 coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use
