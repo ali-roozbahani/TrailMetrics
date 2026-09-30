@@ -1,6 +1,6 @@
 package dev.roozbahani.trailmetrics.feature.history
 
-import dev.roozbahani.trailmetrics.feature.history.fakes.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers

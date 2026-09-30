@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.feature.history.fakes
+package dev.roozbahani.trailmetrics.core.testing
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
@@ -8,13 +8,17 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
  * In-memory [ActivityHistoryRepository]. [observeActivities] emits nothing until the first
- * [setActivities] call, so a test can observe the "still loading" state.
+ * [setActivities] or [saveActivity] call, so a test can observe the "still loading" state.
  */
 class FakeActivityHistoryRepository : ActivityHistoryRepository {
     private val activities = MutableSharedFlow<List<ActivityRecord>>(replay = 1)
 
     private val currentActivities: List<ActivityRecord>
         get() = activities.replayCache.lastOrNull().orEmpty()
+
+    /** Every stored record, whether added by [setActivities] or [saveActivity]. */
+    val savedActivities: List<ActivityRecord>
+        get() = currentActivities
 
     /** When set, [getActivity] suspends until it is completed. */
     var getActivityGate: CompletableDeferred<Unit>? = null
@@ -29,9 +33,11 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
         activities.tryEmit(records)
     }
 
+    /** Stores the record under a count-based id, like an auto-generated primary key. */
     override suspend fun saveActivity(activity: ActivityRecord): Long {
-        setActivities(currentActivities + activity)
-        return activity.id
+        val id = currentActivities.size + 1L
+        setActivities(currentActivities + activity.copy(id = id))
+        return id
     }
 
     override fun observeActivities(): Flow<List<ActivityRecord>> = activities

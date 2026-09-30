@@ -49,6 +49,7 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    testImplementation(project(":androidApp:core-testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)

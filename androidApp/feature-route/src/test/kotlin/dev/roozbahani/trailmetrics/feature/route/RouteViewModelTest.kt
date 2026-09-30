@@ -1,6 +1,8 @@
 package dev.roozbahani.trailmetrics.feature.route
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
+import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
@@ -10,8 +12,6 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
-import dev.roozbahani.trailmetrics.feature.route.fakes.FakeLocationRepository
-import dev.roozbahani.trailmetrics.feature.route.fakes.FakeUserProfileRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

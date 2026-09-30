@@ -1,6 +1,9 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
+import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
@@ -12,12 +15,9 @@ import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLocationRepository
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeUserProfileRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
