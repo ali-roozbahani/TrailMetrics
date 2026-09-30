@@ -153,7 +153,8 @@ Add these when they apply. Recent PRs use them consistently:
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left alone
   because fixing them would break scope or a boundary. Say what the fix would be.
-- **Drift found**: docs that disagree with the code, when the task is about docs or skills.
+- **Drift found (not fixed)**: docs that disagree with code this task didn't change (see
+  "Docs follow the code you changed" under Boundaries).
 - **Corrections**: if an earlier PR stated something wrong, correct it explicitly (see
   #34's "Correction to #33").
 
@@ -173,6 +174,12 @@ End the description with the attribution line the session specifies.
 
   If one of them is wrong, report it under "Follow-ups" instead (#32, #33, #34 and #37 all
   did this).
+- **Docs follow the code you changed.** Before opening the PR, fix in the same PR any line
+  in a skill or `CLAUDE.md` that directly describes the current state of the code this
+  task changed and is now wrong. That is part of the task, not a side effect, so it needs
+  no separate authorization. Drift anywhere else (docs about code this task didn't
+  change) is not yours to fix: list it under "Drift found (not fixed)" in the PR
+  description, with the line and what the code actually does, for a human to decide.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.

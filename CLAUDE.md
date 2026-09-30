@@ -49,5 +49,6 @@ in-progress migration task, that's stale, flag it rather than adding more.
   `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when iOS
   code or shared code changed). `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
-  of an unrelated task.
+  of an unrelated task. Fixing a skill or CLAUDE.md line that describes the exact code the
+  task changed is part of the task, not a side effect (see `tm-pr-workflow`).
 - If docs or conventions are ambiguous for the task, state the assumption you made.
