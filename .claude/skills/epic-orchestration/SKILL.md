@@ -61,6 +61,27 @@ Use a single task (or a chain of ordinary PRs against `main`) when:
 - You can't write acceptance criteria for each subtask before any code exists. The plan
   isn't ready yet. Investigate first as a separate task.
 
+### Committing the plan
+
+What happens to the plan file depends on the answer above:
+
+- **Epic:** the plan is always committed, to `docs/epics/<epic-slug>.md`, as the first
+  commit on the integration branch. See "The plan" and Lifecycle step 1.
+- **Single task:** the plan is **not** committed by default. Most single-task plans are
+  small and throwaway, and committing every one would fill `docs/epics/` with plans
+  nobody reads again.
+- **Single task, kept on request:** the human may decide a particular plan is worth
+  keeping as a reference for future planning, for example because it's substantial or
+  likely to set a pattern other tasks will copy. Then it's committed to
+  `docs/epics/<slug>.md` with nothing else required: there's no integration branch, so
+  it's a normal commit on whichever branch is convenient. It can ride along on an
+  unrelated open PR (as `mvi-presentation-migration.md` did in #59) or go out on its own
+  `chore/` branch and PR.
+
+Keeping a single-task plan is the human's call. When a plan looks worth keeping, the
+agent says so ("this plan could be worth keeping as a reference — want it committed?")
+but never commits it unprompted.
+
 ## allowed_paths conventions for this repo
 
 `allowed_paths` is the list of files a subtask may **write**. Agents may read anything.
