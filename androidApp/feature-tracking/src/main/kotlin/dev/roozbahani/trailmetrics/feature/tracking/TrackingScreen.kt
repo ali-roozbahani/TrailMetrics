@@ -77,9 +77,6 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
-import dev.roozbahani.trailmetrics.domain.model.TrackingState
-import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
-import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
@@ -193,31 +190,17 @@ fun TrackingScreen(
     }
 
     // Progress & CurrentLocation
+    val routeCompletionTracker = remember { RouteCompletionTracker(plannedRoutePoints) }
     var progress by remember { mutableStateOf<RouteProgress?>(null) }
-    var lastProgressIndex by remember { mutableStateOf(0) }
+    var hasReachedDestination by remember { mutableStateOf(false) }
     val currentLocation = uiState.currentPath.lastOrNull()
 
-    val currentProgress = progress
-    val isRouteCompleted = currentLocation != null &&
-            plannedRoutePoints.isNotEmpty() &&
-            uiState.trackingState is TrackingState.Tracking &&
-            currentProgress != null &&
-            currentProgress.lastIndex >= plannedRoutePoints.size - ROUTE_COMPLETION_INDEX_MARGIN &&
-            currentLocation.distanceTo(plannedRoutePoints.last()) <= ROUTE_COMPLETION_THRESHOLD_METERS
-    var hasReachedDestination by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isRouteCompleted) {
-        if (isRouteCompleted && !hasReachedDestination) {
-            hasReachedDestination = true
+    LaunchedEffect(uiState.trackingState) {
+        val shouldStop = routeCompletionTracker.onUpdate(currentLocation, uiState.trackingState)
+        progress = routeCompletionTracker.progress
+        hasReachedDestination = routeCompletionTracker.hasReachedDestination
+        if (shouldStop) {
             viewModel.onStopClicked()
-        }
-    }
-
-    LaunchedEffect(currentLocation) {
-        currentLocation?.let {
-            val result = calculateRouteProgress(plannedRoutePoints, it, lastProgressIndex)
-            lastProgressIndex = result.lastIndex
-            progress = result
         }
     }
 
@@ -447,8 +430,6 @@ fun MetricsDisplay(
 private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string
 
 private const val DEFAULT_ZOOM = 15f
-private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0
-private const val ROUTE_COMPLETION_INDEX_MARGIN = 3
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION
