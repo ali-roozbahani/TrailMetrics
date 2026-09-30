@@ -135,8 +135,8 @@ contract subtask. They never run alongside it with a stubbed API.
 
 ## The plan
 
-The plan is a committed file, `docs/epics/<epic-slug>.md`. It is the first commit on the
-epic branch, so the epic branch differs from `main` and its draft PR can be opened. The
+An epic's plan is a committed file, `docs/epics/<epic-slug>.md`. It is the first commit
+on the epic branch, so the epic branch differs from `main` and its draft PR can be opened. The
 plan is also the record in history of how the epic was split. (Assumption: `docs/epics/`
 is a new directory this skill introduces. It sits outside the protected
 `docs/architecture/`.) The file records **decisions**. Live status (which PRs are open or
