@@ -25,10 +25,10 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
 - Flow assertions read `StateFlow.value` after driving the test scheduler, or collect
   into a list from `backgroundScope` (see "Coroutines / Flow"). Don't use Turbine's
   `.test { awaitItem() }`.
-- Android feature modules have no test source sets or test dependencies yet
-  (`androidApp/feature-*/build.gradle.kts`). The first test in a module adds
-  `testImplementation` lines for those existing catalog entries to that module's own
-  `build.gradle.kts`. That is not a new dependency.
+- `feature-route`, `feature-history` and `feature-tracking` already have JVM test source
+  sets with `testImplementation` lines for those catalog entries plus
+  `:androidApp:core-testing`. A new Android module's first test adds the same lines to
+  its own `build.gradle.kts`. That is not a new dependency.
 - A task that adds MockK or Turbine must name it, add it to the catalog, and update this
   section in the same change.
 
