@@ -4,6 +4,7 @@
 //
 
 import SharedKit
+import TestSupport
 import Tracking
 
 /// A TrackingViewModel wired to a real TrackingSessionManager, CalorieCalculator and
@@ -29,7 +30,7 @@ struct TrackingSubject {
         activityHistoryRepository: FakeActivityHistoryRepository,
         clockMillis: Int64
     ) {
-        let locationRepository = FakeLocationRepository(updates: updates)
+        let locationRepository = FakeLocationRepository(location: TrackingFixtures.startPoint, updates: updates)
         let serviceLauncher = FakeTrackingServiceLauncher()
         let userProfileRepository = FakeUserProfileRepository(profile: profile)
         let clock = FakeClock(nowMillis: clockMillis)

@@ -10,6 +10,7 @@ let package = Package(
     dependencies: [
         .package(path: "../DesignSystem"),
         .package(path: "../SharedKit"),
+        .package(path: "../TestSupport"),
         .package(url: "https://github.com/googlemaps/ios-maps-sdk", from: "11.1.0")
     ],
     targets: [
@@ -23,7 +24,7 @@ let package = Package(
         ),
         .testTarget(
             name: "HistoryTests",
-            dependencies: ["History"]
+            dependencies: ["History", "TestSupport"]
         )
     ]
 )

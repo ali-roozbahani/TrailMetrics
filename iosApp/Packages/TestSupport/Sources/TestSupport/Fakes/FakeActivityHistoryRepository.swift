@@ -1,16 +1,19 @@
 //
 //  FakeActivityHistoryRepository.swift
-//  HistoryTests
+//  TestSupport
 //
 //  How iOS ViewModel tests are written in this repo (the pattern other packages copy):
 //
 //  - XCTest, one `@MainActor final class <Subject>Tests: XCTestCase` per ViewModel, async
 //    test methods named `test_<subject>_<expectation>()`. Tests use only the ViewModel's
 //    public API (`import <Feature>`, no `@testable`).
-//  - Dependencies are hand-written fakes in `Tests/<Feature>Tests/Fakes/`, injected through
-//    the ViewModel's default-parameter `init`. No mocking library. A fake is an `NSObject`
-//    subclass conforming to the Kotlin interface as exported to Swift (Kotlin/Native needs
-//    an Objective-C class to call back into). SKIE hides each Kotlin `suspend` requirement
+//  - Dependencies are hand-written fakes, injected through the ViewModel's
+//    default-parameter `init`. No mocking library. A fake of a domain interface that two or
+//    more feature packages need lives here in TestSupport (public, `import TestSupport`);
+//    a fake only one feature needs stays in that feature's `Tests/<Feature>Tests/Fakes/`.
+//    TestSupport is a dependency of `.testTarget`s only, never of a Sources/ target.
+//    A fake is an `NSObject` subclass conforming to the Kotlin interface as exported to
+//    Swift (Kotlin/Native needs an Objective-C class to call back into). SKIE hides each Kotlin `suspend` requirement
 //    under a `__`-prefixed name (`__getActivity(id:)`) and shows callers an `async` wrapper
 //    without the prefix. A fake implements the prefixed name as an `async throws` method.
 //    SwiftLint's `identifier_name` rejects the `__` prefix, so each such method gets its
@@ -41,36 +44,42 @@
 import Foundation
 import SharedKit
 
-final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepository {
+public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepository {
 
     private let lock = NSLock()
     private var storedActivities: [ActivityRecord]
+    private var recordedSavedActivities: [ActivityRecord] = []
     private var recordedDeletedIds: [Int64] = []
     private var recordedRequestedIds: [Int64] = []
     private let emissions: [[ActivityRecord]]
 
     /// - Parameters:
-    ///   - activities: records `getActivity(id:)` can return.
+    ///   - activities: records `getActivity(id:)` can return. Saved activities are added.
     ///   - emissions: the lists `observeActivities()` emits, in order, before completing.
-    init(activities: [ActivityRecord] = [], emissions: [[ActivityRecord]] = []) {
+    public init(activities: [ActivityRecord] = [], emissions: [[ActivityRecord]] = []) {
         self.storedActivities = activities
         self.emissions = emissions
     }
 
-    var deletedIds: [Int64] {
+    /// Every activity passed to `saveActivity`, in order.
+    public var savedActivities: [ActivityRecord] {
+        lock.withLock { recordedSavedActivities }
+    }
+
+    public var deletedIds: [Int64] {
         lock.withLock { recordedDeletedIds }
     }
 
-    var requestedIds: [Int64] {
+    public var requestedIds: [Int64] {
         lock.withLock { recordedRequestedIds }
     }
 
-    func observeActivities() -> SkieSwiftFlow<[ActivityRecord]> {
+    public func observeActivities() -> SkieSwiftFlow<[ActivityRecord]> {
         SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: emissions.map { $0 as NSArray })))
     }
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getActivity`
-    func __getActivity(id: Int64) async throws -> ActivityRecord? {
+    public func __getActivity(id: Int64) async throws -> ActivityRecord? {
         lock.withLock {
             recordedRequestedIds.append(id)
             return storedActivities.first { $0.id == id }
@@ -78,16 +87,20 @@ final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepository {
     }
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun deleteActivity`
-    func __deleteActivity(id: Int64) async throws {
+    public func __deleteActivity(id: Int64) async throws {
         lock.withLock {
             recordedDeletedIds.append(id)
             storedActivities.removeAll { $0.id == id }
         }
     }
 
+    // Returns the save count as the new id, like an auto-incrementing primary key.
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun saveActivity`
-    func __saveActivity(activity: ActivityRecord) async throws -> KotlinLong {
-        lock.withLock { storedActivities.append(activity) }
-        return KotlinLong(value: activity.id)
+    public func __saveActivity(activity: ActivityRecord) async throws -> KotlinLong {
+        lock.withLock {
+            recordedSavedActivities.append(activity)
+            storedActivities.append(activity)
+            return KotlinLong(value: Int64(recordedSavedActivities.count))
+        }
     }
 }
