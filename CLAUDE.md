@@ -25,13 +25,13 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
 
-## Presentation layer: migration in progress
+## Presentation layer: MVI
 
-ViewModels are being migrated from a plain public-methods style (`onStartClicked()`,
+All four Android ViewModels (`RouteViewModel`, `TrackingViewModel`, `HistoryViewModel`,
+`DetailsViewModel`) have been migrated from the old public-methods style (`onStartClicked()`,
 `onPauseClicked()`, ...) to MVI (`onAction(Action)`, single `Action`/`Event` sealed types).
-`tm-android` documents the MVI **target** shape. Do not assume every existing ViewModel
-already follows it — check the file before copying its pattern, and never use an
-unmigrated ViewModel as a reference for a new one.
+`tm-android`'s MVI section is the target shape for every new screen and ViewModel; it also
+lists the remaining known deviations in the migrated code, which are not to be copied.
 
 ## Testing stack (fixed, do not introduce alternatives)
 

@@ -37,7 +37,7 @@ exists", this skill's MVI section wins for "what new ViewModels should look like
   `core-ui/README.md`). Anything with no UI-framework dependency belongs in the KMP `core`
   module instead, so iOS can share it.
 
-## Presentation layer — MVI (target shape; migration in progress)
+## Presentation layer — MVI (target shape)
 
 Every screen has:
 1. **State** — one data class with all UI state fields.
@@ -46,17 +46,18 @@ Every screen has:
    via `Channel`, never a plain callback lambda.
 4. **ViewModel** — `StateFlow<State>` + `onAction()`, no other public methods.
 
-**Current code: no Android ViewModel has been migrated yet.** All four (`RouteViewModel`,
-`TrackingViewModel`, `HistoryViewModel`, `DetailsViewModel`) use the old shape: public
-`onXClicked()` methods, `val uiState: StateFlow<<X>UiState>` and, where present,
-`val uiEvents: Flow<<X>UiEvent>` (`HistoryViewModel` has no event stream; `DetailsViewModel`
-signals completion through `onDeleteConfirmed(onDeleted: () -> Unit)`). Each screen is a
-single composable taking `viewModel: XViewModel = koinViewModel()` as a default parameter,
-with no Root/Screen split.
+**Current code: all four Android ViewModels are migrated** (`RouteViewModel` in #50,
+`HistoryViewModel`/`DetailsViewModel` in #53, `TrackingViewModel` in #54). Each exposes
+`val state: StateFlow<<X>State>`, `val events: Flow<<X>Event>` backed by a `Channel`, and a
+single public `onAction(<X>Action)`. Each screen file has a `<X>Root` that gets the
+ViewModel via `koinViewModel()` and collects events, and a stateless `<X>Screen(state,
+onAction, ...)`. Any of the four is a valid reference for a new screen, apart from the
+NavHost-overload deviation noted under "Known deviations". (`TrackingViewModel`'s state is
+`TrackingScreenState`, renamed to avoid the domain `TrackingState` clash below.)
 
-This replaces the current pattern seen in `TrackingViewModel.kt` (public methods like
-`onStartClicked()`, `onPauseClicked()`, and a callback parameter `onFinishClicked(path,
-onSaved: () -> Unit)`). When migrating a ViewModel:
+The migrated ViewModels replaced an older pattern (public methods like `onStartClicked()`,
+`onPauseClicked()`, and a callback parameter `onFinishClicked(path, onSaved: () -> Unit)`
+in the pre-#54 `TrackingViewModel.kt`). If you ever migrate a ViewModel from that style:
 - `onFinishClicked(snapshotFilePath, onSaved: () -> Unit)` becomes
   `onAction(Action.Finish(snapshotFilePath))`, with success signaled by an `Event`
   (e.g. `Event.Saved`) that the Root composable observes — not a callback parameter.
@@ -120,10 +121,10 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
 ## Compose
 
 - The UI is dumb: composables render `state` and forward `Action`s via `onAction`.
-  Zero business logic, zero data transformation in composables. Known violation today:
-  `TrackingScreen` computes route progress/completion in composition and calls
-  `viewModel.onStopClicked()` from a `LaunchedEffect`. Move logic like that into the
-  ViewModel (or `domain`, if iOS needs it too) when you touch it; don't add more.
+  Zero business logic, zero data transformation in composables. Logic like route
+  progress/completion belongs in the ViewModel (or `domain`, if iOS needs it too):
+  `TrackingViewModel` owns it through `RouteCompletionTracker` (moved out of a
+  `TrackingScreen` `LaunchedEffect` in #54).
 - Stateless and hoisted: a composable takes state as parameters and reports changes through
   lambdas. Below the Root, no composable reads a ViewModel; pass data down.
 - State lives in the ViewModel's `StateFlow`, collected with
@@ -138,9 +139,12 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   `animateFloatAsState` feeding into `graphicsLayer` — not `Modifier.alpha(animatedValue)`
   directly.
 - Every new Screen composable gets at least one `@Preview` with realistic sample state,
-  wrapped in `TrailMetricsTheme`. A preview doesn't replace running the app. Today only
-  `ActivityTypeSelectorPreview` exists (a `private` function, which needs
-  `@Suppress("UnusedPrivateMember")` because Detekt counts it as unused). Follow that form.
+  wrapped in `TrailMetricsTheme`. A preview doesn't replace running the app. Each of the
+  four screens has one (`RouteScreenPreview`, `TrackingScreenPreview`,
+  `HistoryScreenPreview`, `DetailsScreenPreview`; `RouteScreen.kt` also has
+  `ActivityTypeSelectorPreview`). Follow the four screen previews' form: a `private`
+  function with `@Suppress("UnusedPrivateMember")`, because Detekt counts it as unused,
+  and a one-line comment saying so.
 - Meaningful `contentDescription` (via string resources, `cd_*` keys) on
   interactive/informational elements; `null` for purely decorative ones.
 - Colors and typography come from `core-ui`'s `designsystem/theme`; no ad-hoc color
@@ -255,9 +259,10 @@ modules have JVM test source sets, sharing fakes via `androidApp/core-testing`. 
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code.
-- ViewModels are pre-MVI and screens take their ViewModel directly (see the MVI section).
+- Each screen file also has a public `<X>Screen(...)` overload that only delegates to
+  `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
+  with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
 - The existing `@Suppress("UnusedPrivateMember")` and
   `@Suppress("LocalContextGetResourceValueCall")` in `RouteScreen.kt`/`TrackingScreen.kt`
   carry no reason comment. New suppressions need one.
-- Only one `@Preview` exists in the codebase, although every new screen needs one.
