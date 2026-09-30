@@ -25,10 +25,10 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
 - Flow assertions read `StateFlow.value` after driving the test scheduler, or collect
   into a list from `backgroundScope` (see "Coroutines / Flow"). Don't use Turbine's
   `.test { awaitItem() }`.
-- Android feature modules have no test source sets or test dependencies yet
-  (`androidApp/feature-*/build.gradle.kts`). The first test in a module adds
-  `testImplementation` lines for those existing catalog entries to that module's own
-  `build.gradle.kts`. That is not a new dependency.
+- `feature-route`, `feature-history` and `feature-tracking` already have JVM test source
+  sets with `testImplementation` lines for those catalog entries plus
+  `:androidApp:core-testing`. A new Android module's first test adds the same lines to
+  its own `build.gradle.kts`. That is not a new dependency.
 - A task that adds MockK or Turbine must name it, add it to the catalog, and update this
   section in the same change.
 
@@ -93,8 +93,16 @@ class FakeLocationRepository : LocationRepository {
 ```
 
 Android-only tests (ViewModels, repositories) use fakes too, since MockK isn't available
-yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules, so
-each Android test source set writes its own. Only interfaces can be faked this way.
+yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules.
+Android feature tests share theirs through `androidApp/core-testing` (consumed only via
+`testImplementation`, never `implementation`/`api`; see its `README.md`):
+- Before writing a fake or fixture for a ViewModel test, check `core-testing` for an
+  existing one and use it.
+- Put a new fake there when a second feature module will plausibly need it (typically a
+  fake of a `domain` repository interface). A fake only one feature needs stays in that
+  feature's `src/test/.../fakes/`.
+
+iOS's equivalent is `iosApp/Packages/TestSupport`. Only interfaces can be faked this way.
 Concrete classes such as the use cases and `TrackingSessionManager` are final. Build the
 real class around fakes of its interface collaborators (`TrackingSessionManager` from a
 fake `LocationRepository`, `TrackingServiceLauncher`, `Clock` and `Logger` plus a
@@ -170,7 +178,7 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 
 ## What to test, and coverage priorities (current state: near-zero coverage)
 
-Domain and data have some tests; ViewModels have none yet. When asked to raise
+Domain and data have some tests; the route, history and tracking ViewModels have tests too. When asked to raise
 coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use

@@ -16,7 +16,8 @@ exists", this skill's MVI section wins for "what new ViewModels should look like
   `feature-tracking`, `feature-history`), each holding its screen(s), ViewModel(s) and a
   `di/` Koin module. Package `dev.roozbahani.trailmetrics.feature.<name>`, same as the
   Gradle `namespace`.
-- Feature modules depend only on `:domain`, `:core` and `:androidApp:core-ui`. They never
+- Feature modules depend only on `:domain`, `:core` and `:androidApp:core-ui` (plus
+  `:androidApp:core-testing`, via `testImplementation` only). They never
   depend on each other, on `:data` or on `:shared`. Only `:androidApp:app` sees everything.
   Cross-feature navigation is wired in the app module (`TrailMetricsNavHost` in
   `MainActivity.kt`). Screens ask for navigation through callback parameters
@@ -248,8 +249,8 @@ with `./gradlew detekt`. It is part of the local pre-push gate
 Test code follows `tm-testing`. In short: JUnit4 + MockK for Android-framework tests, with
 `kotlin.test` assertions; `kotlin.test` + hand-written fakes in `domain`; no Truth, no
 JUnit5; `UnconfinedTestDispatcher` unless a test needs to control dispatch order;
-Robolectric only when a test genuinely needs the Android framework. `androidApp/` has no
-test source sets yet. Truth was removed in #32.
+Robolectric only when a test genuinely needs the Android framework. The three feature
+modules have JVM test source sets, sharing fakes via `androidApp/core-testing`. Truth was removed in #32.
 
 ## Known deviations in the current code
 
