@@ -63,7 +63,11 @@ Branch: <type>/<slug>
 `scripts/pre-push-check.sh` must exit 0 before any push. It always runs `detekt`, Android
 `lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
-step is best-effort: it never fails the gate and has no threshold. It adds `swiftlint lint --strict` and an
+report step is best-effort and never fails the gate. The next step, `koverVerify`, is
+enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
+coverage. Minimums are set in `domain`, `data` and the three `androidApp` feature modules'
+`build.gradle.kts`, a little below each module's measured coverage from its own tests. `core`,
+`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict` and an
 `xcodebuild` simulator build when the branch's diff touches `iosApp/`, `domain/`, `data/`,
 `core/` or `shared/`.
 

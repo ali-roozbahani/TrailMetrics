@@ -33,3 +33,17 @@ kotlin {
         }
     }
 }
+
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
+// little below this module's measured line coverage from its own tests (76.26% on #61's code).
+// Not the root merged figure (88.85%), which also counts the feature ViewModel tests: a module's
+// koverVerify only sees its own tests, and Kover has no per-rule filters in the merged project.
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(73)
+            }
+        }
+    }
+}

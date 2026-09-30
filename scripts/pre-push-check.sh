@@ -41,8 +41,8 @@ run_step "detekt"        ./gradlew detekt --console=plain
 run_step "android lint"  ./gradlew lint --console=plain
 run_step "unit tests"    ./gradlew allTests test --console=plain
 
-# Best-effort coverage report (Kover, merged across modules in the root project). Never
-# added to FAILURES and never affects the exit code: a coverage problem must not block a push.
+# Coverage report (Kover, merged across modules in the root project). Best-effort: never
+# added to FAILURES. The enforced part is the "coverage verify" step below.
 echo "==> coverage report (best-effort, non-blocking)"
 COVERAGE_OUT="$(mktemp 2>/dev/null || echo "")"
 if [ -n "$COVERAGE_OUT" ] \
@@ -55,6 +55,10 @@ else
     [ -n "$COVERAGE_OUT" ] && tail -n 20 "$COVERAGE_OUT" | sed 's/^/    /'
 fi
 [ -n "$COVERAGE_OUT" ] && rm -f "$COVERAGE_OUT"
+
+# Regression gate: each module's koverVerify rules (minimum line coverage, set in domain, data
+# and the three androidApp feature modules; the other modules have no rules yet).
+run_step "coverage verify" ./gradlew koverVerify --console=plain
 
 run_step "assembleDebug" ./gradlew assembleDebug --console=plain
 
