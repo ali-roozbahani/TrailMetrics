@@ -425,7 +425,7 @@ confirm it and report under "Drift found" if it isn't.
 The caution that still applies to parallel worktrees:
 
 - **Resource contention.** Every subtask runs the full gate: Gradle `detekt`, `lint`,
-  `allTests test`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild`
+  `allTests test`, the Kover coverage report, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild`
   once the diff touches `iosApp/` or the shared layer. Each worktree has its own build
   directories and Gradle daemon. Several gates at once on one machine compete for CPU,
   memory and the shared `~/.gradle` cache locks, and can be slower in total than running

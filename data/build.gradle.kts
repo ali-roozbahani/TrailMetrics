@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.room)
     alias(libs.plugins.buildkonfig)
+    alias(libs.plugins.kover)
 }
 
 val localProperties = Properties().apply {

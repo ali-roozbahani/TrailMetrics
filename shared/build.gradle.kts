@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.skie)
+    alias(libs.plugins.kover)
 }
 
 kotlin {

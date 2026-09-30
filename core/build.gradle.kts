@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.kover)
 }
 
 kotlin {

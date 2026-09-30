@@ -40,6 +40,22 @@ echo
 run_step "detekt"        ./gradlew detekt --console=plain
 run_step "android lint"  ./gradlew lint --console=plain
 run_step "unit tests"    ./gradlew allTests test --console=plain
+
+# Best-effort coverage report (Kover, merged across modules in the root project). Never
+# added to FAILURES and never affects the exit code: a coverage problem must not block a push.
+echo "==> coverage report (best-effort, non-blocking)"
+COVERAGE_OUT="$(mktemp 2>/dev/null || echo "")"
+if [ -n "$COVERAGE_OUT" ] \
+    && ./gradlew :koverXmlReport :koverHtmlReport :koverLog --console=plain >"$COVERAGE_OUT" 2>&1; then
+    COVERAGE_LINE="$(grep -m1 'line coverage:' "$COVERAGE_OUT" | sed 's/^.*line coverage: *//' || true)"
+    echo "    merged line coverage: ${COVERAGE_LINE:-unknown}"
+    echo "    report: $REPO_ROOT/build/reports/kover/html/index.html (XML: build/reports/kover/report.xml)"
+else
+    echo "    warning: coverage report failed; continuing (does not affect the gate result)"
+    [ -n "$COVERAGE_OUT" ] && tail -n 20 "$COVERAGE_OUT" | sed 's/^/    /'
+fi
+[ -n "$COVERAGE_OUT" ] && rm -f "$COVERAGE_OUT"
+
 run_step "assembleDebug" ./gradlew assembleDebug --console=plain
 
 # --- iOS (only when relevant files changed) ---
