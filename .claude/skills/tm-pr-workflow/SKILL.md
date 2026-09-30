@@ -190,8 +190,8 @@ End the description with the attribution line the session specifies.
   most conservative reading and **state it** under "Assumptions". Never choose silently.
 - Follow the structure, naming and pattern of the reference that the task's `Context`
   points to. The exception is a reference that hasn't been migrated to its target
-  pattern yet (every current Android ViewModel is pre-MVI; see `tm-android`). Then follow
-  the target pattern and say so.
+  pattern yet. Then follow the target pattern and say so. (All four Android ViewModels
+  are on MVI since #54; `tm-android` lists the deviations that remain.)
 
 ## After the PR is open (human's steps, for context)
 

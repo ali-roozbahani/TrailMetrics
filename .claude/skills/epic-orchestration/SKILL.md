@@ -181,7 +181,7 @@ average pace across saved activities.
 - **Integration branch:** feature/epic/personal-records
 - **Goal:** Both History screens show a "Personal records" section (longest distance,
   fastest average pace) computed once in `domain` from `ActivityHistoryRepository`.
-- **Out of scope:** migrating either `HistoryViewModel` to MVI; persisting records;
+- **Out of scope:** persisting records;
   records per `ActivityType`; any change to Tracking or Route.
 - **Approved by:** <human> on 2026-10-01
 
@@ -216,8 +216,8 @@ average pace across saved activities.
     - androidApp/feature-history/**
   acceptance:
     - HistoryScreen shows the section above the list; hidden when there is no history.
-    - HistoryViewModel stays in its current (pre-MVI) style; this adds state only.
-      New code must not copy that style — follow tm-android's target shape.
+    - The records are new HistoryState fields only; HistoryViewModel keeps its MVI
+      shape (no new public method besides onAction).
     - HistoryUiModule gets the use case via Koin; ViewModel test covers both states.
   tier2: Android emulator: empty history → no section; save two activities → values match.
 

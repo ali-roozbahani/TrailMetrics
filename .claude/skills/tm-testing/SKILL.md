@@ -184,9 +184,9 @@ coverage without a more specific target, prioritize in this order:
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use
    cases like `SaveActivityUseCase`.
 2. `data`: repository implementations, especially anything with offline/fallback logic.
-3. ViewModels: write these as part of the MVI migration (test-first, see above), not
-   as a separate pass against the current pre-migration API — tests written against
-   `onStartClicked()`-style methods will be thrown away.
+3. ViewModels: all four Android ViewModels are on MVI and have `onAction`-based tests.
+   New or changed ViewModel behavior gets a test against `onAction` and the resulting
+   `state`/`events` (see above).
 4. Compose UI tests: after a screen's ViewModel and Action/Event shape are stable.
 
 ## Detekt / CI note
