@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.core.error.toUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteError
+import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
@@ -15,12 +16,15 @@ import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -38,13 +42,17 @@ class TrackingViewModel(
 
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
 
+    private val routeCompletionTracker = RouteCompletionTracker(plannedRoutePoints)
+
+    private val _events = Channel<TrackingEvent>(Channel.BUFFERED)
+
     init {
         viewModelScope.launch {
             _userProfile.value = userProfileRepository.getUserProfile()
         }
     }
 
-    val uiState: StateFlow<TrackingUiState> = combine(
+    val state: StateFlow<TrackingScreenState> = combine(
         trackingSessionManager.currentState,
         _userProfile
     ) { trackingState, userProfile ->
@@ -65,36 +73,64 @@ class TrackingViewModel(
             }
         } else null
 
-        TrackingUiState(trackingState = trackingState, calories = calories)
-    }.stateIn(
+        TrackingScreenState(
+            trackingState = trackingState,
+            calories = calories,
+            plannedRoutePoints = plannedRoutePoints
+        )
+    }.map(::withRouteCompletion).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = TrackingUiState()
+        initialValue = TrackingScreenState(plannedRoutePoints = plannedRoutePoints)
     )
 
-    val uiEvents: Flow<TrackingUiEvent> = trackingSessionManager.locationIssues
-        .map { routeError ->
+    // Location issues keep the session manager's SharedFlow delivery (dropped while nothing
+    // collects); only events the ViewModel originates go through the Channel.
+    val events: Flow<TrackingEvent> = merge(
+        _events.receiveAsFlow(),
+        trackingSessionManager.locationIssues.map { routeError ->
             if (routeError is RouteError.MissingLocationPermission) {
-                TrackingUiEvent.RequestLocationPermission
+                TrackingEvent.RequestLocationPermission
             } else {
-                TrackingUiEvent.ShowError(routeError.toUiError())
+                TrackingEvent.ShowError(routeError.toUiError())
             }
         }
+    )
 
-    fun onStartClicked(startCoordinates: Coordinates) {
+    fun onAction(action: TrackingAction) {
+        when (action) {
+            is TrackingAction.Start -> start(action.startCoordinates)
+            is TrackingAction.LocationPermissionGranted -> start(action.startCoordinates)
+            TrackingAction.Pause -> trackingSessionManager.pause()
+            TrackingAction.Resume -> trackingSessionManager.resume()
+            TrackingAction.Stop -> trackingSessionManager.stop()
+            is TrackingAction.Finish -> finish(action.snapshotFilePath)
+        }
+    }
+
+    /**
+     * Route progress and the auto-stop at the route's end. This runs inside the state pipeline,
+     * so, like the composable effect it replaces, it is evaluated only while the screen observes
+     * state (plus the WhileSubscribed grace period).
+     */
+    private fun withRouteCompletion(state: TrackingScreenState): TrackingScreenState {
+        if (routeCompletionTracker.onUpdate(state.currentPath.lastOrNull(), state.trackingState)) {
+            trackingSessionManager.stop()
+        }
+        return state.copy(
+            routeProgress = routeCompletionTracker.progress,
+            hasReachedDestination = routeCompletionTracker.hasReachedDestination
+        )
+    }
+
+    private fun start(startCoordinates: Coordinates) {
         startedAtEpochMillis = clock.nowMillis()
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates)
         }
     }
 
-    fun onPauseClicked() = trackingSessionManager.pause()
-
-    fun onResumeClicked() = trackingSessionManager.resume()
-
-    fun onStopClicked() = trackingSessionManager.stop()
-
-    fun onFinishClicked(snapshotFilePath: String?, onSaved: () -> Unit) {
+    private fun finish(snapshotFilePath: String?) {
         viewModelScope.launch {
             val currentTrackingState = trackingSessionManager.currentState.value
             if (currentTrackingState is TrackingState.Finished) {
@@ -107,20 +143,19 @@ class TrackingViewModel(
                     startedAtEpochMillis = startedAtEpochMillis,
                     snapshotFilePath = snapshotFilePath
                 )
-                onSaved()
+                _events.send(TrackingEvent.Saved)
             }
         }
     }
-
-    fun onLocationPermissionGranted(startCoordinates: Coordinates) {
-        onStartClicked(startCoordinates)
-    }
-
 }
 
-data class TrackingUiState(
+/** Named to avoid colliding with the domain [TrackingState] it wraps. */
+data class TrackingScreenState(
     val trackingState: TrackingState = TrackingState.Idle,
-    val calories: Double? = null
+    val calories: Double? = null,
+    val plannedRoutePoints: List<Coordinates> = emptyList(),
+    val routeProgress: RouteProgress? = null,
+    val hasReachedDestination: Boolean = false
 ) {
     val currentPath: List<Coordinates>
         get() = when (val state = trackingState) {
@@ -149,7 +184,17 @@ data class TrackingUiState(
         get() = trackingState is TrackingState.Tracking || trackingState is TrackingState.Paused
 }
 
-sealed interface TrackingUiEvent {
-    data object RequestLocationPermission : TrackingUiEvent
-    data class ShowError(val error: RouteUiError) : TrackingUiEvent
+sealed interface TrackingAction {
+    data class Start(val startCoordinates: Coordinates) : TrackingAction
+    data class LocationPermissionGranted(val startCoordinates: Coordinates) : TrackingAction
+    data object Pause : TrackingAction
+    data object Resume : TrackingAction
+    data object Stop : TrackingAction
+    data class Finish(val snapshotFilePath: String?) : TrackingAction
+}
+
+sealed interface TrackingEvent {
+    data object RequestLocationPermission : TrackingEvent
+    data class ShowError(val error: RouteUiError) : TrackingEvent
+    data object Saved : TrackingEvent
 }

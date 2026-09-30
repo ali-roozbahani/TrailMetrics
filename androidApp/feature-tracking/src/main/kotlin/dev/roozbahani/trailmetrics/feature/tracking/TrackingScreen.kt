@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,6 +70,7 @@ import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
+import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.CurrentLocationMarker
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
@@ -78,8 +80,6 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
-import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
-import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
@@ -88,21 +88,38 @@ import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
+/**
+ * NavHost entry point. Keeps the call site in MainActivity unchanged; delegates to [TrackingRoot].
+ */
 @Composable
 fun TrackingScreen(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
-    onNavigateBack: () -> Unit,
-    viewModel: TrackingViewModel = koinViewModel(parameters = {
+    onNavigateBack: () -> Unit
+) {
+    TrackingRoot(
+        initialStartPoint = initialStartPoint,
+        plannedRoutePoints = plannedRoutePoints,
+        activityType = activityType,
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@Composable
+fun TrackingRoot(
+    initialStartPoint: Coordinates,
+    plannedRoutePoints: List<Coordinates>,
+    activityType: ActivityType,
+    onNavigateBack: () -> Unit
+) {
+    val viewModel: TrackingViewModel = koinViewModel(parameters = {
         parametersOf(
             activityType,
             plannedRoutePoints
         )
     })
-) {
-    val uiState: TrackingUiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val cameraPositionState = rememberCameraPositionState()
+    val state: TrackingScreenState by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -111,7 +128,7 @@ fun TrackingScreen(
     ) { permissions ->
         val granted = permissions.values.any { granted -> granted }
         if (granted) {
-            viewModel.onLocationPermissionGranted(initialStartPoint)
+            viewModel.onAction(TrackingAction.LocationPermissionGranted(initialStartPoint))
         }
     }
 
@@ -125,8 +142,47 @@ fun TrackingScreen(
         }
     }
 
+    @Suppress("LocalContextGetResourceValueCall")
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is TrackingEvent.ShowError -> {
+                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
+                }
+
+                is TrackingEvent.RequestLocationPermission -> {
+                    permissionHandler.launch(LOCATION_PERMISSIONS)
+                }
+
+                is TrackingEvent.Saved -> onNavigateBack()
+            }
+        }
+    }
+
+    TrackingScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        initialStartPoint = initialStartPoint,
+        snackBarHostState = snackBarHostState,
+        onRequestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@Composable
+fun TrackingScreen(
+    state: TrackingScreenState,
+    onAction: (TrackingAction) -> Unit,
+    initialStartPoint: Coordinates,
+    snackBarHostState: SnackbarHostState,
+    onRequestLocationPermission: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    val cameraPositionState = rememberCameraPositionState()
+    val context = LocalContext.current
+
     var showExitConfirmation by remember { mutableStateOf(false) }
-    val hasActiveSession = uiState.canPause || uiState.canResume
+    val hasActiveSession = state.canPause || state.canResume
 
     BackHandler(enabled = hasActiveSession) {
         showExitConfirmation = true
@@ -148,7 +204,7 @@ fun TrackingScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showExitConfirmation = false
-                    viewModel.onStopClicked()
+                    onAction(TrackingAction.Stop)
                     onNavigateBack()
                 }) {
                     Text(stringResource(R.string.dialog_exit_tracking_confirm))
@@ -162,21 +218,6 @@ fun TrackingScreen(
         )
     }
 
-    @Suppress("LocalContextGetResourceValueCall")
-    LaunchedEffect(Unit) {
-        viewModel.uiEvents.collect { event ->
-            when (event) {
-                is TrackingUiEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
-                }
-
-                is TrackingUiEvent.RequestLocationPermission -> {
-                    permissionHandler.launch(LOCATION_PERMISSIONS)
-                }
-            }
-        }
-    }
-
     LaunchedEffect(initialStartPoint) {
         cameraPositionState.position = CameraPosition.fromLatLngZoom(
             LatLng(initialStartPoint.latitude, initialStartPoint.longitude),
@@ -184,42 +225,15 @@ fun TrackingScreen(
         )
     }
 
-    LaunchedEffect(uiState.currentPath) {
-        uiState.currentPath.lastOrNull()?.let { coordinates ->
+    LaunchedEffect(state.currentPath) {
+        state.currentPath.lastOrNull()?.let { coordinates ->
             cameraPositionState.animate(
                 CameraUpdateFactory.newLatLng(LatLng(coordinates.latitude, coordinates.longitude))
             )
         }
     }
 
-    // Progress & CurrentLocation
-    var progress by remember { mutableStateOf<RouteProgress?>(null) }
-    var lastProgressIndex by remember { mutableStateOf(0) }
-    val currentLocation = uiState.currentPath.lastOrNull()
-
-    val currentProgress = progress
-    val isRouteCompleted = currentLocation != null &&
-            plannedRoutePoints.isNotEmpty() &&
-            uiState.trackingState is TrackingState.Tracking &&
-            currentProgress != null &&
-            currentProgress.lastIndex >= plannedRoutePoints.size - ROUTE_COMPLETION_INDEX_MARGIN &&
-            currentLocation.distanceTo(plannedRoutePoints.last()) <= ROUTE_COMPLETION_THRESHOLD_METERS
-    var hasReachedDestination by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isRouteCompleted) {
-        if (isRouteCompleted && !hasReachedDestination) {
-            hasReachedDestination = true
-            viewModel.onStopClicked()
-        }
-    }
-
-    LaunchedEffect(currentLocation) {
-        currentLocation?.let {
-            val result = calculateRouteProgress(plannedRoutePoints, it, lastProgressIndex)
-            lastProgressIndex = result.lastIndex
-            progress = result
-        }
-    }
+    val currentLocation = state.currentPath.lastOrNull()
 
     var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
 
@@ -232,14 +246,14 @@ fun TrackingScreen(
                 .padding(innerPadding)
         ) {
             TrailGoogleMap(cameraPositionState = cameraPositionState) {
-                if (plannedRoutePoints.isNotEmpty()) {
+                if (state.plannedRoutePoints.isNotEmpty()) {
                     RoutePolyline(
-                        points = plannedRoutePoints,
+                        points = state.plannedRoutePoints,
                         color = MaterialTheme.colorScheme.outlineVariant
                     )
                 }
 
-                progress?.traveledSegment?.let { traveled ->
+                state.routeProgress?.traveledSegment?.let { traveled ->
                     RoutePolyline(points = traveled, color = MaterialTheme.colorScheme.primary)
                 }
 
@@ -276,13 +290,13 @@ fun TrackingScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                uiState.currentMetrics?.let { metrics ->
-                    MetricsDisplay(metrics = metrics, calories = uiState.calories)
+                state.currentMetrics?.let { metrics ->
+                    MetricsDisplay(metrics = metrics, calories = state.calories)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
                 AnimatedContent(
-                    targetState = hasReachedDestination,
+                    targetState = state.hasReachedDestination,
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
@@ -311,10 +325,10 @@ fun TrackingScreen(
                                         if (map != null) {
                                             map.snapshot { bitmap ->
                                                 val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
-                                                viewModel.onFinishClicked(filePath, onNavigateBack)
+                                                onAction(TrackingAction.Finish(filePath))
                                             }
                                         } else {
-                                            viewModel.onFinishClicked(null, onNavigateBack)
+                                            onAction(TrackingAction.Finish(null))
                                         }
                                     }
                                 ) {
@@ -329,13 +343,13 @@ fun TrackingScreen(
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (uiState.canStart) {
+                            if (state.canStart) {
                                 Button( // Start
                                     onClick = {
                                         if (hasLocationPermission(context)) {
-                                            viewModel.onStartClicked(initialStartPoint)
+                                            onAction(TrackingAction.Start(initialStartPoint))
                                         } else {
-                                            permissionHandler.launch(LOCATION_PERMISSIONS)
+                                            onRequestLocationPermission()
                                         }
                                     }
                                 ) {
@@ -347,9 +361,9 @@ fun TrackingScreen(
                                     Text(stringResource(R.string.btn_tracking_start))
                                 }
                             }
-                            if (uiState.canPause) {
+                            if (state.canPause) {
                                 Button( // Pause
-                                    onClick = viewModel::onPauseClicked,
+                                    onClick = { onAction(TrackingAction.Pause) },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.tertiary,
                                         contentColor = MaterialTheme.colorScheme.onTertiary
@@ -363,9 +377,9 @@ fun TrackingScreen(
                                     Text(stringResource(R.string.btn_tracking_pause))
                                 }
                             }
-                            if (uiState.canResume) {
+                            if (state.canResume) {
                                 Button( // Resume
-                                    onClick = viewModel::onResumeClicked
+                                    onClick = { onAction(TrackingAction.Resume) }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.PlayArrow,
@@ -375,10 +389,10 @@ fun TrackingScreen(
                                     Text(stringResource(R.string.btn_tracking_resume))
                                 }
                             }
-                            if (uiState.canStop) {
+                            if (state.canStop) {
                                 Button( // Stop
                                     onClick = {
-                                        viewModel.onStopClicked()
+                                        onAction(TrackingAction.Stop)
                                         onNavigateBack()
                                     },
                                     colors = ButtonDefaults.buttonColors(
@@ -444,11 +458,50 @@ fun MetricsDisplay(
     }
 }
 
+// Detekt counts private @Preview functions as unused; they are only used by the IDE preview.
+@Suppress("UnusedPrivateMember")
+@Preview(showBackground = true)
+@Composable
+private fun TrackingScreenPreview() {
+    val plannedRoute = listOf(
+        Coordinates(latitude = 52.520, longitude = 13.405),
+        Coordinates(latitude = 52.523, longitude = 13.401),
+        Coordinates(latitude = 52.525, longitude = 13.410),
+        Coordinates(latitude = 52.520, longitude = 13.405)
+    )
+    val path = plannedRoute.take(2)
+    TrailMetricsTheme {
+        TrackingScreen(
+            state = TrackingScreenState(
+                trackingState = TrackingState.Tracking(
+                    TrackingMetrics(
+                        elapsedMillis = 754_000L,
+                        lastUpdateTimestampMillis = 754_000L,
+                        distanceMeters = 2_140.0,
+                        path = path,
+                        currentSpeedMetersPerSecond = 2.8f
+                    )
+                ),
+                calories = 148.0,
+                plannedRoutePoints = plannedRoute,
+                routeProgress = RouteProgress(
+                    traveledSegment = path,
+                    remainingSegment = plannedRoute.drop(1),
+                    lastIndex = 1
+                )
+            ),
+            onAction = {},
+            initialStartPoint = plannedRoute.first(),
+            snackBarHostState = remember { SnackbarHostState() },
+            onRequestLocationPermission = {},
+            onNavigateBack = {}
+        )
+    }
+}
+
 private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string
 
 private const val DEFAULT_ZOOM = 15f
-private const val ROUTE_COMPLETION_THRESHOLD_METERS = 25.0
-private const val ROUTE_COMPLETION_INDEX_MARGIN = 3
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION
