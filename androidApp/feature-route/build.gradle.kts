@@ -46,6 +46,7 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
 
+    testImplementation(project(":androidApp:core-testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
