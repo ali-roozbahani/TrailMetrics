@@ -15,6 +15,24 @@ plugins {
     alias(libs.plugins.buildkonfig) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.detekt) apply false
+    // Applied (not `apply false`): the root project is Kover's merging module.
+    alias(libs.plugins.kover)
+}
+
+// Merged coverage report across these modules: `./gradlew koverHtmlReport koverXmlReport`
+// (Kover's total variant, i.e. all classes and all JVM/Android host tests of each module).
+// Baseline only: no verification rules. androidApp:core-testing is left out on purpose,
+// it holds shared test fakes, not code under test.
+dependencies {
+    kover(project(":domain"))
+    kover(project(":data"))
+    kover(project(":core"))
+    kover(project(":shared"))
+    kover(project(":androidApp:app"))
+    kover(project(":androidApp:core-ui"))
+    kover(project(":androidApp:feature-route"))
+    kover(project(":androidApp:feature-tracking"))
+    kover(project(":androidApp:feature-history"))
 }
 
 subprojects {

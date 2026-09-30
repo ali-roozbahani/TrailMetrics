@@ -47,7 +47,7 @@ in-progress migration task, that's stale, flag it rather than adding more.
 - Never cross a module boundary listed in `tm-kmp-shared`; stop and report instead.
 - Before any push, `scripts/pre-push-check.sh` must pass locally. It runs Gradle `detekt`,
   `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when iOS
-  code or shared code changed). `./gradlew test` alone runs zero KMP tests.
+  code or shared code changed), and a non-blocking merged Kover coverage report. `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
   of an unrelated task. Fixing a skill or CLAUDE.md line that describes the exact code the
   task changed is part of the task, not a side effect (see `tm-pr-workflow`).

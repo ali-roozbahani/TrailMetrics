@@ -61,7 +61,9 @@ Branch: <type>/<slug>
 ## Tier 1: the local gate (agent's job)
 
 `scripts/pre-push-check.sh` must exit 0 before any push. It always runs `detekt`, Android
-`lint`, `allTests test` and `assembleDebug`. It adds `swiftlint lint --strict` and an
+`lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
+Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
+step is best-effort: it never fails the gate and has no threshold. It adds `swiftlint lint --strict` and an
 `xcodebuild` simulator build when the branch's diff touches `iosApp/`, `domain/`, `data/`,
 `core/` or `shared/`.
 

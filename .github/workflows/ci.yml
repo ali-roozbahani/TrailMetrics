@@ -33,6 +33,20 @@ jobs:
       - name: Run unit tests
         run: ./gradlew allTests test
 
+      # Best-effort coverage baseline (Kover, merged in the root project). Neither step can
+      # fail the job; there is no coverage threshold yet.
+      - name: Generate coverage report
+        continue-on-error: true
+        run: ./gradlew :koverXmlReport :koverHtmlReport :koverLog
+
+      - name: Upload coverage report
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-coverage-report
+          path: build/reports/kover/
+          if-no-files-found: warn
+
       - name: Build
         run: ./gradlew assembleDebug
 
