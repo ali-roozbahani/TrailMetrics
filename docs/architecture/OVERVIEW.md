@@ -57,9 +57,11 @@ project — read this before touching any module.
 | `androidApp/app` | Android | Composition root: NavHost, Application class, DI wiring for Android-only (Compose UI) Koin modules. |
 | `androidApp/feature-*` | Android | Feature modules (route, tracking, history) — Compose screens + ViewModels. |
 | `androidApp/core-ui` | Android | Compose design system (Theme, Color, Type, MetricCell) and Google Maps Compose components. Deliberately NOT part of the KMP `core` module (see `ADR-003-core-ui-split.md`). |
+| `androidApp/core-testing` | Android | Test fakes shared by two or more `feature-*` test source sets. Consumed only via `testImplementation`, so it's never in the APK. |
 | `iosApp/TrailMetrics.xcodeproj` | iOS | Composition root: SwiftUI App struct, calls `doInitKoinIos()`. |
 | `iosApp/Packages/SharedKit` | iOS (SPM) | Thin wrapper re-exporting `TrailMetricsShared.xcframework`. Every other iOS package depends on this, never the XCFramework directly. |
 | `iosApp/Packages/<Feature>` | iOS (SPM) | One local Swift Package per feature (History, Route, Tracking), mirroring `androidApp/feature-*`. SwiftUI Views + `ObservableObject` ViewModels. |
+| `iosApp/Packages/TestSupport` | iOS (SPM) | Test fakes and helpers (`waitUntil`) shared by two or more feature packages; the iOS equivalent of `androidApp/core-testing`. Linked only from each feature's `.testTarget`, never the app. |
 
 ## Dependency injection (Koin)
 

@@ -93,8 +93,16 @@ class FakeLocationRepository : LocationRepository {
 ```
 
 Android-only tests (ViewModels, repositories) use fakes too, since MockK isn't available
-yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules, so
-each Android test source set writes its own. Only interfaces can be faked this way.
+yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules.
+Android feature tests share theirs through `androidApp/core-testing` (consumed only via
+`testImplementation`, never `implementation`/`api`; see its `README.md`):
+- Before writing a fake or fixture for a ViewModel test, check `core-testing` for an
+  existing one and use it.
+- Put a new fake there when a second feature module will plausibly need it (typically a
+  fake of a `domain` repository interface). A fake only one feature needs stays in that
+  feature's `src/test/.../fakes/`.
+
+iOS's equivalent is `iosApp/Packages/TestSupport`. Only interfaces can be faked this way.
 Concrete classes such as the use cases and `TrackingSessionManager` are final. Build the
 real class around fakes of its interface collaborators (`TrackingSessionManager` from a
 fake `LocationRepository`, `TrackingServiceLauncher`, `Clock` and `Logger` plus a
