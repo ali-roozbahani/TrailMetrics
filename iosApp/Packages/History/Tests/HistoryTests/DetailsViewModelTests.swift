@@ -5,6 +5,7 @@
 
 import History
 import SharedKit
+import TestSupport
 import XCTest
 
 @MainActor

@@ -6,7 +6,7 @@
 import Route
 
 /// Collects a `makeEventsStream()` stream from a `Task`, as the one-shot events bullet in
-/// HistoryTests/Fakes/FakeActivityHistoryRepository.swift describes. A class so the
+/// TestSupport/Fakes/FakeActivityHistoryRepository.swift describes. A class so the
 /// consuming `Task` and the test share one list. Call `stop()` when the test is done.
 @MainActor
 final class EventRecorder {

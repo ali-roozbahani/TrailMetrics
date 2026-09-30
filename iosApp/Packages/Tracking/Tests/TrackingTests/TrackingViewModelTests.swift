@@ -9,6 +9,7 @@
 //
 
 import SharedKit
+import TestSupport
 import Tracking
 import XCTest
 

@@ -18,7 +18,7 @@ final class FakeDirectionsRepository: NSObject, DirectionsRepository {
     private var recordedRequests: [Request] = []
 
     /// - Parameter result: a `SwiftTestResult` value `getClosedRoute(...)` returns
-    ///   (see FakeLocationRepository.swift).
+    ///   (see TestSupport's FakeLocationRepository.swift).
     init(result: Any?) {
         self.result = result
     }

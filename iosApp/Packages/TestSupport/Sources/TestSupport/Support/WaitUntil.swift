@@ -1,6 +1,6 @@
 //
 //  WaitUntil.swift
-//  RouteTests
+//  TestSupport
 //
 
 import XCTest
@@ -10,7 +10,7 @@ import XCTest
 /// `await` directly. Wait on an observable outcome (published state, a fake's recorded
 /// calls), never on a fixed delay.
 @MainActor
-func waitUntil(
+public func waitUntil(
     timeout: Duration = .seconds(2),
     file: StaticString = #filePath,
     line: UInt = #line,
