@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.maps.model.CameraPosition
@@ -44,10 +45,13 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
+import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
@@ -55,14 +59,50 @@ import dev.roozbahani.trailmetrics.domain.util.formatSpeed
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
+/**
+ * NavHost entry point. Keeps the call site in MainActivity unchanged; delegates to [DetailsRoot].
+ */
 @Composable
 fun DetailsScreen(
     activityId: Long,
-    onNavigateBack: () -> Unit = {},
-    viewModel: DetailsViewModel = koinViewModel(parameters = { parametersOf(activityId) })
+    onNavigateBack: () -> Unit = {}
 ) {
-    val uiState: DetailsUiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val activity = uiState.activity
+    DetailsRoot(
+        activityId = activityId,
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@Composable
+fun DetailsRoot(
+    activityId: Long,
+    onNavigateBack: () -> Unit = {}
+) {
+    val viewModel: DetailsViewModel = koinViewModel(parameters = { parametersOf(activityId) })
+    val state: DetailsState by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                DetailsEvent.Deleted -> onNavigateBack()
+            }
+        }
+    }
+
+    DetailsScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@Composable
+fun DetailsScreen(
+    state: DetailsState,
+    onAction: (DetailsAction) -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    val activity = state.activity
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     Scaffold { innerPadding ->
@@ -72,7 +112,7 @@ fun DetailsScreen(
                 .padding(innerPadding)
         ) {
             when {
-                uiState.isLoading -> {
+                state.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
@@ -101,7 +141,7 @@ fun DetailsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirmation = false
-                    viewModel.onDeleteConfirmed(onDeleted = onNavigateBack)
+                    onAction(DetailsAction.DeleteConfirmed)
                 }) {
                     Text(stringResource(R.string.dialog_delete_activity_confirm))
                 }
@@ -241,6 +281,41 @@ private fun ActivityDetailsContent(
                 }
             }
         }
+    }
+}
+
+// Detekt counts private @Preview functions as unused; they are only used by the IDE preview.
+@Suppress("UnusedPrivateMember")
+@Preview(showBackground = true)
+@Composable
+private fun DetailsScreenPreview() {
+    val path = listOf(
+        Coordinates(latitude = 52.520, longitude = 13.405),
+        Coordinates(latitude = 52.523, longitude = 13.401),
+        Coordinates(latitude = 52.525, longitude = 13.410),
+        Coordinates(latitude = 52.520, longitude = 13.405)
+    )
+    TrailMetricsTheme {
+        DetailsScreen(
+            state = DetailsState(
+                activity = ActivityRecord(
+                    id = 1L,
+                    activityType = ActivityType.Running,
+                    startedAtEpochMillis = 1_758_000_000_000L,
+                    endedAtEpochMillis = 1_758_001_800_000L,
+                    distanceMeters = 5_230.0,
+                    durationMillis = 1_800_000L,
+                    averageSpeedMetersPerSecond = 2.9f,
+                    calories = 412.0,
+                    plannedRoutePoints = path,
+                    actualPath = path,
+                    snapshotFilePath = null
+                ),
+                isLoading = false
+            ),
+            onAction = {},
+            onNavigateBack = {}
+        )
     }
 }
 

@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -16,26 +19,43 @@ class DetailsViewModel(
     private val activityHistoryRepository: ActivityHistoryRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DetailsUiState())
-    val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(DetailsState())
+    val state: StateFlow<DetailsState> = _state.asStateFlow()
+
+    private val _events = Channel<DetailsEvent>(Channel.BUFFERED)
+    val events: Flow<DetailsEvent> = _events.receiveAsFlow()
 
     init {
         viewModelScope.launch {
             val activity = activityHistoryRepository.getActivity(activityId)
-            _uiState.update { it.copy(activity = activity, isLoading = false) }
+            _state.update { it.copy(activity = activity, isLoading = false) }
         }
     }
 
-    fun onDeleteConfirmed(onDeleted: () -> Unit) {
+    fun onAction(action: DetailsAction) {
+        when (action) {
+            DetailsAction.DeleteConfirmed -> deleteActivity()
+        }
+    }
+
+    private fun deleteActivity() {
         viewModelScope.launch {
             activityHistoryRepository.deleteActivity(activityId)
-            deleteSnapshotFile(_uiState.value.activity?.snapshotFilePath)
-            onDeleted()
+            deleteSnapshotFile(_state.value.activity?.snapshotFilePath)
+            _events.send(DetailsEvent.Deleted)
         }
     }
 }
 
-data class DetailsUiState(
+data class DetailsState(
     val activity: ActivityRecord? = null,
     val isLoading: Boolean = true
 )
+
+sealed interface DetailsAction {
+    data object DeleteConfirmed : DetailsAction
+}
+
+sealed interface DetailsEvent {
+    data object Deleted : DetailsEvent
+}
