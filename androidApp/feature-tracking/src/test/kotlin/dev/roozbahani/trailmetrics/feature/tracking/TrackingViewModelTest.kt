@@ -62,7 +62,7 @@ class TrackingViewModelTest {
 
     /**
      * A real TrackingSessionManager built from fakes, running in [TestScope.backgroundScope].
-     * uiState is stateIn(WhileSubscribed), so a subscriber is kept for the whole test.
+     * state is stateIn(WhileSubscribed), so a subscriber is kept for the whole test.
      */
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private fun TestScope.createViewModel(plannedRoutePoints: List<Coordinates> = PLANNED_ROUTE): TrackingViewModel {
@@ -84,15 +84,15 @@ class TrackingViewModelTest {
             plannedRoutePoints = plannedRoutePoints,
             clock = clock
         )
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
         testScheduler.runCurrent()
         return viewModel
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private fun TestScope.collectEvents(viewModel: TrackingViewModel): List<TrackingUiEvent> {
-        val events = mutableListOf<TrackingUiEvent>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiEvents.toList(events) }
+    private fun TestScope.collectEvents(viewModel: TrackingViewModel): List<TrackingEvent> {
+        val events = mutableListOf<TrackingEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
         return events
     }
 
@@ -108,11 +108,11 @@ class TrackingViewModelTest {
     }
 
     /** Returns how many times completion was signalled. */
-    private fun TrackingViewModel.finish(snapshotFilePath: String?): Int {
-        var savedSignals = 0
-        onFinishClicked(snapshotFilePath) { savedSignals++ }
+    private fun TestScope.finish(viewModel: TrackingViewModel, snapshotFilePath: String?): Int {
+        val events = collectEvents(viewModel)
+        viewModel.onAction(TrackingAction.Finish(snapshotFilePath))
         testScheduler.runCurrent()
-        return savedSignals
+        return events.count { it == TrackingEvent.Saved }
     }
 
     // region state transitions
@@ -121,7 +121,7 @@ class TrackingViewModelTest {
     fun `initial state is Idle with no calories and only start enabled`() = runTest(testScheduler) {
         val viewModel = createViewModel()
 
-        val state = viewModel.uiState.value
+        val state = viewModel.state.value
         assertEquals(TrackingState.Idle, state.trackingState)
         assertNull(state.calories)
         assertNull(state.currentMetrics)
@@ -137,10 +137,10 @@ class TrackingViewModelTest {
         runTest(testScheduler) {
             val viewModel = createViewModel()
 
-            viewModel.onStartClicked(START)
+            viewModel.onAction(TrackingAction.Start(START))
             testScheduler.runCurrent()
 
-            val state = viewModel.uiState.value
+            val state = viewModel.state.value
             assertIs<TrackingState.Tracking>(state.trackingState)
             assertEquals(listOf(START), state.currentPath)
             assertFalse(state.canStart)
@@ -152,13 +152,13 @@ class TrackingViewModelTest {
     @Test
     fun `location updates while tracking extend the path and the metrics`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
         receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
 
-        val metrics = assertNotNull(viewModel.uiState.value.currentMetrics)
-        assertEquals(listOf(START, NEXT), viewModel.uiState.value.currentPath)
+        val metrics = assertNotNull(viewModel.state.value.currentMetrics)
+        assertEquals(listOf(START, NEXT), viewModel.state.value.currentPath)
         assertEquals(60_000L, metrics.elapsedMillis)
         assertTrue(metrics.distanceMeters > 0.0)
     }
@@ -166,32 +166,32 @@ class TrackingViewModelTest {
     @Test
     fun `pause then resume moves Tracking to Paused and back to Tracking`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        viewModel.onPauseClicked()
+        viewModel.onAction(TrackingAction.Pause)
         testScheduler.runCurrent()
-        assertIs<TrackingState.Paused>(viewModel.uiState.value.trackingState)
-        assertTrue(viewModel.uiState.value.canResume)
-        assertFalse(viewModel.uiState.value.canPause)
-        assertTrue(viewModel.uiState.value.canStop)
+        assertIs<TrackingState.Paused>(viewModel.state.value.trackingState)
+        assertTrue(viewModel.state.value.canResume)
+        assertFalse(viewModel.state.value.canPause)
+        assertTrue(viewModel.state.value.canStop)
 
-        viewModel.onResumeClicked()
+        viewModel.onAction(TrackingAction.Resume)
         testScheduler.runCurrent()
-        assertIs<TrackingState.Tracking>(viewModel.uiState.value.trackingState)
-        assertTrue(viewModel.uiState.value.canPause)
+        assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+        assertTrue(viewModel.state.value.canPause)
     }
 
     @Test
     fun `stop while tracking finishes the session and stops the tracking service`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
 
-        val state = viewModel.uiState.value
+        val state = viewModel.state.value
         assertIs<TrackingState.Finished>(state.trackingState)
         assertNull(state.currentMetrics)
         assertTrue(state.canStart)
@@ -202,26 +202,26 @@ class TrackingViewModelTest {
     @Test
     fun `stop while paused finishes the session`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        viewModel.onPauseClicked()
-        testScheduler.runCurrent()
-
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Pause)
         testScheduler.runCurrent()
 
-        assertIs<TrackingState.Finished>(viewModel.uiState.value.trackingState)
+        viewModel.onAction(TrackingAction.Stop)
+        testScheduler.runCurrent()
+
+        assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
     }
 
     @Test
     fun `granting location permission starts tracking at the given point`() = runTest(testScheduler) {
         val viewModel = createViewModel()
 
-        viewModel.onLocationPermissionGranted(START)
+        viewModel.onAction(TrackingAction.LocationPermissionGranted(START))
         testScheduler.runCurrent()
 
-        assertIs<TrackingState.Tracking>(viewModel.uiState.value.trackingState)
-        assertEquals(listOf(START), viewModel.uiState.value.currentPath)
+        assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+        assertEquals(listOf(START), viewModel.state.value.currentPath)
     }
 
     // endregion
@@ -231,13 +231,13 @@ class TrackingViewModelTest {
     @Test
     fun `calories are null without a saved profile`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
         receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
 
-        assertNotNull(viewModel.uiState.value.currentMetrics?.averageSpeedMetersPerSecond)
-        assertNull(viewModel.uiState.value.calories)
+        assertNotNull(viewModel.state.value.currentMetrics?.averageSpeedMetersPerSecond)
+        assertNull(viewModel.state.value.calories)
     }
 
     @Test
@@ -245,48 +245,48 @@ class TrackingViewModelTest {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
 
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        assertNull(viewModel.uiState.value.currentMetrics?.averageSpeedMetersPerSecond)
-        assertNull(viewModel.uiState.value.calories)
+        assertNull(viewModel.state.value.currentMetrics?.averageSpeedMetersPerSecond)
+        assertNull(viewModel.state.value.calories)
     }
 
     @Test
     fun `calories are computed from the profile weight and the average speed`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
         receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
 
-        val metrics = assertNotNull(viewModel.uiState.value.currentMetrics)
+        val metrics = assertNotNull(viewModel.state.value.currentMetrics)
         val expected = CalorieCalculator().calculate(
             activityType = ActivityType.Cycling,
             averageSpeedMetersPerSecond = assertNotNull(metrics.averageSpeedMetersPerSecond),
             weightKg = PROFILE.weightKg,
             durationMillis = metrics.elapsedMillis
         )
-        assertEquals(expected, viewModel.uiState.value.calories)
+        assertEquals(expected, viewModel.state.value.calories)
     }
 
     @Test
     fun `calories are kept while paused and dropped once finished`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
         receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
-        val trackingCalories = assertNotNull(viewModel.uiState.value.calories)
+        val trackingCalories = assertNotNull(viewModel.state.value.calories)
 
-        viewModel.onPauseClicked()
+        viewModel.onAction(TrackingAction.Pause)
         testScheduler.runCurrent()
-        assertEquals(trackingCalories, viewModel.uiState.value.calories)
+        assertEquals(trackingCalories, viewModel.state.value.calories)
 
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
-        assertNull(viewModel.uiState.value.calories)
+        assertNull(viewModel.state.value.calories)
     }
 
     // endregion
@@ -297,15 +297,15 @@ class TrackingViewModelTest {
     fun `finish saves the activity with the start time from Start and signals once`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
         receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
         clock.nowMillis = ENDED_AT
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
-        val finished = assertIs<TrackingState.Finished>(viewModel.uiState.value.trackingState)
+        val finished = assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
 
-        val savedSignals = viewModel.finish(SNAPSHOT_PATH)
+        val savedSignals = finish(viewModel, SNAPSHOT_PATH)
 
         assertEquals(1, savedSignals)
         val record = activityHistoryRepository.savedActivities.single()
@@ -324,12 +324,12 @@ class TrackingViewModelTest {
     fun `finish without a snapshot saves a record without a snapshot path`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
 
-        val savedSignals = viewModel.finish(snapshotFilePath = null)
+        val savedSignals = finish(viewModel, snapshotFilePath = null)
 
         assertEquals(1, savedSignals)
         assertNull(activityHistoryRepository.savedActivities.single().snapshotFilePath)
@@ -339,10 +339,10 @@ class TrackingViewModelTest {
     fun `finish before the session is finished saves nothing and does not signal`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        val savedSignals = viewModel.finish(SNAPSHOT_PATH)
+        val savedSignals = finish(viewModel, SNAPSHOT_PATH)
 
         assertEquals(0, savedSignals)
         assertEquals(emptyList(), activityHistoryRepository.savedActivities)
@@ -351,12 +351,12 @@ class TrackingViewModelTest {
     @Test
     fun `finish without a saved profile saves nothing and does not signal`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        viewModel.onStopClicked()
+        viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
 
-        val savedSignals = viewModel.finish(SNAPSHOT_PATH)
+        val savedSignals = finish(viewModel, SNAPSHOT_PATH)
 
         assertEquals(0, savedSignals)
         assertEquals(emptyList(), activityHistoryRepository.savedActivities)
@@ -370,24 +370,98 @@ class TrackingViewModelTest {
     fun `missing location permission is mapped to RequestLocationPermission`() = runTest(testScheduler) {
         val viewModel = createViewModel()
         val events = collectEvents(viewModel)
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
         repeat(UNAVAILABLE_THRESHOLD) { receiveUnavailable(RouteError.MissingLocationPermission()) }
 
-        assertEquals(listOf<TrackingUiEvent>(TrackingUiEvent.RequestLocationPermission), events)
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.RequestLocationPermission), events)
     }
 
     @Test
     fun `other location errors are mapped to ShowError`() = runTest(testScheduler) {
         val viewModel = createViewModel()
         val events = collectEvents(viewModel)
-        viewModel.onStartClicked(START)
+        viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
         repeat(UNAVAILABLE_THRESHOLD) { receiveUnavailable(RouteError.LocationUnavailable()) }
 
-        assertEquals(listOf<TrackingUiEvent>(TrackingUiEvent.ShowError(RouteUiError.LocationUnavailable)), events)
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowError(RouteUiError.LocationUnavailable)), events)
+    }
+
+    // endregion
+
+    // region route progress and completion (moved here from TrackingScreen)
+
+    @Test
+    fun `the planned route is exposed in state`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+
+        assertEquals(PLANNED_ROUTE, viewModel.state.value.plannedRoutePoints)
+        assertNull(viewModel.state.value.routeProgress)
+        assertFalse(viewModel.state.value.hasReachedDestination)
+    }
+
+    @Test
+    fun `route progress follows location updates`() = runTest(testScheduler) {
+        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        assertEquals(0, assertNotNull(viewModel.state.value.routeProgress).lastIndex)
+
+        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+
+        val progress = assertNotNull(viewModel.state.value.routeProgress)
+        assertEquals(1, progress.lastIndex)
+        assertEquals(listOf(START, NEXT), progress.traveledSegment)
+        assertFalse(viewModel.state.value.hasReachedDestination)
+        assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+    }
+
+    @Test
+    fun `reaching the end of the planned route stops tracking and keeps the progress`() = runTest(testScheduler) {
+        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+
+        receiveLocation(END, atMillis = STARTED_AT + 120_000L)
+
+        val state = viewModel.state.value
+        assertIs<TrackingState.Finished>(state.trackingState)
+        assertTrue(state.hasReachedDestination)
+        assertEquals(WALKED_ROUTE, assertNotNull(state.routeProgress).traveledSegment)
+        assertEquals(1, trackingServiceLauncher.stopCalls)
+    }
+
+    @Test
+    fun `reaching the end again in a later session does not stop a second time`() = runTest(testScheduler) {
+        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        receiveLocation(END, atMillis = STARTED_AT + 60_000L)
+        assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
+
+        viewModel.onAction(TrackingAction.Start(END))
+        testScheduler.runCurrent()
+
+        assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+        assertEquals(1, trackingServiceLauncher.stopCalls)
+    }
+
+    @Test
+    fun `a session stopped at the route end can be finished and saved`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        receiveLocation(END, atMillis = STARTED_AT + 60_000L)
+
+        val savedSignals = finish(viewModel, SNAPSHOT_PATH)
+
+        assertEquals(1, savedSignals)
+        assertEquals(listOf(START, END), activityHistoryRepository.savedActivities.single().actualPath)
     }
 
     // endregion
@@ -407,5 +481,9 @@ class TrackingViewModelTest {
             Coordinates(latitude = 52.200, longitude = 13.200)
         )
         val PROFILE = UserProfile(weightKg = 70.0)
+
+        /** A short planned route starting at [START]; its end is [END], ~222 m away. */
+        val END = Coordinates(latitude = 52.002, longitude = 13.000)
+        val WALKED_ROUTE = listOf(START, NEXT, END)
     }
 }
