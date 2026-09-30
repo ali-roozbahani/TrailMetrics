@@ -25,13 +25,13 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
 
-## Presentation layer: migration in progress
+## Presentation layer: MVI
 
-ViewModels are being migrated from a plain public-methods style (`onStartClicked()`,
+All four Android ViewModels (`RouteViewModel`, `TrackingViewModel`, `HistoryViewModel`,
+`DetailsViewModel`) have been migrated from the old public-methods style (`onStartClicked()`,
 `onPauseClicked()`, ...) to MVI (`onAction(Action)`, single `Action`/`Event` sealed types).
-`tm-android` documents the MVI **target** shape. Do not assume every existing ViewModel
-already follows it — check the file before copying its pattern, and never use an
-unmigrated ViewModel as a reference for a new one.
+`tm-android`'s MVI section is the target shape for every new screen and ViewModel; it also
+lists the remaining known deviations in the migrated code, which are not to be copied.
 
 ## Testing stack (fixed, do not introduce alternatives)
 
@@ -49,5 +49,6 @@ in-progress migration task, that's stale, flag it rather than adding more.
   `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when iOS
   code or shared code changed). `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
-  of an unrelated task.
+  of an unrelated task. Fixing a skill or CLAUDE.md line that describes the exact code the
+  task changed is part of the task, not a side effect (see `tm-pr-workflow`).
 - If docs or conventions are ambiguous for the task, state the assumption you made.
