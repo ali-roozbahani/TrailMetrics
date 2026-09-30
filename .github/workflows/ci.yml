@@ -33,13 +33,20 @@ jobs:
       - name: Run unit tests
         run: ./gradlew allTests test
 
-      # Best-effort coverage baseline (Kover, merged in the root project). Neither step can
-      # fail the job; there is no coverage threshold yet.
+      # Coverage report (Kover, merged in the root project): best-effort, can't fail the job.
       - name: Generate coverage report
         continue-on-error: true
         run: ./gradlew :koverXmlReport :koverHtmlReport :koverLog
 
+      # Regression gate: each module's koverVerify minimum line coverage (rules in domain, data
+      # and the three androidApp feature modules). Fails the job.
+      - name: Verify coverage
+        id: kover-verify
+        run: ./gradlew koverVerify
+
+      # Runs even when Verify coverage failed, so there is a report to look at.
       - name: Upload coverage report
+        if: ${{ !cancelled() && steps.kover-verify.outcome != 'skipped' }}
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:

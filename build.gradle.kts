@@ -21,8 +21,9 @@ plugins {
 
 // Merged coverage report across these modules: `./gradlew koverHtmlReport koverXmlReport`
 // (Kover's total variant, i.e. all classes and all JVM/Android host tests of each module).
-// Baseline only: no verification rules. androidApp:core-testing is left out on purpose,
-// it holds shared test fakes, not code under test.
+// Report only: the root has no verification rules. The coverage gate is each module's own
+// koverVerify (rules in domain, data and the androidApp feature modules). androidApp:core-testing
+// is left out on purpose, it holds shared test fakes, not code under test.
 dependencies {
     kover(project(":domain"))
     kover(project(":data"))

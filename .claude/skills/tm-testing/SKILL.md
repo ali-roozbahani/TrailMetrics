@@ -176,9 +176,13 @@ class TrackingScreenRobot(private val rule: ComposeContentTestRule) {
 Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 `composeTestRule.setContent { ... }` + a couple of `onNodeWith...` calls is clearer there.
 
-## What to test, and coverage priorities (current state: near-zero coverage)
+## What to test, and coverage priorities (current state: measured, uneven)
 
-Domain and data have some tests; the route, history and tracking ViewModels have tests too. When asked to raise
+The merged Kover report (see `tm-pr-workflow`, Tier 1) shows real line coverage for `domain`
+(high), the three Android feature modules (partial) and `data` (low, since its Room tests run
+only on iOS, where Kover can't measure). `core`, `shared`, `androidApp/app` and
+`androidApp/core-ui` have no tests of their own. `domain`, `data` and the feature modules have
+a `koverVerify` minimum, so adding untested code there can fail the gate. When asked to raise
 coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use

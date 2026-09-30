@@ -117,6 +117,32 @@ buildkonfig {
     }
 }
 
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
+// little below this module's measured line coverage from its own host tests (3.49% on #61's
+// code, generated code excluded). Room's KSP output and BuildKonfig are excluded here only, so
+// the root merged report still shows raw numbers. Kover can't measure the iOS-only Room tests.
+kover {
+    reports {
+        filters {
+            excludes {
+                classes(
+                    "dev.roozbahani.trailmetrics.data.BuildKonfig",
+                    "dev.roozbahani.trailmetrics.data.local.dao.ActivityDao_Impl",
+                    "dev.roozbahani.trailmetrics.data.local.dao.ActivityDao_Impl$*",
+                    "dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase_Impl",
+                    "dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase_Impl$*",
+                    "dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabaseConstructor",
+                )
+            }
+        }
+        verify {
+            rule {
+                minBound(3)
+            }
+        }
+    }
+}
+
 tasks.withType<Test>().configureEach {
     if (name == "testAndroidHostTest") {
         filter {

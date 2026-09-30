@@ -52,3 +52,15 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
+// little below this module's measured line coverage from its own tests (27.71% on #61's code).
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(25)
+            }
+        }
+    }
+}
