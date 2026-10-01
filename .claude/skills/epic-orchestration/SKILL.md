@@ -504,6 +504,9 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
   device checks to the epic-level Tier 2, which is their call.
 - **Title**: `type(scope): summary` as usual. Subtask PRs squash-merge into the epic
   branch, so each subtask becomes one conventional commit there.
+- **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
+  on it. It lists drift and follow-ups in its PR description only, with
+  `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
 - **Merge**: by the human only, once CI is green on both checks.
 
 ## Merging the epic into main
@@ -515,11 +518,18 @@ The orchestrator reports readiness. The human merges only when all of these hold
 2. The epic branch includes the latest `main` (strict protection on `main` enforces this;
    sync as in Lifecycle step 4).
 3. CI is green on the epic PR for both required checks, on its current head.
-4. The orchestrator has marked the epic PR ready for review
-   (`gh pr ready <n>`), and filled in its description: What changed per subtask (with PR
-   links), Skills/docs followed (the union), Tier 1 (the CI result on the epic head; no
-   separate local gate is needed, since nothing new is pushed at this point), Tier 2 (the
-   plan's epic-level list), plus any Assumptions and Follow-ups from the subtasks.
+4. **The final board PR is merged into the epic branch, and only then** has the
+   orchestrator marked the epic PR ready for review (`gh pr ready <n>`). The final board
+   PR is the one board-only PR allowed (`tm-pr-workflow` → Board, rule 5). The
+   orchestrator opens it into the epic branch after every subtask is merged. It is not a
+   plan subtask. It adds `BOARD.md` records for the drift and follow-ups the subtasks
+   reported, and deletes the epic's own record if the epic started from one. The
+   orchestrator has also filled in the epic PR's description: What changed per subtask
+   (with PR links), Skills/docs followed (the union), Tier 1 (the CI result on the epic
+   head; no separate local gate is needed, since nothing new is pushed at this point),
+   Tier 2 (the plan's epic-level list), any Assumptions and Follow-ups from the subtasks,
+   and a `Board:` line listing the records the final board PR added and removed. An epic
+   record on the board always points to its plan under `docs/epics/`.
 5. The human has done Tier 2 **on the integrated epic branch head**, including the
    epic-level cross-platform checks, and reviewed the full diff against `main`.
 
