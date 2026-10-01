@@ -47,6 +47,8 @@ class SaveActivityUseCaseTest {
         val endedAt = 1_600L
 
         clock.setValues(endedAt)
+        // A different monotonic reading, so the assertion below fails if endedAt came from it.
+        clock.setElapsedRealtimeValues(99_999L)
         activityHistoryRepository.nextSavedId = 42L
 
         // Real CalorieCalculator is deterministic — compute the expected value

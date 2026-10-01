@@ -212,6 +212,32 @@ class UpdateTrackingStateUseCaseTest {
         assertSame(finishedState, useCase(finishedState, locationReceivedEvent))
     }
 
+    @Test
+    fun `locationReceived earlier than the last update adds no time and re-bases the last update`() {
+        val currentState = TrackingState.Tracking(sampleMetrics(elapsedMillis = 5_000, lastUpdateTimestampMillis = 10_000))
+        val earlierEvent = TrackingEvent.LocationReceived(
+            coordinates = point2,
+            timestampMillis = 7_000,
+            speedMetersPerSecond = null
+        )
+
+        val rebased = useCase(currentState, earlierEvent)
+        assertIs<TrackingState.Tracking>(rebased)
+        assertEquals(5_000, rebased.metrics.elapsedMillis)
+        assertEquals(7_000, rebased.metrics.lastUpdateTimestampMillis)
+
+        val nextEvent = TrackingEvent.LocationReceived(
+            coordinates = point1,
+            timestampMillis = 9_000,
+            speedMetersPerSecond = null
+        )
+        val next = useCase(rebased, nextEvent)
+        assertIs<TrackingState.Tracking>(next)
+        // 5_000 + (9_000 - 7_000)
+        assertEquals(7_000, next.metrics.elapsedMillis)
+        assertEquals(9_000, next.metrics.lastUpdateTimestampMillis)
+    }
+
     private fun sampleMetrics(
         elapsedMillis: Long = 10,
         lastUpdateTimestampMillis: Long = 10,

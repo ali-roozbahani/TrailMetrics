@@ -30,4 +30,8 @@ final class FakeClock: NSObject, Clock {
             return currentMillis
         }
     }
+
+    func elapsedRealtimeMillis() -> Int64 {
+        0
+    }
 }
