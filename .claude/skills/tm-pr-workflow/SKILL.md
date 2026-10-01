@@ -221,11 +221,16 @@ only while its item is open. Its header gives the record format.
 3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
    `Board: no changes`.
 4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
-   passes items found outside a PR into the next task's prompt; add them in that PR.
-5. **Epics.** Parallel subtask agents don't edit `BOARD.md`, because their edits would
-   conflict. They report drift and follow-ups in their PR description. The epic
-   integration PR (epic branch into `main`) turns those into records. An epic record
-   points to its plan under `docs/epics/`.
+   passes items found outside a PR into the next task's prompt; add them in that PR. The
+   only exception is an epic's final board PR (rule 5).
+5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
+   conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
+   description. Once every subtask is merged into the epic branch, the orchestrator opens
+   **one** final board PR into the epic branch. It is not a plan subtask (not in the plan,
+   no `allowed_paths`). It adds the records the subtasks reported, deletes the epic's own
+   record if the epic started from one, and carries the `Board:` line. It reaches `main`
+   with the epic PR, whose own `Board:` line repeats those changes. An epic record points
+   to its plan under `docs/epics/`.
 6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
    Never rename or renumber a slug.
 
