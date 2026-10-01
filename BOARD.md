@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### test-data-directions-safeapicall-dto
-- Type: task
-- Area: data
-- Priority: next
-- Source: PR #68 follow-up
-- Problem: `DirectionsRepositoryImplTest` only covers polyline outcomes (valid, truncated, unterminated, empty). The repository's HTTP/API-error path (`safeApiCall` failure → `DirectionsApiError`) and its "No routes found" path, `safeApiCall` itself (non-"OK" status, thrown exception, `CancellationException` rethrow) and the directions DTOs (`DirectionsResponseDto` deserialization) are untested.
-- Done when: tests cover those paths and run on the Android host and the iOS simulator, and the `data` Kover floor (`minBound(42)`, measured 43.12%) is raised in the same PR.
-- Refs: `data` `DirectionsRepositoryImpl.getClosedRoute`, `safeApiCall` / `GoogleApiResponse` (`data/common/SafeApiCall.kt`), `DirectionsResponseDto`, `DirectionsRepositoryImplTest`; `data/build.gradle.kts` `kover.reports.verify`.
-
 ### test-feature-tracking
 - Type: task
 - Area: androidApp/feature-tracking
@@ -168,6 +159,24 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: iOS `TrackingViewModel.onStopClicked` cancels and clears `stateObservationTask` and `locationIssuesObservationTask`, which are only started from `init`. A second `onStartClicked` on the same instance would therefore not observe state. Users can't hit this today, because every Stop path leaves the screen first: in-app Stop (controls row and exit alert) calls `dismiss()`, Live Activity Stop (`handleStopNotification`) emits `.dismissed`, and auto-completion shows `finishCard` instead of the controls. Document it as a known limitation; don't fix it.
 - Done when: documented in `tm-ios` or `LEARNINGS.md`.
 - Refs: iOS `TrackingViewModel.onStopClicked`, `onStartClicked`, `observeTrackingState`, `handleStopNotification`; `TrackingView` (`controlsRow`, `finishCard`, `.dismissed` handling).
+
+### directions-http-status-ignored
+- Type: task
+- Area: data
+- Priority: later
+- Source: PR #70
+- Problem: `networkModule`'s `HttpClient` doesn't set `expectSuccess`, and neither `safeApiCall` nor `DirectionsRepositoryImpl.getClosedRoute` checks the HTTP status. A 4xx/5xx response whose body is a valid `DirectionsResponseDto` with status "OK" returns a successful route. A non-2xx response with a non-JSON body fails only through deserialization, so the HTTP status never reaches the `DirectionsApiError` cause. Pinned by `DirectionsRepositoryImplTest` "HTTP error status with a valid OK body currently returns a successful route".
+- Done when: a non-2xx Directions response returns `RouteError.DirectionsApiError` whose cause names the HTTP status, and that pinned test is changed to assert it.
+- Refs: `data` `di/NetworkModule.kt`, `common/SafeApiCall.kt`, `DirectionsRepositoryImpl.getClosedRoute`; `DirectionsRepositoryImplTest`.
+
+### test-data-remaining-untested-classes
+- Type: task
+- Area: data
+- Priority: later
+- Source: PR #70
+- Problem: After the directions tests, `data` is at 44.38% line coverage (142/320, Android host Kover report, generated code excluded). The five biggest gaps (uncovered lines, nested/lambda classes merged into their source class) all have 0% covered: `AndroidLocationRepositoryImpl` (49), `TrackingService` (44), `di/CommonTrackingModule` (14), `di/NetworkModule` (10), `di/UseCaseModule` (10). iOS-only code (`IosLocationRepositoryImpl`, `IosTrackingServiceLauncher`) isn't in the report at all, because Kover can't measure the iOS run.
+- Done when: those classes have tests (or a documented reason why one can't be tested on the host), and the `data` Kover floor is raised in the same PR.
+- Refs: `data` `location/AndroidLocationRepositoryImpl`, `tracking/TrackingService`, `di/CommonTrackingModule`, `di/NetworkModule`, `di/UseCaseModule`; `data/build.gradle.kts` `kover.reports.verify`; `tm-testing`.
 
 ## Drift
 
