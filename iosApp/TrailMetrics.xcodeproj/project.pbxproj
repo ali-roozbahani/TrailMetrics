@@ -240,6 +240,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		551756AF3051A1FF008ECF92 /* Build KMP Shared Framework */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -255,7 +256,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\ncd \"${SRCROOT}/..\"\n\nSTAMP_FILE=\"shared/build/.xcode_kmp_stamp\"\nSOURCE_DIRS=\"domain/src data/src core/src shared/src\"\n\nCURRENT_HASH=$(find $SOURCE_DIRS -type f \\( -name \"*.kt\" -o -name \"*.kts\" \\) -exec stat -f \"%m %N\" {} \\; | sort | shasum | awk '{print $1}')\n\nif [ -f \"$STAMP_FILE\" ] && [ \"$(cat \"$STAMP_FILE\")\" == \"$CURRENT_HASH\" ]; then\n  echo \"KMP shared framework is up to date, skipping Gradle build.\"\nelse\n  echo \"KMP source changed, rebuilding shared framework...\"\n  ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework\n  echo \"$CURRENT_HASH\" > \"$STAMP_FILE\"\nfi\n";
+			shellScript = "# The pre-action of the TrailMetrics scheme normally builds the framework before Xcode copies it;\n# here the shared script only re-checks the hash and fails the build if the framework was stale.\n\"${SRCROOT}/../scripts/build-kmp-framework.sh\" --build-phase\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

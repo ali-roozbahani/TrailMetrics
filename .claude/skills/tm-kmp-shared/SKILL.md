@@ -93,9 +93,11 @@ Call this out explicitly in the PR description if you touch event-emitting code.
 ## Build integration
 
 After changing `domain`, `data`, `core` or `shared`, iOS needs a rebuilt XCFramework.
-The Xcode "Build KMP Shared Framework" run-script phase does this automatically
-(hash-based). Do not bypass it. Manual equivalent:
-`./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework`.
+`scripts/build-kmp-framework.sh` does this automatically (hash of the four modules' sources
+and the Gradle build files). The shared `TrailMetrics` scheme's Build pre-action and the
+"Build KMP Shared Framework" phase run it on every Xcode build, and so does the gate. Do not
+bypass it. Run the script yourself before `xcodebuild test` inside an iOS package (details in
+`tm-ios`).
 
 ## Cross-platform change order
 

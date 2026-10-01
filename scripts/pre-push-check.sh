@@ -70,6 +70,10 @@ if [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
         FAILURES+=("swiftlint (not installed — install with 'brew install swiftlint')")
     fi
 
+    # Same hash-gated script as the Xcode scheme pre-action, so the iOS build and the package
+    # tests below never link a stale XCFramework, whichever Xcode scheme is picked up.
+    run_step "KMP XCFramework" scripts/build-kmp-framework.sh
+
     run_step "iOS build" bash -c '
         cd iosApp
         xcodebuild build \

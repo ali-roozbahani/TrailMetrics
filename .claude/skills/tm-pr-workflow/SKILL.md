@@ -67,8 +67,9 @@ report step is best-effort and never fails the gate. The next step, `koverVerify
 enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
 coverage. Minimums are set in `domain`, `data` and the three `androidApp` feature modules'
 `build.gradle.kts`, a little below each module's measured coverage from its own tests. `core`,
-`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict` and an
-`xcodebuild` simulator build when the branch's diff touches `iosApp/`, `domain/`, `data/`,
+`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict`, the shared
+XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
+build and the iOS package tests when the branch's diff touches `iosApp/`, `domain/`, `data/`,
 `core/` or `shared/`.
 
 How it is enforced, and what that means for the order of operations:
