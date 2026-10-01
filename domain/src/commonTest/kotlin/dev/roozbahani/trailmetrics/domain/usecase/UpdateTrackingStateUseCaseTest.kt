@@ -8,6 +8,7 @@ import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class UpdateTrackingStateUseCaseTest {
@@ -163,6 +164,52 @@ class UpdateTrackingStateUseCaseTest {
         val newState = useCase(idleState, locationReceivedEvent)
 
         assertEquals(idleState, newState)
+    }
+
+    @Test
+    fun `start is ignored when current state is Paused`() {
+        val pausedState = TrackingState.Paused(sampleMetrics())
+
+        assertSame(pausedState, useCase(pausedState, TrackingEvent.Start(point2, 30)))
+    }
+
+    @Test
+    fun `pause is ignored when current state is not Tracking`() {
+        listOf(TrackingState.Paused(sampleMetrics()), TrackingState.Finished(sampleMetrics())).forEach { state ->
+            assertSame(state, useCase(state, TrackingEvent.Pause(30)), "Pause from $state")
+        }
+    }
+
+    @Test
+    fun `resume is ignored when current state is not Paused`() {
+        val states = listOf(
+            TrackingState.Idle,
+            TrackingState.Tracking(sampleMetrics()),
+            TrackingState.Finished(sampleMetrics())
+        )
+
+        states.forEach { state ->
+            assertSame(state, useCase(state, TrackingEvent.Resume(30)), "Resume from $state")
+        }
+    }
+
+    @Test
+    fun `stop is ignored when current state is Idle or Finished`() {
+        listOf(TrackingState.Idle, TrackingState.Finished(sampleMetrics())).forEach { state ->
+            assertSame(state, useCase(state, TrackingEvent.Stop(30)), "Stop from $state")
+        }
+    }
+
+    @Test
+    fun `locationReceived is ignored when current state is Finished`() {
+        val finishedState = TrackingState.Finished(sampleMetrics())
+        val locationReceivedEvent = TrackingEvent.LocationReceived(
+            coordinates = point2,
+            timestampMillis = 30,
+            speedMetersPerSecond = 2f
+        )
+
+        assertSame(finishedState, useCase(finishedState, locationReceivedEvent))
     }
 
     private fun sampleMetrics(
