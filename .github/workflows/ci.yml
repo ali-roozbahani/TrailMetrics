@@ -89,8 +89,8 @@ jobs:
         run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
 
       # iOS simulator tests can't run on the ubuntu android job. data's
-      # ActivityHistoryRepositoryImplTest runs only here: it's excluded from
-      # testAndroidHostTest (BundledSQLiteDriver has no host-JVM native lib).
+      # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
+      # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
       - name: Run iOS simulator tests
         run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test
 

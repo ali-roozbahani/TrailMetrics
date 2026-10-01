@@ -1,8 +1,6 @@
 package dev.roozbahani.trailmetrics.data.local.repository
 
-import androidx.room3.Room
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
-import dev.roozbahani.trailmetrics.data.local.database.getRoomDatabase
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -18,7 +16,13 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class ActivityHistoryRepositoryImplTest {
+/**
+ * Shared repository suite. Each platform subclass supplies the database: Android host tests use
+ * the platform SQLite through Robolectric, iOS uses the app's bundled driver.
+ */
+abstract class ActivityHistoryRepositoryImplTest {
+
+    protected abstract fun createDatabase(): TrailMetricsDatabase
 
     private lateinit var database: TrailMetricsDatabase
     private lateinit var repository: ActivityHistoryRepositoryImpl
@@ -43,7 +47,7 @@ class ActivityHistoryRepositoryImplTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @BeforeTest
     fun setup() {
-        database = getRoomDatabase(Room.inMemoryDatabaseBuilder<TrailMetricsDatabase>())
+        database = createDatabase()
         repository = ActivityHistoryRepositoryImpl(
             activityDao = database.activityDao(),
             ioDispatcher = UnconfinedTestDispatcher()

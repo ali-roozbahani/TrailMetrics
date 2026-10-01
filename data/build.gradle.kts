@@ -118,9 +118,10 @@ buildkonfig {
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own host tests (3.49% on #61's
-// code, generated code excluded). Room's KSP output and BuildKonfig are excluded here only, so
-// the root merged report still shows raw numbers. Kover can't measure the iOS-only Room tests.
+// little below this module's measured line coverage from its own host tests (19.68%, 62/315
+// lines, once ActivityHistoryRepositoryImplTest ran on the host; generated code excluded). Room's
+// KSP output and BuildKonfig are excluded here only, so the root merged report still shows raw
+// numbers. Kover can't measure the iOS test run.
 kover {
     reports {
         filters {
@@ -137,16 +138,8 @@ kover {
         }
         verify {
             rule {
-                minBound(3)
+                minBound(18)
             }
-        }
-    }
-}
-
-tasks.withType<Test>().configureEach {
-    if (name == "testAndroidHostTest") {
-        filter {
-            excludeTestsMatching("*ActivityHistoryRepositoryImplTest*")
         }
     }
 }
