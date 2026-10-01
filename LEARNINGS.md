@@ -111,7 +111,9 @@ decisions worth remembering:
    is often constructed once in `@BeforeTest`, before each test's specific
    values are known. Fix: expose a `setValues(...)` method that can be called
    from within each test, after construction — matching the timing of mockk's
-   per-test `every {}` calls rather than the timing of object creation.
+   per-test `every {}` calls rather than the timing of object creation. (It is
+   now two such setters, `setWallClockValues(...)` and
+   `setElapsedRealtimeValues(...)`, one per `Clock` method.)
 
 2. **Not every dependency needs a fake.** `CalorieCalculator` is a concrete,
    pure, deterministic class (no I/O) — it was left as a real instance in

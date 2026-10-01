@@ -19,7 +19,7 @@ class RouteCompletionTrackerTest {
 
     private fun metricsAt(location: Coordinates) = TrackingMetrics(
         elapsedMillis = 60_000L,
-        lastUpdateTimestampMillis = 60_000L,
+        lastUpdateElapsedRealtimeMillis = 60_000L,
         distanceMeters = 500.0,
         path = listOf(location)
     )

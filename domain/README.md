@@ -23,7 +23,9 @@ Compose, or any platform framework.
 - **Tracking orchestration** (`tracking/`): `TrackingSessionManager`, the
   state machine driving Start/Pause/Resume/Stop.
 - **Utilities** (`util/`): `CalorieCalculator`, `Clock` (injectable time
-  source for testability).
+  source for testability: `nowMillis()` is wall-clock epoch time for stored or
+  shown timestamps, `elapsedRealtimeMillis()` is the monotonic clock that
+  session durations are measured with).
 
 ## What does NOT belong here
 

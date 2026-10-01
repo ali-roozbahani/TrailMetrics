@@ -23,7 +23,7 @@ class SpeedCalculatorTest {
         val reportedSpeed = 10f
         val speed = speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = 0L,
+            elapsedRealtimeMillis = 0L,
             reportedSpeedMetersPerSecond = reportedSpeed,
             accuracyMeters = 10f
         )
@@ -38,13 +38,13 @@ class SpeedCalculatorTest {
 
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = timestampPoint1,
+            elapsedRealtimeMillis = timestampPoint1,
             reportedSpeedMetersPerSecond = 10f,
             accuracyMeters = 10f
         )
         val resultSpeed = speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = timestampPoint2,
+            elapsedRealtimeMillis = timestampPoint2,
             reportedSpeedMetersPerSecond = 10f,
             accuracyMeters = null // Assuming the accuracy at point 2 is null
         )
@@ -63,13 +63,13 @@ class SpeedCalculatorTest {
 
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = timestampPoint1,
+            elapsedRealtimeMillis = timestampPoint1,
             reportedSpeedMetersPerSecond = 10f,
             accuracyMeters = 10f
         )
         val resultSpeed = speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = timestampPoint2,
+            elapsedRealtimeMillis = timestampPoint2,
             reportedSpeedMetersPerSecond = 10f,
             accuracyMeters = 50f // Assuming the accuracy at point exceeds the threshold (20f)
         )
@@ -88,13 +88,13 @@ class SpeedCalculatorTest {
 
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = timestampPoint1,
+            elapsedRealtimeMillis = timestampPoint1,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
         val resultSpeed = speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = timestampPoint2,
+            elapsedRealtimeMillis = timestampPoint2,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
@@ -110,13 +110,13 @@ class SpeedCalculatorTest {
     fun `calculate returns null when window has zero elapsed time`() {
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = 0L,
+            elapsedRealtimeMillis = 0L,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
         val resultSpeed = speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = 0L,
+            elapsedRealtimeMillis = 0L,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
@@ -128,13 +128,13 @@ class SpeedCalculatorTest {
     fun `reset clears the internal sample window`() {
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = 0L,
+            elapsedRealtimeMillis = 0L,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
         val speedBeforeReset = speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = 2000L,
+            elapsedRealtimeMillis = 2000L,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
@@ -144,7 +144,7 @@ class SpeedCalculatorTest {
 
         val speedAfterReset = speedCalculator.calculate(
             coordinates = point3,
-            timestampMillis = 4000L,
+            elapsedRealtimeMillis = 4000L,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
@@ -160,14 +160,14 @@ class SpeedCalculatorTest {
 
         speedCalculator.calculate(
             coordinates = point1,
-            timestampMillis = timestampPoint1,
+            elapsedRealtimeMillis = timestampPoint1,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
         // Window now has 2 samples
         speedCalculator.calculate(
             coordinates = point2,
-            timestampMillis = timestampPoint2,
+            elapsedRealtimeMillis = timestampPoint2,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )
@@ -175,7 +175,7 @@ class SpeedCalculatorTest {
         // Adding sample 3 must remove sample 1 from window
         val resultSpeed = speedCalculator.calculate(
             coordinates = point3,
-            timestampMillis = timestampPoint3,
+            elapsedRealtimeMillis = timestampPoint3,
             reportedSpeedMetersPerSecond = null,
             accuracyMeters = null // Forcing window calculation
         )

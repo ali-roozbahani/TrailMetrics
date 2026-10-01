@@ -35,6 +35,14 @@ extend `RouteError`/`RouteUiError` with new cases instead.
 - Platform ViewModels only adapt shared logic to UI state/Action/Event. They do not own
   business rules.
 
+## Time
+
+Durations (elapsed time, speed windows, anything computed as a difference of two reads) are
+measured with `Clock.elapsedRealtimeMillis()`, the monotonic clock that keeps counting while
+the device sleeps. `Clock.nowMillis()` is only for wall-clock timestamps that are stored or
+shown (`startedAtEpochMillis`, `endedAtEpochMillis`): the wall clock can jump either way when
+the system time changes, so never subtract two `nowMillis()` reads.
+
 ## Adding a dependency iOS needs
 
 1. Bind it in a Koin module inside `shared`/`data` (cross-platform modules only).

@@ -58,7 +58,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L)
+        clock.setElapsedRealtimeValues(0L, 100L)
 
         // Act
         manager.start(point1)
@@ -78,7 +78,7 @@ class TrackingSessionManagerTest {
     fun `calling start twice does not create duplicate location observation`() = runTest(testScheduler) {
         // Arrange
         locationRepository.setUpdatesFlow(flowOf())
-        clock.setValues(0L)
+        clock.setElapsedRealtimeValues(0L)
 
         // Act
         manager.start(point1)
@@ -97,7 +97,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L, 200L)
+        clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
         manager.start(point1)
@@ -128,7 +128,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L, 200L)
+        clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
         manager.start(point1)
@@ -161,7 +161,7 @@ class TrackingSessionManagerTest {
     fun `stop finishes the session and stops the service once and cancels location observation`() = runTest(testScheduler) {
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L)
+        clock.setElapsedRealtimeValues(0L)
 
         manager.start(point1)
         testScheduler.runCurrent()
@@ -245,6 +245,83 @@ class TrackingSessionManagerTest {
         updates.emit(unavailable)
         testScheduler.advanceUntilIdle()
         assertEquals(listOf<RouteError>(unavailable.reason), issues)
+    }
+
+    // Clock reads, in order: Start 1, each Success fix 2 (speed calculator, then the event), Stop 1.
+    @Test
+    fun `elapsed time follows elapsedRealtime when the wall clock jumps backwards`() = runTest(testScheduler) {
+        val updates = MutableSharedFlow<LocationUpdate>()
+        locationRepository.setUpdatesFlow(updates)
+        // Start, fix 1 (x2), fix 2 (x2), fix 3 (x2), Stop.
+        clock.setElapsedRealtimeValues(50_000L, 60_000L, 60_000L, 70_000L, 70_000L, 80_000L, 80_000L, 85_000L)
+        // The wall clock is set back 5 minutes between fix 1 and fix 2.
+        clock.setWallClockValues(1_000_000L, 1_010_000L, 1_010_000L, 720_000L, 720_000L, 730_000L, 730_000L, 735_000L)
+
+        val finished = trackSession(updates, fixes = 3)
+
+        // 80_000 - 50_000: the elapsedRealtime advance from Start to the last fix.
+        // (Wall clock: 10_000 - 290_000 + 10_000 = -270_000.)
+        assertEquals(30_000L, finished.metrics.elapsedMillis)
+    }
+
+    @Test
+    fun `elapsed time follows elapsedRealtime when the wall clock jumps forwards`() = runTest(testScheduler) {
+        val updates = MutableSharedFlow<LocationUpdate>()
+        locationRepository.setUpdatesFlow(updates)
+        clock.setElapsedRealtimeValues(50_000L, 60_000L, 60_000L, 70_000L, 70_000L, 80_000L, 80_000L, 85_000L)
+        // The wall clock is set forward 1 hour between fix 1 and fix 2.
+        clock.setWallClockValues(
+            1_000_000L, 1_010_000L, 1_010_000L, 4_620_000L, 4_620_000L, 4_630_000L, 4_630_000L, 4_635_000L
+        )
+
+        val finished = trackSession(updates, fixes = 3)
+
+        // 80_000 - 50_000. (Wall clock: 10_000 + 3_610_000 + 10_000 = 3_630_000.)
+        assertEquals(30_000L, finished.metrics.elapsedMillis)
+    }
+
+    @Test
+    fun `elapsed time excludes the pause and follows elapsedRealtime when the wall clock jumps`() =
+        runTest(testScheduler) {
+            val updates = MutableSharedFlow<LocationUpdate>()
+            locationRepository.setUpdatesFlow(updates)
+            // Start, fix 1 (x2), Pause, Resume 60 s later, fix 2 (x2), Stop.
+            clock.setElapsedRealtimeValues(0L, 10_000L, 10_000L, 15_000L, 75_000L, 85_000L, 85_000L, 90_000L)
+            // The wall clock is set back about 11 minutes between Resume and fix 2.
+            clock.setWallClockValues(
+                1_000_000L, 1_010_000L, 1_010_000L, 1_015_000L, 1_075_000L, 400_000L, 400_000L, 405_000L
+            )
+
+            manager.start(point1)
+            testScheduler.runCurrent()
+            emitFix(updates, point2)
+            manager.pause()
+            testScheduler.runCurrent()
+            manager.resume()
+            testScheduler.runCurrent()
+            emitFix(updates, point1)
+            manager.stop()
+            testScheduler.runCurrent()
+
+            val finished = assertIs<TrackingState.Finished>(manager.currentState.value)
+            // (10_000 - 0) before the pause + (85_000 - 75_000) after it; the 60 s pause is excluded.
+            // (Wall clock: 10_000 + (400_000 - 1_075_000) = -665_000.)
+            assertEquals(20_000L, finished.metrics.elapsedMillis)
+        }
+
+    /** Start at [point1], deliver [fixes] Success updates alternating point2/point1, then Stop. */
+    private suspend fun trackSession(updates: MutableSharedFlow<LocationUpdate>, fixes: Int): TrackingState.Finished {
+        manager.start(point1)
+        testScheduler.runCurrent()
+        repeat(fixes) { index -> emitFix(updates, if (index % 2 == 0) point2 else point1) }
+        manager.stop()
+        testScheduler.runCurrent()
+        return assertIs<TrackingState.Finished>(manager.currentState.value)
+    }
+
+    private suspend fun emitFix(updates: MutableSharedFlow<LocationUpdate>, coordinates: Coordinates) {
+        updates.emit(LocationUpdate.Success(coordinates = coordinates, speedMetersPerSecond = null, accuracyMeters = null))
+        testScheduler.advanceUntilIdle()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
