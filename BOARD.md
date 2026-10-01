@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### test-feature-history
-- Type: task
-- Area: androidApp/feature-history
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: Coverage is low. The module has `HistoryViewModelTest` and `DetailsViewModelTest`, but its Kover floor is only `minBound(10)`.
-- Done when: real tests for its ViewModel/UI logic land, and the module's Kover floor is raised in the same PR. One PR for this module only.
-- Refs: `androidApp/feature-history` `HistoryViewModel`, `DetailsViewModel`, `HistoryScreen`, `DetailsScreen`; `androidApp/feature-history/build.gradle.kts` `minBound`; `tm-testing`.
-
 ### test-feature-route
 - Type: task
 - Area: androidApp/feature-route
