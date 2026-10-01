@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### test-feature-tracking
-- Type: task
-- Area: androidApp/feature-tracking
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: Coverage is low. The module has `TrackingViewModelTest` and `RouteCompletionTrackerTest`, but its Kover floor is only `minBound(25)`, and the rest of its logic (state mapping, calorie recompute, location-issue handling) is thinly tested.
-- Done when: real tests for its ViewModel/UI logic land, and the module's Kover floor is raised in the same PR. One PR for this module only.
-- Refs: `androidApp/feature-tracking` `TrackingViewModel`, `TrackingScreen`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing`.
-
 ### test-feature-history
 - Type: task
 - Area: androidApp/feature-history
