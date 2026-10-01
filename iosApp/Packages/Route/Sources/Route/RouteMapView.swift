@@ -21,8 +21,10 @@ struct RouteMapView: UIViewRepresentable {
     @Binding var mapView: GMSMapView?
 
     func makeUIView(context: Context) -> GMSMapView {
-        let camera = GMSCameraPosition.camera(withLatitude: 0, longitude: 0, zoom: Self.defaultZoom)
-        let mapView = GMSMapView(frame: .zero, camera: camera)
+        let options = GMSMapViewOptions()
+        options.frame = .zero
+        options.camera = GMSCameraPosition.camera(withLatitude: 0, longitude: 0, zoom: Self.defaultZoom)
+        let mapView = GMSMapView(options: options)
         mapView.delegate = context.coordinator
 
         DispatchQueue.main.async {

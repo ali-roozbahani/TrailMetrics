@@ -142,7 +142,8 @@ public class TrackingViewModel: ObservableObject {
                         self.liveActivityController?.update(
                             distanceMeters: metrics.distanceMeters,
                             elapsedMillis: metrics.elapsedMillis,
-                            currentSpeedMetersPerSecond: metrics.currentSpeedMetersPerSecond.map { Double($0) }
+                            currentSpeedMetersPerSecond: metrics.currentSpeedMetersPerSecond
+                                .map { Double(truncating: $0) }
                         )
                     }
                 }
@@ -231,7 +232,7 @@ public class TrackingViewModel: ObservableObject {
         liveActivityController?.end(
             distanceMeters: finalMetrics?.distanceMeters ?? 0,
             elapsedMillis: finalMetrics?.elapsedMillis ?? 0,
-            currentSpeedMetersPerSecond: finalMetrics?.currentSpeedMetersPerSecond.map { Double($0) }
+            currentSpeedMetersPerSecond: finalMetrics?.currentSpeedMetersPerSecond.map { Double(truncating: $0) }
         )
     }
 
