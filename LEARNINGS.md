@@ -447,43 +447,46 @@ still compatible with the new data module surface.
   File → Add Package Dependencies → Add Local... This avoids Xcode
   silently doing unexpected project wiring.
 - Xcode Run Script build phases run every build unless given at least one
-  Output File — this is a cosmetic warning check only, unrelated to
-  whether the script's own internal logic actually skips work.
+  Output File. That is NOT cosmetic: with Output Files and no Input Files,
+  Xcode skips the phase entirely once the outputs exist, so a script's own
+  "skip if unchanged" logic never runs. See "Xcode skipped the KMP build
+  phase" at the end of this file.
 - Xcode's User Script Sandboxing (`ENABLE_USER_SCRIPT_SANDBOXING`) blocks
   Gradle/Kotlin-Native subprocess and file operations invoked from a Run
   Script phase. Must be set to NO in Build Settings for any KMP project
   that triggers Gradle from an Xcode build phase.
-- Practical incremental-build script pattern: hash `mtime + path` of all
-  `.kt`/`.kts` files across the KMP source dirs (`domain/src data/src
-  core/src shared/src`), compare to a stamp file, only invoke Gradle when
-  the hash changed. Plain Xcode Input/Output File tracking is unreliable here
-  because it only watches direct folder mtimes, not deep recursive
-  content changes.
+- Practical incremental-build script pattern: hash the content of the
+  KMP inputs (sources and Gradle build files), compare to a stamp file,
+  only invoke Gradle when the hash changed. Plain Xcode Input/Output File
+  tracking is unreliable here because it only watches direct folder
+  mtimes, not deep recursive content changes.
 
-### Reference: Incremental KMP rebuild script (Xcode Run Script Phase)
+### Reference: Incremental KMP rebuild (scheme pre-action + Run Script phase)
 
-Location: TrailMetrics target → Build Phases → "Build KMP Shared Framework"
-(placed as the FIRST build phase, before Sources/Frameworks/Resources).
-Output Files: `$(SRCROOT)/../shared/build/.xcode_kmp_stamp` (silences
-Xcode's "no outputs" warning; the real skip logic lives in the script).
+The logic lives in one script, `scripts/build-kmp-framework.sh`, with three
+callers:
 
-```bash
-set -e
-cd "${SRCROOT}/.."
+- The shared `TrailMetrics` scheme's Build pre-action
+  (`iosApp/TrailMetrics.xcodeproj/xcshareddata/xcschemes/TrailMetrics.xcscheme`)
+  runs it before Xcode starts the build, so the framework is current when
+  Xcode copies it and compiles the Swift packages.
+- The TrailMetrics target's "Build KMP Shared Framework" Run Script phase
+  (first phase, "Based on dependency analysis" off, i.e.
+  `alwaysOutOfDate = 1`; Output Files `$(SRCROOT)/../shared/build/.xcode_kmp_stamp`)
+  runs it with `--build-phase` as a safety net. If the pre-action didn't
+  run, it rebuilds and fails the build with "build again".
+- `scripts/pre-push-check.sh` runs it before the iOS build and package
+  tests.
 
-STAMP_FILE="shared/build/.xcode_kmp_stamp"
-SOURCE_DIRS="domain/src data/src core/src shared/src"
-
-CURRENT_HASH=$(find $SOURCE_DIRS -type f \( -name "*.kt" -o -name "*.kts" \) -exec stat -f "%m %N" {} \; | sort | shasum | awk '{print $1}')
-
-if [ -f "$STAMP_FILE" ] && [ "$(cat "$STAMP_FILE")" == "$CURRENT_HASH" ]; then
-  echo "KMP shared framework is up to date, skipping Gradle build."
-else
-  echo "KMP source changed, rebuilding shared framework..."
-  ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
-  echo "$CURRENT_HASH" > "$STAMP_FILE"
-fi
-```
+The script hashes the content of every `*.kt`/`*.kts` under `domain/src
+data/src core/src shared/src`, plus `settings.gradle.kts`,
+`build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`,
+`gradle/wrapper/gradle-wrapper.properties`, the four modules'
+`build.gradle.kts` and `local.properties` (if present), compares against
+`shared/build/.xcode_kmp_stamp`, and runs
+`./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the
+hash differs or the XCFramework is missing. It deletes the stamp before
+Gradle runs and writes it only after Gradle succeeds.
 
 Also required in Build Settings: `ENABLE_USER_SCRIPT_SANDBOXING = NO`,
 otherwise the Gradle invocation fails with
@@ -740,3 +743,42 @@ overlay buttons.
    button, and compose both in one `HStack` (with a `Spacer` between) so
    alignment is structural. See `DetailsView.swift`'s top bar, which mirrors Route's
    `topBar` in `RouteView.swift`.
+
+---
+
+## Xcode skipped the KMP build phase and linked a stale XCFramework
+
+**Hazard.** After a Kotlin change, Xcode builds succeeded but the app ran
+old Kotlin code. On #66, 9 of 15 Tracking XCTests failed locally because
+the framework predated the change. CI was unaffected because it builds
+clean.
+
+**Cause.** There were two separate problems:
+
+1. The "Build KMP Shared Framework" phase declared one Output File (the
+   stamp) and no Input Files. Xcode treats a phase like that as up to date
+   once its outputs exist, so it never ran again, and the script's own hash
+   check never ran either. The hash also covered only `src/**/*.kt(s)`, so
+   build-file and version-catalog changes were invisible.
+2. Running the phase every build (`alwaysOutOfDate = 1`) was not enough.
+   Xcode copies the XCFramework into `Build/Products` (`ProcessXCFramework`)
+   and compiles every Swift package against it *before* the app target's
+   phases run. A Gradle rebuild inside the phase only reached the build
+   after it: always one build behind. Declaring the XCFramework as a phase
+   output to force that order fails with "Cycle inside TrailMetrics".
+
+**Fix.** The hash-gated script moved to `scripts/build-kmp-framework.sh`,
+run from a Build pre-action on a shared `TrailMetrics` scheme. Pre-actions
+run before Xcode plans the build, so a single build after a Kotlin change
+links the new code. Xcode 26 logs pre-action output in the build log and
+fails the build if the pre-action fails. The phase stays, set to always
+run, as a safety net with `--build-phase`: if the pre-action didn't run
+(e.g. a per-user scheme in `xcuserdata/` with the same name shadows the
+shared one), the phase rebuilds and fails with "build again" instead of
+linking stale code. The hash now covers Gradle build files and the version
+catalog, it hashes content (not mtime), and the stamp is written only
+after Gradle succeeds. The gate prebuilds through the same script. Proof
+method: a public probe function added to a `domain` file, then
+`grep` for it in `Headers/TrailMetricsShared.h` of both the XCFramework and
+the `Build/Products/.../TrailMetricsShared.framework` copy that is actually
+linked.

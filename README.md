@@ -157,7 +157,7 @@ The goal is that anyone reading this repository — human or automated — can t
    ```bash
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
    ```
-4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. Its build phases rebuild the shared framework automatically (incrementally, only when `domain`/`data`/`shared` Kotlin source changes) — see `docs/architecture/OVERVIEW.md`.
+4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. The shared `TrailMetrics` scheme rebuilds the shared framework automatically before each build (incrementally, only when `domain`/`data`/`core`/`shared` Kotlin sources or the Gradle build files change) through `scripts/build-kmp-framework.sh` — see `LEARNINGS.md` ("Xcode skipped the KMP build phase").
 5. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
 
 ---

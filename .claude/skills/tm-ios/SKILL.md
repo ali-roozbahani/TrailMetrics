@@ -133,25 +133,43 @@ public class HistoryViewModel: ObservableObject {
 - Add a `#Preview` for new screens and reusable components. Use the ViewModel's
   default-parameter `init` to inject fakes where a live Koin graph isn't available.
 
-## Build integration (XCFramework Run Script)
+## Build integration (XCFramework pre-action + Run Script)
 
-- The `TrailMetrics` target has a "Build KMP Shared Framework" Run Script phase that runs
-  before `Sources`. It hashes the mtime and path of every `*.kt`/`*.kts` under
-  `domain/src data/src core/src shared/src`, compares against
-  `shared/build/.xcode_kmp_stamp`, and runs
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` only when the hash
-  changed. `SharedKit/Package.swift` points at the **debug** XCFramework output.
-- It does **not** re-run for:
-  - Gradle files outside those `src` dirs (`shared/build.gradle.kts`, SKIE/export config,
-    `gradle/libs.versions.toml`).
-
-  After changing any of these, run the Gradle task manually (or delete the stamp file)
-  before building in Xcode. Don't "fix" the phase as a side effect of an unrelated task.
-  Report it instead.
-- Never disable, reorder or bypass the phase.
-- "Missing/stale symbol from `TrailMetricsShared`" right after a Kotlin change: first check
-  whether the phase ran (Report Navigator → latest build → "Build KMP Shared Framework") and
-  whether the change was in one of the unhashed paths above.
+- `scripts/build-kmp-framework.sh` is the one place that decides whether the shared
+  XCFramework needs Gradle. It hashes the **content** of every `*.kt`/`*.kts` under
+  `domain/src data/src core/src shared/src`, plus `settings.gradle.kts`, the root
+  `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`,
+  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared/build.gradle.kts` and
+  `local.properties` (if present; BuildKonfig compiles its API key into the framework). It
+  compares that against `shared/build/.xcode_kmp_stamp` and runs
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash changed or the
+  XCFramework is missing. The stamp is deleted before Gradle and written only after it
+  succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
+- Callers:
+  - The shared `TrailMetrics` scheme
+    (`TrailMetrics.xcodeproj/xcshareddata/xcschemes/TrailMetrics.xcscheme`) runs it as a
+    Build pre-action. That is what makes a single build pick up a Kotlin change: Xcode copies
+    the XCFramework (`ProcessXCFramework`) and compiles the Swift packages *before* any of
+    the app target's phases run. The pre-action output, including Gradle errors, is in the
+    build log, and a failing pre-action fails the build.
+  - The `TrailMetrics` target's "Build KMP Shared Framework" Run Script phase (first phase,
+    `alwaysOutOfDate = 1`, output `.xcode_kmp_stamp`) runs it with `--build-phase` as a
+    safety net. If the pre-action didn't run, it rebuilds and then fails the build with
+    "build again" rather than link the stale copy. Don't declare the XCFramework as a phase
+    output: Xcode reports "Cycle inside TrailMetrics".
+  - `scripts/pre-push-check.sh` runs it before the iOS build and package tests.
+- A per-user `xcuserdata/.../TrailMetrics.xcscheme` with the same name shadows the shared
+  scheme and has no pre-action. If every Kotlin change ends in the "build again" error,
+  delete the per-user copy.
+- `xcodebuild test` inside a package directory (`iosApp/Packages/<Name>`) uses the package's
+  own scheme. It runs neither the pre-action nor the phase, so run the script first
+  (the gate does).
+- Never disable, reorder or bypass the pre-action or the phase, and keep the shell logic in
+  the script, not inline in the scheme or the project file.
+- Unexpected "missing/stale symbol from `TrailMetricsShared`": look in the build log for the
+  "Build KMP Shared Framework" pre-action and phase lines
+  ("rebuilding shared framework..." / "up to date, skipping Gradle build"). Deleting the stamp
+  forces the next build to run Gradle.
 - `./gradlew clean` wipes the XCFramework; the next Xcode build has to regenerate it.
 
 ## Naming (Swift)

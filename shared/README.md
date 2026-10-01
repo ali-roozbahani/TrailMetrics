@@ -63,7 +63,8 @@ hide their symbols from the generated Swift interface.
   won't compile.
 - After any change to `domain`, `data`, `core`, or `shared` itself, the
   XCFramework must be rebuilt. In day-to-day iOS development this happens
-  automatically via the Xcode Run Script build phase (see
-  `docs/architecture/OVERVIEW.md` → "iOS build integration"); when working
-  from the command line, run
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` manually.
+  automatically via `scripts/build-kmp-framework.sh`, which the Xcode
+  `TrailMetrics` scheme's Build pre-action and the "Build KMP Shared
+  Framework" phase run (see `.claude/skills/tm-ios` → "Build integration");
+  when working from the command line, run that script (or
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework`) manually.
