@@ -11,6 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class RouteCompletionTrackerTest {
@@ -72,6 +73,16 @@ class RouteCompletionTrackerTest {
         assertEquals(progress, tracker.progress)
     }
 
+    @Test
+    fun `the same location twice does not recalculate progress`() {
+        tracker.trackingAt(ROUTE[2])
+        val progress = tracker.progress
+
+        tracker.trackingAt(ROUTE[2])
+
+        assertSame(progress, tracker.progress)
+    }
+
     // endregion
 
     // region completion
@@ -131,6 +142,31 @@ class RouteCompletionTrackerTest {
     }
 
     @Test
+    fun `being at the end while idle or finished does not stop`() {
+        assertFalse(tracker.onUpdate(ROUTE.last(), TrackingState.Idle))
+        assertFalse(tracker.onUpdate(BEYOND_END_WITHIN_THRESHOLD, TrackingState.Finished(metricsAt(ROUTE.last()))))
+
+        assertFalse(tracker.hasReachedDestination)
+    }
+
+    @Test
+    fun `a location exactly at the threshold distance from the end stops`() {
+        val equatorTracker = RouteCompletionTracker(EQUATOR_ROUTE)
+        assertEquals(ROUTE_COMPLETION_THRESHOLD_METERS, AT_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()))
+
+        assertTrue(equatorTracker.trackingAt(AT_THRESHOLD))
+    }
+
+    @Test
+    fun `a location just beyond the threshold distance from the end does not stop`() {
+        val equatorTracker = RouteCompletionTracker(EQUATOR_ROUTE)
+        assertTrue(JUST_BEYOND_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()) > ROUTE_COMPLETION_THRESHOLD_METERS)
+
+        assertFalse(equatorTracker.trackingAt(JUST_BEYOND_THRESHOLD))
+        assertEquals(EQUATOR_ROUTE.lastIndex, assertNotNull(equatorTracker.progress).lastIndex)
+    }
+
+    @Test
     fun `an empty planned route never completes`() {
         val emptyRouteTracker = RouteCompletionTracker(emptyList())
 
@@ -151,6 +187,16 @@ class RouteCompletionTrackerTest {
         /** ~22 m and ~27 m past the last point, on the same line. */
         val BEYOND_END_WITHIN_THRESHOLD = Coordinates(latitude = 52.00435, longitude = 13.0)
         val BEYOND_END_OUTSIDE_THRESHOLD = Coordinates(latitude = 52.00439, longitude = 13.0)
+
+        /**
+         * Ends at (0, 0). Near zero a latitude step is far finer than a metre's rounding, so a point
+         * exactly [ROUTE_COMPLETION_THRESHOLD_METERS] from the end exists; at 52° N none does.
+         */
+        val EQUATOR_ROUTE = listOf(-0.002, -0.001, 0.0).map { Coordinates(latitude = it, longitude = 0.0) }
+
+        /** 25.0 m north of the end of [EQUATOR_ROUTE], and the next Double north of it (~25.000000000000007 m). */
+        val AT_THRESHOLD = Coordinates(latitude = 0.00022483040147968267, longitude = 0.0)
+        val JUST_BEYOND_THRESHOLD = Coordinates(latitude = 0.0002248304014796827, longitude = 0.0)
 
         /** A closed loop: starts and ends at the same point, as generated routes do. */
         val LOOP = listOf(

@@ -79,6 +79,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: both rules are in `tm-pr-workflow` and/or `tm-testing`.
 - Refs: `tm-testing` ("Testing MVI ViewModels", "What to test, and coverage priorities"); `tm-pr-workflow` ("Tier 1").
 
+### tracking-finish-saves-twice
+- Type: task
+- Area: androidApp/feature-tracking
+- Priority: soon
+- Source: test-feature-tracking PR
+- Problem: `TrackingViewModel.finish` saves whenever the session state is `Finished` and never records that it already saved. A second `TrackingAction.Finish` (for example a double tap on the route-completed Finish button, whose `map.snapshot` callback is asynchronous, before the `Saved` navigation runs) saves a second `ActivityRecord` and sends a second `Saved`. Pinned by `TrackingViewModelTest` "finishing twice currently saves the activity twice". Not reproduced on a device.
+- Done when: a repeated `Finish` for the same session saves at most once (and sends `Saved` at most once), and that pinned test is changed to assert it.
+- Refs: `androidApp/feature-tracking` `TrackingViewModel.finish`, `TrackingScreen` (Finish button, `TrackingEvent.Saved` handling); `TrackingViewModelTest`.
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -177,6 +186,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: After the directions tests, `data` is at 44.38% line coverage (142/320, Android host Kover report, generated code excluded). The five biggest gaps (uncovered lines, nested/lambda classes merged into their source class) all have 0% covered: `AndroidLocationRepositoryImpl` (49), `TrackingService` (44), `di/CommonTrackingModule` (14), `di/NetworkModule` (10), `di/UseCaseModule` (10). iOS-only code (`IosLocationRepositoryImpl`, `IosTrackingServiceLauncher`) isn't in the report at all, because Kover can't measure the iOS run.
 - Done when: those classes have tests (or a documented reason why one can't be tested on the host), and the `data` Kover floor is raised in the same PR.
 - Refs: `data` `location/AndroidLocationRepositoryImpl`, `tracking/TrackingService`, `di/CommonTrackingModule`, `di/NetworkModule`, `di/UseCaseModule`; `data/build.gradle.kts` `kover.reports.verify`; `tm-testing`.
+
+### test-feature-tracking-compose-ui
+- Type: task
+- Area: androidApp/feature-tracking
+- Priority: later
+- Source: test-feature-tracking PR
+- Problem: After the JVM tests, `feature-tracking` is at 30.02% line coverage (130/433). `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
+- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `TrackingScreen` and `saveSnapshotToFile` have tests, and the module's Kover floor is raised in the same PR.
+- Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ## Drift
 
