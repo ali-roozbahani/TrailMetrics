@@ -54,5 +54,7 @@ Kotlin/Native has no reflection: no MockK in `commonTest` (see `domain`'s
 README for the same rule) and Room requires the `@ConstructedBy` mechanism
 for its expect/actual database constructor. `androidHostTest` is reserved
 for tests that genuinely require Robolectric/JVM Android simulation
-(currently only `UserProfileRepositoryImplTest`); everything else that can
-run via `commonTest` + `kotlin.test` should.
+(`UserProfileRepositoryImplTest`, and the Android subclass of the abstract
+`ActivityHistoryRepositoryImplTest`, which supplies an `AndroidSQLiteDriver`
+database because `BundledSQLiteDriver` has no host-JVM native library);
+everything else that can run via `commonTest` + `kotlin.test` should.
