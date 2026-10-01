@@ -79,6 +79,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: a repeated `Finish` for the same session saves at most once (and sends `Saved` at most once), and that pinned test is changed to assert it.
 - Refs: `androidApp/feature-tracking` `TrackingViewModel.finish`, `TrackingScreen` (Finish button, `TrackingEvent.Saved` handling); `TrackingViewModelTest`.
 
+### details-delete-confirmed-twice
+- Type: task
+- Area: androidApp/feature-history
+- Priority: soon
+- Source: test-feature-history PR
+- Problem: `DetailsViewModel.deleteActivity` never records that it already deleted. A second `DetailsAction.DeleteConfirmed` (for example a double tap on the delete dialog's confirm button before recomposition removes the dialog) deletes the id again and sends a second `DetailsEvent.Deleted`. `DetailsRoot` calls `onNavigateBack` for each `Deleted`, and the app wires that to `popBackStack()`, so the second one would also pop the History screen. Pinned by `DetailsViewModelTest` "confirming delete twice currently deletes and signals completion twice". Not reproduced on a device.
+- Done when: a repeated `DeleteConfirmed` deletes at most once and sends `Deleted` at most once, and that pinned test is changed to assert it.
+- Refs: `androidApp/feature-history` `DetailsViewModel.deleteActivity`, `DetailsScreen` (delete `AlertDialog`, `DetailsRoot` event handling); `MainActivity` `TrailMetricsNavHost` (`AppRoute.ActivityDetails`); `DetailsViewModelTest`.
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -186,6 +195,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: After the JVM tests, `feature-tracking` is at 30.02% line coverage (130/433). `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
 - Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `TrackingScreen` and `saveSnapshotToFile` have tests, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
+
+### test-feature-history-compose-ui
+- Type: task
+- Area: androidApp/feature-history
+- Priority: later
+- Source: test-feature-history PR
+- Problem: After the JVM tests, `feature-history` is at 12.99% line coverage (56/431). `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
+- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `HistoryScreen` and `DetailsScreen` have tests, and the module's Kover floor is raised in the same PR.
+- Refs: `androidApp/feature-history` `HistoryScreen`, `DetailsScreen`; `androidApp/feature-history/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ## Drift
 

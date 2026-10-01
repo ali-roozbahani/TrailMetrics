@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -17,6 +18,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -46,8 +48,14 @@ class HistoryViewModelTest {
 
     // The state is stateIn(WhileSubscribed): keep a subscriber for the whole test.
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private fun TestScope.subscribe(viewModel: HistoryViewModel) {
+    private fun TestScope.subscribe(viewModel: HistoryViewModel): Job =
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private fun TestScope.collectEvents(viewModel: HistoryViewModel): List<HistoryEvent> {
+        val events = mutableListOf<HistoryEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        return events
     }
 
     @Test
@@ -141,14 +149,105 @@ class HistoryViewModelTest {
         assertEquals(listOf(FIRST), viewModel.state.value.activities)
     }
 
+    @Test
+    fun `state is loading before anyone subscribes even when the repository has activities`() =
+        runTest(testScheduler) {
+            activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
+            val viewModel = createViewModel()
+            testScheduler.runCurrent()
+
+            assertEquals(HistoryState(activities = emptyList(), isLoading = true), viewModel.state.value)
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // advanceTimeBy has no stable replacement
+    @Test
+    fun `state keeps following the repository for five seconds after the last subscriber leaves`() =
+        runTest(testScheduler) {
+            activityHistoryRepository.setActivities(listOf(FIRST))
+            val viewModel = createViewModel()
+            val subscriber = subscribe(viewModel)
+            testScheduler.runCurrent()
+            subscriber.cancel()
+
+            testScheduler.advanceTimeBy(STATE_STOP_TIMEOUT_MILLIS - 1)
+            testScheduler.runCurrent()
+            activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(FIRST, SECOND), viewModel.state.value.activities)
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // advanceTimeBy has no stable replacement
+    @Test
+    fun `state stops following the repository five seconds after the last subscriber leaves`() =
+        runTest(testScheduler) {
+            activityHistoryRepository.setActivities(listOf(FIRST))
+            val viewModel = createViewModel()
+            val subscriber = subscribe(viewModel)
+            testScheduler.runCurrent()
+            subscriber.cancel()
+
+            testScheduler.advanceTimeBy(STATE_STOP_TIMEOUT_MILLIS)
+            testScheduler.runCurrent()
+            activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(FIRST), viewModel.state.value.activities)
+        }
+
+    @Test
+    fun `deleting an activity that is not in the list still deletes its id and leaves the list unchanged`() =
+        runTest(testScheduler) {
+            activityHistoryRepository.setActivities(listOf(FIRST, SECOND))
+            val viewModel = createViewModel()
+            subscribe(viewModel)
+            testScheduler.runCurrent()
+
+            viewModel.onAction(HistoryAction.DeleteConfirmed(activityRecord(id = 99L)))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(99L), activityHistoryRepository.deletedIds)
+            assertEquals(HistoryState(activities = listOf(FIRST, SECOND), isLoading = false), viewModel.state.value)
+        }
+
+    @Test
+    fun `deleting an activity whose snapshot path is blank removes only the record`() = runTest(testScheduler) {
+        val blankPath = activityRecord(id = 1L, snapshotFilePath = "  ")
+        activityHistoryRepository.setActivities(listOf(blankPath, SECOND))
+        val viewModel = createViewModel()
+        subscribe(viewModel)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(HistoryAction.DeleteConfirmed(blankPath))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+        assertEquals(listOf(SECOND), viewModel.state.value.activities)
+    }
+
+    @Test
+    fun `deleting an activity whose snapshot file no longer exists still removes the record`() =
+        runTest(testScheduler) {
+            val missingPath = File(tempFolder.root, "missing.png").absolutePath
+            val withMissingSnapshot = activityRecord(id = 1L, snapshotFilePath = missingPath)
+            activityHistoryRepository.setActivities(listOf(withMissingSnapshot, SECOND))
+            val viewModel = createViewModel()
+            subscribe(viewModel)
+            testScheduler.runCurrent()
+
+            viewModel.onAction(HistoryAction.DeleteConfirmed(withMissingSnapshot))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+            assertEquals(listOf(SECOND), viewModel.state.value.activities)
+        }
+
     // New Action/Event surface with no pre-migration counterpart: the row click used to call
     // the screen's callback directly and never reached the ViewModel.
-    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
     fun `clicking an activity emits NavigateToDetails with its id`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        val events = mutableListOf<HistoryEvent>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        val events = collectEvents(viewModel)
 
         viewModel.onAction(HistoryAction.ActivityClicked(activityId = 2L))
         testScheduler.runCurrent()
@@ -156,7 +255,30 @@ class HistoryViewModelTest {
         assertEquals(listOf<HistoryEvent>(HistoryEvent.NavigateToDetails(activityId = 2L)), events)
     }
 
+    @Test
+    fun `clicks before anyone collects are delivered in order once a collector subscribes`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+
+            viewModel.onAction(HistoryAction.ActivityClicked(activityId = 3L))
+            viewModel.onAction(HistoryAction.ActivityClicked(activityId = 1L))
+            viewModel.onAction(HistoryAction.ActivityClicked(activityId = 2L))
+            testScheduler.runCurrent()
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+
+            assertEquals(
+                listOf<HistoryEvent>(
+                    HistoryEvent.NavigateToDetails(activityId = 3L),
+                    HistoryEvent.NavigateToDetails(activityId = 1L),
+                    HistoryEvent.NavigateToDetails(activityId = 2L)
+                ),
+                events
+            )
+        }
+
     private companion object {
+        const val STATE_STOP_TIMEOUT_MILLIS = 5_000L
         val FIRST = activityRecord(id = 1L)
         val SECOND = activityRecord(id = 2L)
     }
