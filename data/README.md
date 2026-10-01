@@ -60,3 +60,13 @@ for tests that genuinely require Robolectric/JVM Android simulation
 `ActivityHistoryRepositoryImplTest`, which supplies an `AndroidSQLiteDriver`
 database because `BundledSQLiteDriver` has no host-JVM native library);
 everything else that can run via `commonTest` + `kotlin.test` should.
+HTTP-level repository tests do: `DirectionsRepositoryImplTest` builds the
+real repository on a Ktor `MockEngine` (`ktor-client-mock`, test-only) that
+serves a canned Directions JSON response, so it runs on both targets.
+
+`DirectionsRepositoryImpl` returns `RouteError.DirectionsApiError` for every
+directions failure: network, HTTP, response parsing or non-`OK` status (via
+`safeApiCall`), no routes, and a malformed overview polyline
+(`decodePolyline` throws `IllegalArgumentException` for truncated input,
+which the repository maps). An empty polyline is not an error: it yields a
+route with no points.

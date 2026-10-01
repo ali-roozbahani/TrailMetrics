@@ -66,6 +66,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
         }
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
@@ -118,8 +119,8 @@ buildkonfig {
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own host tests (19.68%, 62/315
-// lines, once ActivityHistoryRepositoryImplTest ran on the host; generated code excluded). Room's
+// little below this module's measured line coverage from its own host tests (43.12%, 138/320
+// lines, once the MockEngine-based directions tests ran on the host; generated code excluded). Room's
 // KSP output and BuildKonfig are excluded here only, so the root merged report still shows raw
 // numbers. Kover can't measure the iOS test run.
 kover {
@@ -138,7 +139,7 @@ kover {
         }
         verify {
             rule {
-                minBound(18)
+                minBound(42)
             }
         }
     }
