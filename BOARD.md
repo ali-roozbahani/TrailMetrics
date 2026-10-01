@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### test-data-directions-safeapicall-dto
-- Type: task
-- Area: data
-- Priority: next
-- Source: PR #68 follow-up
-- Problem: `DirectionsRepositoryImplTest` only covers polyline outcomes (valid, truncated, unterminated, empty). The repository's HTTP/API-error path (`safeApiCall` failure → `DirectionsApiError`) and its "No routes found" path, `safeApiCall` itself (non-"OK" status, thrown exception, `CancellationException` rethrow) and the directions DTOs (`DirectionsResponseDto` deserialization) are untested.
-- Done when: tests cover those paths and run on the Android host and the iOS simulator, and the `data` Kover floor (`minBound(42)`, measured 43.12%) is raised in the same PR.
-- Refs: `data` `DirectionsRepositoryImpl.getClosedRoute`, `safeApiCall` / `GoogleApiResponse` (`data/common/SafeApiCall.kt`), `DirectionsResponseDto`, `DirectionsRepositoryImplTest`; `data/build.gradle.kts` `kover.reports.verify`.
-
 ### test-feature-tracking
 - Type: task
 - Area: androidApp/feature-tracking
