@@ -54,12 +54,13 @@ dependencies {
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own tests (27.71% on #61's code).
+// little below this module's measured line coverage from its own tests (30.02%, measured on main
+// after test-feature-tracking).
 kover {
     reports {
         verify {
             rule {
-                minBound(25)
+                minBound(29)
             }
         }
     }
