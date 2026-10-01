@@ -504,6 +504,9 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
   device checks to the epic-level Tier 2, which is their call.
 - **Title**: `type(scope): summary` as usual. Subtask PRs squash-merge into the epic
   branch, so each subtask becomes one conventional commit there.
+- **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
+  on it. It lists drift and follow-ups in its PR description only, with
+  `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
 - **Merge**: by the human only, once CI is green on both checks.
 
 ## Merging the epic into main
@@ -520,6 +523,10 @@ The orchestrator reports readiness. The human merges only when all of these hold
    links), Skills/docs followed (the union), Tier 1 (the CI result on the epic head; no
    separate local gate is needed, since nothing new is pushed at this point), Tier 2 (the
    plan's epic-level list), plus any Assumptions and Follow-ups from the subtasks.
+   Before that, a final commit on the epic branch (through a PR, like every change)
+   turns the subtasks' drift and follow-ups into `BOARD.md` records, and deletes the
+   epic's own record if the epic started from one. An epic record on the board always
+   points to its plan under `docs/epics/`.
 5. The human has done Tier 2 **on the integrated epic branch head**, including the
    epic-level cross-platform checks, and reviewed the full diff against `main`.
 

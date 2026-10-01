@@ -22,6 +22,7 @@ those on its own initiative once Tier 1 passes.
   and `LEARNINGS.md` for known KMP/Xcode/Gradle gotchas.
 - Load the code skill(s) for the modules touched (`tm-kmp-shared`, `tm-android`, `tm-ios`,
   `tm-testing`) as well as this one.
+- If the task names a board record, read `BOARD.md` first (see "Board").
 - Task prompts follow the standard template below. Treat the "should not change" part of
   `Scope` as a hard limit.
 
@@ -159,9 +160,12 @@ Add these when they apply. Recent PRs use them consistently:
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left alone
-  because fixing them would break scope or a boundary. Say what the fix would be.
+  because fixing them would break scope or a boundary. Say what the fix would be. Each
+  bullet names its `BOARD.md` record's slug (see "Board").
 - **Drift found (not fixed)**: docs that disagree with code this task didn't change (see
-  "Docs follow the code you changed" under Boundaries).
+  "Docs follow the code you changed" under Boundaries). Each bullet names its `BOARD.md`
+  record's slug.
+- **Board**: always, as one line: `Board: +slug-a, +slug-b, -slug-c`, or `Board: no changes`.
 - **Corrections**: if an earlier PR stated something wrong, correct it explicitly (see
   #34's "Correction to #33").
 
@@ -185,8 +189,9 @@ End the description with the attribution line the session specifies.
   in a skill or `CLAUDE.md` that directly describes the current state of the code this
   task changed and is now wrong. That is part of the task, not a side effect, so it needs
   no separate authorization. Drift anywhere else (docs about code this task didn't
-  change) is not yours to fix: list it under "Drift found (not fixed)" in the PR
-  description, with the line and what the code actually does, for a human to decide.
+  change) is not yours to fix: add a drift record to `BOARD.md` and list it under
+  "Drift found (not fixed)" in the PR description, with the line and what the code
+  actually does, for a human to decide.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
@@ -199,6 +204,34 @@ End the description with the attribution line the session specifies.
   points to. The exception is a reference that hasn't been migrated to its target
   pattern yet. Then follow the target pattern and say so. (All four Android ViewModels
   are on MVI since #54; `tm-android` lists the deviations that remain.)
+
+## Board
+
+`BOARD.md` at the repo root is the backlog of open epics, tasks and drift. A record exists
+only while its item is open. Its header gives the record format.
+
+1. **Add.** Everything you list under "Follow-ups (out of scope, not changed)" or "Drift
+   found (not fixed)" gets a record in `BOARD.md` in the **same** PR. The PR description
+   keeps those sections, and each bullet names its slug.
+2. **Delete.** When the task starts from a board record, delete that record in the PR that
+   does the work, as the last commit before the final push (`chore(board): remove <slug>`).
+   A PR closed unmerged never deletes it from `main`. If the work only partly resolves
+   the record, narrow its Problem/Done when instead. If the record is obsolete, delete it
+   and say why in the PR.
+3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
+   `Board: no changes`.
+4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
+   passes items found outside a PR into the next task's prompt; add them in that PR.
+5. **Epics.** Parallel subtask agents don't edit `BOARD.md`, because their edits would
+   conflict. They report drift and follow-ups in their PR description. The epic
+   integration PR (epic branch into `main`) turns those into records. An epic record
+   points to its plan under `docs/epics/`.
+6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
+   Never rename or renumber a slug.
+
+New slugs are kebab-case, unique in the file and descriptive (never a counter), so two
+PRs can't create the same one. A new record goes in the section for its type, within its
+priority group (next, soon, later).
 
 ## After the PR is open (human's steps, for context)
 

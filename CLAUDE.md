@@ -25,6 +25,8 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
 
+Open epics, tasks and drift live in `BOARD.md`; how to add and remove records: `tm-pr-workflow` → "Board".
+
 ## Presentation layer: MVI
 
 All four Android ViewModels (`RouteViewModel`, `TrackingViewModel`, `HistoryViewModel`,
