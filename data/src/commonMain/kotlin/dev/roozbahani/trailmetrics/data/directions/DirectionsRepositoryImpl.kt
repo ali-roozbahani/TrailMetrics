@@ -34,7 +34,12 @@ class DirectionsRepositoryImpl(
                     ?: return Result.failure(RouteError.DirectionsApiError(IllegalStateException("No routes found")))
 
                 val totalDistanceMeters = route.legs.sumOf { it.distance.value }
-                val points = decodePolyline(route.overviewPolyline.points)
+                // safeApiCall only covers the request; a malformed polyline must fail the same way.
+                val points = try {
+                    decodePolyline(route.overviewPolyline.points)
+                } catch (e: IllegalArgumentException) {
+                    return Result.failure(RouteError.DirectionsApiError(e))
+                }
 
                 Result.success(
                     Route(

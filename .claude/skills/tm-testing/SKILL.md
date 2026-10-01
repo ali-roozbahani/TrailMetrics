@@ -11,6 +11,7 @@ description: Use whenever writing or reviewing tests anywhere in TrailMetrics �
 |---|---|---|---|
 | `domain`, other commonTest/KMP | `kotlin.test` | `kotlin.test` (`assertEquals`, `assertTrue`, ...) | fakes, not mocks — MockK has no Kotlin/Native artifact |
 | `data`, Android-framework code (Robolectric, Compose), Android ViewModels | JUnit4 | `kotlin.test` | hand-written fakes today; MockK once added (see below) |
+| `data` HTTP-level tests (commonTest) | `kotlin.test` | `kotlin.test` | Ktor `MockEngine` (`ktor-client-mock`) serving a canned response to the real repository |
 
 ### What's actually available today
 
@@ -31,6 +32,11 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
   its own `build.gradle.kts`. That is not a new dependency.
 - A task that adds MockK or Turbine must name it, add it to the catalog, and update this
   section in the same change.
+- Ktor `MockEngine` (`ktor-client-mock`, on the catalog's `ktor` version) is a `data`
+  commonTest dependency, so it runs on the Android host and the iOS simulator. Build the
+  real repository on `HttpClient(MockEngine { respond(...) })` with the same
+  `ContentNegotiation`/`Json` setup as `networkModule`, and return JSON shaped like the
+  DTO (see `DirectionsRepositoryImplTest`). Don't fake `HttpClient` or the repository.
 
 No JUnit5 anywhere in this project (evaluated and rejected — see
 `docs/architecture` for the reasoning if resurrected later). No AssertK. No Truth —
@@ -179,8 +185,9 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 ## What to test, and coverage priorities (current state: measured, uneven)
 
 The merged Kover report (see `tm-pr-workflow`, Tier 1) shows real line coverage for `domain`
-(high), the three Android feature modules (partial) and `data` (low: its Room repository suite
-runs on the Android host via Robolectric, but networking, location and DI have no tests). `core`, `shared`, `androidApp/app` and
+(high), the three Android feature modules (partial) and `data` (partial: its Room repository suite
+runs on the Android host via Robolectric, and the directions repository and polyline decoder have
+MockEngine/commonTest tests, but `SafeApiCall`'s error paths, location and DI have no tests). `core`, `shared`, `androidApp/app` and
 `androidApp/core-ui` have no tests of their own. `domain`, `data` and the feature modules have
 a `koverVerify` minimum, so adding untested code there can fail the gate. When asked to raise
 coverage without a more specific target, prioritize in this order:
