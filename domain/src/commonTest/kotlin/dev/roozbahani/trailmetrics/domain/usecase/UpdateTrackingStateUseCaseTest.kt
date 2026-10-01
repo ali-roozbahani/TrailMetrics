@@ -28,7 +28,7 @@ class UpdateTrackingStateUseCaseTest {
         val expectedPath = listOf(point1)
         assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
         assertEquals(0, newState.metrics.elapsedMillis)
-        assertEquals(0, newState.metrics.lastUpdateTimestampMillis)
+        assertEquals(0, newState.metrics.lastUpdateElapsedRealtimeMillis)
         assertEquals(0.0, newState.metrics.distanceMeters, absoluteTolerance = 1.0)
     }
 
@@ -43,7 +43,7 @@ class UpdateTrackingStateUseCaseTest {
         val expectedPath = listOf(point1)
         assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
         assertEquals(0, newState.metrics.elapsedMillis)
-        assertEquals(0, newState.metrics.lastUpdateTimestampMillis)
+        assertEquals(0, newState.metrics.lastUpdateElapsedRealtimeMillis)
         assertEquals(0.0, newState.metrics.distanceMeters, absoluteTolerance = 1.0)
     }
 
@@ -51,7 +51,7 @@ class UpdateTrackingStateUseCaseTest {
     fun `pause from Tracking transitions to Paused without changing metrics`() {
         val metrics = sampleMetrics()
         val currentState = TrackingState.Tracking(metrics = metrics)
-        val pauseEvent = TrackingEvent.Pause(timestampMillis = 15)
+        val pauseEvent = TrackingEvent.Pause(elapsedRealtimeMillis = 15)
 
         val newState = useCase(currentState, pauseEvent)
         assertIs<TrackingState.Paused>(newState)
@@ -60,7 +60,7 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
-    fun `resume from Paused transitions to Tracking and updates lastUpdateTimestampMillis`() {
+    fun `resume from Paused transitions to Tracking and updates lastUpdateElapsedRealtimeMillis`() {
         val pausedStateMetrics = sampleMetrics()
         val pausedState = TrackingState.Paused(pausedStateMetrics)
 
@@ -68,7 +68,7 @@ class UpdateTrackingStateUseCaseTest {
         val newState = useCase(pausedState, resumeEvent)
         assertIs<TrackingState.Tracking>(newState)
 
-        assertEquals(resumeEvent.timestampMillis, newState.metrics.lastUpdateTimestampMillis) // must be 20 as defined above
+        assertEquals(resumeEvent.elapsedRealtimeMillis, newState.metrics.lastUpdateElapsedRealtimeMillis) // must be 20 as defined above
         assertEquals(pausedStateMetrics.path, newState.metrics.path)
         assertEquals(pausedStateMetrics.elapsedMillis, newState.metrics.elapsedMillis)
         assertEquals(pausedState.metrics.distanceMeters, newState.metrics.distanceMeters)
@@ -88,7 +88,7 @@ class UpdateTrackingStateUseCaseTest {
         val currentState = TrackingState.Paused(pausedMetrics)
         val locationReceivedEvent = TrackingEvent.LocationReceived(
             coordinates = point2,
-            timestampMillis = 15,
+            elapsedRealtimeMillis = 15,
             speedMetersPerSecond = null
         )
 
@@ -103,11 +103,11 @@ class UpdateTrackingStateUseCaseTest {
         val currentState = TrackingState.Tracking(sampleMetrics())
         val newUpdateEvent = TrackingEvent.LocationReceived(
             coordinates = point2,
-            timestampMillis = 20,
+            elapsedRealtimeMillis = 20,
             speedMetersPerSecond = null
         )
         val distanceMeters = currentState.metrics.path.last().distanceTo(newUpdateEvent.coordinates)
-        val deltaTime = newUpdateEvent.timestampMillis - currentState.metrics.lastUpdateTimestampMillis
+        val deltaTime = newUpdateEvent.elapsedRealtimeMillis - currentState.metrics.lastUpdateElapsedRealtimeMillis
 
         val newState = useCase(currentState, newUpdateEvent)
         assertIs<TrackingState.Tracking>(newState)
@@ -117,13 +117,13 @@ class UpdateTrackingStateUseCaseTest {
         assertEquals(2, newState.metrics.path.size)
         val expectedPath = listOf(point1, point2)
         assertTrue(newState.metrics.path.size == expectedPath.size && newState.metrics.path.containsAll(expectedPath))
-        assertEquals(newUpdateEvent.timestampMillis, newState.metrics.lastUpdateTimestampMillis)
+        assertEquals(newUpdateEvent.elapsedRealtimeMillis, newState.metrics.lastUpdateElapsedRealtimeMillis)
     }
 
     @Test
     fun `stop from Tracking transitions to Finished`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
-        val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateTimestampMillis + 10)
+        val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateElapsedRealtimeMillis + 10)
 
         val newState = useCase(currentState, stopEvent)
 
@@ -134,7 +134,7 @@ class UpdateTrackingStateUseCaseTest {
     @Test
     fun `stop from Paused transitions to Finished`() {
         val currentState = TrackingState.Paused(sampleMetrics())
-        val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateTimestampMillis + 10)
+        val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateElapsedRealtimeMillis + 10)
 
         val newState = useCase(currentState, stopEvent)
 
@@ -157,7 +157,7 @@ class UpdateTrackingStateUseCaseTest {
         val idleState = TrackingState.Idle
         val locationReceivedEvent = TrackingEvent.LocationReceived(
             coordinates = point1,
-            timestampMillis = 10,
+            elapsedRealtimeMillis = 10,
             speedMetersPerSecond = null
         )
 
@@ -205,7 +205,7 @@ class UpdateTrackingStateUseCaseTest {
         val finishedState = TrackingState.Finished(sampleMetrics())
         val locationReceivedEvent = TrackingEvent.LocationReceived(
             coordinates = point2,
-            timestampMillis = 30,
+            elapsedRealtimeMillis = 30,
             speedMetersPerSecond = 2f
         )
 
@@ -214,38 +214,38 @@ class UpdateTrackingStateUseCaseTest {
 
     @Test
     fun `locationReceived earlier than the last update adds no time and re-bases the last update`() {
-        val currentState = TrackingState.Tracking(sampleMetrics(elapsedMillis = 5_000, lastUpdateTimestampMillis = 10_000))
+        val currentState = TrackingState.Tracking(sampleMetrics(elapsedMillis = 5_000, lastUpdateElapsedRealtimeMillis = 10_000))
         val earlierEvent = TrackingEvent.LocationReceived(
             coordinates = point2,
-            timestampMillis = 7_000,
+            elapsedRealtimeMillis = 7_000,
             speedMetersPerSecond = null
         )
 
         val rebased = useCase(currentState, earlierEvent)
         assertIs<TrackingState.Tracking>(rebased)
         assertEquals(5_000, rebased.metrics.elapsedMillis)
-        assertEquals(7_000, rebased.metrics.lastUpdateTimestampMillis)
+        assertEquals(7_000, rebased.metrics.lastUpdateElapsedRealtimeMillis)
 
         val nextEvent = TrackingEvent.LocationReceived(
             coordinates = point1,
-            timestampMillis = 9_000,
+            elapsedRealtimeMillis = 9_000,
             speedMetersPerSecond = null
         )
         val next = useCase(rebased, nextEvent)
         assertIs<TrackingState.Tracking>(next)
         // 5_000 + (9_000 - 7_000)
         assertEquals(7_000, next.metrics.elapsedMillis)
-        assertEquals(9_000, next.metrics.lastUpdateTimestampMillis)
+        assertEquals(9_000, next.metrics.lastUpdateElapsedRealtimeMillis)
     }
 
     private fun sampleMetrics(
         elapsedMillis: Long = 10,
-        lastUpdateTimestampMillis: Long = 10,
+        lastUpdateElapsedRealtimeMillis: Long = 10,
         distanceMeters: Double = 100.0,
         path: List<Coordinates> = listOf(point1)
     ) = TrackingMetrics(
         elapsedMillis = elapsedMillis,
-        lastUpdateTimestampMillis = lastUpdateTimestampMillis,
+        lastUpdateElapsedRealtimeMillis = lastUpdateElapsedRealtimeMillis,
         distanceMeters = distanceMeters,
         path = path
     )

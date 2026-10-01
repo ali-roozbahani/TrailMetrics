@@ -42,24 +42,24 @@ class TrackingSessionManager(
     fun start(startPoint: Coordinates) {
         consecutiveUnavailableCount = 0
         speedCalculator.reset()
-        dispatch(TrackingEvent.Start(startPoint, clock.nowMillis()))
+        dispatch(TrackingEvent.Start(startPoint, clock.elapsedRealtimeMillis()))
         observeLocation()
         trackingServiceLauncher.start()
     }
 
     fun pause() {
         locationObservationJob?.cancel()
-        dispatch(TrackingEvent.Pause(clock.nowMillis()))
+        dispatch(TrackingEvent.Pause(clock.elapsedRealtimeMillis()))
     }
 
     fun resume() {
-        dispatch(TrackingEvent.Resume(clock.nowMillis()))
+        dispatch(TrackingEvent.Resume(clock.elapsedRealtimeMillis()))
         observeLocation()
     }
 
     fun stop() {
         locationObservationJob?.cancel()
-        dispatch(TrackingEvent.Stop(clock.nowMillis()))
+        dispatch(TrackingEvent.Stop(clock.elapsedRealtimeMillis()))
         trackingServiceLauncher.stop()
     }
 
@@ -72,14 +72,14 @@ class TrackingSessionManager(
                         consecutiveUnavailableCount = 0
                         val speed = speedCalculator.calculate(
                             coordinates = update.coordinates,
-                            timestampMillis = clock.nowMillis(),
+                            elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
                             reportedSpeedMetersPerSecond = update.speedMetersPerSecond,
                             accuracyMeters = update.accuracyMeters
                         )
                         dispatch(
                             TrackingEvent.LocationReceived(
                                 coordinates = update.coordinates,
-                                timestampMillis = clock.nowMillis(),
+                                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
                                 speedMetersPerSecond = speed
                             )
                         )

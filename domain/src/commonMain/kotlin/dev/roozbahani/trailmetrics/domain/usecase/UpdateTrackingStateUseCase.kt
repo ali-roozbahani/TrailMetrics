@@ -28,7 +28,7 @@ class UpdateTrackingStateUseCase {
             is TrackingState.Idle, is TrackingState.Finished -> {
                 val metrics = TrackingMetrics(
                     elapsedMillis = 0,
-                    lastUpdateTimestampMillis = startEvent.timestampMillis,
+                    lastUpdateElapsedRealtimeMillis = startEvent.elapsedRealtimeMillis,
                     distanceMeters = 0.0,
                     path = listOf(startEvent.startPoint)
                 )
@@ -53,7 +53,7 @@ class UpdateTrackingStateUseCase {
         return when (currentState) {
             is TrackingState.Paused -> TrackingState.Tracking(
                 currentState.metrics.copy(
-                    lastUpdateTimestampMillis = resumeEvent.timestampMillis
+                    lastUpdateElapsedRealtimeMillis = resumeEvent.elapsedRealtimeMillis
                 )
             )
 
@@ -76,11 +76,14 @@ class UpdateTrackingStateUseCase {
         return when (currentState) {
             is TrackingState.Tracking -> {
                 val deltaDistance = currentState.metrics.path.last().distanceTo(newEvent.coordinates)
-                val deltaTime = newEvent.timestampMillis - currentState.metrics.lastUpdateTimestampMillis
+                // The contract is monotonic input (Clock.elapsedRealtimeMillis), so this is never
+                // negative in practice; the clamp keeps this pure function safe for any caller.
+                val deltaTime = (newEvent.elapsedRealtimeMillis - currentState.metrics.lastUpdateElapsedRealtimeMillis)
+                    .coerceAtLeast(0L)
 
                 val newMetrics = currentState.metrics.copy(
                     elapsedMillis = currentState.metrics.elapsedMillis + deltaTime,
-                    lastUpdateTimestampMillis = newEvent.timestampMillis,
+                    lastUpdateElapsedRealtimeMillis = newEvent.elapsedRealtimeMillis,
                     distanceMeters = currentState.metrics.distanceMeters + deltaDistance,
                     path = currentState.metrics.path + newEvent.coordinates,
                     currentSpeedMetersPerSecond = newEvent.speedMetersPerSecond

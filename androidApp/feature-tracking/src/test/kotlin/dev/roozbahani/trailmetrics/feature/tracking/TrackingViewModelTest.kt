@@ -44,7 +44,7 @@ class TrackingViewModelTest {
 
     private val locationRepository = FakeLocationRepository()
     private val trackingServiceLauncher = FakeTrackingServiceLauncher()
-    private val clock = FakeClock(nowMillis = STARTED_AT)
+    private val clock = FakeClock(nowMillis = STARTED_AT, elapsedRealtimeMillis = START_ELAPSED_REALTIME)
     private val userProfileRepository = FakeUserProfileRepository()
     private val activityHistoryRepository = FakeActivityHistoryRepository()
 
@@ -96,8 +96,8 @@ class TrackingViewModelTest {
         return events
     }
 
-    private fun receiveLocation(coordinates: Coordinates, atMillis: Long) {
-        clock.nowMillis = atMillis
+    private fun receiveLocation(coordinates: Coordinates, millisAfterStart: Long) {
+        clock.elapsedRealtimeMillis = START_ELAPSED_REALTIME + millisAfterStart
         locationRepository.emit(LocationUpdate.Success(coordinates, speedMetersPerSecond = null, accuracyMeters = null))
         testScheduler.runCurrent()
     }
@@ -155,7 +155,7 @@ class TrackingViewModelTest {
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
 
         val metrics = assertNotNull(viewModel.state.value.currentMetrics)
         assertEquals(listOf(START, NEXT), viewModel.state.value.currentPath)
@@ -234,7 +234,7 @@ class TrackingViewModelTest {
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
 
         assertNotNull(viewModel.state.value.currentMetrics?.averageSpeedMetersPerSecond)
         assertNull(viewModel.state.value.calories)
@@ -259,7 +259,7 @@ class TrackingViewModelTest {
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
 
         val metrics = assertNotNull(viewModel.state.value.currentMetrics)
         val expected = CalorieCalculator().calculate(
@@ -277,7 +277,7 @@ class TrackingViewModelTest {
         val viewModel = createViewModel()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
         val trackingCalories = assertNotNull(viewModel.state.value.calories)
 
         viewModel.onAction(TrackingAction.Pause)
@@ -299,7 +299,7 @@ class TrackingViewModelTest {
         val viewModel = createViewModel()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
         clock.nowMillis = ENDED_AT
         viewModel.onAction(TrackingAction.Stop)
         testScheduler.runCurrent()
@@ -410,7 +410,7 @@ class TrackingViewModelTest {
         testScheduler.runCurrent()
         assertEquals(0, assertNotNull(viewModel.state.value.routeProgress).lastIndex)
 
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
 
         val progress = assertNotNull(viewModel.state.value.routeProgress)
         assertEquals(1, progress.lastIndex)
@@ -424,9 +424,9 @@ class TrackingViewModelTest {
         val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        receiveLocation(NEXT, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
 
-        receiveLocation(END, atMillis = STARTED_AT + 120_000L)
+        receiveLocation(END, millisAfterStart = 120_000L)
 
         val state = viewModel.state.value
         assertIs<TrackingState.Finished>(state.trackingState)
@@ -440,7 +440,7 @@ class TrackingViewModelTest {
         val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        receiveLocation(END, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(END, millisAfterStart = 60_000L)
         assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
 
         viewModel.onAction(TrackingAction.Start(END))
@@ -456,7 +456,7 @@ class TrackingViewModelTest {
         val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        receiveLocation(END, atMillis = STARTED_AT + 60_000L)
+        receiveLocation(END, millisAfterStart = 60_000L)
 
         val savedSignals = finish(viewModel, SNAPSHOT_PATH)
 
@@ -469,6 +469,9 @@ class TrackingViewModelTest {
     private companion object {
         const val STARTED_AT = 1_000_000L
         const val ENDED_AT = 2_000_000L
+
+        /** The monotonic clock at Start; deliberately unrelated to the wall-clock [STARTED_AT]. */
+        const val START_ELAPSED_REALTIME = 5_000L
         const val SNAPSHOT_PATH = "/snapshots/activity.png"
 
         /** TrackingSessionManager reports a location issue after this many consecutive failures. */

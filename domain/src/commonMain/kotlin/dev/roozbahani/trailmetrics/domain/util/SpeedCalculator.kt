@@ -11,11 +11,11 @@ class SpeedCalculator(
 
     fun calculate(
         coordinates: Coordinates,
-        timestampMillis: Long,
+        elapsedRealtimeMillis: Long,
         reportedSpeedMetersPerSecond: Float?,
         accuracyMeters: Float?
     ): Float? {
-        recentSamples.addLast(LocationSample(coordinates, timestampMillis))
+        recentSamples.addLast(LocationSample(coordinates, elapsedRealtimeMillis))
         if (recentSamples.size > windowSize) recentSamples.removeFirst()
 
         val isReported: Boolean = reportedSpeedMetersPerSecond != null &&
@@ -39,9 +39,9 @@ class SpeedCalculator(
         val first = recentSamples.first()
         val last = recentSamples.last()
         val distanceMeters: Double = first.coordinates.distanceTo(last.coordinates)
-        val timeSeconds: Double = (last.timestampMillis - first.timestampMillis) / 1000.00
+        val timeSeconds: Double = (last.elapsedRealtimeMillis - first.elapsedRealtimeMillis) / 1000.00
         return if (timeSeconds > 0) (distanceMeters / timeSeconds).toFloat() else null
     }
 }
 
-data class LocationSample(val coordinates: Coordinates, val timestampMillis: Long)
+data class LocationSample(val coordinates: Coordinates, val elapsedRealtimeMillis: Long)

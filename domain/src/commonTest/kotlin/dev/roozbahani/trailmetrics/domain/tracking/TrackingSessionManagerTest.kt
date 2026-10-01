@@ -58,7 +58,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L)
+        clock.setElapsedRealtimeValues(0L, 100L)
 
         // Act
         manager.start(point1)
@@ -78,7 +78,7 @@ class TrackingSessionManagerTest {
     fun `calling start twice does not create duplicate location observation`() = runTest(testScheduler) {
         // Arrange
         locationRepository.setUpdatesFlow(flowOf())
-        clock.setValues(0L)
+        clock.setElapsedRealtimeValues(0L)
 
         // Act
         manager.start(point1)
@@ -97,7 +97,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L, 200L)
+        clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
         manager.start(point1)
@@ -128,7 +128,7 @@ class TrackingSessionManagerTest {
         // Arrange
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L, 100L, 200L)
+        clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
         manager.start(point1)
@@ -161,7 +161,7 @@ class TrackingSessionManagerTest {
     fun `stop finishes the session and stops the service once and cancels location observation`() = runTest(testScheduler) {
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
-        clock.setValues(0L)
+        clock.setElapsedRealtimeValues(0L)
 
         manager.start(point1)
         testScheduler.runCurrent()
@@ -255,7 +255,7 @@ class TrackingSessionManagerTest {
         // Start, fix 1 (x2), fix 2 (x2), fix 3 (x2), Stop.
         clock.setElapsedRealtimeValues(50_000L, 60_000L, 60_000L, 70_000L, 70_000L, 80_000L, 80_000L, 85_000L)
         // The wall clock is set back 5 minutes between fix 1 and fix 2.
-        clock.setValues(1_000_000L, 1_010_000L, 1_010_000L, 720_000L, 720_000L, 730_000L, 730_000L, 735_000L)
+        clock.setWallClockValues(1_000_000L, 1_010_000L, 1_010_000L, 720_000L, 720_000L, 730_000L, 730_000L, 735_000L)
 
         val finished = trackSession(updates, fixes = 3)
 
@@ -270,7 +270,7 @@ class TrackingSessionManagerTest {
         locationRepository.setUpdatesFlow(updates)
         clock.setElapsedRealtimeValues(50_000L, 60_000L, 60_000L, 70_000L, 70_000L, 80_000L, 80_000L, 85_000L)
         // The wall clock is set forward 1 hour between fix 1 and fix 2.
-        clock.setValues(
+        clock.setWallClockValues(
             1_000_000L, 1_010_000L, 1_010_000L, 4_620_000L, 4_620_000L, 4_630_000L, 4_630_000L, 4_635_000L
         )
 
@@ -288,7 +288,7 @@ class TrackingSessionManagerTest {
             // Start, fix 1 (x2), Pause, Resume 60 s later, fix 2 (x2), Stop.
             clock.setElapsedRealtimeValues(0L, 10_000L, 10_000L, 15_000L, 75_000L, 85_000L, 85_000L, 90_000L)
             // The wall clock is set back about 11 minutes between Resume and fix 2.
-            clock.setValues(
+            clock.setWallClockValues(
                 1_000_000L, 1_010_000L, 1_010_000L, 1_015_000L, 1_075_000L, 400_000L, 400_000L, 405_000L
             )
 

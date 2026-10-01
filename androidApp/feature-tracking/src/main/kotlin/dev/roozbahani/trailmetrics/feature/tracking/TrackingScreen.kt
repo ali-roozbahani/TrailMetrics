@@ -476,7 +476,7 @@ private fun TrackingScreenPreview() {
                 trackingState = TrackingState.Tracking(
                     TrackingMetrics(
                         elapsedMillis = 754_000L,
-                        lastUpdateTimestampMillis = 754_000L,
+                        lastUpdateElapsedRealtimeMillis = 754_000L,
                         distanceMeters = 2_140.0,
                         path = path,
                         currentSpeedMetersPerSecond = 2.8f

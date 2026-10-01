@@ -21,7 +21,9 @@ does not publish that target yet).
   `androidMain`/`iosMain` respectively; `shared` assembles all of them.
 - **Platform abstractions** (`common/`): `expect`/`actual` for
   `KeyValueStorage` (SharedPreferences vs NSUserDefaults), `PlatformHttpClient`
-  engine, logger creation, `DatabaseBuilder`.
+  engine, logger creation, `DatabaseBuilder`, and `SystemClock`'s monotonic
+  source (`android.os.SystemClock.elapsedRealtime()` vs
+  `clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)`, both counting deep sleep).
 - **Location & tracking** (`location/`, `tracking/`): Android's
   `AndroidLocationRepositoryImpl` (FusedLocationProviderClient, callback-
   based) vs iOS's `IosLocationRepositoryImpl` (CoreLocation, delegate-based

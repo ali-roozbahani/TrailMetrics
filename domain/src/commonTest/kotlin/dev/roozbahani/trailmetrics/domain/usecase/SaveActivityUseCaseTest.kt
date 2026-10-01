@@ -36,7 +36,7 @@ class SaveActivityUseCaseTest {
         // Arrange
         val metrics = TrackingMetrics(
             elapsedMillis = 600_000L,
-            lastUpdateTimestampMillis = 1_600L,
+            lastUpdateElapsedRealtimeMillis = 1_600L,
             distanceMeters = 2200.0,
             path = listOf(point1, point2),
             currentSpeedMetersPerSecond = 3f
@@ -46,7 +46,7 @@ class SaveActivityUseCaseTest {
         val startedAt = 1_000L
         val endedAt = 1_600L
 
-        clock.setValues(endedAt)
+        clock.setWallClockValues(endedAt)
         // A different monotonic reading, so the assertion below fails if endedAt came from it.
         clock.setElapsedRealtimeValues(99_999L)
         activityHistoryRepository.nextSavedId = 42L
@@ -92,12 +92,12 @@ class SaveActivityUseCaseTest {
         // Arrange: zero elapsed time makes averageSpeedMetersPerSecond null
         val metrics = TrackingMetrics(
             elapsedMillis = 0L,
-            lastUpdateTimestampMillis = 1_000L,
+            lastUpdateElapsedRealtimeMillis = 1_000L,
             distanceMeters = 0.0,
             path = listOf(point1)
         )
 
-        clock.setValues(1_000L)
+        clock.setWallClockValues(1_000L)
         activityHistoryRepository.nextSavedId = 1L
 
         // Act

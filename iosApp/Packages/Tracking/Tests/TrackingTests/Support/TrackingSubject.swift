@@ -41,8 +41,9 @@ struct TrackingSubject {
             trackingServiceLauncher: serviceLauncher,
             // Swift can't see Kotlin default arguments; these repeat SpeedCalculator's defaults.
             speedCalculator: SpeedCalculator(windowSize: 5, acceptableAccuracyMeters: 20),
-            // Its own clock, 10 s per reading, so fixes produce elapsed time and average speed.
-            clock: FakeClock(nowMillis: 0, stepMillis: 10_000),
+            // Its own clock, 10 s of elapsedRealtime per reading, so fixes produce elapsed time and
+            // average speed.
+            clock: FakeClock(nowMillis: 0, elapsedRealtimeMillis: 0, stepMillis: 10_000),
             logger: FakeLogger(),
             scope: scope
         )
