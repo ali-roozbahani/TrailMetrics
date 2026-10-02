@@ -14,7 +14,7 @@ class SaveActivityUseCase(
     private val calorieCalculator: CalorieCalculator,
     private val clock: Clock
 ) {
-    @Throws(Throwable::class, CancellationException::class)
+    @Throws(Exception::class, CancellationException::class)
     suspend operator fun invoke(
         activityType: ActivityType,
         plannedRoutePoints: List<Coordinates>,
