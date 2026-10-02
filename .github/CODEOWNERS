@@ -25,6 +25,8 @@
 build.gradle.kts                            @ali-roozbahani
 /gradle.properties                          @ali-roozbahani
 /gradle/                                    @ali-roozbahani
+/gradlew                                    @ali-roozbahani
+/gradlew.bat                                @ali-roozbahani
 Package.swift                               @ali-roozbahani
 Package.resolved                            @ali-roozbahani
 /iosApp/TrailMetrics.xcodeproj/             @ali-roozbahani
