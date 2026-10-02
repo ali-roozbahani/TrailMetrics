@@ -54,6 +54,22 @@ class ObserveActivitiesUseCaseTest {
     }
 
     @Test
+    fun `invoke turns an exception thrown when calling the repository into one Failed and then completes`() = runTest {
+        activityHistoryRepository.observeActivitiesCallFailure = IllegalStateException("thrown at call time")
+
+        val updates = useCase().toList()
+
+        assertEquals(listOf<ActivitiesUpdate>(ActivitiesUpdate.Failed), updates)
+    }
+
+    @Test
+    fun `invoke does not catch an Error thrown when calling the repository`() = runTest {
+        activityHistoryRepository.observeActivitiesCallFailure = AssertionError("not an Exception")
+
+        assertFailsWith<AssertionError> { useCase().toList() }
+    }
+
+    @Test
     fun `invoke passes upstream cancellation through`() = runTest {
         activityHistoryRepository.activitiesFlow = flow { throw CancellationException("cancelled upstream") }
 

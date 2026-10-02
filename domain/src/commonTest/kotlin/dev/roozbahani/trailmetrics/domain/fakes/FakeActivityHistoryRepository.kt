@@ -12,13 +12,18 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
     /** What `observeActivities()` returns; by default one emission of the saved activities. */
     var activitiesFlow: Flow<List<ActivityRecord>>? = null
 
+    /** When set, `observeActivities()` throws this when called, before returning any Flow. */
+    var observeActivitiesCallFailure: Throwable? = null
+
     override suspend fun saveActivity(activity: ActivityRecord): Long {
         savedActivities += activity
         return nextSavedId
     }
 
-    override fun observeActivities(): Flow<List<ActivityRecord>> =
-        activitiesFlow ?: flowOf(savedActivities.toList())
+    override fun observeActivities(): Flow<List<ActivityRecord>> {
+        observeActivitiesCallFailure?.let { throw it }
+        return activitiesFlow ?: flowOf(savedActivities.toList())
+    }
 
     override suspend fun getActivity(id: Long): ActivityRecord? = null
 
