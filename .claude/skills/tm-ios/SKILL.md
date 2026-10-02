@@ -35,18 +35,42 @@ exists", the rules here win for "what new code should look like".
 public class HistoryViewModel: ObservableObject {
     @Published public var activities: [ActivityRecord] = []
     @Published public var isLoading = true
+    @Published public private(set) var errorMessage: String?
 
     private let activityHistoryRepository: ActivityHistoryRepository
+    private let observeActivitiesUseCase: ObserveActivitiesUseCase
 
-    public init(activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository()) {
+    public init(
+        activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository(),
+        observeActivitiesUseCase: ObserveActivitiesUseCase = KoinHelper().observeActivitiesUseCase()
+    ) {
         self.activityHistoryRepository = activityHistoryRepository
+        self.observeActivitiesUseCase = observeActivitiesUseCase
     }
 
     public func observe() async {
-        for await activities in activityHistoryRepository.observeActivities() { ... }
+        for await update in observeActivitiesUseCase.invoke() {
+            await MainActor.run {
+                switch onEnum(of: update) {
+                case .loaded(let loaded):
+                    activities = loaded.activities
+                case .failed:
+                    errorMessage = HistoryErrorMessage.general
+                }
+                isLoading = false
+            }
+        }
+    }
+
+    public func onErrorDismissed() {
+        errorMessage = nil
     }
 }
 ```
+
+Never iterate a repository `Flow` directly from Swift: SKIE terminates the app when the Flow
+fails, so observe through a use case that turns the failure into a value on the Kotlin side
+(here `ObserveActivitiesUseCase`, which emits `Failed`).
 
 - `@MainActor class <Feature>ViewModel: ObservableObject` with `@Published` state. This is
   the Swift equivalent of Android's `StateFlow<UiState>`, written natively in Swift and not
