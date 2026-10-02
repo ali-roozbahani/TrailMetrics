@@ -32,6 +32,9 @@ public class TrackingViewModel: ObservableObject {
 
     private var loadedUserProfile: UserProfile?
     private var startedAtEpochMillis: Int64 = 0
+    /// Set before a save starts, so a repeated Finish neither saves twice nor calls `onSaved`
+    /// twice; cleared when the save fails (retry) and when a new session starts.
+    private var isSessionSaved = false
 
     // Kotlin's `trackingScope` runs on `Dispatchers.Default`, and the KMP bridge's
     // continuation-resume does not guarantee a MainActor hop back into this
@@ -188,6 +191,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onStartClicked() {
+        isSessionSaved = false
         startedAtEpochMillis = clock.nowMillis()
         trackingSessionManager.start(startPoint: startPoint)
         liveActivityController?.start(activityType: activityTypeDisplayName)
@@ -241,9 +245,11 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onFinishClicked(snapshotFilePath: String?, onSaved: @escaping () -> Void) {
+        guard !isSessionSaved else { return }
         guard case .finished(let data) = onEnum(of: trackingState) else { return }
         guard let userProfile = loadedUserProfile else { return }
 
+        isSessionSaved = true
         Task {
             do {
                 _ = try await saveActivityUseCase.invoke(
@@ -256,6 +262,7 @@ public class TrackingViewModel: ObservableObject {
                 )
                 onSaved()
             } catch {
+                isSessionSaved = false
                 emit(.showError(RouteUiErrorGeneral.shared))
             }
         }

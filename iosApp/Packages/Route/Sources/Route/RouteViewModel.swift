@@ -30,6 +30,9 @@ public class RouteViewModel: ObservableObject {
     // Exposing a factory instead lets each fresh `.task` get its own fresh stream.
     private var eventsContinuation: AsyncStream<RouteUiEvent>.Continuation?
 
+    /// The running route generation; cancelled by `cancelGeneration()` when its input becomes stale.
+    private var generationTask: Task<Void, Never>?
+
     private let getCurrentLocationUseCase: GetCurrentLocationUseCase
     private let generateClosedRouteUseCase: GenerateClosedRouteUseCase
     private let userProfileRepository: UserProfileRepository
@@ -72,12 +75,15 @@ public class RouteViewModel: ObservableObject {
     }
 
     public func onMapTapped(_ coordinates: Coordinates) {
+        cancelGeneration()
         let waypoint = RoutePoint(coordinates: coordinates, order: Int32(waypoints.count))
         waypoints.append(waypoint)
+        generatedRoute = nil
     }
 
     public func onGenerateRouteClicked() {
-        guard let startPoint else { return }
+        // A tap while a generation runs would only repeat the (paid) directions call.
+        guard generationTask == nil, let startPoint else { return }
 
         isLoading = true
 
@@ -86,29 +92,51 @@ public class RouteViewModel: ObservableObject {
             waypoints: waypoints
         )
 
-        Task {
+        generationTask = Task {
+            let route: Route
             do {
-                generatedRoute = try await generateClosedRouteUseCase.invoke(draft: draft)
-                isLoading = false
+                route = try await generateClosedRouteUseCase.invoke(draft: draft)
             } catch {
+                // Cancelled by cancelGeneration(): the input is stale, and a newer generation
+                // may already own `generationTask` and `isLoading`, so write nothing.
+                guard !Task.isCancelled else { return }
+                generationTask = nil
                 isLoading = false
-                emitError(error)
+                if !(error is CancellationError) {
+                    emitError(error)
+                }
+                return
             }
+            // Cancelling this Task does not interrupt the Kotlin call (checked with a held
+            // directions fake: the cancelled Task still receives the route once the call
+            // returns), so a stale result is discarded here.
+            guard !Task.isCancelled else { return }
+            generationTask = nil
+            generatedRoute = route
+            isLoading = false
         }
     }
 
+    /// A cancelled generation writes nothing, so loading is turned off here.
+    private func cancelGeneration() {
+        generationTask?.cancel()
+        generationTask = nil
+        isLoading = false
+    }
+
     public func onResetClicked() {
+        cancelGeneration()
         startPoint = nil
         waypoints = []
         generatedRoute = nil
         userProfile = nil
         selectedActivityType = .running
-        isLoading = false
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
     public func onWaypointRemoved(_ removeCandidate: RoutePoint) {
+        cancelGeneration()
         let updatedWaypoints = waypoints
             .filter { $0 != removeCandidate }
             .enumerated()
