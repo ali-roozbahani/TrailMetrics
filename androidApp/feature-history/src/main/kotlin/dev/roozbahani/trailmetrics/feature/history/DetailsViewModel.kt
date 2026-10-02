@@ -25,6 +25,12 @@ class DetailsViewModel(
     private val _events = Channel<DetailsEvent>(Channel.BUFFERED)
     val events: Flow<DetailsEvent> = _events.receiveAsFlow()
 
+    /**
+     * Set synchronously before the delete is launched, so a second confirmation (a double tap)
+     * can't delete again or send a second Deleted. Cleared if the delete throws.
+     */
+    private var isDeleteStarted = false
+
     init {
         viewModelScope.launch {
             val activity = activityHistoryRepository.getActivity(activityId)
@@ -39,8 +45,15 @@ class DetailsViewModel(
     }
 
     private fun deleteActivity() {
+        if (isDeleteStarted) return
+        isDeleteStarted = true
         viewModelScope.launch {
-            activityHistoryRepository.deleteActivity(activityId)
+            runCatching {
+                activityHistoryRepository.deleteActivity(activityId)
+            }.onFailure {
+                // Let the user retry; the failure itself still propagates.
+                isDeleteStarted = false
+            }.getOrThrow()
             deleteSnapshotFile(_state.value.activity?.snapshotFilePath)
             _events.send(DetailsEvent.Deleted)
         }
