@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### test-feature-route
-- Type: task
-- Area: androidApp/feature-route
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: Coverage is low. The module has `RouteViewModelTest`, but its Kover floor is only `minBound(22)`.
-- Done when: real tests for its ViewModel/UI logic land, and the module's Kover floor is raised in the same PR. One PR for this module only.
-- Refs: `androidApp/feature-route` `RouteViewModel`, `RouteScreen`; `androidApp/feature-route/build.gradle.kts` `minBound`; `tm-testing`.
-
 ### throws-policy-and-swallowed-errors
 - Type: task
 - Area: iosApp, domain
