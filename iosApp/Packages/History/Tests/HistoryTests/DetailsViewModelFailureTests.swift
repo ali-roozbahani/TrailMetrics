@@ -22,6 +22,9 @@ final class DetailsViewModelFailureTests: XCTestCase {
 
         XCTAssertNil(viewModel.activity)
         XCTAssertEqual(viewModel.errorMessage, generalErrorMessage)
+
+        viewModel.onErrorDismissed()
+        XCTAssertNil(viewModel.errorMessage)
     }
 
     func test_onDeleteConfirmed_twiceBackToBack_deletesOnceAndCallsOnDeletedOnce() async {
