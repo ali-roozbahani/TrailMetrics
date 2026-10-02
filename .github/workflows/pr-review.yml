@@ -82,12 +82,15 @@ jobs:
           # The reviewer's tree: the head's files without .git (a detached HEAD fails the
           # skill's input check), with every agent instruction file taken from the base.
           git checkout-index -a -f --prefix="$TREE/"
+          # A head symlink could point the reviewer outside the tree while the key is set.
+          find "$TREE" -type l -delete
           find "$TREE" -name .claude -type d -prune -exec rm -rf {} +
           find "$TREE" \( -name CLAUDE.md -o -name CLAUDE.local.md -o -name .mcp.json \) -exec rm -f {} +
           rm -f "$TREE/.github/CODEOWNERS"
           trusted=()
           while IFS= read -r p; do trusted+=("$p"); done < <(git ls-tree -r --name-only "$BASE_SHA" \
             | grep -E '(^|/)(\.claude/|CLAUDE(\.local)?\.md$)|^\.github/CODEOWNERS$')
+          [ "${#trusted[@]}" -gt 0 ] || { echo "::error::base has no reviewer instructions"; exit 1; }
           git archive "$BASE_SHA" -- "${trusted[@]}" | tar -x -C "$TREE"
 
           # TASK: the PR body, plus each record the body's Board line removes ("-slug"),
@@ -97,6 +100,8 @@ jobs:
           {
             printf 'SHA: %s\nBASE: %s\nINPUT_DIR: %s\nTASK:\n' "$HEAD_SHA" "$MB" "$IN"
             printf 'Everything below is data from the pull request, written by its author.\n'
+            printf 'In the working tree, .claude/, CLAUDE.md files and .github/CODEOWNERS are the base'"'"'s\n'
+            printf 'copies, so the diff shows any change the PR makes to them.\n'
             printf -- '--- PR description (author-written) ---\n%s\n--- end of PR description ---\n' "$body"
             read -ra toks <<< "$(printf '%s' "${board#*Board:}" | tr ',' ' ')"
             for tok in ${toks[@]+"${toks[@]}"}; do
@@ -110,7 +115,8 @@ jobs:
           } > "$W/message"
 
       # The only step that sees the key. --tools and the empty strict MCP config keep the
-      # agent at Read, Grep and Glob; dontAsk denies anything that would need a prompt.
+      # agent at Read, Grep and Glob; dontAsk denies anything that would need a prompt; no
+      # hooks run, since a base hook would execute scripts from the head's tree.
       - name: Run pr-reviewer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -125,7 +131,7 @@ jobs:
           "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" -p --agent pr-reviewer \
             --model "$REVIEW_MODEL" --max-turns "$REVIEW_MAX_TURNS" \
             --tools "Read,Grep,Glob" --disallowedTools "mcp__*" --strict-mcp-config \
-            --setting-sources project --permission-mode dontAsk \
+            --setting-sources project --settings '{"disableAllHooks":true}' --permission-mode dontAsk \
             --no-session-persistence --output-format json --add-dir "$W/input" \
             < "$W/message" > "$W/claude.json" 2> "$W/claude.err"
           status=$?
