@@ -42,8 +42,9 @@ does not publish that target yet).
 
 ## Dependencies
 
-`data` depends on `domain` (as `api`, so `shared` can re-export it
-transitively to Swift).
+`data` depends on `domain` as `implementation`; `shared` gets `domain`
+types from its own `api(project(":domain"))` and `export(project(":domain"))`,
+not through `data`.
 
 ## Extending this module
 

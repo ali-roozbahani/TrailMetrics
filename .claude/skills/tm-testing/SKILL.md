@@ -39,10 +39,8 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
   DTO (see `DirectionsRepositoryImplTest`). Don't fake `HttpClient` or the repository.
 
 No JUnit5 anywhere in this project (evaluated and rejected — see
-`docs/architecture` for the reasoning if resurrected later). No AssertK. No Truth —
-being actively removed from `data`, its only prior user; if a task touches a file
-still importing `com.google.truth.Truth`, migrate that file's assertions to
-`kotlin.test` as part of the change rather than leaving it mixed.
+`docs/architecture` for the reasoning if resurrected later). No AssertK. No Truth (removed
+from `data`, its only prior user; no `com.google.truth` import remains).
 
 ## Coroutines / Flow
 
@@ -159,6 +157,14 @@ fun `Finish action emits Saved event on success`() = runTest(testScheduler) {
 `Dispatchers.setMain(...)`/`resetMain()` setup from "Coroutines / Flow", using a
 dispatcher on the same `testScheduler`.
 
+## Bugfixes: red test first
+
+A bugfix starts with a test that reproduces the defect. Run it on the unfixed code and see it
+fail for the right reason (the defect, not a compile error or a setup problem), and commit it
+before or together with the fix. Put the red evidence in the PR: the test name and its failure
+message. A pinned "currently ..." test of a known defect is rewritten to assert the correct
+behavior when the defect is fixed, not deleted.
+
 ## Compose UI tests
 
 `ComposeTestRule`, JUnit4 (`@get:Rule`). Use the Robot pattern once a screen has 3+ UI
@@ -203,6 +209,8 @@ coverage without a more specific target, prioritize in this order:
 
 ## Detekt / CI note
 
-`./gradlew test` must show the same test count before and after any test-framework or
-dependency change (e.g. removing Truth) — a silent drop to zero discovered tests is the
-failure mode to watch for, not just a red/green result.
+`./gradlew test` runs zero KMP tests; the gate runs `allTests test`. After any test-framework
+or dependency change, compare test counts before and after with the method in `tm-pr-workflow`
+("PR description", Tier 1 item): per module and per target, from the JUnit XML. A silent drop
+to zero discovered tests in one task is the failure mode to watch for, not just a red/green
+result.

@@ -91,13 +91,26 @@ project — read this before touching any module.
 
 ## iOS build integration
 
-- `iosApp/TrailMetrics.xcodeproj` has a Run Script build phase
-  ("Build KMP Shared Framework") that hashes all `.kt`/`.kts` files under
-  `domain/src`, `data/src`, `shared/src` and only re-runs
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when that
-  hash changes — see the script and required Xcode settings
-  (`ENABLE_USER_SCRIPT_SANDBOXING = NO`) documented inline in the project's
-  build phase and in `LEARNINGS.md`.
+- `scripts/build-kmp-framework.sh` decides whether the shared XCFramework
+  needs Gradle. It hashes the content of the Kotlin sources of `domain`,
+  `data`, `core` and `shared` plus the Gradle build files, and runs
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` only when
+  that hash changed or the XCFramework is missing. It writes its stamp only
+  after Gradle succeeds.
+- The shared `TrailMetrics` scheme runs the script as a Build pre-action.
+  Xcode copies the XCFramework and compiles the Swift packages before any
+  Run Script phase runs, so a phase alone cannot fix a stale framework in
+  the same build.
+- The target's "Build KMP Shared Framework" Run Script phase stays as a
+  safety net (`alwaysOutOfDate`): if it had to rebuild, the pre-action
+  didn't run, and it fails the build with a "build again" error. The
+  TrailMetrics target sets `ENABLE_USER_SCRIPT_SANDBOXING = NO`, which this
+  phase needs to run Gradle.
+- `scripts/pre-push-check.sh` runs the same script before its iOS build.
+- A per-user scheme in `xcuserdata` with the same name overrides the
+  shared scheme and has no pre-action; delete it if present.
+- Details: `tm-ios` ("Build integration") and `LEARNINGS.md` ("Xcode
+  skipped the KMP build phase and linked a stale XCFramework").
 
 ## Coding standards and enforcement
 

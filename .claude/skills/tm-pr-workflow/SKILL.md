@@ -88,6 +88,12 @@ How it is enforced, and what that means for the order of operations:
   text through a file: `git commit -F <file>`, `gh pr create --body-file <file>`.
 - `./gradlew test` on its own runs zero tests. KMP tests only run under `allTests`. Use
   the gate script, not a hand-picked Gradle command, and read test counts from `allTests`.
+- **Coverage ratchet.** A PR that adds tests to a module with a Kover floor raises that floor
+  (`minBound` in its `build.gradle.kts`) in the same PR, to the module's measured line coverage
+  (`./gradlew :<module>:koverLog`) minus 1 to 2 points, rounded down. Verify it once: set it 1
+  point above the measured value, see `koverVerify` fail for that module, restore. Never lower
+  a floor to make a PR pass. If coverage barely moves because the remaining code needs
+  infrastructure that isn't available, say so in the PR instead of padding tests.
 - A task is not done until Tier 1 has been run **and** its result reported in the PR.
 
 ## Retry budget (2 fix attempts)
@@ -151,7 +157,15 @@ Required. Use these headings, and keep all four even when one is
 2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-testing`, `tm-pr-workflow`.
 3. **Tier 1**: the gate result on the pushed HEAD, which steps ran, and why the iOS steps
    were skipped if they were. For test changes, include test counts before and after
-   (from `allTests` JUnit XML, not `./gradlew test`).
+   (from `allTests` JUnit XML, not `./gradlew test`), counted this way:
+   - One count per module and test task: each KMP module per target (`domain`, `data`:
+     `testAndroidHostTest` and `iosSimulatorArm64Test`; `shared`: `iosSimulatorArm64Test`),
+     each Android module's `testDebugUnitTest`.
+   - A count is the `tests` attribute summed over the XML files in
+     `<module>/build/test-results/<task>/` after the gate's `allTests test` run.
+   - Report before and after for each module the PR touches. No repo-wide total.
+   - All counts at once:
+     `for d in */build/test-results/*/ androidApp/*/build/test-results/*/; do echo "$d $(cat "$d"*.xml | grep -o '<testsuite [^>]* tests="[0-9]*"' | sed 's/.* tests="//; s/"//' | awk '{s+=$1} END {print s+0}')"; done`
 4. **Tier 2**: exactly what the human should run and look at on a device, or an explicit
    "nothing to check on a device" and why.
 

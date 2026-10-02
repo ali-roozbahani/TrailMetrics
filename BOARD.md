@@ -43,15 +43,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: the policy is written in `tm-kmp-shared`, the four warnings are gone, and errors reach the user or the logs on purpose.
 - Refs: `domain` `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase`, `SaveActivityUseCase`; `iosApp/Packages/Route` `RouteViewModel`; `iosApp/Packages/Tracking` `TrackingViewModel.loadUserProfile`.
 
-### skill-rules-red-test-and-ratchet
-- Type: task
-- Area: docs
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: Two working rules are not in the skills. (1) A bugfix starts with a failing (red) test in its own commit. `tm-testing` only has test-first for MVI migrations. (2) The coverage ratchet: raise the Kover floor in the same PR as the tests, set it to measured minus 1-2 points, and verify it by setting it 1 point above measured once to see `koverVerify` fail. `tm-pr-workflow` only says floors sit "a little below" measured coverage.
-- Done when: both rules are in `tm-pr-workflow` and/or `tm-testing`.
-- Refs: `tm-testing` ("Testing MVI ViewModels", "What to test, and coverage priorities"); `tm-pr-workflow` ("Tier 1").
-
 ### ios-double-tap-and-stale-route-results
 - Type: task
 - Area: iosApp/Tracking, iosApp/History, iosApp/Route
@@ -119,9 +110,9 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Type: task
 - Area: scripts
 - Priority: later
-- Source: PR #67 drift
-- Problem: `scripts/pre-push-check.sh` runs its iOS steps only when the branch diff matches `^(iosApp/|domain/|data/|core/|shared/)`. Root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also change the framework, but they skip the iOS steps.
-- Done when: those paths also trigger the iOS steps.
+- Source: PR #67 drift + PR #75 review
+- Problem: `scripts/pre-push-check.sh` runs its iOS steps only when the branch diff matches `^(iosApp/|domain/|data/|core/|shared/)`. Root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also change the framework, but they skip the iOS steps. The pattern is also too broad in the other direction: every file under `iosApp/`, `domain/`, `data/`, `core/` and `shared/` sets `TOUCHES_IOS_OR_SHARED`, including documentation such as `data/README.md`, so a documentation-only change runs the full iOS build and SwiftLint (observed in #75).
+- Done when: documentation files (`*.md`) under those folders don't trigger the iOS steps; a change to a Kotlin or Swift source or build file under those folders still does; and the root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also trigger them.
 - Refs: `scripts/pre-push-check.sh` (`TOUCHES_IOS_OR_SHARED`).
 
 ### kover-verify-remaining-modules
@@ -165,8 +156,8 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-tracking
 - Priority: later
 - Source: test-feature-tracking PR
-- Problem: After the JVM tests, `feature-tracking` is at 30.02% line coverage (130/433). `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the double-Finish fix (tracking-finish-saves-twice) can only dispatch two `Finish` actions back to back; the real UI path is asynchronous and untested.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `TrackingScreen` and `saveSnapshotToFile` have tests, a double tap on the Finish button, including the asynchronous `map.snapshot` callback path in `TrackingScreen`, results in exactly one saved activity and one `Saved`, and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-tracking`'s `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest), but this module's test source sets don't depend on them yet. The JVM tests of the double-Finish fix (tracking-finish-saves-twice) can only dispatch two `Finish` actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `TrackingScreen` and `saveSnapshotToFile` have tests, a double tap on the Finish button, including the asynchronous `map.snapshot` callback path in `TrackingScreen`, results in exactly one saved activity and one `Saved`, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ### test-feature-history-compose-ui
@@ -174,8 +165,8 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-history
 - Priority: later
 - Source: test-feature-history PR
-- Problem: After the JVM tests, `feature-history` is at 12.99% line coverage (56/431). `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the double-delete fix (details-delete-confirmed-twice) can only dispatch two `DeleteConfirmed` actions back to back; the real UI path is asynchronous and untested.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `HistoryScreen` and `DetailsScreen` have tests, a double tap on the delete dialog's confirm button in `DetailsScreen` results in exactly one delete and one `Deleted` (History is still on screen afterwards), and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-history`'s `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest), but this module's test source sets don't depend on them yet. The JVM tests of the double-delete fix (details-delete-confirmed-twice) can only dispatch two `DeleteConfirmed` actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `HistoryScreen` and `DetailsScreen` have tests, a double tap on the delete dialog's confirm button in `DetailsScreen` results in exactly one delete and one `Deleted` (History is still on screen afterwards), and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-history` `HistoryScreen`, `DetailsScreen`; `androidApp/feature-history/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ### test-feature-route-compose-ui
@@ -183,65 +174,11 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-route
 - Priority: later
 - Source: test-feature-route PR
-- Problem: After the JVM tests, `feature-route` is at 25.87% line coverage (97/375). `RouteViewModel` (with `RouteState`, `RouteAction`, `RouteEvent`) and `di/RouteModule` are fully covered; everything left is Compose code with 0% covered: `RouteScreen.kt` (278 lines: `RouteRoot`'s event handling and permission flow, both `RouteScreen` overloads, `UserProfileBottomSheet`'s weight input and its parse-and-positive check, `StartTrackingPanel`, `ActivityTypeSelector`, the private `labelFor`/`iconFor` helpers, the previews). The screen holds no JVM-reachable pure logic: `labelFor` and the weight check are inside `@Composable` functions and `iconFor` is private. It needs Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the stale-generation and map-tap fixes (route-generation-stale-in-flight-result, route-map-tap-keeps-generated-route) only dispatch actions back to back; the real UI path is asynchronous and untested.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `RouteScreen` has tests, Generate followed by Reset or a waypoint change leaves no stale route on screen, a long-press on the map after a route is shown hides the old route and the Start Tracking panel until a new route is generated, and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-route`'s `RouteViewModel` (with `RouteState`, `RouteAction`, `RouteEvent`) and `di/RouteModule` are fully covered; everything left is Compose code with 0% covered: `RouteScreen.kt` (278 lines: `RouteRoot`'s event handling and permission flow, both `RouteScreen` overloads, `UserProfileBottomSheet`'s weight input and its parse-and-positive check, `StartTrackingPanel`, `ActivityTypeSelector`, the private `labelFor`/`iconFor` helpers, the previews). The screen holds no JVM-reachable pure logic: `labelFor` and the weight check are inside `@Composable` functions and `iconFor` is private. It needs Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest), but this module's test source sets don't depend on them yet. The JVM tests of the stale-generation and map-tap fixes (route-generation-stale-in-flight-result, route-map-tap-keeps-generated-route) only dispatch actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `RouteScreen` has tests, Generate followed by Reset or a waypoint change leaves no stale route on screen, a long-press on the map after a route is shown hides the old route and the Start Tracking panel until a new route is generated, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-route` `RouteScreen`, `RouteRoot`, `UserProfileBottomSheet`, `ActivityTypeSelector`; `androidApp/feature-route/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ## Drift
-
-### drift-mvi-epic-approval-placeholder
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: `docs/epics/mvi-presentation-migration.md` still has the template placeholder "Approved by: <human> on <YYYY-MM-DD>".
-- Done when: it holds the real approver and date (the human must supply them), or the line is removed.
-- Refs: `docs/epics/mvi-presentation-migration.md` header.
-
-### drift-claude-md-testing-stack
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: CLAUDE.md "Testing stack (fixed, do not introduce alternatives)" lists MockK, which is not in `gradle/libs.versions.toml`. It still carries the Truth-migration text, though no `com.google.truth` import remains, and it doesn't mention Ktor `MockEngine` (`ktor-client-mock`), which the HTTP tests use.
-- Done when: the section matches reality. The task must authorize editing CLAUDE.md.
-- Refs: `CLAUDE.md` "Testing stack"; `gradle/libs.versions.toml`; `tm-testing` description.
-
-### drift-readme-stack-row
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: The Testing row of README.md's stack table lists "JUnit4 + Google Truth + MockK + Robolectric" for Android. Neither Truth nor MockK is in the catalog.
-- Done when: the row matches the real catalog.
-- Refs: `README.md` stack table (Testing row); `gradle/libs.versions.toml`.
-
-### drift-data-readme-api-vs-implementation
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: `data/README.md` says `data` depends on `domain` "as `api`, so `shared` can re-export it", but `data/build.gradle.kts` declares `implementation(project(":domain"))`.
-- Done when: the README matches the build file.
-- Refs: `data/README.md` (dependencies paragraph); `data/build.gradle.kts` dependencies.
-
-### drift-tm-testing-gradle-test-counts
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: `tm-testing`'s "Detekt / CI note" says `./gradlew test` must show the same test count before and after a test-framework or dependency change. That task runs zero KMP tests; the gate uses `allTests test`.
-- Done when: the note uses the real counting method.
-- Refs: `.claude/skills/tm-testing/SKILL.md` "Detekt / CI note"; `scripts/pre-push-check.sh`.
-
-### drift-overview-ios-build-integration
-- Type: drift
-- Area: docs/architecture
-- Priority: soon
-- Source: PR #67 drift
-- Problem: `docs/architecture/OVERVIEW.md` "iOS build integration" still describes a Run Script phase that hashes `.kt`/`.kts` files and re-runs Gradle when the hash changes. It doesn't describe the current flow: a shared-scheme Build pre-action running `scripts/build-kmp-framework.sh`, with the phase kept as a safety net.
-- Done when: the section is updated. The task must explicitly authorize editing `docs/architecture`.
-- Refs: `docs/architecture/OVERVIEW.md` "iOS build integration"; `scripts/build-kmp-framework.sh`; `tm-ios` "Build integration".
 
 ### drift-suppress-comments
 - Type: drift
@@ -251,12 +188,3 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
-
-### drift-test-count-method
-- Type: drift
-- Area: docs
-- Priority: later
-- Source: PR #66/#68 reviews
-- Problem: Kotlin test totals in successive PRs don't line up because each PR counted a different scope: #65 reported 236 after, #66 231 before / 243 after, #68 257 before. `tm-pr-workflow` says to read counts from `allTests` JUnit XML but defines no scope.
-- Done when: `tm-pr-workflow` defines one counting method (per module, per target), and PR reports use it.
-- Refs: `tm-pr-workflow` "PR description" (Tier 1 item); PRs #65, #66, #68.
