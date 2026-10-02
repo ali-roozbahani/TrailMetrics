@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### throws-policy-and-swallowed-errors
-- Type: task
-- Area: iosApp, domain
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: No Kotlin→Swift `@Throws` policy is written down, and usage is inconsistent: `GenerateClosedRouteUseCase` and `GetCurrentLocationUseCase` declare only `RouteError` and `CancellationException`, so any other exception crashes iOS, while `SaveActivityUseCase` declares `Throwable`. Four unstructured throwing `Task { }` blocks silently drop errors: three in iOS `RouteViewModel` (`saveUserProfile`, `onStartTrackingClicked`, `getAndUpdateUserProfile`) and one in `TrackingViewModel` (`loadUserProfile`). Xcode reports these as "Unstructured throwing task is not used" (the call sites were checked in code; the warning was not reproduced in this PR).
-- Done when: the policy is written in `tm-kmp-shared`, the four warnings are gone, and errors reach the user or the logs on purpose.
-- Refs: `domain` `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase`, `SaveActivityUseCase`; `iosApp/Packages/Route` `RouteViewModel`; `iosApp/Packages/Tracking` `TrackingViewModel.loadUserProfile`.
-
 ### ios-double-tap-and-stale-route-results
 - Type: task
 - Area: iosApp/Tracking, iosApp/History, iosApp/Route, data
