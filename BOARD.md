@@ -43,6 +43,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: on iOS a repeated Finish saves once, a repeated delete confirmation deletes once and calls `onDeleted` once, reset and any waypoint change cancel an in-flight generation, a click while one runs is ignored, and adding a waypoint clears the generated route, each with a test (as Android's `TrackingViewModel`, `DetailsViewModel` and `RouteViewModel` do). No `try?` is left in `DetailsViewModel`/`HistoryViewModel`: a failed load or delete reaches the user per the `@Throws` policy in `tm-kmp-shared` (a failed delete does not call `onDeleted`), and a failure in `observeActivities()` can no longer reach Swift unhandled (handled on the Kotlin side before SKIE's iterator), each with a test.
 - Refs: iOS `TrackingViewModel.onFinishClicked`, `DetailsViewModel.onDeleteConfirmed`, `RouteViewModel.onGenerateRouteClicked`, `onResetClicked`, `onWaypointRemoved`, `onMapTapped`; Android `TrackingViewModel.finish`, `DetailsViewModel.deleteActivity`, `RouteViewModel.generateRoute`, `addWaypoint`; iOS `HistoryViewModel.observe`, `deleteActivity`, `DetailsViewModel` load; `data` `ActivityHistoryRepositoryImpl.observeActivities`; SKIE `SkieSwiftFlowIterator`; `tm-kmp-shared` ("`@Throws` policy").
 
+### ios-init-time-error-events-dropped
+- Type: task
+- Area: iosApp/Route, iosApp/Tracking
+- Priority: soon
+- Source: bugfix/ios-swallowed-errors-and-throws-policy PR review
+- Problem: In iOS `RouteViewModel` and `TrackingViewModel`, `emit(_:)` yields to `eventsContinuation`, which exists only once the View's `.task` has called `makeEventsStream()`. The loads `RouteViewModel.getAndUpdateUserProfile`, `loadCurrentLocation` and `TrackingViewModel.loadUserProfile` start in `init`, before the View consumes events. If one fails before the stream exists, its `.showError` is yielded to a nil continuation and silently lost. The same happens while a pushed screen covers `RouteView`: its `.task` is cancelled and only re-created on return, so an event emitted in between is lost. The existing `loadCurrentLocation` error has the same timing. The new tests pass only because they create the recorder right after building the ViewModel, before the failing load completes. So the `@Throws` policy rule "Swift never drops an error" does not yet hold for init-time loads. Found by reading the code; not reproduced on a device.
+- Done when: an error produced before the View starts consuming `makeEventsStream()`, or while no consumer is active, is delivered to the next consumer instead of being lost (for example by holding pending events until a stream exists), in both ViewModels, with a test per ViewModel that fails the profile (or location) load before calling `makeEventsStream()` and still receives the error.
+- Refs: `RouteViewModel.emit`, `makeEventsStream`, `getAndUpdateUserProfile`, `loadCurrentLocation`; `TrackingViewModel.emit`, `makeEventsStream`, `loadUserProfile`; `RouteView`/`TrackingView` `.task`; `tm-kmp-shared` ("`@Throws` policy" rule 4).
+
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp
