@@ -9,12 +9,16 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
     var nextSavedId: Long = 0L
     val savedActivities = mutableListOf<ActivityRecord>()
 
+    /** What `observeActivities()` returns; by default one emission of the saved activities. */
+    var activitiesFlow: Flow<List<ActivityRecord>>? = null
+
     override suspend fun saveActivity(activity: ActivityRecord): Long {
         savedActivities += activity
         return nextSavedId
     }
 
-    override fun observeActivities(): Flow<List<ActivityRecord>> = flowOf(savedActivities.toList())
+    override fun observeActivities(): Flow<List<ActivityRecord>> =
+        activitiesFlow ?: flowOf(savedActivities.toList())
 
     override suspend fun getActivity(id: Long): ActivityRecord? = null
 
