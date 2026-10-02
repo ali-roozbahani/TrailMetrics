@@ -30,6 +30,9 @@
 //        It emits the given values in order and then completes, so
 //        `await viewModel.observe()` returns once everything has been delivered. Don't
 //        implement `Flow` in Swift: Kotlin rejects emissions that come from Swift.
+//        `SwiftFailingTestFlow<T>(values:)` emits the values and then fails instead of
+//        completing; consume it only through Kotlin code that catches the failure (e.g.
+//        `ObserveActivitiesUseCase`), since SKIE's iterator `fatalError`s on it.
 //      * a `CoroutineScope` (e.g. for a real `TrackingSessionManager`): `SwiftTestScope()`,
 //        cancelled with `scope.cancel()` when the test ends.
 //  - Awaiting ViewModel work:
@@ -57,14 +60,22 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
     private var recordedDeletedIds: [Int64] = []
     private var recordedRequestedIds: [Int64] = []
     private let emissions: [[ActivityRecord]]
+    private let isObserveFailing: Bool
     private var isFailingStorage = false
 
     /// - Parameters:
     ///   - activities: records `getActivity(id:)` can return. Saved activities are added.
     ///   - emissions: the lists `observeActivities()` emits, in order, before completing.
-    public init(activities: [ActivityRecord] = [], emissions: [[ActivityRecord]] = []) {
+    ///   - isObserveFailing: whether `observeActivities()` fails with an
+    ///     `IllegalStateException` after `emissions` instead of completing.
+    public init(
+        activities: [ActivityRecord] = [],
+        emissions: [[ActivityRecord]] = [],
+        isObserveFailing: Bool = false
+    ) {
         self.storedActivities = activities
         self.emissions = emissions
+        self.isObserveFailing = isObserveFailing
     }
 
     /// Every activity passed to `saveActivity`, in order.
@@ -88,7 +99,11 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
     }
 
     public func observeActivities() -> SkieSwiftFlow<[ActivityRecord]> {
-        SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: emissions.map { $0 as NSArray })))
+        let values = emissions.map { $0 as NSArray }
+        if isObserveFailing {
+            return SkieSwiftFlow(SkieKotlinFlow(SwiftFailingTestFlow<NSArray>(values: values)))
+        }
+        return SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: values)))
     }
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getActivity`

@@ -12,6 +12,7 @@ import SharedKit
 public class HistoryViewModel: ObservableObject {
     @Published public var activities: [ActivityRecord] = []
     @Published public var isLoading = true
+    @Published public private(set) var errorMessage: String?
 
     public var isEmpty: Bool {
         activities.isEmpty && !isLoading

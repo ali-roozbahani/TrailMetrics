@@ -10,6 +10,7 @@ import SharedKit
 public class DetailsViewModel: ObservableObject {
     @Published public var activity: ActivityRecord?
     @Published public var isLoading = true
+    @Published public private(set) var errorMessage: String?
 
     private let activityId: Int64
     private let activityHistoryRepository: ActivityHistoryRepository
