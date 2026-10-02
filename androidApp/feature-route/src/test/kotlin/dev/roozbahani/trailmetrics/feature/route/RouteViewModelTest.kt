@@ -28,6 +28,7 @@ import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -127,6 +128,27 @@ class RouteViewModelTest {
         assertEquals(2, locationRepository.getCurrentLocationCalls)
     }
 
+    @Test
+    fun `granting location permission after a failed load does not repeat the error events`() =
+        runTest(testScheduler) {
+            locationRepository.currentLocationResult = Result.failure(RouteError.MissingLocationPermission())
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+            locationRepository.currentLocationResult = Result.success(START)
+
+            viewModel.onAction(RouteAction.LocationPermissionGranted)
+            testScheduler.runCurrent()
+
+            assertEquals(
+                listOf(
+                    RouteEvent.ShowError(RouteUiError.MissingLocationPermission),
+                    RouteEvent.RequestLocationPermission
+                ),
+                events
+            )
+        }
+
     // endregion
 
     // region waypoints
@@ -186,6 +208,38 @@ class RouteViewModelTest {
 
         viewModel.onAction(RouteAction.MapTapped(WP_C))
         assertTrue(viewModel.state.value.canGenerateRoute, "three waypoints")
+    }
+
+    @Test
+    fun `removing a waypoint that is not in the list keeps the waypoints but clears the generated route`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+            testScheduler.runCurrent()
+            viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+            viewModel.onAction(RouteAction.GenerateRouteClicked)
+            testScheduler.runCurrent()
+
+            viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_D, 3)))
+
+            assertEquals(
+                listOf(RoutePoint(WP_A, 0), RoutePoint(WP_B, 1), RoutePoint(WP_C, 2)),
+                viewModel.state.value.waypoints
+            )
+            assertNull(viewModel.state.value.generatedRoute)
+        }
+
+    @Test
+    fun `tapping the map after generating currently keeps the stale generated route`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.MapTapped(WP_D))
+
+        assertEquals(4, viewModel.state.value.waypoints.size)
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
     }
 
     // endregion
@@ -263,6 +317,142 @@ class RouteViewModelTest {
         assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.LocationUnavailable)), events)
     }
 
+    @Test
+    fun `route generation failure maps each RouteError to its RouteUiError and stops loading`() =
+        runTest(testScheduler) {
+            val expected = listOf(
+                RouteError.LocationUnavailable() to RouteUiError.LocationUnavailable,
+                RouteError.MissingLocationPermission() to RouteUiError.MissingLocationPermission,
+                RouteError.DirectionsApiError(IllegalStateException("boom")) to RouteUiError.General,
+                RouteError.InsufficientWaypoints(required = 3, actual = 1) to RouteUiError.General
+            )
+
+            expected.forEach { (error, uiError) ->
+                directionsRepository.closedRouteResult = Result.failure(error)
+                val viewModel = createViewModel()
+                val events = collectEvents(viewModel)
+                testScheduler.runCurrent()
+                viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+
+                viewModel.onAction(RouteAction.GenerateRouteClicked)
+                testScheduler.runCurrent()
+
+                assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(uiError)), events, "$error")
+                assertFalse(viewModel.state.value.isLoading, "$error")
+            }
+        }
+
+    @Test
+    fun `generating again after a failure stores the route`() = runTest(testScheduler) {
+        directionsRepository.closedRouteResult = Result.failure(RouteError.DirectionsApiError(IllegalStateException()))
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        directionsRepository.closedRouteResult = Result.success(GENERATED_ROUTE)
+
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
+        assertFalse(viewModel.state.value.isLoading)
+    }
+
+    /** Starts two generations; the first waits on the returned first gate, the second on the second. */
+    private fun RouteViewModel.generateTwiceInFlight(): Pair<CompletableDeferred<Unit>, CompletableDeferred<Unit>> {
+        val firstGate = CompletableDeferred<Unit>()
+        val secondGate = CompletableDeferred<Unit>()
+        testScheduler.runCurrent()
+        tapWaypoints(WP_A, WP_B, WP_C)
+        directionsRepository.gate = firstGate
+        onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        directionsRepository.gate = secondGate
+        onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        return firstGate to secondGate
+    }
+
+    @Test
+    fun `a second generate while the first is in flight currently calls directions again`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+
+        viewModel.generateTwiceInFlight()
+
+        assertEquals(
+            listOf(START to listOf(WP_A, WP_B, WP_C), START to listOf(WP_A, WP_B, WP_C)),
+            directionsRepository.requests
+        )
+    }
+
+    @Test
+    fun `with two generations in flight loading currently stops when the first of them finishes`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+            val (_, secondGate) = viewModel.generateTwiceInFlight()
+
+            secondGate.complete(Unit)
+            testScheduler.runCurrent()
+
+            assertFalse(viewModel.state.value.isLoading)
+        }
+
+    @Test
+    fun `with two generations in flight the result that finishes last currently wins`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        val (firstGate, secondGate) = viewModel.generateTwiceInFlight()
+        directionsRepository.closedRouteResult = Result.success(OTHER_ROUTE)
+        secondGate.complete(Unit)
+        testScheduler.runCurrent()
+        assertEquals(OTHER_ROUTE, viewModel.state.value.generatedRoute)
+        directionsRepository.closedRouteResult = Result.success(GENERATED_ROUTE)
+
+        firstGate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
+    }
+
+    @Test
+    fun `removing a waypoint while generating currently lets the stale result land`() = runTest(testScheduler) {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C, WP_D)
+        directionsRepository.gate = gate
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_D, 3)))
+        assertNull(viewModel.state.value.generatedRoute)
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertEquals(3, viewModel.state.value.waypoints.size)
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
+        assertEquals(listOf(START to listOf(WP_A, WP_B, WP_C, WP_D)), directionsRepository.requests)
+    }
+
+    @Test
+    fun `reset while generating currently lets the stale result land in the reset state`() = runTest(testScheduler) {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        directionsRepository.gate = gate
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.ResetClicked)
+        testScheduler.runCurrent()
+        assertEquals(RouteState(startPoint = START), viewModel.state.value)
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertEquals(RouteState(startPoint = START, generatedRoute = GENERATED_ROUTE), viewModel.state.value)
+    }
+
     // endregion
 
     // region activity type and profile
@@ -287,6 +477,20 @@ class RouteViewModelTest {
 
         assertEquals(listOf(UserProfile(72.5)), userProfileRepository.savedProfiles)
         assertEquals(UserProfile(72.5), viewModel.state.value.userProfile)
+    }
+
+    @Test
+    fun `saving the user profile twice keeps the last weight`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.UserProfileSaved(72.5))
+        viewModel.onAction(RouteAction.UserProfileSaved(68.25))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf(UserProfile(72.5), UserProfile(68.25)), userProfileRepository.savedProfiles)
+        assertEquals(UserProfile(68.25), userProfileRepository.userProfile)
+        assertEquals(UserProfile(68.25), viewModel.state.value.userProfile)
     }
 
     // endregion
@@ -347,6 +551,124 @@ class RouteViewModelTest {
         assertTrue(events.isEmpty())
     }
 
+    @Test
+    fun `starting tracking with a generated route that has no points emits nothing`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        directionsRepository.closedRouteResult = Result.success(Route(points = emptyList(), distanceMeters = 0.0))
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.StartTrackingClicked)
+        testScheduler.runCurrent()
+
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun `starting tracking with a route but no start point emits nothing`() = runTest(testScheduler) {
+        // The only way to hold a route without a start point today: a reset whose location reload fails
+        // while a generation is in flight, so the stale route lands afterwards (pinned by the
+        // "reset while generating currently lets the stale result land" test).
+        userProfileRepository.userProfile = PROFILE
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        directionsRepository.gate = gate
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        locationRepository.currentLocationResult = Result.failure(RouteError.LocationUnavailable())
+        viewModel.onAction(RouteAction.ResetClicked)
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+        assertNull(viewModel.state.value.startPoint)
+        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
+        val eventsBefore = events.size
+
+        viewModel.onAction(RouteAction.StartTrackingClicked)
+        testScheduler.runCurrent()
+
+        assertEquals(emptyList(), events.drop(eventsBefore))
+    }
+
+    @Test
+    fun `starting tracking after saving a profile navigates without requesting a profile`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        viewModel.onAction(RouteAction.UserProfileSaved(72.5))
+        testScheduler.runCurrent()
+
+        viewModel.onAction(RouteAction.StartTrackingClicked)
+        testScheduler.runCurrent()
+
+        assertEquals(
+            listOf<RouteEvent>(
+                RouteEvent.NavigateToTracking(
+                    startPoint = START,
+                    plannedRoutePoints = listOf(START, WP_A, WP_B, WP_C, START),
+                    activityType = ActivityType.Running
+                )
+            ),
+            events
+        )
+    }
+
+    @Test
+    fun `starting tracking reads the profile from the repository, not from the state`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+        userProfileRepository.userProfile = PROFILE
+        assertNull(viewModel.state.value.userProfile)
+
+        viewModel.onAction(RouteAction.StartTrackingClicked)
+        testScheduler.runCurrent()
+
+        assertIs<RouteEvent.NavigateToTracking>(events.single())
+    }
+
+    // endregion
+
+    // region events
+
+    @Test
+    fun `events sent before anyone collects are delivered in order once a collector subscribes`() =
+        runTest(testScheduler) {
+            locationRepository.currentLocationResult = Result.failure(RouteError.MissingLocationPermission())
+            val viewModel = createViewModel()
+            testScheduler.runCurrent()
+            locationRepository.currentLocationResult = Result.failure(RouteError.LocationUnavailable())
+            viewModel.onAction(RouteAction.LocationPermissionGranted)
+            testScheduler.runCurrent()
+            viewModel.onAction(RouteAction.StartTrackingClicked)
+            testScheduler.runCurrent()
+
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+
+            assertEquals(
+                listOf(
+                    RouteEvent.ShowError(RouteUiError.MissingLocationPermission),
+                    RouteEvent.RequestLocationPermission,
+                    RouteEvent.ShowError(RouteUiError.LocationUnavailable),
+                    RouteEvent.RequestUserProfile
+                ),
+                events
+            )
+        }
+
     // endregion
 
     // region reset
@@ -389,6 +711,10 @@ class RouteViewModelTest {
                 RoutePoint(START, 4)
             ),
             distanceMeters = 1234.0
+        )
+        val OTHER_ROUTE = Route(
+            points = listOf(RoutePoint(START, 0), RoutePoint(WP_C, 1), RoutePoint(START, 2)),
+            distanceMeters = 567.0
         )
     }
 }
