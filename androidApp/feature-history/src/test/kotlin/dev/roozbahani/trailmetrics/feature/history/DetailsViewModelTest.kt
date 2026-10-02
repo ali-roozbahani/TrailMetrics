@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
@@ -144,6 +145,76 @@ class DetailsViewModelTest {
         // The snapshot path is read from the loaded state, so nothing is known to delete yet.
         assertEquals(listOf(DeleteCompletion(deletedIds = listOf(1L), snapshotExists = true)), completions)
         assertTrue(snapshot.exists())
+    }
+
+    @Test
+    fun `confirming delete for an unknown id still deletes the id and signals completion`() =
+        runTest(testScheduler) {
+            val otherSnapshot = tempFolder.newFile("snapshot-1.png")
+            activityHistoryRepository.setActivities(
+                listOf(activityRecord(id = 1L, snapshotFilePath = otherSnapshot.absolutePath))
+            )
+            val viewModel = createViewModel(activityId = 99L)
+            testScheduler.runCurrent()
+
+            val completions = confirmDelete(viewModel, otherSnapshot)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(DeleteCompletion(deletedIds = listOf(99L), snapshotExists = true)), completions)
+            assertTrue(otherSnapshot.exists())
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `Deleted is buffered until a collector subscribes`() = runTest(testScheduler) {
+        activityHistoryRepository.setActivities(listOf(FIRST))
+        val viewModel = createViewModel(activityId = 1L)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        testScheduler.runCurrent()
+        val events = mutableListOf<DetailsEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<DetailsEvent>(DetailsEvent.Deleted), events)
+    }
+
+    // Defect pinned as-is (BOARD.md `details-delete-confirmed-twice`): each Deleted pops the back
+    // stack once, so a second confirmation would also leave the History screen.
+    @Test
+    fun `confirming delete twice currently deletes and signals completion twice`() = runTest(testScheduler) {
+        val snapshot = tempFolder.newFile("snapshot-1.png")
+        activityHistoryRepository.setActivities(
+            listOf(activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath))
+        )
+        val viewModel = createViewModel(activityId = 1L)
+        testScheduler.runCurrent()
+
+        val completions = confirmDelete(viewModel, snapshot)
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        testScheduler.runCurrent()
+
+        assertEquals(
+            listOf(
+                DeleteCompletion(deletedIds = listOf(1L), snapshotExists = false),
+                DeleteCompletion(deletedIds = listOf(1L, 1L), snapshotExists = false)
+            ),
+            completions
+        )
+    }
+
+    @Test
+    fun `state keeps the loaded activity after delete`() = runTest(testScheduler) {
+        activityHistoryRepository.setActivities(listOf(FIRST))
+        val viewModel = createViewModel(activityId = 1L)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        testScheduler.runCurrent()
+
+        assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+        assertEquals(DetailsState(activity = FIRST, isLoading = false), viewModel.state.value)
     }
 
     private companion object {
