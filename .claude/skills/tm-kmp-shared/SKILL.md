@@ -91,8 +91,15 @@ looks safe even when the Kotlin side declares nothing.
 
 Today: `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase` follow rule 2 (their
 repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileRepository` and
-`ActivityHistoryRepository`'s suspend members follow rule 3. `observeActivities()` is a `Flow`:
-SKIE's iterator `fatalError`s on a Flow failure, so it is not covered by `@Throws`.
+`ActivityHistoryRepository`'s suspend members follow rule 3. `observeActivities()` is a `Flow`,
+which `@Throws` doesn't cover: a failing Flow terminates the iOS app (SKIE collects it in a
+coroutine scope with no handler, and its Swift iterator `fatalError`s on the error). Swift
+therefore doesn't iterate it directly: `ObserveActivitiesUseCase` (domain) maps each emission to
+`ActivitiesUpdate.Loaded` and turns an `Exception` (never an `Error` or cancellation), thrown
+when `observeActivities()` is called or while collecting, into one `ActivitiesUpdate.Failed`,
+then completes; `invoke()` itself never throws. iOS `HistoryViewModel` consumes that; Android
+still uses the repository Flow (board `android-persistence-errors-unhandled`). A new Flow that
+Swift iterates and that can fail needs the same treatment.
 
 ## Events that must not be silently dropped
 

@@ -41,6 +41,9 @@ final class TrackingLiveActivityController {
             currentSpeedMetersPerSecond: nil
         )
 
+        // Silent on purpose: the Live Activity is an optional extra (the user can turn Live
+        // Activities off, or the system can refuse one), and tracking works without it.
+        // An exception to `tm-ios`'s "never drop an error" rule.
         liveActivity = try? Activity.request(
             attributes: attributes,
             content: ActivityContent(state: initialState, staleDate: nil)

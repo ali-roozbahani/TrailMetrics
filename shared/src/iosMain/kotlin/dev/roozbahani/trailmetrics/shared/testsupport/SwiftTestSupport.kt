@@ -20,6 +20,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -29,6 +31,15 @@ import kotlin.coroutines.CoroutineContext
  * `SkieSwiftFlow<[ActivityRecord]>(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: lists)))`.
  */
 class SwiftTestFlow<T>(values: List<T>) : Flow<T> by values.asFlow()
+
+/**
+ * Like [SwiftTestFlow], but after emitting [values] it fails with an [IllegalStateException]
+ * instead of completing, standing in for a failing repository flow (e.g. Room's).
+ */
+class SwiftFailingTestFlow<T>(values: List<T>) : Flow<T> by flow({
+    emitAll(values.asFlow())
+    throw IllegalStateException("SwiftFailingTestFlow failure")
+})
 
 /**
  * A [CoroutineScope] with the same context production gives `TrackingSessionManager` on

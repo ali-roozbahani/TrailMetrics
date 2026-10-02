@@ -34,21 +34,12 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### ios-history-details-delete-and-load-errors
-- Type: task
-- Area: iosApp/History, data
-- Priority: soon
-- Source: bugfix/ios-double-tap-and-stale-route-results PR (History/Details half of the former `ios-double-tap-and-stale-route-results`)
-- Problem: `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call, so a repeated delete confirmation deletes twice and calls `onDeleted` twice; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `DetailsViewModel`'s load (`getActivity`) and `HistoryViewModel.deleteActivity` call the repository with `try?`, so a failed load shows nothing and a failed delete is never reported. `HistoryViewModel.observe` iterates `observeActivities()`; SKIE's `SkieSwiftFlowIterator.next()` calls `fatalError` on any non-cancellation error, so a failure in the Room-backed Flow (`ActivityHistoryRepositoryImpl.observeActivities`, no `catch`) terminates the app. `@Throws` does not apply to a `Flow`. Found by reading the code; not reproduced on a device and not pinned by tests. Design notes: History and Details have no error channel today, so the fix needs a published error state shown by an alert in the views (same "Something went wrong. Please try again." wording as Route and Tracking); a Flow failure must be handled on the Kotlin side before SKIE's iterator, which also changes Android's `HistoryViewModel` (spinner instead of crash), so coordinate with `android-persistence-errors-unhandled`; best-effort side effects that may stay silent (`deleteSnapshotFile`, Live Activity `Activity.request`) need a comment saying why, and a short exception in the `tm-ios` "never drop an error" rule.
-- Done when: on iOS a repeated delete confirmation deletes once and calls `onDeleted` once, with a test (as Android's `DetailsViewModel` does). No `try?` is left in `DetailsViewModel`/`HistoryViewModel`: a failed load or delete reaches the user per the `@Throws` policy in `tm-kmp-shared` (a failed delete does not call `onDeleted`), and a failure in `observeActivities()` can no longer reach Swift unhandled (handled on the Kotlin side before SKIE's iterator), each with a test.
-- Refs: iOS `DetailsViewModel.onDeleteConfirmed`, `DetailsViewModel` load, `HistoryViewModel.observe`, `deleteActivity`; Android `DetailsViewModel.deleteActivity`; `data` `ActivityHistoryRepositoryImpl.observeActivities`; SKIE `SkieSwiftFlowIterator`; `tm-kmp-shared` ("`@Throws` policy"); `tm-ios` ("SKIE interop from Swift": the "never drop an error" rule, whose "Known remaining `try?` sites" line still names the removed slug `ios-double-tap-and-stale-route-results`); `deleteSnapshotFile`, `TrackingLiveActivityController` (`Activity.request`); board `android-persistence-errors-unhandled`.
-
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp
 - Priority: soon
 - Source: bugfix/ios-swallowed-errors-and-throws-policy PR
-- Problem: The Android ViewModels call the persistence repositories inside `viewModelScope.launch` without handling a failure, and no `CoroutineExceptionHandler` exists, so a database or storage exception crashes the app. `RouteViewModel` `saveUserProfile`, `startTracking` and `getAndUpdateUserProfile` call `UserProfileRepository` unguarded; `TrackingViewModel`'s init profile load is unguarded, and `finish` resets `isSessionSaved` on failure but rethrows with `getOrThrow()`; `DetailsViewModel`'s init `getActivity` is unguarded and `deleteActivity` rethrows the same way; `HistoryViewModel.deleteActivity` is unguarded and its `state` (`observeActivities().stateIn`) has no `catch`. Found by reading the code; not reproduced.
+- Problem: The Android ViewModels call the persistence repositories inside `viewModelScope.launch` without handling a failure, and no `CoroutineExceptionHandler` exists, so a database or storage exception crashes the app. `RouteViewModel` `saveUserProfile`, `startTracking` and `getAndUpdateUserProfile` call `UserProfileRepository` unguarded; `TrackingViewModel`'s init profile load is unguarded, and `finish` resets `isSessionSaved` on failure but rethrows with `getOrThrow()`; `DetailsViewModel`'s init `getActivity` is unguarded and `deleteActivity` rethrows the same way; `HistoryViewModel.deleteActivity` is unguarded and its `state` (`observeActivities().stateIn`) has no `catch`. Found by reading the code; not reproduced. `HistoryViewModel.state` can build on the domain `ObserveActivitiesUseCase` (added by bugfix/ios-history-details-delete-and-load-errors, which iOS already uses) to survive a failing `observeActivities()`.
 - Done when: the `@Throws` policy's rules 4 and 5 in `tm-kmp-shared` hold on Android too: every such failure reaches the user through the screen's existing error event or state, never crashes, and leaves state consistent (a failed save does not update the profile, a failed start does not navigate, a failed delete does not send `Deleted`), each with an `onAction` test using a throwing fake from `core-testing`.
 - Refs: `androidApp/feature-route` `RouteViewModel`; `feature-tracking` `TrackingViewModel` (init, `finish`); `feature-history` `DetailsViewModel` (init, `deleteActivity`), `HistoryViewModel` (`state`, `deleteActivity`); `core-testing` `FakeUserProfileRepository`, `FakeActivityHistoryRepository`; `tm-kmp-shared` ("`@Throws` policy").
 
@@ -187,6 +178,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `RouteScreen` has tests, Generate followed by Reset or a waypoint change leaves no stale route on screen, a long-press on the map after a route is shown hides the old route and the Start Tracking panel until a new route is generated, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-route` `RouteScreen`, `RouteRoot`, `UserProfileBottomSheet`, `ActivityTypeSelector`; `androidApp/feature-route/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
+### test-ios-ui-double-tap-and-stale-results
+- Type: task
+- Area: iosApp
+- Priority: later
+- Source: bugfix/ios-history-details-delete-and-load-errors PR
+- Problem: The iOS ViewModel guards for a repeated Finish (`TrackingViewModel.onFinishClicked`), a repeated delete confirmation (`DetailsViewModel.onDeleteConfirmed`), a repeated Generate (`RouteViewModel.onGenerateRouteClicked`) and Generate followed by Reset (`onResetClicked`) are covered by Swift unit tests in the packages, but nothing proves the Views deliver such taps to the ViewModel the way the tests do, and they can't be checked reliably by hand. The Android equivalents are the three `test-feature-*-compose-ui` records. There is no iOS UI-test target today: `TrailMetrics.xcodeproj` has only the `TrailMetrics` app and the `TrackingWidget` extension, and the shared `TrailMetrics` scheme has no testables. Design note: XCUITest drives the real app, so it needs deterministic fakes (location, directions, storage) injected at app launch (a launch argument read by the composition root, or a Koin override in `doInitKoinIos`); that seam doesn't exist yet and is part of this task.
+- Done when: a UI-test target exists in the shared scheme with a launch-time fake seam, and XCUITest scenarios cover: Finish tapped twice (one History entry), Generate then Reset (no route afterwards), Generate tapped twice (one directions request), delete confirmation tapped twice (one deletion), and a failed delete showing the "Error" alert.
+- Refs: `iosApp/TrailMetrics.xcodeproj`; `TrailMetricsApp` (`doInitKoinIos`), `KoinHelper`; `TrackingView`/`TrackingViewModel.onFinishClicked`; `RouteView`/`RouteViewModel.onGenerateRouteClicked`, `onResetClicked`; `DetailsView`/`DetailsViewModel.onDeleteConfirmed`; `HistoryView`; board `test-feature-tracking-compose-ui`, `test-feature-history-compose-ui`, `test-feature-route-compose-ui`.
+
 ## Drift
 
 ### drift-suppress-comments
@@ -197,3 +197,12 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
+
+### drift-tm-ios-viewmodel-shape-example
+- Type: drift
+- Area: .claude/skills/tm-ios
+- Priority: later
+- Source: bugfix/ios-history-details-delete-and-load-errors PR
+- Problem: The "ViewModel shape" example in `tm-ios` is modelled on `HistoryViewModel` and shows `observe()` iterating `activityHistoryRepository.observeActivities()` directly with `for await`, and an `init` taking only the repository. `HistoryViewModel` now takes `ObserveActivitiesUseCase` too and iterates `observeActivitiesUseCase.invoke()` with `onEnum(of:)`, because iterating a repository Flow directly terminates the app when the Flow fails (see `tm-kmp-shared`, "`@Throws` policy"). The task that made the change limited its doc edits to the "never drop an error" rule, so the example was left as is. As written it teaches the crashing pattern.
+- Done when: the example shows a ViewModel that consumes a Flow that can't fail into Swift (such as `ObserveActivitiesUseCase`), or says that a repository Flow must not be iterated directly.
+- Refs: `.claude/skills/tm-ios/SKILL.md` ("ViewModel shape"); iOS `HistoryViewModel` (`init`, `observe`); `domain` `ObserveActivitiesUseCase`.

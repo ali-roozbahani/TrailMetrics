@@ -101,8 +101,12 @@ public class HistoryViewModel: ObservableObject {
 - Never drop an error: no `try?` that hides a failure and no unstructured `Task { try ... }`
   without `do/catch`. A caught error reaches the user through the ViewModel's `.showError`
   event, and state stays as it was. Only Kotlin functions with `@Throws` can throw into Swift
-  without crashing; see `tm-kmp-shared` ("`@Throws` policy"). Known remaining `try?` sites:
-  `DetailsViewModel`, `HistoryViewModel` (board `ios-double-tap-and-stale-route-results`).
+  without crashing; see `tm-kmp-shared` ("`@Throws` policy"). History and Details have no
+  events stream: they publish `errorMessage` and show it in an "Error" alert.
+  Exception: a best-effort side effect whose failure the user can't act on may use `try?` if
+  a comment at the call says why. The only two are `deleteSnapshotFile` (an orphaned image
+  file after the record is gone) and `TrackingLiveActivityController`'s `Activity.request`
+  (Live Activities can be turned off). No other `try?` is left in the feature packages' sources.
 - Generic collections crossing the bridge: check the inferred Swift type rather than
   assuming it (`HistoryViewModel`'s `[ActivityRecord]` is the worked example).
 

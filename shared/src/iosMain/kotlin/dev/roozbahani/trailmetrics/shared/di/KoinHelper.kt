@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
@@ -18,6 +19,7 @@ class KoinHelper : KoinComponent {
     private val userProfileRepositoryDep: UserProfileRepository by inject()
     private val trackingSessionManagerDep: TrackingSessionManager by inject()
     private val saveActivityUseCaseDep: SaveActivityUseCase by inject()
+    private val observeActivitiesUseCaseDep: ObserveActivitiesUseCase by inject()
     private val calorieCalculatorDep: CalorieCalculator by inject()
     private val clockDep: Clock by inject()
 
@@ -27,6 +29,7 @@ class KoinHelper : KoinComponent {
     fun userProfileRepository(): UserProfileRepository = userProfileRepositoryDep
     fun trackingSessionManager(): TrackingSessionManager = trackingSessionManagerDep
     fun saveActivityUseCase(): SaveActivityUseCase = saveActivityUseCaseDep
+    fun observeActivitiesUseCase(): ObserveActivitiesUseCase = observeActivitiesUseCaseDep
     fun calorieCalculator(): CalorieCalculator = calorieCalculatorDep
     fun clock(): Clock = clockDep
 }
