@@ -117,6 +117,41 @@ if [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
     '
 fi
 
+# --- Review verdict (soft: reports only) ---
+# The pr-reviewer subagent's verdict, recorded by the session as one line `<full sha> <VERDICT>`
+# (tm-pr-review skill), in the git dir like the pass marker below. This step never adds to
+# FAILURES, never changes the exit code and never writes the pass marker.
+report_review_verdict() {
+    local head short file content sha
+    head="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null)" || head=""
+    short="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null)" || short="unknown"
+    file="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .review-verdict 2>/dev/null)" || file=""
+    if [ -z "$file" ] || [ ! -e "$file" ]; then
+        echo "no review verdict recorded for HEAD $short"
+        return 0
+    fi
+    # A valid file is one short line; anything larger is malformed without reading it.
+    if [ ! -f "$file" ] || [ "$(wc -c <"$file" 2>/dev/null | tr -d ' ')" -gt 100 ]; then
+        echo "review verdict file is malformed"
+        return 0
+    fi
+    content="$(LC_ALL=C tr -d '\000' <"$file" 2>/dev/null)" || content=""
+    if [[ ! "$content" =~ ^([0-9a-f]{40}|[0-9a-f]{64})\ (APPROVE|CHANGES|ESCALATE_TO_HUMAN)$ ]]; then
+        echo "review verdict file is malformed"
+        return 0
+    fi
+    sha="${BASH_REMATCH[1]}"
+    if [ -n "$head" ] && [ "$sha" = "$head" ]; then
+        echo "review verdict for HEAD $short: ${BASH_REMATCH[2]}"
+    else
+        echo "no review verdict recorded for HEAD $short (last verdict was for ${sha:0:${#short}})"
+    fi
+    return 0
+}
+echo
+echo "==> review verdict (report only, never fails the gate)"
+report_review_verdict || true
+
 echo
 if [ ${#FAILURES[@]} -eq 0 ]; then
     echo "All required checks passed. Safe to commit/push."
