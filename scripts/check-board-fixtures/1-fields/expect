@@ -1,0 +1,7 @@
+exit: 1
+contains: 'first-task': missing field 'Source'
+contains: 'Bad_Slug': slug is not kebab-case
+contains: 'Bad_Slug': fields out of order
+contains: 'big-epic': Type 'task' does not match section 'Epics'
+contains: 'dup-task': duplicate slug
+contains: check-board: FAILED, 5 problem(s)

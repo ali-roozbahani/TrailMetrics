@@ -1,0 +1,5 @@
+exit: 1
+contains: .claude/skills/x/SKILL.md:1: board `removed-task` is not a record in BOARD.md
+contains: docs/epics/plan.md:2: board `old-drift` is not a record in BOARD.md
+contains: README.md:1: board `also-gone` is not a record in BOARD.md
+absent: first-task` is not
