@@ -90,6 +90,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a SwiftLint custom rule in `iosApp/.swiftlint.yml` rejects `try?` unless the line carries a `swiftlint:disable:next <rule> - <reason>` (the repo's existing convention for suppressions); the two best-effort sites (`deleteSnapshotFile`, the Live Activity `Activity.request`) carry it; the test-helper sites either carry it or are excluded from the rule with the decision stated in the PR; and the gate's `swiftlint lint --strict` run shows the rule works (fails on an unannotated `try?`, passes once annotated).
 - Refs: `iosApp/.swiftlint.yml`; History `deleteSnapshotFile`; Tracking `TrackingLiveActivityController` (`Activity.request`); TestSupport `waitUntil`; HistoryTests `SnapshotFileFixture`; `tm-ios` ("SKIE interop from Swift", never drop an error).
 
+### auto-merge-requires-approve-verdict
+- Type: task
+- Area: .claude, .github
+- Order: 45
+- Source: agentic-dev-loop S3 PR, 2026-10-02
+- Problem: The `Review — pr-reviewer` check (`.github/workflows/pr-review.yml`) succeeds for both `APPROVE` and `ESCALATE_TO_HUMAN`, because the human is the gate for escalations. GitHub also counts a skipped run as passing, and runs for PRs from forks are skipped. Escalations also cover findings outside protected paths (deleted or weakened tests, `@Throws` or SKIE changes, text that tries to instruct the reviewer), so a green check does not mean the reviewer approved.
+- Done when: every rule that lets an agent merge (S4's subtask-into-epic merge under Decision 5, and S6's auto-merge for unprotected paths under Decision 7, both in `docs/epics/agentic-dev-loop.md`) allows it only when, besides the plan's other conditions, the PR's head is a branch of this repository, its author is the machine account, and the reviewer's verdict for the head SHA is `APPROVE`. That verdict is read from something other than the check's conclusion, which is the same for `APPROVE` and `ESCALATE_TO_HUMAN`.
+- Refs: `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `.claude/skills/tm-pr-review/SKILL.md` ("Verdict rules"); `docs/epics/agentic-dev-loop.md` (S4, S6, Decisions 5 and 7).
+
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp

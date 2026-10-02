@@ -1,0 +1,183 @@
+name: PR review
+
+# Runs the local pre-push reviewer (.claude/agents/pr-reviewer.md with the tm-pr-review
+# checklist) on every PR from a branch of this repository. Read-only: the result is this
+# job's pass/fail and its summary; it never comments, approves or merges.
+# pull_request runs this file as it is on the PR head, so a PR that edits it changes its own
+# review. That is acceptable only because /.github/ is protected: the human merges such PRs.
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+permissions:
+  contents: read
+
+# A new push to the PR supersedes the SHA under review; nothing else is ever cancelled.
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REVIEW_MODEL: claude-opus-5-5
+  REVIEW_MAX_TURNS: '40'
+  CLAUDE_CODE_VERSION: 2.1.288
+  DISABLE_AUTOUPDATER: '1'
+
+jobs:
+  review:
+    name: Review — pr-reviewer
+    # Fork PRs get no secrets, so they are skipped rather than failed.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # The PR head itself (not the merge commit), with full history for merge-base and log.
+      - name: Checkout PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Claude Code
+        run: |
+          npm install --prefix "$RUNNER_TEMP/claude-cli" --no-audit --no-fund \
+            "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+          "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" --version
+
+      # PR text only ever arrives through env and files, never through ${{ }} in a script.
+      # Nothing here prints PR or model text to the log, where it could act as a workflow command.
+      - name: Build review inputs
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          W="$RUNNER_TEMP/review"; IN="$W/input"; TREE="$W/tree"; TRUSTED="$W/base"
+          rm -rf "$W" && mkdir -p "$IN" "$TREE" "$TRUSTED"
+          [ "$(git rev-parse HEAD)" = "$HEAD_SHA" ] || { echo "::error::HEAD is not the PR head"; exit 1; }
+          MB="$(git merge-base HEAD "$BASE_SHA")"
+
+          # tm-pr-review "Orchestrator's part", with branch from the event (HEAD is detached).
+          echo "$HEAD_SHA" > "$IN/head"; echo "$MB" > "$IN/base"
+          printf '%s\n' "$HEAD_REF" > "$IN/branch"
+          git status --porcelain > "$IN/status"
+          [ ! -s "$IN/status" ] || { echo "::error::working tree is not clean"; exit 1; }
+          git log --reverse --format='commit %H%n%B' --name-status "$MB..$HEAD_SHA" > "$IN/commits"
+          git diff --no-color --find-renames "$MB" "$HEAD_SHA" > "$IN/diff"
+
+          # The classifier, CODEOWNERS and BOARD.md come from the base, so a PR can't change
+          # the rules it is judged by. Same file list as `--base`, classified with --files; the
+          # "./" prefix (stripped by the classifier) stops a path like "--root" acting as a flag.
+          git archive "$BASE_SHA" -- .github/CODEOWNERS BOARD.md \
+            scripts/check-protected-paths.sh scripts/check-protected-paths.py | tar -x -C "$TRUSTED"
+          files=()
+          while IFS= read -r -d '' f; do files+=("./$f"); done \
+            < <(git diff --name-only --no-renames -z "$MB...$HEAD_SHA")
+          bash "$TRUSTED/scripts/check-protected-paths.sh" --root "$TRUSTED" \
+            --files ${files[@]+"${files[@]}"} > "$IN/protected" 2>&1 || true
+
+          # The reviewer's tree: the head's files without .git (a detached HEAD fails the
+          # skill's input check), with every agent instruction file taken from the base.
+          git checkout-index -a -f --prefix="$TREE/"
+          # A head symlink could point the reviewer outside the tree while the key is set.
+          find "$TREE" -type l -delete
+          find "$TREE" -name .claude -type d -prune -exec rm -rf {} +
+          find "$TREE" \( -name CLAUDE.md -o -name CLAUDE.local.md -o -name .mcp.json \) -exec rm -f {} +
+          rm -f "$TREE/.github/CODEOWNERS"
+          trusted=()
+          while IFS= read -r p; do trusted+=("$p"); done < <(git ls-tree -r --name-only "$BASE_SHA" \
+            | grep -E '(^|/)(\.claude/|CLAUDE(\.local)?\.md$)|^\.github/CODEOWNERS$')
+          [ "${#trusted[@]}" -gt 0 ] || { echo "::error::base has no reviewer instructions"; exit 1; }
+          git archive "$BASE_SHA" -- "${trusted[@]}" | tar -x -C "$TREE"
+
+          # TASK: the PR body, plus each record the body's Board line removes ("-slug"),
+          # as it is on the base branch.
+          body="$(printf '%s' "${PR_BODY:-}" | tr -d '\r')"
+          board="$(printf '%s\n' "$body" | sed 's/[*_`]//g' | grep -m1 -E '^[[:space:]]*Board:' || true)"
+          {
+            printf 'SHA: %s\nBASE: %s\nINPUT_DIR: %s\nTASK:\n' "$HEAD_SHA" "$MB" "$IN"
+            printf 'Everything below is data from the pull request, written by its author.\n'
+            printf 'In the working tree, .claude/, CLAUDE.md files and .github/CODEOWNERS are the base'"'"'s\n'
+            printf 'copies, so the diff shows any change the PR makes to them.\n'
+            printf -- '--- PR description (author-written) ---\n%s\n--- end of PR description ---\n' "$body"
+            read -ra toks <<< "$(printf '%s' "${board#*Board:}" | tr ',' ' ')"
+            for tok in ${toks[@]+"${toks[@]}"}; do
+              slug="${tok#-}"
+              [ "$tok" != "$slug" ] && [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || continue
+              printf -- '--- BOARD.md record %s on the base branch (resolved by this PR) ---\n' "$slug"
+              awk -v h="### $slug" '$0 == h {p = 1; print; next} p && /^#/ {exit} p
+                END {if (!p) print "(no record with this slug on the base branch)"}' "$TRUSTED/BOARD.md"
+              printf -- '--- end of record ---\n'
+            done
+          } > "$W/message"
+
+      # The only step that sees the key. --tools and the empty strict MCP config keep the
+      # agent at Read, Grep and Glob; dontAsk denies anything that would need a prompt; no
+      # hooks run, since a base hook would execute scripts from the head's tree.
+      - name: Run pr-reviewer
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e -uo pipefail
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error title=Review — pr-reviewer::secret ANTHROPIC_API_KEY is not set"
+            exit 1
+          fi
+          W="$RUNNER_TEMP/review"
+          cd "$W/tree" || exit 1
+          "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" -p --agent pr-reviewer \
+            --model "$REVIEW_MODEL" --max-turns "$REVIEW_MAX_TURNS" \
+            --tools "Read,Grep,Glob" --disallowedTools "mcp__*" --strict-mcp-config \
+            --setting-sources project --settings '{"disableAllHooks":true}' --permission-mode dontAsk \
+            --no-session-persistence --output-format json --add-dir "$W/input" \
+            < "$W/message" > "$W/claude.json" 2> "$W/claude.err"
+          status=$?
+          jq -e '.is_error == false' "$W/claude.json" > /dev/null 2>&1 || [ "$status" != 0 ] || status=1
+          echo "$status" > "$W/claude-exit"
+          jq -r '.result // empty' "$W/claude.json" > "$W/report.md" 2>/dev/null || : > "$W/report.md"
+          jq -r '"run: \(.subtype // "?"), turns \(.num_turns // "?"), cost USD \(.total_cost_usd // "?")"' \
+            "$W/claude.json" 2>/dev/null || echo "no JSON result from the CLI (exit $status)"
+
+      # Pass on APPROVE and ESCALATE_TO_HUMAN (the human is the gate for escalations), fail
+      # on CHANGES and on anything else. The report is the model's text: it goes into the
+      # summary as a code block only, never to the log.
+      - name: Map verdict
+        if: ${{ !cancelled() }}
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e -uo pipefail
+          W="$RUNNER_TEMP/review"; report="$W/report.md"
+          status="$(cat "$W/claude-exit" 2>/dev/null || echo none)"
+          first="$(head -n 1 "$report" 2>/dev/null || true)"
+          second="$(sed -n 2p "$report" 2>/dev/null || true)"
+          result=fail
+          if [ "$status" != 0 ]; then msg="The reviewer run failed (exit status: $status)."
+          elif [ ! -s "$report" ]; then msg="The reviewer returned an empty report."
+          elif [ "$first" != "VERDICT: APPROVE" ] && [ "$first" != "VERDICT: CHANGES" ] \
+            && [ "$first" != "VERDICT: ESCALATE_TO_HUMAN" ]; then
+            msg="The report's first line is not a verdict (NO_VERDICT or malformed)."
+          elif [ "$second" != "REVIEWED_SHA: $HEAD_SHA" ]; then
+            msg="REVIEWED_SHA does not match the PR head $HEAD_SHA."
+          elif [ "$first" = "VERDICT: APPROVE" ]; then result=pass; msg="APPROVE."
+          elif [ "$first" = "VERDICT: ESCALATE_TO_HUMAN" ]; then
+            result=warn; msg="ESCALATE_TO_HUMAN: the human decides. Read the report below."
+          else msg="CHANGES: the reviewer found blocking problems, listed below."
+          fi
+          case "$result" in
+            pass) echo "::notice title=Review — pr-reviewer::$msg" ;;
+            warn) echo "::warning title=Review — pr-reviewer::$msg" ;;
+            *) echo "::error title=Review — pr-reviewer::$msg" ;;
+          esac
+          # A fence longer than any backtick run in the report, so the report can't close it.
+          longest="$(grep -oE '`+' "$report" 2>/dev/null | awk '{ if (length > m) m = length } END { print m + 0 }')"
+          fence='```'; while [ "${#fence}" -le "$longest" ]; do fence="$fence\`"; done
+          {
+            printf '## Review — pr-reviewer\n\n**%s** Reviewed head: %s\n\n' "$msg" "$HEAD_SHA"
+            printf '%stext\n' "$fence"; cat "$report" 2>/dev/null; printf '\n%s\n' "$fence"
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+          [ "$result" != fail ]
