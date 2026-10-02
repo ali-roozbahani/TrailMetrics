@@ -305,12 +305,40 @@ final class TrackingViewModelTests: XCTestCase {
         XCTAssertEqual(activityHistoryRepository.savedActivities.map(\.snapshotFilePath), ["saved"])
     }
 
+    // MARK: - Profile load
+
+    // The profile is loaded only once, from init, so there is no later successful load to
+    // assert; without a profile, calories stay nil and Finish saves nothing (see above).
+    func test_init_profileLoadFails_emitsGeneralErrorAndLeavesProfileUnset() async {
+        let subject = makeSubject(
+            updates: TrackingFixtures.movingUpdates,
+            profile: UserProfile(weightKg: Self.weightKg),
+            isProfileStorageFailing: true
+        )
+        let viewModel = subject.viewModel
+        let recorder = TrackingEventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+
+        await waitUntil { !recorder.events.isEmpty }
+        XCTAssertEqual(recorder.events.count, 1)
+        guard case .showError(let error) = recorder.events.first else {
+            return XCTFail("Expected showError, got \(recorder.events)")
+        }
+        XCTAssertTrue(error is RouteUiErrorGeneral)
+
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count }
+        XCTAssertEqual(subject.userProfileRepository.getUserProfileCallCount, 1)
+        XCTAssertNil(viewModel.calories, "no profile was loaded, so no calories")
+    }
+
     // MARK: - Helpers
 
     private func makeSubject(
         updates: [any LocationUpdate] = [],
         profile: UserProfile? = nil,
-        activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository()
+        activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository(),
+        isProfileStorageFailing: Bool = false
     ) -> TrackingSubject {
         let scope = SwiftTestScope()
         scopes.append(scope)
@@ -319,7 +347,8 @@ final class TrackingViewModelTests: XCTestCase {
             updates: updates,
             profile: profile,
             activityHistoryRepository: activityHistoryRepository,
-            clockMillis: Self.startedAtMillis
+            clockMillis: Self.startedAtMillis,
+            isProfileStorageFailing: isProfileStorageFailing
         )
     }
 
@@ -354,5 +383,25 @@ final class TrackingViewModelTests: XCTestCase {
             weightKg: Self.weightKg,
             durationMillis: metrics.elapsedMillis
         )
+    }
+}
+
+/// Collects a `makeEventsStream()` stream from a `Task`, as the one-shot events bullet in
+/// TestSupport/Fakes/FakeActivityHistoryRepository.swift describes. Call `stop()` when done.
+@MainActor
+private final class TrackingEventRecorder {
+    private(set) var events: [TrackingUiEvent] = []
+    private var task: Task<Void, Never>?
+
+    init(_ stream: AsyncStream<TrackingUiEvent>) {
+        task = Task { [weak self] in
+            for await event in stream {
+                self?.events.append(event)
+            }
+        }
+    }
+
+    func stop() {
+        task?.cancel()
     }
 }

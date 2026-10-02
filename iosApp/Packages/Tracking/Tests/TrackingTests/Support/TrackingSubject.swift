@@ -23,16 +23,18 @@ struct TrackingSubject {
     ///   - scope: the TrackingSessionManager's scope; the caller cancels it when the test ends.
     ///   - updates: what each location collection (Start, Resume) emits.
     ///   - clockMillis: the fixed time `clock` reports until a test changes it.
+    ///   - isProfileStorageFailing: whether the user profile repository throws (see FakeUserProfileRepository).
     init(
         scope: SwiftTestScope,
         updates: [any LocationUpdate],
         profile: UserProfile?,
         activityHistoryRepository: FakeActivityHistoryRepository,
-        clockMillis: Int64
+        clockMillis: Int64,
+        isProfileStorageFailing: Bool = false
     ) {
         let locationRepository = FakeLocationRepository(location: TrackingFixtures.startPoint, updates: updates)
         let serviceLauncher = FakeTrackingServiceLauncher()
-        let userProfileRepository = FakeUserProfileRepository(profile: profile)
+        let userProfileRepository = FakeUserProfileRepository(profile: profile, isFailing: isProfileStorageFailing)
         let clock = FakeClock(nowMillis: clockMillis)
         let calorieCalculator = CalorieCalculator()
         let trackingSessionManager = TrackingSessionManager(
