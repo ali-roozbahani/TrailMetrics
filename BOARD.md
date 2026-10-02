@@ -52,41 +52,14 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: both rules are in `tm-pr-workflow` and/or `tm-testing`.
 - Refs: `tm-testing` ("Testing MVI ViewModels", "What to test, and coverage priorities"); `tm-pr-workflow` ("Tier 1").
 
-### tracking-finish-saves-twice
+### ios-double-tap-and-stale-route-results
 - Type: task
-- Area: androidApp/feature-tracking
+- Area: iosApp/Tracking, iosApp/History, iosApp/Route
 - Priority: soon
-- Source: test-feature-tracking PR
-- Problem: `TrackingViewModel.finish` saves whenever the session state is `Finished` and never records that it already saved. A second `TrackingAction.Finish` (for example a double tap on the route-completed Finish button, whose `map.snapshot` callback is asynchronous, before the `Saved` navigation runs) saves a second `ActivityRecord` and sends a second `Saved`. Pinned by `TrackingViewModelTest` "finishing twice currently saves the activity twice". Not reproduced on a device.
-- Done when: a repeated `Finish` for the same session saves at most once (and sends `Saved` at most once), and that pinned test is changed to assert it.
-- Refs: `androidApp/feature-tracking` `TrackingViewModel.finish`, `TrackingScreen` (Finish button, `TrackingEvent.Saved` handling); `TrackingViewModelTest`.
-
-### details-delete-confirmed-twice
-- Type: task
-- Area: androidApp/feature-history
-- Priority: soon
-- Source: test-feature-history PR
-- Problem: `DetailsViewModel.deleteActivity` never records that it already deleted. A second `DetailsAction.DeleteConfirmed` (for example a double tap on the delete dialog's confirm button before recomposition removes the dialog) deletes the id again and sends a second `DetailsEvent.Deleted`. `DetailsRoot` calls `onNavigateBack` for each `Deleted`, and the app wires that to `popBackStack()`, so the second one would also pop the History screen. Pinned by `DetailsViewModelTest` "confirming delete twice currently deletes and signals completion twice". Not reproduced on a device.
-- Done when: a repeated `DeleteConfirmed` deletes at most once and sends `Deleted` at most once, and that pinned test is changed to assert it.
-- Refs: `androidApp/feature-history` `DetailsViewModel.deleteActivity`, `DetailsScreen` (delete `AlertDialog`, `DetailsRoot` event handling); `MainActivity` `TrailMetricsNavHost` (`AppRoute.ActivityDetails`); `DetailsViewModelTest`.
-
-### route-generation-stale-in-flight-result
-- Type: task
-- Area: androidApp/feature-route
-- Priority: soon
-- Source: test-feature-route PR
-- Problem: `RouteViewModel.generateRoute` never cancels or discards an in-flight generation. A route requested before `RouteAction.ResetClicked` or `RouteAction.WaypointRemoved` still lands when the request finishes, in the reset state or for a waypoint list that no longer matches. Reset also sets `isLoading` back to false while the request is in flight, so the Generate button comes back and a second `GenerateRouteClicked` calls directions again. With two requests in flight, `isLoading` turns false when the first of them finishes, and whichever finishes last wins, even the older one. Pinned by the `RouteViewModelTest` tests "reset while generating currently lets the stale result land in the reset state", "removing a waypoint while generating currently lets the stale result land", "a second generate while the first is in flight currently calls directions again", "with two generations in flight loading currently stops when the first of them finishes" and "with two generations in flight the result that finishes last currently wins". Not reproduced on a device.
-- Done when: reset, a waypoint change or a newer generation cancels or discards the in-flight result, `isLoading` reflects the latest request only, and those pinned tests are changed to assert it.
-- Refs: `androidApp/feature-route` `RouteViewModel.generateRoute`, `reset`, `removeWaypoint`; `RouteScreen` (reset button, waypoint markers, Generate button); `RouteViewModelTest`.
-
-### route-map-tap-keeps-generated-route
-- Type: task
-- Area: androidApp/feature-route
-- Priority: soon
-- Source: test-feature-route PR
-- Problem: `RouteViewModel.addWaypoint` keeps `generatedRoute`, while `removeWaypoint` clears it. After a route is generated, a long-press on the map adds a waypoint marker, but the old route stays on screen together with the Start Tracking panel, and `StartTrackingClicked` navigates with a planned route that ignores the new waypoint. Pinned by `RouteViewModelTest` "tapping the map after generating currently keeps the stale generated route". Not reproduced on a device.
-- Done when: adding a waypoint invalidates the generated route the same way removing one does (or the map ignores taps while a route is shown, decided explicitly), and that pinned test is changed to assert it.
-- Refs: `androidApp/feature-route` `RouteViewModel.addWaypoint`, `removeWaypoint`, `startTracking`; `RouteScreen` (`TrailGoogleMap` `onMapLongClicked`, `StartTrackingPanel`); `RouteViewModelTest`.
+- Source: bugfix/double-tap-and-stale-route-results PR
+- Problem: The iOS ViewModels have the four defects that PR fixed on Android. `TrackingViewModel.onFinishClicked` saves on every call while the state is finished, so a repeated Finish saves twice and calls `onSaved` twice. `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `RouteViewModel.onGenerateRouteClicked` starts an untracked `Task`: `onResetClicked` and `onWaypointRemoved` don't cancel it, so a stale route lands afterwards, and reset turns `isLoading` off while it runs, so Generate can call directions again. `onMapTapped` keeps `generatedRoute`, while `onWaypointRemoved` clears it. Found by reading the code; not reproduced on a device and not pinned by tests.
+- Done when: on iOS a repeated Finish saves once, a repeated delete confirmation deletes once and calls `onDeleted` once, reset and any waypoint change cancel an in-flight generation, a click while one runs is ignored, and adding a waypoint clears the generated route, each with a test (as Android's `TrackingViewModel`, `DetailsViewModel` and `RouteViewModel` do).
+- Refs: iOS `TrackingViewModel.onFinishClicked`, `DetailsViewModel.onDeleteConfirmed`, `RouteViewModel.onGenerateRouteClicked`, `onResetClicked`, `onWaypointRemoved`, `onMapTapped`; Android `TrackingViewModel.finish`, `DetailsViewModel.deleteActivity`, `RouteViewModel.generateRoute`, `addWaypoint`.
 
 ### ios-live-activity-ticker
 - Type: task
@@ -192,8 +165,8 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-tracking
 - Priority: later
 - Source: test-feature-tracking PR
-- Problem: After the JVM tests, `feature-tracking` is at 30.02% line coverage (130/433). `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `TrackingScreen` and `saveSnapshotToFile` have tests, and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-tracking` is at 30.02% line coverage (130/433). `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the double-Finish fix (tracking-finish-saves-twice) can only dispatch two `Finish` actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `TrackingScreen` and `saveSnapshotToFile` have tests, a double tap on the Finish button, including the asynchronous `map.snapshot` callback path in `TrackingScreen`, results in exactly one saved activity and one `Saved`, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ### test-feature-history-compose-ui
@@ -201,8 +174,8 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-history
 - Priority: later
 - Source: test-feature-history PR
-- Problem: After the JVM tests, `feature-history` is at 12.99% line coverage (56/431). `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `HistoryScreen` and `DetailsScreen` have tests, and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-history` is at 12.99% line coverage (56/431). `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the double-delete fix (details-delete-confirmed-twice) can only dispatch two `DeleteConfirmed` actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `HistoryScreen` and `DetailsScreen` have tests, a double tap on the delete dialog's confirm button in `DetailsScreen` results in exactly one delete and one `Deleted` (History is still on screen afterwards), and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-history` `HistoryScreen`, `DetailsScreen`; `androidApp/feature-history/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ### test-feature-route-compose-ui
@@ -210,8 +183,8 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Area: androidApp/feature-route
 - Priority: later
 - Source: test-feature-route PR
-- Problem: After the JVM tests, `feature-route` is at 25.87% line coverage (97/375). `RouteViewModel` (with `RouteState`, `RouteAction`, `RouteEvent`) and `di/RouteModule` are fully covered; everything left is Compose code with 0% covered: `RouteScreen.kt` (278 lines: `RouteRoot`'s event handling and permission flow, both `RouteScreen` overloads, `UserProfileBottomSheet`'s weight input and its parse-and-positive check, `StartTrackingPanel`, `ActivityTypeSelector`, the private `labelFor`/`iconFor` helpers, the previews). The screen holds no JVM-reachable pure logic: `labelFor` and the weight check are inside `@Composable` functions and `iconFor` is private. It needs Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`.
-- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `RouteScreen` has tests, and the module's Kover floor is raised in the same PR.
+- Problem: After the JVM tests, `feature-route` is at 25.87% line coverage (97/375). `RouteViewModel` (with `RouteState`, `RouteAction`, `RouteEvent`) and `di/RouteModule` are fully covered; everything left is Compose code with 0% covered: `RouteScreen.kt` (278 lines: `RouteRoot`'s event handling and permission flow, both `RouteScreen` overloads, `UserProfileBottomSheet`'s weight input and its parse-and-positive check, `StartTrackingPanel`, `ActivityTypeSelector`, the private `labelFor`/`iconFor` helpers, the previews). The screen holds no JVM-reachable pure logic: `labelFor` and the weight check are inside `@Composable` functions and `iconFor` is private. It needs Robolectric and/or compose-ui-test, which are not in `gradle/libs.versions.toml`. The JVM tests of the stale-generation and map-tap fixes (route-generation-stale-in-flight-result, route-map-tap-keeps-generated-route) only dispatch actions back to back; the real UI path is asynchronous and untested.
+- Done when: an explicit task adds Robolectric/compose-ui-test to the catalog, `RouteScreen` has tests, Generate followed by Reset or a waypoint change leaves no stale route on screen, a long-press on the map after a route is shown hides the old route and the Start Tracking panel until a new route is generated, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-route` `RouteScreen`, `RouteRoot`, `UserProfileBottomSheet`, `ActivityTypeSelector`; `androidApp/feature-route/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ## Drift

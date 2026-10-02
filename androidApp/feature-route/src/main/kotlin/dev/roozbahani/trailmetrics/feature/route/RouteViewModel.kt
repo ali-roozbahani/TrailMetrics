@@ -14,6 +14,7 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,9 @@ class RouteViewModel(
 
     private val _events = Channel<RouteEvent>(Channel.BUFFERED)
     val events: Flow<RouteEvent> = _events.receiveAsFlow()
+
+    /** The running route generation; cancelled by [cancelGeneration] when its input becomes stale. */
+    private var generationJob: Job? = null
 
     init {
         loadCurrentLocation()
@@ -73,17 +77,22 @@ class RouteViewModel(
     }
 
     private fun addWaypoint(coordinates: Coordinates) {
+        cancelGeneration()
         _state.update { state ->
             val newWaypoint = RoutePoint(coordinates = coordinates, order = state.waypoints.size)
-            state.copy(waypoints = state.waypoints + newWaypoint)
+            state.copy(waypoints = state.waypoints + newWaypoint, generatedRoute = null, isLoading = false)
         }
     }
 
     private fun generateRoute() {
+        // A click while a generation runs would only repeat the (paid) directions call.
+        if (generationJob?.isActive == true) return
         val state = _state.value
         val startPoint = state.startPoint ?: return
 
-        viewModelScope.launch {
+        // Only RouteError is caught below, so cancellation always stops this coroutine before it
+        // writes state or sends an event.
+        generationJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
             val draftRoute = RouteDraft(
@@ -101,19 +110,27 @@ class RouteViewModel(
         }
     }
 
+    /** A cancelled generation writes nothing, so callers turn loading off themselves. */
+    private fun cancelGeneration() {
+        generationJob?.cancel()
+        generationJob = null
+    }
+
     private fun reset() {
+        cancelGeneration()
         _state.update { RouteState() }
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
     private fun removeWaypoint(removeCandidate: RoutePoint) {
+        cancelGeneration()
         _state.update { state ->
             val updatedWaypoints = state.waypoints
                 .filterNot { it == removeCandidate }
                 .mapIndexed { index, point -> point.copy(order = index) }
 
-            state.copy(waypoints = updatedWaypoints, generatedRoute = null)
+            state.copy(waypoints = updatedWaypoints, generatedRoute = null, isLoading = false)
         }
     }
 

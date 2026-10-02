@@ -20,6 +20,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class DetailsViewModelTest {
@@ -180,28 +182,56 @@ class DetailsViewModelTest {
         assertEquals(listOf<DetailsEvent>(DetailsEvent.Deleted), events)
     }
 
-    // Defect pinned as-is (BOARD.md `details-delete-confirmed-twice`): each Deleted pops the back
-    // stack once, so a second confirmation would also leave the History screen.
+    // Each Deleted pops the back stack once, so a second one would also leave the History screen.
     @Test
-    fun `confirming delete twice currently deletes and signals completion twice`() = runTest(testScheduler) {
+    fun `a repeated delete confirmation deletes once and signals completion once`() = runTest(testScheduler) {
         val snapshot = tempFolder.newFile("snapshot-1.png")
         activityHistoryRepository.setActivities(
             listOf(activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath))
         )
         val viewModel = createViewModel(activityId = 1L)
         testScheduler.runCurrent()
+        val deleteGate = CompletableDeferred<Unit>()
+        activityHistoryRepository.deleteActivityGate = deleteGate
 
+        // Back to back, while the first delete is still in flight (a double tap), then once more after it.
         val completions = confirmDelete(viewModel, snapshot)
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        deleteGate.complete(Unit)
+        testScheduler.runCurrent()
         viewModel.onAction(DetailsAction.DeleteConfirmed)
         testScheduler.runCurrent()
 
-        assertEquals(
-            listOf(
-                DeleteCompletion(deletedIds = listOf(1L), snapshotExists = false),
-                DeleteCompletion(deletedIds = listOf(1L, 1L), snapshotExists = false)
-            ),
-            completions
-        )
+        assertEquals(listOf(DeleteCompletion(deletedIds = listOf(1L), snapshotExists = false)), completions)
+        assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+    }
+
+    @Test
+    fun `a delete that throws can be retried`() {
+        val failure = IllegalStateException("database locked")
+        val thrown = assertFailsWith<IllegalStateException> {
+            runTest(testScheduler) {
+                val snapshot = tempFolder.newFile("snapshot-1.png")
+                activityHistoryRepository.setActivities(
+                    listOf(activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath))
+                )
+                val viewModel = createViewModel(activityId = 1L)
+                testScheduler.runCurrent()
+                activityHistoryRepository.deleteActivityFailure = failure
+                val completions = confirmDelete(viewModel, snapshot)
+                testScheduler.runCurrent()
+                assertEquals(emptyList(), completions)
+                assertTrue(snapshot.exists())
+                activityHistoryRepository.deleteActivityFailure = null
+
+                viewModel.onAction(DetailsAction.DeleteConfirmed)
+                testScheduler.runCurrent()
+
+                assertEquals(listOf(DeleteCompletion(deletedIds = listOf(1L), snapshotExists = false)), completions)
+            }
+        }
+        // The failure is rethrown into viewModelScope (runTest reports it once the test body is done).
+        assertSame(failure, thrown)
     }
 
     @Test
