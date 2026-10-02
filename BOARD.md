@@ -34,15 +34,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### ios-history-details-delete-and-load-errors
-- Type: task
-- Area: iosApp/History, data
-- Priority: soon
-- Source: bugfix/ios-double-tap-and-stale-route-results PR (History/Details half of the former `ios-double-tap-and-stale-route-results`)
-- Problem: `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call, so a repeated delete confirmation deletes twice and calls `onDeleted` twice; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `DetailsViewModel`'s load (`getActivity`) and `HistoryViewModel.deleteActivity` call the repository with `try?`, so a failed load shows nothing and a failed delete is never reported. `HistoryViewModel.observe` iterates `observeActivities()`; SKIE's `SkieSwiftFlowIterator.next()` calls `fatalError` on any non-cancellation error, so a failure in the Room-backed Flow (`ActivityHistoryRepositoryImpl.observeActivities`, no `catch`) terminates the app. `@Throws` does not apply to a `Flow`. Found by reading the code; not reproduced on a device and not pinned by tests. Design notes: History and Details have no error channel today, so the fix needs a published error state shown by an alert in the views (same "Something went wrong. Please try again." wording as Route and Tracking); a Flow failure must be handled on the Kotlin side before SKIE's iterator, which also changes Android's `HistoryViewModel` (spinner instead of crash), so coordinate with `android-persistence-errors-unhandled`; best-effort side effects that may stay silent (`deleteSnapshotFile`, Live Activity `Activity.request`) need a comment saying why, and a short exception in the `tm-ios` "never drop an error" rule.
-- Done when: on iOS a repeated delete confirmation deletes once and calls `onDeleted` once, with a test (as Android's `DetailsViewModel` does). No `try?` is left in `DetailsViewModel`/`HistoryViewModel`: a failed load or delete reaches the user per the `@Throws` policy in `tm-kmp-shared` (a failed delete does not call `onDeleted`), and a failure in `observeActivities()` can no longer reach Swift unhandled (handled on the Kotlin side before SKIE's iterator), each with a test.
-- Refs: iOS `DetailsViewModel.onDeleteConfirmed`, `DetailsViewModel` load, `HistoryViewModel.observe`, `deleteActivity`; Android `DetailsViewModel.deleteActivity`; `data` `ActivityHistoryRepositoryImpl.observeActivities`; SKIE `SkieSwiftFlowIterator`; `tm-kmp-shared` ("`@Throws` policy"); `tm-ios` ("SKIE interop from Swift": the "never drop an error" rule, whose "Known remaining `try?` sites" line still names the removed slug `ios-double-tap-and-stale-route-results`); `deleteSnapshotFile`, `TrackingLiveActivityController` (`Activity.request`); board `android-persistence-errors-unhandled`.
-
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp
