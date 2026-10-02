@@ -25,6 +25,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Epics
 
+### agentic-dev-loop
+- Type: epic
+- Area: scripts, .github, .claude, iosApp, androidApp
+- Order: 40
+- Source: chat 2026-10-02
+- Problem: Every task needs the human as reviewer, merger and Tier 2 tester, which is the slowest part of development.
+- Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on iOS (XCUITest) and Android (Compose UI tests), with a fast smoke subset in the local gate when the diff touches UI or ViewModels and the full UI suite in CI; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths (gate, CI, skills, hooks, `.claude/settings.json`, CODEOWNERS and branch protection) can only be merged by the human; (4) agents merge their own PR only for tasks of a safe tier, after the two required CI checks are green and the reviewer approved; (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR.
+- Refs: `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`, `test-feature-tracking-compose-ui`, `test-feature-history-compose-ui`, `test-feature-route-compose-ui`.
+
 ### route-completion-to-domain
 - Type: epic
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
@@ -72,6 +81,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: each of those modules has a floor or an explicit documented exclusion, and the root-vs-module report check is written down.
 - Refs: `build.gradle.kts` (root Kover merge); each module's `build.gradle.kts` `kover` block; `tm-pr-workflow` ("Tier 1").
 
+### swiftlint-try-optional-requires-reason
+- Type: task
+- Area: iosApp
+- Order: 35
+- Source: chat 2026-10-02
+- Problem: The "never drop an error" rule in `tm-ios` is only enforced by review: `try?` can be added without a reason and nothing fails. Today `try?` appears in `deleteSnapshotFile` (History) and in `TrackingLiveActivityController`'s `Activity.request` call, both best-effort, and in the test helpers `waitUntil` (TestSupport) and `SnapshotFileFixture` (HistoryTests).
+- Done when: a SwiftLint custom rule in `iosApp/.swiftlint.yml` rejects `try?` unless the line carries a `swiftlint:disable:next <rule> - <reason>` (the repo's existing convention for suppressions); the two best-effort sites (`deleteSnapshotFile`, the Live Activity `Activity.request`) carry it; the test-helper sites either carry it or are excluded from the rule with the decision stated in the PR; and the gate's `swiftlint lint --strict` run shows the rule works (fails on an unannotated `try?`, passes once annotated).
+- Refs: `iosApp/.swiftlint.yml`; History `deleteSnapshotFile`; Tracking `TrackingLiveActivityController` (`Activity.request`); TestSupport `waitUntil`; HistoryTests `SnapshotFileFixture`; `tm-ios` ("SKIE interop from Swift", never drop an error).
+
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp
@@ -114,6 +132,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: iosApp
 - Order: 100
+- After: agentic-dev-loop
 - Source: bugfix/ios-history-details-delete-and-load-errors PR
 - Problem: The iOS ViewModel guards for a repeated Finish (`TrackingViewModel.onFinishClicked`), a repeated delete confirmation (`DetailsViewModel.onDeleteConfirmed`), a repeated Generate (`RouteViewModel.onGenerateRouteClicked`) and Generate followed by Reset (`onResetClicked`) are covered by Swift unit tests in the packages, but nothing proves the Views deliver such taps to the ViewModel the way the tests do, and they can't be checked reliably by hand. The Android equivalents are the three `test-feature-*-compose-ui` records. There is no iOS UI-test target today: `TrailMetrics.xcodeproj` has only the `TrailMetrics` app and the `TrackingWidget` extension, and the shared `TrailMetrics` scheme has no testables. Design note: XCUITest drives the real app, so it needs deterministic fakes (location, directions, storage) injected at app launch (a launch argument read by the composition root, or a Koin override in `doInitKoinIos`); that seam doesn't exist yet and is part of this task.
 - Done when: a UI-test target exists in the shared scheme with a launch-time fake seam, and XCUITest scenarios cover: Finish tapped twice (one History entry), Generate then Reset (no route afterwards), Generate tapped twice (one directions request), delete confirmation tapped twice (one deletion), and a failed delete showing the "Error" alert.
