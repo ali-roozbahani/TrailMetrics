@@ -103,7 +103,8 @@ jobs:
               slug="${tok#-}"
               [ "$tok" != "$slug" ] && [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || continue
               printf -- '--- BOARD.md record %s on the base branch (resolved by this PR) ---\n' "$slug"
-              awk -v h="### $slug" '$0 == h {p = 1; print; next} p && /^#/ {exit} p' "$TRUSTED/BOARD.md"
+              awk -v h="### $slug" '$0 == h {p = 1; print; next} p && /^#/ {exit} p
+                END {if (!p) print "(no record with this slug on the base branch)"}' "$TRUSTED/BOARD.md"
               printf -- '--- end of record ---\n'
             done
           } > "$W/message"
