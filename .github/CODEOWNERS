@@ -1,0 +1,46 @@
+# Protected paths: this file is the single source of truth for them.
+# scripts/check-protected-paths.sh reads it to classify a diff as protected or unprotected,
+# and `scripts/check-protected-paths.sh --validate` checks it. Use only the syntax that
+# script's header documents. An agent never merges a PR that touches a path listed here.
+
+# Agent and repository configuration, docs that need the human's approval
+/.github/                                   @ali-roozbahani
+/.claude/                                   @ali-roozbahani
+/CLAUDE.md                                  @ali-roozbahani
+/docs/architecture/                         @ali-roozbahani
+/docs/epics/                                @ali-roozbahani
+
+# The gate and its tooling
+/scripts/pre-push-check.sh                  @ali-roozbahani
+/scripts/claude-hooks/                      @ali-roozbahani
+/scripts/check-board.sh                     @ali-roozbahani
+/scripts/check-board.py                     @ali-roozbahani
+/scripts/check-board-fixtures/              @ali-roozbahani
+/scripts/check-protected-paths.sh           @ali-roozbahani
+/scripts/check-protected-paths.py           @ali-roozbahani
+/scripts/build-kmp-framework.sh             @ali-roozbahani
+
+# Build and dependency files
+/settings.gradle.kts                        @ali-roozbahani
+build.gradle.kts                            @ali-roozbahani
+/gradle.properties                          @ali-roozbahani
+/gradle/                                    @ali-roozbahani
+/gradlew                                    @ali-roozbahani
+/gradlew.bat                                @ali-roozbahani
+Package.swift                               @ali-roozbahani
+Package.resolved                            @ali-roozbahani
+/iosApp/TrailMetrics.xcodeproj/             @ali-roozbahani
+
+# Lint config (Android lint has no config file; its settings live in build.gradle.kts)
+/config/detekt/                             @ali-roozbahani
+/iosApp/.swiftlint.yml                      @ali-roozbahani
+
+# The Kotlin to Swift boundary
+/shared/                                    @ali-roozbahani
+/iosApp/Packages/SharedKit/                 @ali-roozbahani
+
+# Persistence: the Room database, converters and builders, DAOs, entities, exported schema
+/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/  @ali-roozbahani
+/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/dao/  @ali-roozbahani
+/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/entity/  @ali-roozbahani
+/data/schemas/                              @ali-roozbahani
