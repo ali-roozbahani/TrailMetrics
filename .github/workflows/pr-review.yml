@@ -70,11 +70,12 @@ jobs:
           git diff --no-color --find-renames "$MB" "$HEAD_SHA" > "$IN/diff"
 
           # The classifier, CODEOWNERS and BOARD.md come from the base, so a PR can't change
-          # the rules it is judged by. Same file list as `--base`, classified with --files.
+          # the rules it is judged by. Same file list as `--base`, classified with --files; the
+          # "./" prefix (stripped by the classifier) stops a path like "--root" acting as a flag.
           git archive "$BASE_SHA" -- .github/CODEOWNERS BOARD.md \
             scripts/check-protected-paths.sh scripts/check-protected-paths.py | tar -x -C "$TRUSTED"
           files=()
-          while IFS= read -r -d '' f; do files+=("$f"); done \
+          while IFS= read -r -d '' f; do files+=("./$f"); done \
             < <(git diff --name-only --no-renames -z "$MB...$HEAD_SHA")
           bash "$TRUSTED/scripts/check-protected-paths.sh" --root "$TRUSTED" \
             --files ${files[@]+"${files[@]}"} > "$IN/protected" 2>&1 || true
