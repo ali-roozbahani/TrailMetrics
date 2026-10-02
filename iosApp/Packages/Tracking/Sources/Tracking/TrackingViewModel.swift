@@ -125,8 +125,12 @@ public class TrackingViewModel: ObservableObject {
 
     private func loadUserProfile() {
         Task {
-            loadedUserProfile = try await userProfileRepository.getUserProfile()
-            recomputeCalories()
+            do {
+                loadedUserProfile = try await userProfileRepository.getUserProfile()
+                recomputeCalories()
+            } catch {
+                emit(.showError(RouteUiErrorGeneral.shared))
+            }
         }
     }
 

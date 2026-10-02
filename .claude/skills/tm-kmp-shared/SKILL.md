@@ -73,6 +73,27 @@ Android-only (Compose UI) Koin modules are NOT registered in `shared`; they're p
 - Prefer domain types that cross cleanly (Long, Double, sealed types). Verify the
   inferred Swift type for anything generic before relying on it.
 
+### `@Throws` policy (Kotlin called from Swift)
+
+Kotlin/Native delivers to Swift only the exceptions a function lists in `@Throws` (plus
+`CancellationException` for suspend functions); any other exception reaching the boundary
+terminates the process. SKIE makes every `suspend fun` `async throws` in Swift, so `try await`
+looks safe even when the Kotlin side declares nothing.
+1. Every Kotlin function Swift calls (or a Swift fake implements) that can throw declares
+   `@Throws`; suspend functions list `CancellationException` explicitly.
+2. Failures the UI shows specifically are `RouteError`. A function declaring
+   `@Throws(RouteError::class, ...)` maps every failure to a `RouteError`.
+3. Persistence-backed functions declare `@Throws(Exception::class, CancellationException::class)`,
+   never `Throwable` (an `Error` such as OutOfMemoryError should crash). No new `RouteError` cases
+   for them; Swift shows `RouteUiErrorGeneral`.
+4. Swift never drops an error: no `try?` hiding a failure, no `Task { try ... }` without `do/catch`.
+5. After a failure, state stays consistent (nothing half-updated, no navigation).
+
+Today: `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase` follow rule 2 (their
+repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileRepository` and
+`ActivityHistoryRepository`'s suspend members follow rule 3. `observeActivities()` is a `Flow`:
+SKIE's iterator `fatalError`s on a Flow failure, so it is not covered by `@Throws`.
+
 ## Events that must not be silently dropped
 
 `MutableSharedFlow(extraBufferCapacity = 1)` with no replay (as used for

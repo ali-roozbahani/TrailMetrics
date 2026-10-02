@@ -34,23 +34,32 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Tasks
 
-### throws-policy-and-swallowed-errors
-- Type: task
-- Area: iosApp, domain
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: No Kotlin→Swift `@Throws` policy is written down, and usage is inconsistent: `GenerateClosedRouteUseCase` and `GetCurrentLocationUseCase` declare only `RouteError` and `CancellationException`, so any other exception crashes iOS, while `SaveActivityUseCase` declares `Throwable`. Four unstructured throwing `Task { }` blocks silently drop errors: three in iOS `RouteViewModel` (`saveUserProfile`, `onStartTrackingClicked`, `getAndUpdateUserProfile`) and one in `TrackingViewModel` (`loadUserProfile`). Xcode reports these as "Unstructured throwing task is not used" (the call sites were checked in code; the warning was not reproduced in this PR).
-- Done when: the policy is written in `tm-kmp-shared`, the four warnings are gone, and errors reach the user or the logs on purpose.
-- Refs: `domain` `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase`, `SaveActivityUseCase`; `iosApp/Packages/Route` `RouteViewModel`; `iosApp/Packages/Tracking` `TrackingViewModel.loadUserProfile`.
-
 ### ios-double-tap-and-stale-route-results
 - Type: task
-- Area: iosApp/Tracking, iosApp/History, iosApp/Route
+- Area: iosApp/Tracking, iosApp/History, iosApp/Route, data
 - Priority: soon
-- Source: bugfix/double-tap-and-stale-route-results PR
-- Problem: The iOS ViewModels have the four defects that PR fixed on Android. `TrackingViewModel.onFinishClicked` saves on every call while the state is finished, so a repeated Finish saves twice and calls `onSaved` twice. `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `RouteViewModel.onGenerateRouteClicked` starts an untracked `Task`: `onResetClicked` and `onWaypointRemoved` don't cancel it, so a stale route lands afterwards, and reset turns `isLoading` off while it runs, so Generate can call directions again. `onMapTapped` keeps `generatedRoute`, while `onWaypointRemoved` clears it. Found by reading the code; not reproduced on a device and not pinned by tests.
-- Done when: on iOS a repeated Finish saves once, a repeated delete confirmation deletes once and calls `onDeleted` once, reset and any waypoint change cancel an in-flight generation, a click while one runs is ignored, and adding a waypoint clears the generated route, each with a test (as Android's `TrackingViewModel`, `DetailsViewModel` and `RouteViewModel` do).
-- Refs: iOS `TrackingViewModel.onFinishClicked`, `DetailsViewModel.onDeleteConfirmed`, `RouteViewModel.onGenerateRouteClicked`, `onResetClicked`, `onWaypointRemoved`, `onMapTapped`; Android `TrackingViewModel.finish`, `DetailsViewModel.deleteActivity`, `RouteViewModel.generateRoute`, `addWaypoint`.
+- Source: bugfix/double-tap-and-stale-route-results PR; bugfix/ios-swallowed-errors-and-throws-policy PR
+- Problem: The iOS ViewModels have the four defects that PR fixed on Android. `TrackingViewModel.onFinishClicked` saves on every call while the state is finished, so a repeated Finish saves twice and calls `onSaved` twice. `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `RouteViewModel.onGenerateRouteClicked` starts an untracked `Task`: `onResetClicked` and `onWaypointRemoved` don't cancel it, so a stale route lands afterwards, and reset turns `isLoading` off while it runs, so Generate can call directions again. `onMapTapped` keeps `generatedRoute`, while `onWaypointRemoved` clears it. Found by reading the code; not reproduced on a device and not pinned by tests. Errors are swallowed too: `DetailsViewModel.getActivity` (load) and `deleteActivity`, and `HistoryViewModel.deleteActivity`, call the repository with `try?`, so a failed load shows nothing and a failed delete is never reported. `HistoryViewModel.observe` iterates `observeActivities()`; SKIE's `SkieSwiftFlowIterator.next()` calls `fatalError` on any non-cancellation error, so a failure in the Room-backed Flow (`ActivityHistoryRepositoryImpl.observeActivities`, no `catch`) terminates the app. `@Throws` does not apply to a `Flow`.
+- Done when: on iOS a repeated Finish saves once, a repeated delete confirmation deletes once and calls `onDeleted` once, reset and any waypoint change cancel an in-flight generation, a click while one runs is ignored, and adding a waypoint clears the generated route, each with a test (as Android's `TrackingViewModel`, `DetailsViewModel` and `RouteViewModel` do). No `try?` is left in `DetailsViewModel`/`HistoryViewModel`: a failed load or delete reaches the user per the `@Throws` policy in `tm-kmp-shared` (a failed delete does not call `onDeleted`), and a failure in `observeActivities()` can no longer reach Swift unhandled (handled on the Kotlin side before SKIE's iterator), each with a test.
+- Refs: iOS `TrackingViewModel.onFinishClicked`, `DetailsViewModel.onDeleteConfirmed`, `RouteViewModel.onGenerateRouteClicked`, `onResetClicked`, `onWaypointRemoved`, `onMapTapped`; Android `TrackingViewModel.finish`, `DetailsViewModel.deleteActivity`, `RouteViewModel.generateRoute`, `addWaypoint`; iOS `HistoryViewModel.observe`, `deleteActivity`, `DetailsViewModel` load; `data` `ActivityHistoryRepositoryImpl.observeActivities`; SKIE `SkieSwiftFlowIterator`; `tm-kmp-shared` ("`@Throws` policy").
+
+### ios-init-time-error-events-dropped
+- Type: task
+- Area: iosApp/Route, iosApp/Tracking
+- Priority: soon
+- Source: bugfix/ios-swallowed-errors-and-throws-policy PR review
+- Problem: In iOS `RouteViewModel` and `TrackingViewModel`, `emit(_:)` yields to `eventsContinuation`, which exists only once the View's `.task` has called `makeEventsStream()`. The loads `RouteViewModel.getAndUpdateUserProfile`, `loadCurrentLocation` and `TrackingViewModel.loadUserProfile` start in `init`, before the View consumes events. If one fails before the stream exists, its `.showError` is yielded to a nil continuation and silently lost. The same happens while a pushed screen covers `RouteView`: its `.task` is cancelled and only re-created on return, so an event emitted in between is lost. The existing `loadCurrentLocation` error has the same timing. The new tests pass only because they create the recorder right after building the ViewModel, before the failing load completes. So the `@Throws` policy rule "Swift never drops an error" does not yet hold for init-time loads. Found by reading the code; not reproduced on a device.
+- Done when: an error produced before the View starts consuming `makeEventsStream()`, or while no consumer is active, is delivered to the next consumer instead of being lost (for example by holding pending events until a stream exists), in both ViewModels, with a test per ViewModel that fails the profile (or location) load before calling `makeEventsStream()` and still receives the error.
+- Refs: `RouteViewModel.emit`, `makeEventsStream`, `getAndUpdateUserProfile`, `loadCurrentLocation`; `TrackingViewModel.emit`, `makeEventsStream`, `loadUserProfile`; `RouteView`/`TrackingView` `.task`; `tm-kmp-shared` ("`@Throws` policy" rule 4).
+
+### android-persistence-errors-unhandled
+- Type: task
+- Area: androidApp
+- Priority: soon
+- Source: bugfix/ios-swallowed-errors-and-throws-policy PR
+- Problem: The Android ViewModels call the persistence repositories inside `viewModelScope.launch` without handling a failure, and no `CoroutineExceptionHandler` exists, so a database or storage exception crashes the app. `RouteViewModel` `saveUserProfile`, `startTracking` and `getAndUpdateUserProfile` call `UserProfileRepository` unguarded; `TrackingViewModel`'s init profile load is unguarded, and `finish` resets `isSessionSaved` on failure but rethrows with `getOrThrow()`; `DetailsViewModel`'s init `getActivity` is unguarded and `deleteActivity` rethrows the same way; `HistoryViewModel.deleteActivity` is unguarded and its `state` (`observeActivities().stateIn`) has no `catch`. Found by reading the code; not reproduced.
+- Done when: the `@Throws` policy's rules 4 and 5 in `tm-kmp-shared` hold on Android too: every such failure reaches the user through the screen's existing error event or state, never crashes, and leaves state consistent (a failed save does not update the profile, a failed start does not navigate, a failed delete does not send `Deleted`), each with an `onAction` test using a throwing fake from `core-testing`.
+- Refs: `androidApp/feature-route` `RouteViewModel`; `feature-tracking` `TrackingViewModel` (init, `finish`); `feature-history` `DetailsViewModel` (init, `deleteActivity`), `HistoryViewModel` (`state`, `deleteActivity`); `core-testing` `FakeUserProfileRepository`, `FakeActivityHistoryRepository`; `tm-kmp-shared` ("`@Throws` policy").
 
 ### ios-live-activity-ticker
 - Type: task

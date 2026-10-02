@@ -19,8 +19,10 @@
 //    SwiftLint's `identifier_name` rejects the `__` prefix, so each such method gets its
 //    own single-line `disable:next identifier_name` command with a reason, as below.
 //    That's human-approved for SKIE-mandated names only, never for a whole file or the
-//    config. Don't throw from it to simulate a failure: the Kotlin interfaces declare no `@Throws`,
-//    so Kotlin treats any error other than cancellation as fatal and the test process dies.
+//    config. Throw from it to simulate a failure only if the Kotlin member declares `@Throws`
+//    (`UserProfileRepository` and `ActivityHistoryRepository`'s suspend members do, see
+//    `FakeUserProfileRepository.setFailing`): otherwise Kotlin treats any error other than
+//    cancellation as fatal and the test process dies.
 //  - Kotlin calls those members off the main thread, so a fake guards what it records with
 //    a lock and exposes it through read-only accessors.
 //  - Kotlin coroutine values come from shared's test support (shared/.../testsupport):

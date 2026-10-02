@@ -51,6 +51,25 @@ final class RouteViewModelTests: XCTestCase {
         XCTAssertTrue(recorder.events.first?.shownError is RouteUiErrorLocationUnavailable)
     }
 
+    func test_init_profileLoadFails_emitsGeneralErrorAndLeavesProfileNil() async {
+        let userProfileRepository = FakeUserProfileRepository(profile: UserProfile(weightKg: 70), isFailing: true)
+        let viewModel = makeViewModel(userProfileRepository: userProfileRepository)
+        let recorder = EventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+
+        await waitUntil { !recorder.events.isEmpty }
+        XCTAssertEqual(recorder.events.count, 1)
+        XCTAssertTrue(recorder.events.first?.shownError is RouteUiErrorGeneral)
+        XCTAssertNil(viewModel.userProfile)
+
+        userProfileRepository.setFailing(false)
+        viewModel.onResetClicked()
+
+        await waitUntil { viewModel.userProfile != nil }
+        XCTAssertEqual(viewModel.userProfile, UserProfile(weightKg: 70))
+        XCTAssertEqual(recorder.events.count, 1)
+    }
+
     // MARK: - Waypoints
 
     func test_onMapTapped_appendsWaypointsInTapOrder() {
@@ -175,6 +194,29 @@ final class RouteViewModelTests: XCTestCase {
         XCTAssertEqual(activityType, .cycling)
     }
 
+    func test_onStartTrackingClicked_profileLoadFails_emitsGeneralErrorWithoutNavigating() async {
+        let userProfileRepository = FakeUserProfileRepository(profile: UserProfile(weightKg: 70))
+        let viewModel = await makeViewModelWithGeneratedRoute(userProfileRepository: userProfileRepository)
+        await waitUntil { viewModel.userProfile != nil }
+        let recorder = EventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+        userProfileRepository.setFailing(true)
+
+        viewModel.onStartTrackingClicked()
+
+        await waitUntil { !recorder.events.isEmpty }
+        XCTAssertEqual(recorder.events.count, 1)
+        XCTAssertTrue(recorder.events.first?.shownError is RouteUiErrorGeneral, "got \(recorder.events)")
+
+        userProfileRepository.setFailing(false)
+        viewModel.onStartTrackingClicked()
+
+        await waitUntil { recorder.events.count == 2 }
+        guard case .navigateToTracking = recorder.events.last else {
+            return XCTFail("Expected navigateToTracking after the retry, got \(recorder.events)")
+        }
+    }
+
     // MARK: - Reset, profile, activity type
 
     func test_onResetClicked_restoresDefaultsAndReloadsLocationAndProfile() async {
@@ -216,6 +258,30 @@ final class RouteViewModelTests: XCTestCase {
 
         await waitUntil { viewModel.userProfile == UserProfile(weightKg: 82.5) }
         XCTAssertEqual(userProfileRepository.savedProfiles, [UserProfile(weightKg: 82.5)])
+    }
+
+    func test_saveUserProfile_saveFails_emitsGeneralErrorAndKeepsPreviousProfile() async {
+        let userProfileRepository = FakeUserProfileRepository(profile: UserProfile(weightKg: 70))
+        let viewModel = makeViewModel(userProfileRepository: userProfileRepository)
+        await waitUntil { viewModel.userProfile != nil }
+        let recorder = EventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+        userProfileRepository.setFailing(true)
+
+        viewModel.saveUserProfile(weightKg: 82.5)
+
+        await waitUntil { !recorder.events.isEmpty }
+        XCTAssertEqual(recorder.events.count, 1)
+        XCTAssertTrue(recorder.events.first?.shownError is RouteUiErrorGeneral)
+        XCTAssertEqual(viewModel.userProfile, UserProfile(weightKg: 70))
+        XCTAssertTrue(userProfileRepository.savedProfiles.isEmpty)
+
+        userProfileRepository.setFailing(false)
+        viewModel.saveUserProfile(weightKg: 82.5)
+
+        await waitUntil { viewModel.userProfile == UserProfile(weightKg: 82.5) }
+        XCTAssertEqual(userProfileRepository.savedProfiles, [UserProfile(weightKg: 82.5)])
+        XCTAssertEqual(recorder.events.count, 1)
     }
 
     func test_onActivityTypeSelected_updatesSelection() {

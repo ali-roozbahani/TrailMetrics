@@ -98,6 +98,11 @@ public class HistoryViewModel: ObservableObject {
   `userInfo["KotlinException"]`. See the `underlyingRouteError` extension in
   `RouteViewModel.swift`, and map to `RouteUiError` via `.toUiError()` with
   `RouteUiErrorGeneral.shared` as the fallback.
+- Never drop an error: no `try?` that hides a failure and no unstructured `Task { try ... }`
+  without `do/catch`. A caught error reaches the user through the ViewModel's `.showError`
+  event, and state stays as it was. Only Kotlin functions with `@Throws` can throw into Swift
+  without crashing; see `tm-kmp-shared` ("`@Throws` policy"). Known remaining `try?` sites:
+  `DetailsViewModel`, `HistoryViewModel` (board `ios-double-tap-and-stale-route-results`).
 - Generic collections crossing the bridge: check the inferred Swift type rather than
   assuming it (`HistoryViewModel`'s `[ActivityRecord]` is the worked example).
 
