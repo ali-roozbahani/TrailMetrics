@@ -316,7 +316,7 @@ final class TrackingViewModelTests: XCTestCase {
             isProfileStorageFailing: true
         )
         let viewModel = subject.viewModel
-        let recorder = TrackingEventRecorder(viewModel.makeEventsStream())
+        let recorder = EventRecorder(viewModel.makeEventsStream())
         defer { recorder.stop() }
 
         await waitUntil { !recorder.events.isEmpty }
@@ -383,25 +383,5 @@ final class TrackingViewModelTests: XCTestCase {
             weightKg: Self.weightKg,
             durationMillis: metrics.elapsedMillis
         )
-    }
-}
-
-/// Collects a `makeEventsStream()` stream from a `Task`, as the one-shot events bullet in
-/// TestSupport/Fakes/FakeActivityHistoryRepository.swift describes. Call `stop()` when done.
-@MainActor
-private final class TrackingEventRecorder {
-    private(set) var events: [TrackingUiEvent] = []
-    private var task: Task<Void, Never>?
-
-    init(_ stream: AsyncStream<TrackingUiEvent>) {
-        task = Task { [weak self] in
-            for await event in stream {
-                self?.events.append(event)
-            }
-        }
-    }
-
-    func stop() {
-        task?.cancel()
     }
 }
