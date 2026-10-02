@@ -36,6 +36,8 @@ echo "$CHANGED_FILES" | sed 's/^/  /'
 echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
 echo
 
+run_step "board check" scripts/check-board.sh
+
 # --- Android / KMP (always) ---
 run_step "detekt"        ./gradlew detekt --console=plain
 run_step "android lint"  ./gradlew lint --console=plain

@@ -1,0 +1,8 @@
+exit: 1
+contains: 'first-task': After names the record itself
+contains: 'cycle-a': After 'cycle-b' has Order 60, not lower than this record's 50
+contains: After cycle: cycle-a -> cycle-b -> cycle-a
+contains: 'later-task': After 'gone-task' is not a record on the board
+contains: 'later-task' (Order 30) comes after 'cycle-b' (Order 60)
+contains: 'same-order': Order 30 is also used by 'later-task'
+contains: 'text-order': Order 'soon' is not a non-negative integer

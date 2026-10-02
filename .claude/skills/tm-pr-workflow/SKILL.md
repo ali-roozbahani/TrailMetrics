@@ -61,7 +61,8 @@ Branch: <type>/<slug>
 
 ## Tier 1: the local gate (agent's job)
 
-`scripts/pre-push-check.sh` must exit 0 before any push. It always runs `detekt`, Android
+`scripts/pre-push-check.sh` must exit 0 before any push. It always runs the board check
+(`scripts/check-board.sh`, also the first step of CI's `android` job), `detekt`, Android
 `lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
@@ -222,16 +223,25 @@ End the description with the attribution line the session specifies.
 ## Board
 
 `BOARD.md` at the repo root is the backlog of open epics, tasks and drift. A record exists
-only while its item is open. Its header gives the record format.
+only while its item is open. Its header gives the record format, including `Order` (unique
+integer, ascending = do first, across all sections) and the optional `After` (slugs that must
+be gone from the board first). `scripts/check-board.sh` enforces the format; it is the first
+step of the gate and of CI's `android` job.
 
+0. **Picking work.** An agent started without a named task takes the record that
+   `scripts/check-board.sh --next` prints. If that record is an epic (or
+   `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
+   approve, not with code.
 1. **Add.** Everything you list under "Follow-ups (out of scope, not changed)" or "Drift
    found (not fixed)" gets a record in `BOARD.md` in the **same** PR. The PR description
-   keeps those sections, and each bullet names its slug.
+   keeps those sections, and each bullet names its slug. Every new record gets an `Order`
+   and, only if it truly can't start before another record is done, an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
    does the work, as the last commit before the final push (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
    the record, narrow its Problem/Done when instead. If the record is obsolete, delete it
-   and say why in the PR.
+   and say why in the PR. The same commit removes the slug from every other record's
+   `After` and from every board mention in the skills and docs, or `check-board.sh` fails.
 3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
    `Board: no changes`.
 4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
@@ -246,11 +256,12 @@ only while its item is open. Its header gives the record format.
    with the epic PR, whose own `Board:` line repeats those changes. An epic record points
    to its plan under `docs/epics/`.
 6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
-   Never rename or renumber a slug.
+   Never rename or renumber a slug. The one exception: a PR may change the `Order` of other
+   records only to make room for an insertion, and says so under "What changed".
 
 New slugs are kebab-case, unique in the file and descriptive (never a counter), so two
-PRs can't create the same one. A new record goes in the section for its type, within its
-priority group (next, soon, later).
+PRs can't create the same one. A new record goes in the section for its type, at the
+position its `Order` gives it (records in a section are sorted by `Order`).
 
 ## After the PR is open (human's steps, for context)
 

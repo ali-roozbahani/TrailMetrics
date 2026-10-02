@@ -1,0 +1,8 @@
+exit: 1
+contains: file:line reference 'TrackingView.swift:123'
+contains: 'line N' reference 'line 42'
+contains: 'line N' reference 'lines 12-30'
+contains: 'LN' reference 'L88'
+contains: check-board: FAILED, 4 problem(s)
+absent: 400-line
+absent: 284 lines

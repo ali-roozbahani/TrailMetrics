@@ -1,0 +1,4 @@
+args: --next
+exit: 0
+contains: big-epic (epic, Order 20, needs an approved plan)
+absent: first-task

@@ -15,6 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Board check
+        run: scripts/check-board.sh
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
