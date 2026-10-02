@@ -17,6 +17,27 @@ public struct DetailsView: View {
     }
 
     public var body: some View {
+        // The error alert sits on this container, one view level above the
+        // delete-confirmation alert on `content`, so the two `.alert` modifiers don't
+        // compete on the same view.
+        ZStack {
+            content
+        }
+        .alert(
+            "Error",
+            isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { isPresented in if !isPresented { viewModel.onErrorDismissed() } }
+            ),
+            presenting: viewModel.errorMessage
+        ) { _ in
+            Button("OK") { viewModel.onErrorDismissed() }
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    private var content: some View {
         Group {
             if viewModel.isLoading {
                 ProgressView()

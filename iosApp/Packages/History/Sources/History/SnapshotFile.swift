@@ -22,6 +22,9 @@ func resolvedSnapshotURL(forStoredPath path: String?) -> URL? {
     return supportDirectory.appendingPathComponent(fileName)
 }
 
+/// Best effort, silent on purpose: callers run this only after the activity record is
+/// deleted, so a file that can't be removed is just an orphaned image, not worth an error
+/// the user can't act on (an exception to `tm-ios`'s "never drop an error" rule).
 func deleteSnapshotFile(forStoredPath path: String?) {
     guard let url = resolvedSnapshotURL(forStoredPath: path) else { return }
     try? FileManager.default.removeItem(at: url)
