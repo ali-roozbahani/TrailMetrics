@@ -15,7 +15,7 @@
   any iOS production code (`iosApp/Packages/*/Sources/**`); navigation on either platform;
   UI redesign; `gradle/libs.versions.toml`, `settings.gradle.kts`; new third-party
   dependencies (no MockK, no Turbine, see Assumptions); gate, hook, CI, lint config.
-- **Approved by:** <human> on <YYYY-MM-DD>
+- **Approved by:** Ali Roozbahani on 2026-09-29
 
 ## Epic or single task?
 
