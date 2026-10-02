@@ -43,15 +43,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: the policy is written in `tm-kmp-shared`, the four warnings are gone, and errors reach the user or the logs on purpose.
 - Refs: `domain` `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase`, `SaveActivityUseCase`; `iosApp/Packages/Route` `RouteViewModel`; `iosApp/Packages/Tracking` `TrackingViewModel.loadUserProfile`.
 
-### skill-rules-red-test-and-ratchet
-- Type: task
-- Area: docs
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: Two working rules are not in the skills. (1) A bugfix starts with a failing (red) test in its own commit. `tm-testing` only has test-first for MVI migrations. (2) The coverage ratchet: raise the Kover floor in the same PR as the tests, set it to measured minus 1-2 points, and verify it by setting it 1 point above measured once to see `koverVerify` fail. `tm-pr-workflow` only says floors sit "a little below" measured coverage.
-- Done when: both rules are in `tm-pr-workflow` and/or `tm-testing`.
-- Refs: `tm-testing` ("Testing MVI ViewModels", "What to test, and coverage priorities"); `tm-pr-workflow` ("Tier 1").
-
 ### ios-double-tap-and-stale-route-results
 - Type: task
 - Area: iosApp/Tracking, iosApp/History, iosApp/Route
@@ -189,60 +180,6 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 
 ## Drift
 
-### drift-mvi-epic-approval-placeholder
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: chat 2026-10-01
-- Problem: `docs/epics/mvi-presentation-migration.md` still has the template placeholder "Approved by: <human> on <YYYY-MM-DD>".
-- Done when: it holds the real approver and date (the human must supply them), or the line is removed.
-- Refs: `docs/epics/mvi-presentation-migration.md` header.
-
-### drift-claude-md-testing-stack
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: CLAUDE.md "Testing stack (fixed, do not introduce alternatives)" lists MockK, which is not in `gradle/libs.versions.toml`. It still carries the Truth-migration text, though no `com.google.truth` import remains, and it doesn't mention Ktor `MockEngine` (`ktor-client-mock`), which the HTTP tests use.
-- Done when: the section matches reality. The task must authorize editing CLAUDE.md.
-- Refs: `CLAUDE.md` "Testing stack"; `gradle/libs.versions.toml`; `tm-testing` description.
-
-### drift-readme-stack-row
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: The Testing row of README.md's stack table lists "JUnit4 + Google Truth + MockK + Robolectric" for Android. Neither Truth nor MockK is in the catalog.
-- Done when: the row matches the real catalog.
-- Refs: `README.md` stack table (Testing row); `gradle/libs.versions.toml`.
-
-### drift-data-readme-api-vs-implementation
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: `data/README.md` says `data` depends on `domain` "as `api`, so `shared` can re-export it", but `data/build.gradle.kts` declares `implementation(project(":domain"))`.
-- Done when: the README matches the build file.
-- Refs: `data/README.md` (dependencies paragraph); `data/build.gradle.kts` dependencies.
-
-### drift-tm-testing-gradle-test-counts
-- Type: drift
-- Area: docs
-- Priority: soon
-- Source: PR #68 drift
-- Problem: `tm-testing`'s "Detekt / CI note" says `./gradlew test` must show the same test count before and after a test-framework or dependency change. That task runs zero KMP tests; the gate uses `allTests test`.
-- Done when: the note uses the real counting method.
-- Refs: `.claude/skills/tm-testing/SKILL.md` "Detekt / CI note"; `scripts/pre-push-check.sh`.
-
-### drift-overview-ios-build-integration
-- Type: drift
-- Area: docs/architecture
-- Priority: soon
-- Source: PR #67 drift
-- Problem: `docs/architecture/OVERVIEW.md` "iOS build integration" still describes a Run Script phase that hashes `.kt`/`.kts` files and re-runs Gradle when the hash changes. It doesn't describe the current flow: a shared-scheme Build pre-action running `scripts/build-kmp-framework.sh`, with the phase kept as a safety net.
-- Done when: the section is updated. The task must explicitly authorize editing `docs/architecture`.
-- Refs: `docs/architecture/OVERVIEW.md` "iOS build integration"; `scripts/build-kmp-framework.sh`; `tm-ios` "Build integration".
-
 ### drift-suppress-comments
 - Type: drift
 - Area: androidApp, data
@@ -251,12 +188,3 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
-
-### drift-test-count-method
-- Type: drift
-- Area: docs
-- Priority: later
-- Source: PR #66/#68 reviews
-- Problem: Kotlin test totals in successive PRs don't line up because each PR counted a different scope: #65 reported 236 after, #66 231 before / 243 after, #68 257 before. `tm-pr-workflow` says to read counts from `allTests` JUnit XML but defines no scope.
-- Done when: `tm-pr-workflow` defines one counting method (per module, per target), and PR reports use it.
-- Refs: `tm-pr-workflow` "PR description" (Tier 1 item); PRs #65, #66, #68.
