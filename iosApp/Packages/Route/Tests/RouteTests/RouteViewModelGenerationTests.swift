@@ -62,6 +62,21 @@ final class RouteViewModelGenerationTests: XCTestCase {
         XCTAssertEqual(recorder.events.compactMap(\.shownError).count, 0, "got \(recorder.events)")
     }
 
+    func test_onResetClicked_whileGeneratingRequestFails_emitsNoError() async {
+        let failure = RouteError.DirectionsApiError(apiException: KotlinThrowable(message: "HTTP 500"))
+        let failingRepository = FakeDirectionsRepository(failure: failure)
+        failingRepository.holdRequests()
+        defer { failingRepository.releaseAll() }
+        let (viewModel, recorder) = await makeGeneratingViewModel(directionsRepository: failingRepository)
+        defer { recorder.stop() }
+
+        viewModel.onResetClicked()
+
+        await releaseStaleRequest(from: failingRepository, viewModel, recorder)
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertEqual(recorder.events.compactMap(\.shownError).count, 0, "got \(recorder.events)")
+    }
+
     func test_onMapTapped_whileGenerating_discardsResultAndStopsLoading() async {
         let (viewModel, recorder) = await makeGeneratingViewModel()
         defer { recorder.stop() }
@@ -126,21 +141,29 @@ final class RouteViewModelGenerationTests: XCTestCase {
 
     /// A ViewModel with its start point and three waypoints whose first Generate is held
     /// in the directions fake, plus a recorder of its events.
-    private func makeGeneratingViewModel() async -> (RouteViewModel, EventRecorder) {
+    private func makeGeneratingViewModel(
+        directionsRepository: FakeDirectionsRepository? = nil
+    ) async -> (RouteViewModel, EventRecorder) {
+        let directionsRepository = directionsRepository ?? self.directionsRepository
         let viewModel = makeViewModel(directionsRepository: directionsRepository)
         let recorder = EventRecorder(viewModel.makeEventsStream())
         await waitUntil { viewModel.startPoint != nil }
         tapWaypoints(3, on: viewModel)
         viewModel.onGenerateRouteClicked()
-        await waitUntil { self.directionsRepository.requests.count == 1 }
+        await waitUntil { directionsRepository.requests.count == 1 }
         XCTAssertTrue(viewModel.isLoading)
         return (viewModel, recorder)
     }
 
     /// Lets the first (stale) request return, then waits until its result had time to land.
-    private func releaseStaleRequest(_ viewModel: RouteViewModel, _ recorder: EventRecorder) async {
+    private func releaseStaleRequest(
+        from directionsRepository: FakeDirectionsRepository? = nil,
+        _ viewModel: RouteViewModel,
+        _ recorder: EventRecorder
+    ) async {
+        let directionsRepository = directionsRepository ?? self.directionsRepository
         directionsRepository.release(requestAt: 0)
-        await waitUntil { self.directionsRepository.completedRequestCount >= 1 }
+        await waitUntil { directionsRepository.completedRequestCount >= 1 }
         await roundTrip(viewModel, recorder)
     }
 
