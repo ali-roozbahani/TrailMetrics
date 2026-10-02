@@ -12,7 +12,7 @@ import XCTest
 final class HistoryViewModelTests: XCTestCase {
 
     func test_init_isLoadingWithNoActivities() {
-        let viewModel = HistoryViewModel(activityHistoryRepository: FakeActivityHistoryRepository())
+        let viewModel = HistoryViewModel.subject(repository: FakeActivityHistoryRepository())
 
         XCTAssertTrue(viewModel.isLoading)
         XCTAssertTrue(viewModel.activities.isEmpty)
@@ -24,7 +24,7 @@ final class HistoryViewModelTests: XCTestCase {
             [.fixture(id: 1)],
             [.fixture(id: 1), .fixture(id: 2)]
         ])
-        let viewModel = HistoryViewModel(activityHistoryRepository: repository)
+        let viewModel = HistoryViewModel.subject(repository: repository)
 
         await viewModel.observe()
 
@@ -34,9 +34,7 @@ final class HistoryViewModelTests: XCTestCase {
     }
 
     func test_observe_emptyHistory_isEmpty() async {
-        let viewModel = HistoryViewModel(
-            activityHistoryRepository: FakeActivityHistoryRepository(emissions: [[]])
-        )
+        let viewModel = HistoryViewModel.subject(repository: FakeActivityHistoryRepository(emissions: [[]]))
 
         await viewModel.observe()
 
@@ -50,7 +48,7 @@ final class HistoryViewModelTests: XCTestCase {
         defer { snapshot.remove() }
         let activity = ActivityRecord.fixture(id: 7, snapshotFilePath: snapshot.storedPath)
         let repository = FakeActivityHistoryRepository(activities: [activity])
-        let viewModel = HistoryViewModel(activityHistoryRepository: repository)
+        let viewModel = HistoryViewModel.subject(repository: repository)
 
         viewModel.onDeleteActivity(activity)
 
@@ -61,7 +59,7 @@ final class HistoryViewModelTests: XCTestCase {
     func test_onDeleteActivity_withoutSnapshot_deletesRecord() async {
         let activity = ActivityRecord.fixture(id: 8, snapshotFilePath: nil)
         let repository = FakeActivityHistoryRepository(activities: [activity])
-        let viewModel = HistoryViewModel(activityHistoryRepository: repository)
+        let viewModel = HistoryViewModel.subject(repository: repository)
 
         viewModel.onDeleteActivity(activity)
 

@@ -55,5 +55,8 @@ final class HistoryViewModelFailureTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, generalErrorMessage)
         XCTAssertTrue(snapshot.exists)
         XCTAssertTrue(repository.deletedIds.isEmpty)
+
+        viewModel.onErrorDismissed()
+        XCTAssertNil(viewModel.errorMessage)
     }
 }
