@@ -61,7 +61,8 @@ Branch: <type>/<slug>
 
 ## Tier 1: the local gate (agent's job)
 
-`scripts/pre-push-check.sh` must exit 0 before any push. It always runs `detekt`, Android
+`scripts/pre-push-check.sh` must exit 0 before any push. It always runs the board check
+(`scripts/check-board.sh`, also the first step of CI's `android` job), `detekt`, Android
 `lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
