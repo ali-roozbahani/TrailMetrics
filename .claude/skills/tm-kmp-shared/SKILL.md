@@ -95,8 +95,9 @@ repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileR
 which `@Throws` doesn't cover: a failing Flow terminates the iOS app (SKIE collects it in a
 coroutine scope with no handler, and its Swift iterator `fatalError`s on the error). Swift
 therefore doesn't iterate it directly: `ObserveActivitiesUseCase` (domain) maps each emission to
-`ActivitiesUpdate.Loaded` and turns an upstream `Exception` (never an `Error` or cancellation)
-into one `ActivitiesUpdate.Failed`, then completes. iOS `HistoryViewModel` consumes that; Android
+`ActivitiesUpdate.Loaded` and turns an `Exception` (never an `Error` or cancellation), thrown
+when `observeActivities()` is called or while collecting, into one `ActivitiesUpdate.Failed`,
+then completes; `invoke()` itself never throws. iOS `HistoryViewModel` consumes that; Android
 still uses the repository Flow (board `android-persistence-errors-unhandled`). A new Flow that
 Swift iterates and that can fail needs the same treatment.
 
