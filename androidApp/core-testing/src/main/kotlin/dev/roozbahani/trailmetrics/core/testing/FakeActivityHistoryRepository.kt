@@ -23,8 +23,17 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
     /** When set, [getActivity] suspends until it is completed. */
     var getActivityGate: CompletableDeferred<Unit>? = null
 
+    /** When set, [saveActivity] suspends until it is completed, before anything is stored. */
+    var saveActivityGate: CompletableDeferred<Unit>? = null
+
+    /** When set, [saveActivity] throws it (after the gate) instead of storing the record. */
+    var saveActivityFailure: Throwable? = null
+
     /** When set, [deleteActivity] suspends until it is completed, before anything is deleted. */
     var deleteActivityGate: CompletableDeferred<Unit>? = null
+
+    /** When set, [deleteActivity] throws it (after the gate) instead of deleting. */
+    var deleteActivityFailure: Throwable? = null
 
     val requestedIds = mutableListOf<Long>()
     val deletedIds = mutableListOf<Long>()
@@ -35,6 +44,8 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
 
     /** Stores the record under a count-based id, like an auto-generated primary key. */
     override suspend fun saveActivity(activity: ActivityRecord): Long {
+        saveActivityGate?.await()
+        saveActivityFailure?.let { throw it }
         val id = currentActivities.size + 1L
         setActivities(currentActivities + activity.copy(id = id))
         return id
@@ -50,6 +61,7 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
 
     override suspend fun deleteActivity(id: Long) {
         deleteActivityGate?.await()
+        deleteActivityFailure?.let { throw it }
         deletedIds += id
         setActivities(currentActivities.filterNot { it.id == id })
     }

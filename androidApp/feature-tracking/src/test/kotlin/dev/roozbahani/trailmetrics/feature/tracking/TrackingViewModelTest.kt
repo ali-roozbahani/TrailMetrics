@@ -35,11 +35,13 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class TrackingViewModelTest {
@@ -490,20 +492,109 @@ class TrackingViewModelTest {
     }
 
     @Test
-    fun `finishing twice currently saves the activity twice`() = runTest(testScheduler) {
-        // Pins tracking-finish-saves-twice (BOARD.md): nothing guards against a repeated Finish.
+    fun `a repeated Finish saves the session once and signals Saved once`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel()
         startAndStop(viewModel)
         val events = collectEvents(viewModel)
+        val saveGate = CompletableDeferred<Unit>()
+        activityHistoryRepository.saveActivityGate = saveGate
 
-        repeat(2) {
-            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
-            testScheduler.runCurrent()
-        }
+        // Back to back, while the first save is still in flight (a double tap), then once more after it.
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        saveGate.complete(Unit)
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+        assertEquals(1, activityHistoryRepository.savedActivities.size)
+    }
+
+    @Test
+    fun `a new session after a saved one can be finished and saved again`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        startAndStop(viewModel)
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.LocationPermissionGranted(START))
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.Stop)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(TrackingAction.Finish(snapshotFilePath = null))
+        testScheduler.runCurrent()
 
         assertEquals(List(2) { TrackingEvent.Saved }, events)
-        assertEquals(2, activityHistoryRepository.savedActivities.size)
+        assertEquals(listOf(SNAPSHOT_PATH, null), activityHistoryRepository.savedActivities.map { it.snapshotFilePath })
+    }
+
+    @Test
+    fun `a Finish whose save throws can be retried`() {
+        val failure = IllegalStateException("disk full")
+        val thrown = assertFailsWith<IllegalStateException> {
+            runTest(testScheduler) {
+                userProfileRepository.userProfile = PROFILE
+                val viewModel = createViewModel()
+                startAndStop(viewModel)
+                val events = collectEvents(viewModel)
+                activityHistoryRepository.saveActivityFailure = failure
+                viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+                testScheduler.runCurrent()
+                assertEquals(emptyList(), events)
+                activityHistoryRepository.saveActivityFailure = null
+
+                viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+                testScheduler.runCurrent()
+
+                assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+                assertEquals(1, activityHistoryRepository.savedActivities.size)
+            }
+        }
+        // The failure is rethrown into viewModelScope (runTest reports it once the test body is done).
+        assertSame(failure, thrown)
+    }
+
+    @Test
+    fun `a Finish before the session is finished does not block a later Finish`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.Stop)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+        assertEquals(1, activityHistoryRepository.savedActivities.size)
+    }
+
+    @Test
+    fun `a Finish before the profile has loaded does not block a later Finish`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val profileGate = CompletableDeferred<Unit>()
+        userProfileRepository.getUserProfileGate = profileGate
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        startAndStop(viewModel)
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+        profileGate.complete(Unit)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+        assertEquals(1, activityHistoryRepository.savedActivities.size)
     }
 
     @Test

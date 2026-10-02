@@ -40,6 +40,12 @@ class TrackingViewModel(
 
     private var startedAtEpochMillis: Long = 0L
 
+    /**
+     * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
+     * can't save the session again. Cleared by [start] for a new session, and if the save throws.
+     */
+    private var isSessionSaved = false
+
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
 
     private val routeCompletionTracker = RouteCompletionTracker(plannedRoutePoints)
@@ -125,26 +131,32 @@ class TrackingViewModel(
 
     private fun start(startCoordinates: Coordinates) {
         startedAtEpochMillis = clock.nowMillis()
+        isSessionSaved = false
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates)
         }
     }
 
     private fun finish(snapshotFilePath: String?) {
+        if (isSessionSaved) return
+        val finishedState = trackingSessionManager.currentState.value as? TrackingState.Finished ?: return
+        val weightKg = _userProfile.value?.weightKg ?: return
+        isSessionSaved = true
         viewModelScope.launch {
-            val currentTrackingState = trackingSessionManager.currentState.value
-            if (currentTrackingState is TrackingState.Finished) {
-                val weightKg = _userProfile.value?.weightKg ?: return@launch
+            runCatching {
                 saveActivityUseCase(
                     activityType = activityType,
                     plannedRoutePoints = plannedRoutePoints,
-                    metrics = currentTrackingState.metrics,
+                    metrics = finishedState.metrics,
                     weightKg = weightKg,
                     startedAtEpochMillis = startedAtEpochMillis,
                     snapshotFilePath = snapshotFilePath
                 )
-                _events.send(TrackingEvent.Saved)
-            }
+            }.onFailure {
+                // Let the user retry; the failure itself still propagates.
+                isSessionSaved = false
+            }.getOrThrow()
+            _events.send(TrackingEvent.Saved)
         }
     }
 }
