@@ -37,10 +37,11 @@ lists the remaining known deviations in the migrated code, which are not to be c
 
 ## Testing stack (fixed, do not introduce alternatives)
 
-JUnit4 + MockK, for Android-framework tests (Robolectric, Compose UI). `kotlin.test` (no
-JUnit5, no AssertK) for `domain` and any other commonTest/KMP code. No Truth — being
-removed project-wide; if you see `com.google.truth.Truth` imports outside an
-in-progress migration task, that's stale, flag it rather than adding more.
+`kotlin.test` for `domain` and any other commonTest/KMP code, with hand-written fakes;
+HTTP-level repository tests in `data` commonTest use Ktor `MockEngine` (`ktor-client-mock`).
+Android tests: JUnit4 + `kotlin.test` assertions + `kotlinx-coroutines-test` + hand-written
+fakes; Robolectric (catalog entry, used by `data`) where Android-framework code needs it.
+MockK and Turbine are not in the catalog. No JUnit5, no AssertK, no Truth. Details: `tm-testing`.
 
 ## Hard rules (always apply)
 
