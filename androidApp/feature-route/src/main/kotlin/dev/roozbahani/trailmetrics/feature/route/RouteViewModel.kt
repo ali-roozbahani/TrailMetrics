@@ -77,9 +77,10 @@ class RouteViewModel(
     }
 
     private fun addWaypoint(coordinates: Coordinates) {
+        cancelGeneration()
         _state.update { state ->
             val newWaypoint = RoutePoint(coordinates = coordinates, order = state.waypoints.size)
-            state.copy(waypoints = state.waypoints + newWaypoint)
+            state.copy(waypoints = state.waypoints + newWaypoint, generatedRoute = null, isLoading = false)
         }
     }
 

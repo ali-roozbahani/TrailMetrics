@@ -69,6 +69,15 @@ class RouteViewModelTest {
         coordinates.forEach { onAction(RouteAction.MapTapped(it)) }
     }
 
+    /** Lets init finish, taps [waypoints] and clicks Generate; with a [gate] the directions call waits on it. */
+    private fun RouteViewModel.tapAndGenerate(vararg waypoints: Coordinates, gate: CompletableDeferred<Unit>? = null) {
+        testScheduler.runCurrent()
+        tapWaypoints(*waypoints)
+        directionsRepository.gate = gate
+        onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+    }
+
     // region init
 
     @Test
@@ -229,17 +238,57 @@ class RouteViewModelTest {
         }
 
     @Test
-    fun `tapping the map after generating currently keeps the stale generated route`() = runTest(testScheduler) {
+    fun `tapping the map after generating clears the generated route`() = runTest(testScheduler) {
         val viewModel = createViewModel()
-        testScheduler.runCurrent()
-        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-        viewModel.onAction(RouteAction.GenerateRouteClicked)
-        testScheduler.runCurrent()
+        viewModel.tapAndGenerate(WP_A, WP_B, WP_C)
 
         viewModel.onAction(RouteAction.MapTapped(WP_D))
 
         assertEquals(4, viewModel.state.value.waypoints.size)
-        assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
+        assertNull(viewModel.state.value.generatedRoute)
+    }
+
+    @Test
+    fun `starting tracking after a map tap does not navigate until a new route is generated`() =
+        runTest(testScheduler) {
+            userProfileRepository.userProfile = PROFILE
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            viewModel.tapAndGenerate(WP_A, WP_B, WP_C)
+            viewModel.onAction(RouteAction.MapTapped(WP_D))
+
+            viewModel.onAction(RouteAction.StartTrackingClicked)
+            testScheduler.runCurrent()
+            assertTrue(events.isEmpty())
+
+            directionsRepository.closedRouteResult = Result.success(OTHER_ROUTE)
+            viewModel.onAction(RouteAction.GenerateRouteClicked)
+            testScheduler.runCurrent()
+            viewModel.onAction(RouteAction.StartTrackingClicked)
+            testScheduler.runCurrent()
+
+            val navigation = assertIs<RouteEvent.NavigateToTracking>(events.single())
+            assertEquals(OTHER_ROUTE.points.map { it.coordinates }, navigation.plannedRoutePoints)
+            assertEquals(START to listOf(WP_A, WP_B, WP_C, WP_D), directionsRepository.requests.last())
+        }
+
+    @Test
+    fun `tapping the map while generating discards the result and stops loading`() = runTest(testScheduler) {
+        val gate = CompletableDeferred<Unit>()
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        viewModel.tapAndGenerate(WP_A, WP_B, WP_C, gate = gate)
+
+        viewModel.onAction(RouteAction.MapTapped(WP_D))
+        assertFalse(viewModel.state.value.isLoading)
+        val stateAfterTap = viewModel.state.value
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertEquals(stateAfterTap, viewModel.state.value)
+        assertNull(viewModel.state.value.generatedRoute)
+        assertEquals(4, viewModel.state.value.waypoints.size)
+        assertTrue(events.isEmpty())
     }
 
     // endregion
@@ -366,11 +415,7 @@ class RouteViewModelTest {
     private fun RouteViewModel.generateTwiceInFlight(): Pair<CompletableDeferred<Unit>, CompletableDeferred<Unit>> {
         val firstGate = CompletableDeferred<Unit>()
         val secondGate = CompletableDeferred<Unit>()
-        testScheduler.runCurrent()
-        tapWaypoints(WP_A, WP_B, WP_C)
-        directionsRepository.gate = firstGate
-        onAction(RouteAction.GenerateRouteClicked)
-        testScheduler.runCurrent()
+        tapAndGenerate(WP_A, WP_B, WP_C, gate = firstGate)
         directionsRepository.gate = secondGate
         onAction(RouteAction.GenerateRouteClicked)
         testScheduler.runCurrent()
@@ -424,11 +469,7 @@ class RouteViewModelTest {
         val gate = CompletableDeferred<Unit>()
         val viewModel = createViewModel()
         val events = collectEvents(viewModel)
-        testScheduler.runCurrent()
-        viewModel.tapWaypoints(WP_A, WP_B, WP_C, WP_D)
-        directionsRepository.gate = gate
-        viewModel.onAction(RouteAction.GenerateRouteClicked)
-        testScheduler.runCurrent()
+        viewModel.tapAndGenerate(WP_A, WP_B, WP_C, WP_D, gate = gate)
 
         viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_D, 3)))
         assertFalse(viewModel.state.value.isLoading)
@@ -448,11 +489,7 @@ class RouteViewModelTest {
             val gate = CompletableDeferred<Unit>()
             val viewModel = createViewModel()
             val events = collectEvents(viewModel)
-            testScheduler.runCurrent()
-            viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-            directionsRepository.gate = gate
-            viewModel.onAction(RouteAction.GenerateRouteClicked)
-            testScheduler.runCurrent()
+            viewModel.tapAndGenerate(WP_A, WP_B, WP_C, gate = gate)
 
             viewModel.onAction(RouteAction.ResetClicked)
             testScheduler.runCurrent()
@@ -470,11 +507,7 @@ class RouteViewModelTest {
             val cancelledGate = CompletableDeferred<Unit>()
             val viewModel = createViewModel()
             val events = collectEvents(viewModel)
-            testScheduler.runCurrent()
-            viewModel.tapWaypoints(WP_A, WP_B, WP_C, WP_D)
-            directionsRepository.gate = cancelledGate
-            viewModel.onAction(RouteAction.GenerateRouteClicked)
-            testScheduler.runCurrent()
+            viewModel.tapAndGenerate(WP_A, WP_B, WP_C, WP_D, gate = cancelledGate)
             viewModel.onAction(RouteAction.WaypointRemoved(RoutePoint(WP_D, 3)))
             directionsRepository.closedRouteResult = Result.failure(RouteError.LocationUnavailable())
             val currentGate = CompletableDeferred<Unit>()
@@ -501,10 +534,7 @@ class RouteViewModelTest {
     fun `generating again after a finished generation calls directions again and stores the new route`() =
         runTest(testScheduler) {
             val viewModel = createViewModel()
-            testScheduler.runCurrent()
-            viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-            viewModel.onAction(RouteAction.GenerateRouteClicked)
-            testScheduler.runCurrent()
+            viewModel.tapAndGenerate(WP_A, WP_B, WP_C)
             assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
             directionsRepository.closedRouteResult = Result.success(OTHER_ROUTE)
 
@@ -640,10 +670,7 @@ class RouteViewModelTest {
             userProfileRepository.userProfile = PROFILE
             val viewModel = createViewModel()
             val events = collectEvents(viewModel)
-            testScheduler.runCurrent()
-            viewModel.tapWaypoints(WP_A, WP_B, WP_C)
-            viewModel.onAction(RouteAction.GenerateRouteClicked)
-            testScheduler.runCurrent()
+            viewModel.tapAndGenerate(WP_A, WP_B, WP_C)
             assertEquals(GENERATED_ROUTE, viewModel.state.value.generatedRoute)
             val profileGate = CompletableDeferred<Unit>()
             userProfileRepository.getUserProfileGate = profileGate
