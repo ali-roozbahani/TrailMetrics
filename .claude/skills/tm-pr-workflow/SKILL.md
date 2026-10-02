@@ -188,18 +188,13 @@ End the description with the attribution line the session specifies.
 
 ## Boundaries
 
-- Never change any of these as a side effect of an unrelated task. They change only
-  through their own explicitly scoped task and review:
-  - `docs/architecture/*`
-  - `CLAUDE.md`
-  - CI config (`.github/workflows/`)
-  - lint config (`config/detekt/detekt.yml`, `iosApp/.swiftlint.yml`, Android lint
-    settings)
-  - the gate and hook (`scripts/pre-push-check.sh`, `scripts/claude-hooks/`,
-    `.claude/settings.json`) and the skills under `.claude/skills/`
-
-  If one of them is wrong, report it under "Follow-ups" instead (#32, #33, #34 and #37 all
-  did this).
+- Never change a protected path as a side effect of an unrelated task. Protected paths
+  change only through their own explicitly scoped task and review. The single source of
+  truth for which paths are protected is `.github/CODEOWNERS`; there is no list here.
+  `scripts/check-protected-paths.sh` classifies a diff from it (`--files <path>...` for
+  single paths). If a protected file is wrong, report it under "Follow-ups" instead (#32,
+  #33, #34 and #37 all did this).
+- An agent never merges a PR that touches a protected path. The human merges those.
 - **Docs follow the code you changed.** Before opening the PR, fix in the same PR any line
   in a skill or `CLAUDE.md` that directly describes the current state of the code this
   task changed and is now wrong. That is part of the task, not a side effect, so it needs
