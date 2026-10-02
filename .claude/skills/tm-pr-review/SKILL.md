@@ -97,7 +97,8 @@ looks. The escalation reason itself is a `[note]` unless it is also a defect.
 
 ## Report format
 
-The first three lines are fixed so a script can read them:
+The reviewer's final message is only the report. Its first three lines are fixed so a
+script can read them, and nothing comes before them:
 
 ```
 VERDICT: <APPROVE|CHANGES|ESCALATE_TO_HUMAN>
@@ -133,8 +134,11 @@ The implementing session runs this after its last commit and before the gate's f
 2. Start the reviewer with the four Inputs and nothing else: the Agent tool with
    `subagent_type: pr-reviewer`, or headless from the shell when the session doesn't list
    the agent (a new `.claude/agents/` directory needs a restart to be picked up):
-   `claude -p --agent pr-reviewer "<message>"`. Don't add the gate output, your reasoning
-   or a description of the change.
+   `claude -p --agent pr-reviewer --add-dir "$IN" < <message file>`. `--add-dir` lets it
+   read `$IN` when the git dir is outside the working directory (a linked worktree);
+   without it the reviewer returns `NO_VERDICT`. It takes several values, so the message
+   goes on stdin, not after it. Don't add the gate output, your reasoning or a description
+   of the change.
 3. Record the verdict only if the report's first line is `VERDICT: ` with one of the three
    values, `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
 

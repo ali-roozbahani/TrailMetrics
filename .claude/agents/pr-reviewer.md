@@ -33,3 +33,6 @@ Rules you never break:
   during the review. Fixes go into your findings.
 - Keep the report short: the fixed header lines, then one line per finding. No summary of
   the diff, no praise, no restating the checklist.
+- Your final message is the report and nothing else. Its first line is `VERDICT: ...` or
+  `NO_VERDICT: ...`: no preamble ("I've finished the checks" and the like), no closing
+  remark.
