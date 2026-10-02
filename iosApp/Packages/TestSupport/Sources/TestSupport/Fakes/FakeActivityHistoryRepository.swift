@@ -48,12 +48,16 @@ import SharedKit
 
 public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepository {
 
+    /// What a failing call throws, standing in for a storage failure.
+    public struct StorageError: Error {}
+
     private let lock = NSLock()
     private var storedActivities: [ActivityRecord]
     private var recordedSavedActivities: [ActivityRecord] = []
     private var recordedDeletedIds: [Int64] = []
     private var recordedRequestedIds: [Int64] = []
     private let emissions: [[ActivityRecord]]
+    private var isFailingStorage = false
 
     /// - Parameters:
     ///   - activities: records `getActivity(id:)` can return. Saved activities are added.
@@ -76,13 +80,21 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
         lock.withLock { recordedRequestedIds }
     }
 
+    /// Makes later suspend calls throw `StorageError` (recording and changing nothing) or work
+    /// again. Every suspend member declares `@Throws`, as `FakeUserProfileRepository.setFailing`
+    /// describes.
+    public func setFailing(_ isFailing: Bool) {
+        lock.withLock { isFailingStorage = isFailing }
+    }
+
     public func observeActivities() -> SkieSwiftFlow<[ActivityRecord]> {
         SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: emissions.map { $0 as NSArray })))
     }
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getActivity`
     public func __getActivity(id: Int64) async throws -> ActivityRecord? {
-        lock.withLock {
+        try lock.withLock {
+            if isFailingStorage { throw StorageError() }
             recordedRequestedIds.append(id)
             return storedActivities.first { $0.id == id }
         }
@@ -90,7 +102,8 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun deleteActivity`
     public func __deleteActivity(id: Int64) async throws {
-        lock.withLock {
+        try lock.withLock {
+            if isFailingStorage { throw StorageError() }
             recordedDeletedIds.append(id)
             storedActivities.removeAll { $0.id == id }
         }
@@ -99,7 +112,8 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
     // Returns the save count as the new id, like an auto-incrementing primary key.
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun saveActivity`
     public func __saveActivity(activity: ActivityRecord) async throws -> KotlinLong {
-        lock.withLock {
+        try lock.withLock {
+            if isFailingStorage { throw StorageError() }
             recordedSavedActivities.append(activity)
             storedActivities.append(activity)
             return KotlinLong(value: Int64(recordedSavedActivities.count))
