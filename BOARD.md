@@ -88,6 +88,15 @@ Rules for adding and deleting records: the "Board" section of `.claude/skills/tm
 - Done when: adding a waypoint invalidates the generated route the same way removing one does (or the map ignores taps while a route is shown, decided explicitly), and that pinned test is changed to assert it.
 - Refs: `androidApp/feature-route` `RouteViewModel.addWaypoint`, `removeWaypoint`, `startTracking`; `RouteScreen` (`TrailGoogleMap` `onMapLongClicked`, `StartTrackingPanel`); `RouteViewModelTest`.
 
+### ios-double-tap-and-stale-route-results
+- Type: task
+- Area: iosApp/Tracking, iosApp/History, iosApp/Route
+- Priority: soon
+- Source: bugfix/double-tap-and-stale-route-results PR
+- Problem: The iOS ViewModels have the four defects that PR fixed on Android. `TrackingViewModel.onFinishClicked` saves on every call while the state is finished, so a repeated Finish saves twice and calls `onSaved` twice. `DetailsViewModel.onDeleteConfirmed` deletes and calls `onDeleted` on every call; it also ignores a failed delete (`try?`) and still calls `onDeleted`. `RouteViewModel.onGenerateRouteClicked` starts an untracked `Task`: `onResetClicked` and `onWaypointRemoved` don't cancel it, so a stale route lands afterwards, and reset turns `isLoading` off while it runs, so Generate can call directions again. `onMapTapped` keeps `generatedRoute`, while `onWaypointRemoved` clears it. Found by reading the code; not reproduced on a device and not pinned by tests.
+- Done when: on iOS a repeated Finish saves once, a repeated delete confirmation deletes once and calls `onDeleted` once, reset and any waypoint change cancel an in-flight generation, a click while one runs is ignored, and adding a waypoint clears the generated route, each with a test (as Android's `TrackingViewModel`, `DetailsViewModel` and `RouteViewModel` do).
+- Refs: iOS `TrackingViewModel.onFinishClicked`, `DetailsViewModel.onDeleteConfirmed`, `RouteViewModel.onGenerateRouteClicked`, `onResetClicked`, `onWaypointRemoved`, `onMapTapped`; Android `TrackingViewModel.finish`, `DetailsViewModel.deleteActivity`, `RouteViewModel.generateRoute`, `addWaypoint`.
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
