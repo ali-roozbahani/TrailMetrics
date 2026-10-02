@@ -57,12 +57,16 @@ public class RouteViewModel: ObservableObject {
         eventsContinuation?.yield(event)
     }
 
+    private func emitError(_ error: Error) {
+        emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
+    }
+
     private func loadCurrentLocation() {
         Task {
             do {
                 startPoint = try await getCurrentLocationUseCase.invoke()
             } catch {
-                emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
+                emitError(error)
             }
         }
     }
@@ -88,7 +92,7 @@ public class RouteViewModel: ObservableObject {
                 isLoading = false
             } catch {
                 isLoading = false
-                emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
+                emitError(error)
             }
         }
     }
@@ -121,14 +125,26 @@ public class RouteViewModel: ObservableObject {
     public func saveUserProfile(weightKg: Double) {
         Task {
             let profile = UserProfile(weightKg: weightKg)
-            try await userProfileRepository.saveUserProfile(userProfile: profile)
-            userProfile = profile
+            do {
+                try await userProfileRepository.saveUserProfile(userProfile: profile)
+                userProfile = profile
+            } catch {
+                emitError(error)
+            }
         }
     }
 
     public func onStartTrackingClicked() {
         Task {
-            guard try await userProfileRepository.getUserProfile() != nil else {
+            let profile: UserProfile?
+            do {
+                profile = try await userProfileRepository.getUserProfile()
+            } catch {
+                emitError(error)
+                return
+            }
+
+            guard profile != nil else {
                 emit(.requestUserProfile)
                 return
             }
@@ -149,7 +165,11 @@ public class RouteViewModel: ObservableObject {
 
     private func getAndUpdateUserProfile() {
         Task {
-            userProfile = try await userProfileRepository.getUserProfile()
+            do {
+                userProfile = try await userProfileRepository.getUserProfile()
+            } catch {
+                emitError(error)
+            }
         }
     }
 }
