@@ -63,20 +63,10 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has chosen between (a) a stronger first-line instruction in the agent definition, (b) one automatic retry in the workflow only when the first line is not a verdict (never after a valid verdict, never to turn CHANGES into something else), or (c) both; the choice is implemented and shown; and the plan states how the trial counts a run whose report was malformed and passed on re-run.
 - Refs: `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/agents/pr-reviewer.md`; `.claude/skills/tm-pr-review/SKILL.md` (report format); `docs/epics/agentic-dev-loop.md` (Decision 8, S6).
 
-### gate-ios-steps-miss-framework-inputs
-- Type: task
-- Area: scripts
-- Order: 17
-- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
-- Problem: `scripts/pre-push-check.sh` runs the iOS steps for a changed file under `iosApp/`, `domain/`, `data/`, `core/` or `shared/` (not markdown) or one of the root Gradle files `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`. These files also change the shared framework or its build but match neither, so a diff of only them runs no iOS steps: `gradle/wrapper/gradle-wrapper.properties` (the Gradle version; `scripts/build-kmp-framework.sh` hashes it as a framework input), `gradle/gradle-daemon-jvm.properties`, `gradlew` and `gradle/wrapper/gradle-wrapper.jar`, `scripts/build-kmp-framework.sh` (the iOS steps' own framework build), and `scripts/pre-push-check.sh` itself. `buildSrc/` and `build-logic/` do not exist.
-- Done when: the human has decided per file whether it triggers the iOS steps, and the filter says so.
-- Refs: `scripts/pre-push-check.sh` (`IOS_PATHS`); `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `tm-pr-workflow` "Tier 1"; `tm-ios` "SwiftLint".
-
 ### gate-ios-scope-filter-needs-committed-test
 - Type: task
 - Area: scripts
 - Order: 18
-- After: gate-ios-steps-miss-framework-inputs
 - Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
 - Problem: the iOS scope filter in `scripts/pre-push-check.sh` (`IOS_PATHS`, `IOS_PATHS_EXCLUDED`, the `TOUCHES_IOS_OR_SHARED` test) has no committed test. PR #89's red/green table came from an uncommitted scratch harness, and the local reviewer marked the missing test as blocking. `scripts/classify-changes.sh --self-test` and `scripts/check-protected-paths.sh --self-test` already run in the gate and in CI.
 - Done when: a committed self-test (in the style of `scripts/classify-changes.sh --self-test`, run in the gate and CI) covers the filter's rows, including the rows of that table.
