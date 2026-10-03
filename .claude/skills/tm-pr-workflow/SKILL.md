@@ -78,8 +78,9 @@ coverage. Minimums are set in `domain`, `data` and the three `androidApp` featur
 `build.gradle.kts`, a little below each module's measured coverage from its own tests. `core`,
 `shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict`, the shared
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
-build and the iOS package tests when the branch's diff touches `iosApp/`, `domain/`, `data/`,
-`core/` or `shared/`. Its last step prints the `pr-reviewer` verdict recorded for HEAD
+build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
+`data/`, `core/` or `shared/` other than markdown (`*.md`), or one of the root Gradle files
+`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`. Its last step prints the `pr-reviewer` verdict recorded for HEAD
 (`APPROVE`, `CHANGES` or `ESCALATE_TO_HUMAN`, or that none is recorded); it is report only
 and never fails the gate. When and how the session runs the reviewer and records that verdict
 (after the last commit, before the gate's final run, again after every new commit) is in
