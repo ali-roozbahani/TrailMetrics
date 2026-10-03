@@ -256,3 +256,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
+
+### drift-protected-path-merge-exception-wording
+- Type: drift
+- Area: .claude, .github
+- Order: 210
+- Source: agentic-dev-loop S4b PR review, 2026-10-03
+- Problem: `tm-pr-workflow`'s Boundaries say "An agent never merges a PR that touches a protected path. The human merges those." and the header of `.github/CODEOWNERS` says "An agent never merges a PR that touches a path listed here." Decisions 4 and 5 of `docs/epics/agentic-dev-loop.md` make one exception: a subtask PR into an epic branch whose plan `allowed_paths` cover the path (written in `tm-agent-loop`, "Merge conditions", condition 6). S4b's scope did not allow changing either line.
+- Done when: both lines state the exception or point to `tm-agent-loop` ("Merge conditions"), in a task that explicitly authorizes the `CODEOWNERS` change.
+- Refs: `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `.github/CODEOWNERS` (header comment); `.claude/skills/tm-agent-loop/SKILL.md` ("Merge conditions"); `docs/epics/agentic-dev-loop.md` (Decisions 4 and 5).
