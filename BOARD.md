@@ -54,6 +54,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
+### pr-review-action-rejects-preamble-before-verdict
+- Type: task
+- Area: .claude, .github
+- Order: 16
+- Source: agentic-dev-loop run 5 (PR #91), 2026-10-04
+- Problem: on PR #91 (run 37157920693) the CI reviewer ran fine (18 turns, `run: success`), but its report began with a sentence ("I'm writing up the review now. All inputs and code checks are done.") before `VERDICT: ESCALATE_TO_HUMAN` and `REVIEWED_SHA: ...`. The "Map verdict" step in `.github/workflows/pr-review.yml` compares the exact first line, so attempt 1 failed with "The report's first line is not a verdict (NO_VERDICT or malformed)."; a re-run of the failed job (attempt 2) passed. `.claude/agents/pr-reviewer.md` already says the final message has no preamble. Such a failure blocks the required check and, once the trial runs, an unprotected PR.
+- Done when: the human has chosen between (a) a stronger first-line instruction in the agent definition, (b) one automatic retry in the workflow only when the first line is not a verdict (never after a valid verdict, never to turn CHANGES into something else), or (c) both; the choice is implemented and shown; and the plan states how the trial counts a run whose report was malformed and passed on re-run.
+- Refs: `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/agents/pr-reviewer.md`; `.claude/skills/tm-pr-review/SKILL.md` (report format); `docs/epics/agentic-dev-loop.md` (Decision 8, S6).
+
 ### gate-ios-steps-miss-framework-inputs
 - Type: task
 - Area: scripts
@@ -73,6 +82,16 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a committed self-test (in the style of `scripts/classify-changes.sh --self-test`, run in the gate and CI) covers the filter's rows, including the rows of that table.
 - Refs: `scripts/pre-push-check.sh`; `scripts/classify-changes.sh` (`--self-test`, `scripts/classify-changes-fixtures/`); PR #89 description ("Proof").
 
+### gate-ios-filter-must-match-framework-build-files
+- Type: task
+- Area: scripts
+- Order: 19
+- After: gate-ios-scope-filter-needs-committed-test
+- Source: agentic-dev-loop run 6 (PR #92 or the number this PR gets), 2026-10-04
+- Problem: `scripts/build-kmp-framework.sh` hashes its own list (`BUILD_FILES`) and the gate's iOS filter (`IOS_PATHS` in `scripts/pre-push-check.sh`) lists the same kind of files separately; nothing checks that they agree, so adding a framework input to the first without the second silently skips the iOS steps.
+- Done when: the committed self-test of `gate-ios-scope-filter-needs-committed-test` (or a check next to it) fails when an entry of `BUILD_FILES` does not match the filter.
+- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`); board `gate-ios-scope-filter-needs-committed-test`.
+
 ### ci-use-build-kmp-framework-script
 - Type: task
 - Area: ci
@@ -81,6 +100,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: CI's `ios` job builds the shared XCFramework by calling `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` directly instead of `scripts/build-kmp-framework.sh`, so CI never exercises the script the gate and the Xcode pre-action use.
 - Done when: CI uses the script. The task must explicitly authorize the CI config change.
 - Refs: `.github/workflows/ci.yml` (ios job); `scripts/build-kmp-framework.sh`.
+
+### kmp-framework-hash-misses-gradle-runtime-files
+- Type: task
+- Area: scripts
+- Order: 25
+- Source: agentic-dev-loop run 6 (PR #92 or the number this PR gets), 2026-10-04
+- Problem: the gate's iOS steps now run for `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and `gradle/gradle-daemon-jvm.properties`, but `scripts/build-kmp-framework.sh` does not hash them (its `BUILD_FILES` has `gradle/wrapper/gradle-wrapper.properties` and none of these three). On a machine whose `shared/build/.xcode_kmp_stamp` matches, a diff of only these files makes the gate's "KMP XCFramework" step print "up to date" and skip Gradle, so the XCFramework is not rebuilt with the new launcher or daemon JVM; only the gate's Android/KMP Gradle steps run them. Found by reading the code; not reproduced.
+- Done when: the human has decided whether these three files are framework inputs; if so `BUILD_FILES` lists them (and `tm-ios` "Build integration" and `LEARNINGS.md` say so), shown by a stamp that no longer matches after a change to each.
+- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`); `tm-ios` ("Build integration"); `LEARNINGS.md` (the `build-kmp-framework.sh` item).
 
 ### kover-verify-remaining-modules
 - Type: task
