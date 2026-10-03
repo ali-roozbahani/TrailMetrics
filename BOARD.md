@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-missing-ios-secrets-file-check
-- Type: task
-- Area: scripts, .claude
-- Order: 15
-- Source: agentic-dev-loop run 2 (PR #88), 2026-10-03
-- Problem: a fresh clone without `iosApp/TrailMetrics/Secrets.xcconfig` (the Maps key, never committed; CI writes it from a secret) passes every gate step until the iOS build, about 15 minutes in, and fails there with "Unable to open base configuration reference file". The README ("iOS", step 2) and LEARNINGS.md (item 4) describe the file, but neither `tm-agent-loop`'s preconditions nor `scripts/pre-push-check.sh` check for it, and the credential deny rule blocks any command that names the file (even `test -f`), so an agent cannot check it from the shell.
-- Done when: when the iOS steps are going to run, the gate fails fast, before the long steps, with a message that points to the README step, by testing that the file exists and never reading its contents; `tm-agent-loop` preconditions mention it; and the decision whether a script inside the repo may test for the file despite the deny rule is stated and approved by the human in that PR.
-- Refs: `scripts/pre-push-check.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (Preconditions); README "iOS"; LEARNINGS.md.
-
 ### gate-changed-files-list-misses-renames-and-errors
 - Type: task
 - Area: scripts
