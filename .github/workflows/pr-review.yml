@@ -118,6 +118,9 @@ jobs:
       # The only step that sees the key. --tools and the empty strict MCP config keep the
       # agent at Read, Grep and Glob; dontAsk denies anything that would need a prompt; no
       # hooks run, since a base hook would execute scripts from the head's tree.
+      # One retry, with the same inputs, only when the run succeeded and the report's first
+      # line is neither a verdict nor NO_VERDICT (malformed or empty). Never after a verdict,
+      # NO_VERDICT or a failed run. "Map verdict" maps the final attempt's report.
       - name: Run pr-reviewer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -129,18 +132,34 @@ jobs:
           fi
           W="$RUNNER_TEMP/review"
           cd "$W/tree" || exit 1
-          "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" -p --agent pr-reviewer \
-            --model "$REVIEW_MODEL" --max-turns "$REVIEW_MAX_TURNS" \
-            --tools "Read,Grep,Glob" --disallowedTools "mcp__*" --strict-mcp-config \
-            --setting-sources project --settings '{"disableAllHooks":true}' --permission-mode dontAsk \
-            --no-session-persistence --output-format json --add-dir "$W/input" \
-            < "$W/message" > "$W/claude.json" 2> "$W/claude.err"
-          status=$?
-          jq -e '.is_error == false' "$W/claude.json" > /dev/null 2>&1 || [ "$status" != 0 ] || status=1
+          review() {
+            "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" -p --agent pr-reviewer \
+              --model "$REVIEW_MODEL" --max-turns "$REVIEW_MAX_TURNS" \
+              --tools "Read,Grep,Glob" --disallowedTools "mcp__*" --strict-mcp-config \
+              --setting-sources project --settings '{"disableAllHooks":true}' --permission-mode dontAsk \
+              --no-session-persistence --output-format json --add-dir "$W/input" \
+              < "$W/message" > "$W/claude-$1.json" 2> "$W/claude-$1.err"
+            status=$?
+            jq -e '.is_error == false' "$W/claude-$1.json" > /dev/null 2>&1 || [ "$status" != 0 ] || status=1
+            jq -r '.result // empty' "$W/claude-$1.json" > "$W/report-$1.md" 2>/dev/null || : > "$W/report-$1.md"
+            jq -r --arg n "$1" '"attempt \($n): run: \(.subtype // "?"), turns \(.num_turns // "?"), cost USD \(.total_cost_usd // "?")"' \
+              "$W/claude-$1.json" 2>/dev/null || echo "attempt $1: no JSON result from the CLI (exit $status)"
+          }
+          attempt=1
+          review 1
+          if [ "$status" = 0 ]; then
+            case "$(head -n 1 "$W/report-1.md")" in
+              "VERDICT: APPROVE" | "VERDICT: CHANGES" | "VERDICT: ESCALATE_TO_HUMAN" | NO_VERDICT:*) ;;
+              *)
+                echo "The first report's first line is not a verdict: running the reviewer once more with the same inputs."
+                attempt=2
+                review 2
+                ;;
+            esac
+          fi
           echo "$status" > "$W/claude-exit"
-          jq -r '.result // empty' "$W/claude.json" > "$W/report.md" 2>/dev/null || : > "$W/report.md"
-          jq -r '"run: \(.subtype // "?"), turns \(.num_turns // "?"), cost USD \(.total_cost_usd // "?")"' \
-            "$W/claude.json" 2>/dev/null || echo "no JSON result from the CLI (exit $status)"
+          echo "$attempt" > "$W/attempts"
+          cp "$W/report-$attempt.md" "$W/report.md"
 
       # Pass on APPROVE and ESCALATE_TO_HUMAN (the human is the gate for escalations), fail
       # on CHANGES and on anything else. The report is the model's text: it goes into the
@@ -173,11 +192,18 @@ jobs:
             warn) echo "::warning title=Review — pr-reviewer::$msg" ;;
             *) echo "::error title=Review — pr-reviewer::$msg" ;;
           esac
-          # A fence longer than any backtick run in the report, so the report can't close it.
-          longest="$(grep -oE '`+' "$report" 2>/dev/null | awk '{ if (length > m) m = length } END { print m + 0 }')"
+          # A fence longer than any backtick run in either report, so no report can close it.
+          attempts="$(cat "$W/attempts" 2>/dev/null || echo 1)"
+          longest="$(cat "$report" "$W/report-1.md" 2>/dev/null | grep -oE '`+' | awk '{ if (length > m) m = length } END { print m + 0 }')"
           fence='```'; while [ "${#fence}" -le "$longest" ]; do fence="$fence\`"; done
           {
             printf '## Review — pr-reviewer\n\n**%s** Reviewed head: %s\n\n' "$msg" "$HEAD_SHA"
+            if [ "$attempts" = 2 ]; then
+              printf 'Attempt 2 of 2 was used because the first report was malformed (its first line was not a verdict).\n\n'
+              printf 'First report (attempt 1, not used):\n\n'
+              printf '%stext\n' "$fence"; cat "$W/report-1.md" 2>/dev/null; printf '\n%s\n\n' "$fence"
+              printf 'Final report (attempt 2):\n\n'
+            fi
             printf '%stext\n' "$fence"; cat "$report" 2>/dev/null; printf '\n%s\n' "$fence"
           } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           [ "$result" != fail ]
