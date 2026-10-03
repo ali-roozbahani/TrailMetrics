@@ -63,6 +63,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has chosen between (a) a stronger first-line instruction in the agent definition, (b) one automatic retry in the workflow only when the first line is not a verdict (never after a valid verdict, never to turn CHANGES into something else), or (c) both; the choice is implemented and shown; and the plan states how the trial counts a run whose report was malformed and passed on re-run.
 - Refs: `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/agents/pr-reviewer.md`; `.claude/skills/tm-pr-review/SKILL.md` (report format); `docs/epics/agentic-dev-loop.md` (Decision 8, S6).
 
+### pr-review-retry-needs-committed-test
+- Type: task
+- Area: scripts, .github
+- Order: 17
+- Source: agentic-dev-loop run 7 (the PR that removes pr-review-action-rejects-preamble-before-verdict), 2026-10-04
+- Problem: the one automatic retry in `.github/workflows/pr-review.yml` (step "Run pr-reviewer": a second run only when the first succeeded and its report's first line is neither a `VERDICT:` line nor `NO_VERDICT:`) and the mapping in "Map verdict" have no committed test. That PR's proof table came from an uncommitted scratch harness that extracted both `run:` scripts from the committed workflow with a YAML parser and ran them against a stub `claude` CLI that counts its calls. The check becomes required in S5, so a later edit could break the retry limits (never after a valid verdict, `NO_VERDICT` or a failed run; at most one retry; exactly one `Review — pr-reviewer` annotation) without anything going red.
+- Done when: a committed self-test, run in the gate and in CI, extracts the two `run:` scripts from the committed workflow (never a retyped copy) and checks, per scenario, the number of reviewer calls, the one annotation (level, title, start of message), the job result and that no report text reaches the log, covering at least the rows of that PR's proof table.
+- Refs: `.github/workflows/pr-review.yml` (steps "Run pr-reviewer", "Map verdict"); `scripts/classify-changes.sh` (`--self-test`, the pattern to follow); `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`.
+
 ### gate-ios-scope-filter-needs-committed-test
 - Type: task
 - Area: scripts
@@ -275,6 +284,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-pr-workflow`'s Boundaries say "An agent never merges a PR that touches a protected path. The human merges those." and the header of `.github/CODEOWNERS` says "An agent never merges a PR that touches a path listed here." Decisions 4 and 5 of `docs/epics/agentic-dev-loop.md` make one exception: a subtask PR into an epic branch whose plan `allowed_paths` cover the path (written in `tm-agent-loop`, "Merge conditions", condition 6). S4b's scope did not allow changing either line.
 - Done when: both lines state the exception or point to `tm-agent-loop` ("Merge conditions"), in a task that explicitly authorizes the `CODEOWNERS` change.
 - Refs: `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `.github/CODEOWNERS` (header comment); `.claude/skills/tm-agent-loop/SKILL.md` ("Merge conditions"); `docs/epics/agentic-dev-loop.md` (Decisions 4 and 5).
+
+### drift-plan-decision-8-maps-failure-level-to-changes
+- Type: drift
+- Area: docs
+- Order: 220
+- Source: agentic-dev-loop run 7 (the PR that removes pr-review-action-rejects-preamble-before-verdict), 2026-10-04
+- Problem: Decision 8 of `docs/epics/agentic-dev-loop.md` maps the `Review — pr-reviewer` annotation by level alone ("`failure` = `CHANGES`"). "Map verdict" in `.github/workflows/pr-review.yml` also writes a `failure` annotation when there is no valid report (a failed run, an empty report, a first line that is not a verdict, a wrong `REVIEWED_SHA`), and `tm-agent-loop` section 7 maps by level and the start of the message (`APPROVE.`, `ESCALATE_TO_HUMAN:`, `CHANGES:`), reading anything else as `NOT_APPROVE`. Decision 7 now says a PR whose check never produced a valid report does not count toward the trial, which only the message start tells apart from `CHANGES`.
+- Done when: Decision 8 maps by level and the start of the message, as `tm-agent-loop` section 7 does, and says that any other annotation is not a verdict.
+- Refs: `docs/epics/agentic-dev-loop.md` (Decisions 7 and 8); `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
 
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
