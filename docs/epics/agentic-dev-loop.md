@@ -38,9 +38,10 @@
 4. **Protected paths.** The single source of truth is `.github/CODEOWNERS`, and
    `scripts/check-protected-paths.sh` classifies a diff from it. An agent never merges a PR
    that touches a protected path; the human does. The one exception is a subtask PR into an
-   epic branch whose plan `allowed_paths` cover the path (Decision 5). What a path cannot express (deleted
-   tests, `@Throws` declarations outside the shared module, anything else the reviewer
-   judges critical) is enforced by the reviewer, which escalates it to the human.
+   epic branch whose plan `allowed_paths` cover the path (Decision 5). What a path cannot
+   express (deleted tests, `@Throws` declarations outside the shared module, anything else
+   the reviewer judges critical) is enforced by the reviewer, which escalates it to the
+   human.
 5. **Epics.** Agents may merge subtask PRs into the epic branch with
    `gh pr merge --squash --match-head-commit <SHA>`, only when all of Decision 7's
    conditions hold except "touches no protected path": a subtask PR that touches a protected
@@ -165,10 +166,10 @@
     - CLAUDE.md                                # the skill list only
     - BOARD.md                                 # narrow auto-merge-requires-approve-verdict only
   acceptance:
-    - The loop skill covers picking the task with `scripts/check-board.sh --next` (aware of
-      `scripts/check-protected-paths.sh`), implement, local review, fix, gate, push, PR, the
-      retry budget and escalation to the human, reading the CI annotation (Decision 8),
-      after-merge cleanup (Decision 6) and the merge conditions of Decisions 5 and 7.
+    - The loop skill covers picking the task with `scripts/check-board.sh --next`,
+      implement, local review, fix, gate, push, PR, the retry budget and escalation to the
+      human, reading the CI annotation (Decision 8), after-merge cleanup (Decision 6) and
+      the merge conditions of Decisions 5 and 7.
     - epic-orchestration and tm-pr-workflow match the Decisions above, including their old
       lines that say no agent merges any PR.
     - CLAUDE.md's skill list names the loop skill.
