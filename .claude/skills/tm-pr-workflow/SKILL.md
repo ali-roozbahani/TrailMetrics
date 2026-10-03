@@ -62,7 +62,11 @@ Branch: <type>/<slug>
 ## Tier 1: the local gate (agent's job)
 
 `scripts/pre-push-check.sh` must exit 0 before any push. It always runs the board check
-(`scripts/check-board.sh`, also the first step of CI's `android` job), `detekt`, Android
+(`scripts/check-board.sh`, also the first step of CI's `android` job), the protected-paths
+check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
+"Protected paths check" step of CI's `android` job) followed by a report-only line with the
+classifier's verdict on the branch's diff (`protected` or `unprotected` and the matching files;
+it never fails the gate), `detekt`, Android
 `lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
@@ -72,7 +76,11 @@ coverage. Minimums are set in `domain`, `data` and the three `androidApp` featur
 `shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict`, the shared
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
 build and the iOS package tests when the branch's diff touches `iosApp/`, `domain/`, `data/`,
-`core/` or `shared/`.
+`core/` or `shared/`. Its last step prints the `pr-reviewer` verdict recorded for HEAD
+(`APPROVE`, `CHANGES` or `ESCALATE_TO_HUMAN`, or that none is recorded); it is report only
+and never fails the gate. When and how the session runs the reviewer and records that verdict
+(after the last commit, before the gate's final run, again after every new commit) is in
+`tm-pr-review`, "Orchestrator's part".
 
 How it is enforced, and what that means for the order of operations:
 
