@@ -49,10 +49,12 @@ MockK and Turbine are not in the catalog. No JUnit5, no AssertK, no Truth. Detai
 - Never commit to or push to `main`. Work on a branch: `feature/`, `bugfix/` or `chore/` prefix.
 - Never call a deprecated API. Never add a third-party dependency unless the task names it.
 - Never cross a module boundary listed in `tm-kmp-shared`; stop and report instead.
-- Before any push, `scripts/pre-push-check.sh` must pass locally. It runs Gradle `detekt`,
-  `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when iOS
-  code or shared code changed), a non-blocking merged Kover coverage report, and an enforced
-  `koverVerify` (per-module minimum line coverage). `./gradlew test` alone runs zero KMP tests.
+- Before any push, `scripts/pre-push-check.sh` must pass locally. Unless
+  `scripts/classify-changes.sh` decides `light` (non-source changes only), it runs Gradle
+  `detekt`, `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when
+  iOS code or shared code changed), a non-blocking merged Kover coverage report, and an enforced
+  `koverVerify` (per-module minimum line coverage). CI's heavy steps follow the same decision.
+  `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
   of an unrelated task. Fixing a skill or CLAUDE.md line that describes the exact code the
   task changed is part of the task, not a side effect (see `tm-pr-workflow`).

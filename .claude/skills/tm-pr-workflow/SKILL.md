@@ -66,8 +66,11 @@ Branch: <type>/<slug>
 check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
 "Protected paths check" step of CI's `android` job) followed by a report-only line with the
 classifier's verdict on the branch's diff (`protected` or `unprotected` and the matching files;
-it never fails the gate), `detekt`, Android
-`lint`, `allTests test` and `assembleDebug`. After the tests it also generates the merged
+it never fails the gate), and the change classification self-test
+(`scripts/classify-changes.sh --self-test`). The heavy steps run unless
+`scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
+decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
+`assembleDebug`, and the iOS steps below, which also need their path filter. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
 enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
@@ -300,10 +303,12 @@ silently force-pushing.
   cleanup").
 - **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it
   only gates pushes made from a Claude Code session. A push from a terminal skips it.
-- **CI doesn't mirror the gate exactly.** CI's `ios` job always runs SwiftLint, the iOS
-  build and the iOS simulator tests, even when the gate skipped its iOS steps. So an
-  `iosApp/` problem that already existed on `main` can make CI red on an unrelated
-  `.claude/`-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
+- **CI doesn't mirror the gate exactly.** CI's heavy steps run unless
+  `scripts/classify-changes.sh` decides `light` (non-source changes only; pushes always run
+  everything). Unlike the gate, CI's `ios` job has no iOS path filter: on a non-`light` PR it
+  runs SwiftLint, the iOS build and the iOS simulator tests even when the gate skipped its iOS
+  steps. So an `iosApp/` problem that already existed on `main` can make CI red on an
+  unrelated Android-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
   skipped; they run in the `ios` job since #34.
 - **CI only runs on push for `main` and `feature/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
