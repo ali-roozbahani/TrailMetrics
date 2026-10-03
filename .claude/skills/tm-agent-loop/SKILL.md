@@ -205,10 +205,8 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 
 ## Stop and report
 
-- The identity is wrong.
-- An environment failure.
-- The gate's retry budget is exhausted.
-- The review fix budget is exhausted.
+- The identity is wrong, or an environment failure.
+- The gate's retry budget or the review fix budget is exhausted.
 - The record is an epic or unclear.
 - A protected-path change the task did not call for.
 - CI red after a green gate.
@@ -216,9 +214,7 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 
 ## Never
 
-- Push to `main`.
-- Force-push or amend.
-- Cancel a CI run.
+- Push to `main`, force-push or amend, or cancel a CI run.
 - Enable auto-merge or change repository settings.
 - Edit a protected path outside the task.
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
