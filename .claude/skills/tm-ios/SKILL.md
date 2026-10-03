@@ -249,7 +249,9 @@ fails, so observe through a use case that turns the failure into a value on the 
 Config: `iosApp/.swiftlint.yml`. Run it from `iosApp/` with `swiftlint lint --strict`. It
 runs in `scripts/pre-push-check.sh` (whenever a file other than markdown under `iosApp/`,
 `domain/`, `data/`, `core/` or `shared/` changed, or a root Gradle file: `build.gradle.kts`,
-`settings.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`) and in the CI macOS job, followed by an `xcodebuild` simulator build.
+`settings.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`, or a file that runs the
+Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`,
+`gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in the CI macOS job, followed by an `xcodebuild` simulator build.
 
 - `--strict` promotes every warning to a failure. The `warning` thresholds are the real
   limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic

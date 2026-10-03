@@ -19,12 +19,15 @@ run_step() {
 }
 
 # >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (begin) >>>
-# --- Decide scope: did this branch touch iOS, shared/domain/data/core or the root Gradle files? ---
+# --- Decide scope: did this branch touch iOS, shared/domain/data/core or the framework's build? ---
 # The iOS steps run for a changed file under iosApp/, domain/, data/, core/ or shared/ that is not
-# markdown, and for the root Gradle files that configure the shared framework's build. Exact
-# paths and an exact `.md` suffix, as in scripts/classify-changes.sh: `data/README.md.kt` counts,
-# `androidApp/app/build.gradle.kts` does not.
-IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml)$'
+# markdown, for the root Gradle files that configure the shared framework's build, for the Gradle
+# wrapper and daemon JVM files that run it (gradlew, gradle/wrapper/gradle-wrapper.jar and
+# .properties, gradle/gradle-daemon-jvm.properties) and for scripts/build-kmp-framework.sh, the
+# iOS steps' own framework build. Not for gradlew.bat (Windows only, nothing here runs it) or
+# this script (CI's ios job runs in full for it). Exact paths and an exact `.md` suffix, as in
+# scripts/classify-changes.sh: `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
+IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml|gradle/wrapper/gradle-wrapper\.properties|gradle/wrapper/gradle-wrapper\.jar|gradle/gradle-daemon-jvm\.properties|gradlew|scripts/build-kmp-framework\.sh)$'
 IOS_PATHS_EXCLUDED='\.md$'
 # The list is `git diff --no-renames -z`, as in scripts/classify-changes.sh: a move lists both
 # its paths, and no path is quoted (non-ASCII) or split (a newline in a name). Each path is
