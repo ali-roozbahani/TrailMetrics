@@ -54,14 +54,33 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-missing-ios-secrets-file-check
+### gate-changed-files-list-misses-renames-and-errors
 - Type: task
-- Area: scripts, .claude
-- Order: 15
-- Source: agentic-dev-loop run 2 (PR #88), 2026-10-03
-- Problem: a fresh clone without `iosApp/TrailMetrics/Secrets.xcconfig` (the Maps key, never committed; CI writes it from a secret) passes every gate step until the iOS build, about 15 minutes in, and fails there with "Unable to open base configuration reference file". The README ("iOS", step 2) and LEARNINGS.md (item 4) describe the file, but neither `tm-agent-loop`'s preconditions nor `scripts/pre-push-check.sh` check for it, and the credential deny rule blocks any command that names the file (even `test -f`), so an agent cannot check it from the shell.
-- Done when: when the iOS steps are going to run, the gate fails fast, before the long steps, with a message that points to the README step, by testing that the file exists and never reading its contents; `tm-agent-loop` preconditions mention it; and the decision whether a script inside the repo may test for the file despite the deny rule is stated and approved by the human in that PR.
-- Refs: `scripts/pre-push-check.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (Preconditions); README "iOS"; LEARNINGS.md.
+- Area: scripts
+- Order: 16
+- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
+- Problem: `scripts/pre-push-check.sh` builds the file list for its iOS scope decision with `git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true`, without `--no-renames`. Git's rename detection lists a moved file under its new path only, so a file moved out of `data/` (e.g. to `androidApp/`) does not set `TOUCHES_IOS_OR_SHARED` and the iOS steps do not run, although the shared framework changed (confirmed in a scratch repo in run 3 and again in run 4; with `--no-renames` both paths are listed). When `git diff` fails (an unreadable base tree, or the `HEAD~1` fallback in a history with a single commit), `|| true` leaves the list empty, so `TOUCHES_IOS_OR_SHARED` is `false` and the iOS steps are skipped without a warning, while `scripts/classify-changes.sh` (which uses `--no-renames`) reports the failed diff and falls back to `full`, so the Android/KMP steps still run.
+- Done when: renames list both the old and the new path, and a file list that cannot be read makes the iOS steps run (fail-safe), with both behaviors shown.
+- Refs: `scripts/pre-push-check.sh` (scope decision, `CHANGED_FILES`); `scripts/classify-changes.sh` (`--no-renames` diff and its `full` fallback).
+
+### gate-ios-steps-miss-framework-inputs
+- Type: task
+- Area: scripts
+- Order: 17
+- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
+- Problem: `scripts/pre-push-check.sh` runs the iOS steps for a changed file under `iosApp/`, `domain/`, `data/`, `core/` or `shared/` (not markdown) or one of the root Gradle files `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`. These files also change the shared framework or its build but match neither, so a diff of only them runs no iOS steps: `gradle/wrapper/gradle-wrapper.properties` (the Gradle version; `scripts/build-kmp-framework.sh` hashes it as a framework input), `gradle/gradle-daemon-jvm.properties`, `gradlew` and `gradle/wrapper/gradle-wrapper.jar`, `scripts/build-kmp-framework.sh` (the iOS steps' own framework build), and `scripts/pre-push-check.sh` itself. `buildSrc/` and `build-logic/` do not exist.
+- Done when: the human has decided per file whether it triggers the iOS steps, and the filter says so.
+- Refs: `scripts/pre-push-check.sh` (`IOS_PATHS`); `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `tm-pr-workflow` "Tier 1"; `tm-ios` "SwiftLint".
+
+### gate-ios-scope-filter-needs-committed-test
+- Type: task
+- Area: scripts
+- Order: 18
+- After: gate-changed-files-list-misses-renames-and-errors, gate-ios-steps-miss-framework-inputs
+- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
+- Problem: the iOS scope filter in `scripts/pre-push-check.sh` (`IOS_PATHS`, `IOS_PATHS_EXCLUDED`, the `TOUCHES_IOS_OR_SHARED` test) has no committed test. PR #89's red/green table came from an uncommitted scratch harness, and the local reviewer marked the missing test as blocking. `scripts/classify-changes.sh --self-test` and `scripts/check-protected-paths.sh --self-test` already run in the gate and in CI.
+- Done when: a committed self-test (in the style of `scripts/classify-changes.sh --self-test`, run in the gate and CI) covers the filter's rows, including the rows of that table.
+- Refs: `scripts/pre-push-check.sh`; `scripts/classify-changes.sh` (`--self-test`, `scripts/classify-changes-fixtures/`); PR #89 description ("Proof").
 
 ### ci-use-build-kmp-framework-script
 - Type: task

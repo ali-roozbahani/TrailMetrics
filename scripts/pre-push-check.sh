@@ -52,6 +52,13 @@ else
     fi
 fi
 
+# One flag for both the secrets config check and the iOS steps below, so the iOS steps never run
+# without that check having run first.
+RUN_IOS_STEPS=false
+if [ "$DECISION" = full ] && [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
+    RUN_IOS_STEPS=true
+fi
+
 echo "Changed files since $BASE_REF:"
 echo "$CHANGED_FILES" | sed 's/^/  /'
 echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
@@ -73,6 +80,28 @@ echo "==> change classification of this branch (report only, never fails the gat
 echo "$CLASSIFICATION" | tail -n +2 | sed 's/^/    /'
 if [ "$DECISION" = light ]; then
     echo "    every changed file is on the non-source allowlist: Android/KMP and iOS steps skipped"
+fi
+
+# --- iOS secrets config (only when the iOS steps will run; before any long step) ---
+# The iOS build needs this git-ignored file (README "iOS", step 2; CI writes a placeholder).
+# Without it xcodebuild fails at settings resolution (LEARNINGS.md, item 4), about 15 minutes
+# into the gate. It holds a Maps key: this is an existence test only, the file is never read,
+# sourced or printed, and the gate never creates it. Fail-safe: anything that makes the test
+# false (no file, a directory, an unreadable parent directory) stops the gate; nothing here can
+# skip the iOS steps.
+IOS_SECRETS_CONFIG="iosApp/TrailMetrics/Secrets.xcconfig"
+if [ "$RUN_IOS_STEPS" = true ] && [ ! -f "$REPO_ROOT/$IOS_SECRETS_CONFIG" ]; then
+    echo "!!  iOS secrets config missing: $IOS_SECRETS_CONFIG"
+    echo "    This branch's changes need the iOS steps, and the iOS build cannot start without"
+    echo "    this git-ignored file. Create it as README.md, \"Setup\" > \"iOS\", step 2 describes,"
+    echo "    in this checkout (a new clone or worktree does not have it). Never commit it."
+    if [ ${#FAILURES[@]} -gt 0 ]; then
+        echo "    Also failed before this check:"
+        for f in "${FAILURES[@]}"; do echo "      - $f"; done
+    fi
+    echo
+    echo "Gate stopped before the long steps. Do not push."
+    exit 1
 fi
 
 # --- Android / KMP (unless the decision is light) ---
@@ -104,7 +133,7 @@ if [ "$DECISION" = full ]; then
 fi
 
 # --- iOS (only when relevant files changed, and the decision is full) ---
-if [ "$DECISION" = full ] && [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
+if [ "$RUN_IOS_STEPS" = true ]; then
     if command -v swiftlint >/dev/null 2>&1; then
         run_step "swiftlint" bash -c 'cd iosApp && swiftlint lint --strict'
     else
