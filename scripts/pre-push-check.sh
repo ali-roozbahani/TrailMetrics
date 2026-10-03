@@ -18,25 +18,55 @@ run_step() {
     fi
 }
 
+# >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (begin) >>>
 # --- Decide scope: did this branch touch iOS, shared/domain/data/core or the root Gradle files? ---
-BASE_REF="$(git merge-base HEAD origin/main 2>/dev/null || echo "")"
-if [ -z "$BASE_REF" ]; then
-    echo "Warning: could not find merge-base with origin/main; checking all changes vs HEAD~1"
-    BASE_REF="HEAD~1"
-fi
-CHANGED_FILES="$(git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true)"
-
 # The iOS steps run for a changed file under iosApp/, domain/, data/, core/ or shared/ that is not
 # markdown, and for the root Gradle files that configure the shared framework's build. Exact
 # paths and an exact `.md` suffix, as in scripts/classify-changes.sh: `data/README.md.kt` counts,
-# `androidApp/app/build.gradle.kts` does not. No `grep -q`: with pipefail, its early exit could
-# fail the pipeline on a match.
+# `androidApp/app/build.gradle.kts` does not.
 IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml)$'
 IOS_PATHS_EXCLUDED='\.md$'
-TOUCHES_IOS_OR_SHARED=false
-if [ -n "$(printf '%s\n' "$CHANGED_FILES" | grep -E "$IOS_PATHS" | grep -vE "$IOS_PATHS_EXCLUDED")" ]; then
-    TOUCHES_IOS_OR_SHARED=true
+# The list is `git diff --no-renames -z`, as in scripts/classify-changes.sh: a move lists both
+# its paths, and no path is quoted (non-ASCII) or split (a newline in a name). Each path is
+# matched as one string with bash's =~, never line by line. Fail-safe: when the branch's list
+# cannot be read exactly (no merge-base with origin/main, so the HEAD~1 fallback is not this
+# branch's diff; git diff fails; no temp dir), TOUCHES_IOS_OR_SHARED is true and a warning says
+# why, with the first line of git's error. An empty list read without an error stays false.
+IOS_SCOPE_NL=$'\n'
+IOS_SCOPE_PROBLEM=""
+IOS_SCOPE_TMP="$(mktemp -d 2>/dev/null)" || IOS_SCOPE_TMP=""
+IOS_SCOPE_ERR=/dev/null
+[ -n "$IOS_SCOPE_TMP" ] && IOS_SCOPE_ERR="$IOS_SCOPE_TMP/err"
+BASE_REF="$(git merge-base HEAD origin/main 2>"$IOS_SCOPE_ERR")" || BASE_REF=""
+if [ -z "$BASE_REF" ]; then
+    echo "Warning: could not find merge-base with origin/main; checking all changes vs HEAD~1"
+    IOS_SCOPE_GIT_ERR="$(head -n 1 "$IOS_SCOPE_ERR" 2>/dev/null)"
+    IOS_SCOPE_PROBLEM="no merge-base with origin/main (${IOS_SCOPE_GIT_ERR:-no common ancestor}), so the HEAD~1 list is not this branch's diff"
+    BASE_REF="HEAD~1"
 fi
+CHANGED_FILES=""
+TOUCHES_IOS_OR_SHARED=false
+if [ -z "$IOS_SCOPE_TMP" ]; then
+    IOS_SCOPE_PROBLEM="${IOS_SCOPE_PROBLEM:+$IOS_SCOPE_PROBLEM; }mktemp failed, so no file list"
+elif ! git diff --no-ext-diff --no-renames --name-only -z --end-of-options "$BASE_REF" HEAD \
+        >"$IOS_SCOPE_TMP/list" 2>"$IOS_SCOPE_ERR"; then
+    IOS_SCOPE_GIT_ERR="$(head -n 1 "$IOS_SCOPE_ERR" 2>/dev/null)"
+    IOS_SCOPE_PROBLEM="${IOS_SCOPE_PROBLEM:+$IOS_SCOPE_PROBLEM; }git diff $BASE_REF HEAD failed: ${IOS_SCOPE_GIT_ERR:-no error message}"
+else
+    while IFS= read -r -d '' IOS_SCOPE_PATH; do
+        CHANGED_FILES="${CHANGED_FILES:+$CHANGED_FILES$IOS_SCOPE_NL}$IOS_SCOPE_PATH"
+        if [[ "$IOS_SCOPE_PATH" =~ $IOS_PATHS ]] && [[ ! "$IOS_SCOPE_PATH" =~ $IOS_PATHS_EXCLUDED ]]; then
+            TOUCHES_IOS_OR_SHARED=true
+        fi
+    done <"$IOS_SCOPE_TMP/list"
+fi
+[ -n "$IOS_SCOPE_TMP" ] && rm -rf "$IOS_SCOPE_TMP"
+if [ -n "$IOS_SCOPE_PROBLEM" ]; then
+    TOUCHES_IOS_OR_SHARED=true
+    echo "Warning: the changed-file list for the iOS scope is not exact: $IOS_SCOPE_PROBLEM"
+    echo "         iOS/shared checks required: true (fail-safe)"
+fi
+# <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (end) <<<
 
 # --- Decide scope: may the heavy steps be skipped? ---
 # scripts/classify-changes.sh decides it, the same script as CI. "light" (every changed file is

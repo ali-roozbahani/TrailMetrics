@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-changed-files-list-misses-renames-and-errors
-- Type: task
-- Area: scripts
-- Order: 16
-- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
-- Problem: `scripts/pre-push-check.sh` builds the file list for its iOS scope decision with `git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true`, without `--no-renames`. Git's rename detection lists a moved file under its new path only, so a file moved out of `data/` (e.g. to `androidApp/`) does not set `TOUCHES_IOS_OR_SHARED` and the iOS steps do not run, although the shared framework changed (confirmed in a scratch repo in run 3 and again in run 4; with `--no-renames` both paths are listed). When `git diff` fails (an unreadable base tree, or the `HEAD~1` fallback in a history with a single commit), `|| true` leaves the list empty, so `TOUCHES_IOS_OR_SHARED` is `false` and the iOS steps are skipped without a warning, while `scripts/classify-changes.sh` (which uses `--no-renames`) reports the failed diff and falls back to `full`, so the Android/KMP steps still run.
-- Done when: renames list both the old and the new path, and a file list that cannot be read makes the iOS steps run (fail-safe), with both behaviors shown.
-- Refs: `scripts/pre-push-check.sh` (scope decision, `CHANGED_FILES`); `scripts/classify-changes.sh` (`--no-renames` diff and its `full` fallback).
-
 ### gate-ios-steps-miss-framework-inputs
 - Type: task
 - Area: scripts
@@ -76,7 +67,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: scripts
 - Order: 18
-- After: gate-changed-files-list-misses-renames-and-errors, gate-ios-steps-miss-framework-inputs
+- After: gate-ios-steps-miss-framework-inputs
 - Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
 - Problem: the iOS scope filter in `scripts/pre-push-check.sh` (`IOS_PATHS`, `IOS_PATHS_EXCLUDED`, the `TOUCHES_IOS_OR_SHARED` test) has no committed test. PR #89's red/green table came from an uncommitted scratch harness, and the local reviewer marked the missing test as blocking. `scripts/classify-changes.sh --self-test` and `scripts/check-protected-paths.sh --self-test` already run in the gate and in CI.
 - Done when: a committed self-test (in the style of `scripts/classify-changes.sh --self-test`, run in the gate and CI) covers the filter's rows, including the rows of that table.
