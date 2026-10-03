@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=push
+env: PR_BASE_SHA={BASE}
+decision: full
+contains: (push event: always full)
+output: decision=full

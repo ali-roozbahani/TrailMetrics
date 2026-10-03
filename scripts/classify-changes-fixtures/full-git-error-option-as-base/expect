@@ -1,0 +1,4 @@
+args: --base --output=/dev/null
+decision: full
+contains: (no file list:
+absent: README.md  (

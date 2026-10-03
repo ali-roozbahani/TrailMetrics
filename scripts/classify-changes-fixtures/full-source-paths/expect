@@ -1,0 +1,11 @@
+decision: full
+contains: .github/workflows/ci.yml  (not on the allowlist)
+contains: scripts/pre-push-check.sh  (not on the allowlist)
+contains: build.gradle.kts  (not on the allowlist)
+contains: settings.gradle.kts  (not on the allowlist)
+contains: gradle/libs.versions.toml  (not on the allowlist)
+contains: iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift  (not on the allowlist)
+contains: androidApp/app/src/main/AndroidManifest.xml  (not on the allowlist)
+contains: data/build.gradle.kts  (not on the allowlist)
+contains: core/src/commonMain/kotlin/AppRoute.kt  (not on the allowlist)
+contains: shared/build.gradle.kts  (not on the allowlist)

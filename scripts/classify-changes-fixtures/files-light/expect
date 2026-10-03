@@ -1,0 +1,4 @@
+args: --files README.md docs/a.md
+decision: light
+contains: README.md  (*.md)
+contains: docs/a.md  (docs/**)

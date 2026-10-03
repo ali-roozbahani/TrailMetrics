@@ -18,6 +18,8 @@
 /scripts/check-board-fixtures/              @ali-roozbahani
 /scripts/check-protected-paths.sh           @ali-roozbahani
 /scripts/check-protected-paths.py           @ali-roozbahani
+/scripts/classify-changes.sh                @ali-roozbahani
+/scripts/classify-changes-fixtures/         @ali-roozbahani
 /scripts/build-kmp-framework.sh             @ali-roozbahani
 
 # Build and dependency files

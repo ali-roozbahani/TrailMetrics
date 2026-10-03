@@ -1,0 +1,4 @@
+args: --base 0123456789abcdef0123456789abcdef01234567
+decision: full
+contains: (no file list: base 0123456789abcdef0123456789abcdef01234567 is not a commit here
+absent: README.md  (

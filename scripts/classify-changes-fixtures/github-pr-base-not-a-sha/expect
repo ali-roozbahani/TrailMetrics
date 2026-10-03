@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA=HEAD~1
+decision: full
+contains: (no file list: PR_BASE_SHA is not a commit SHA)
+output: decision=full

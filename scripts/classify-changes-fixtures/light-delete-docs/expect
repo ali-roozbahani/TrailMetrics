@@ -1,0 +1,3 @@
+decision: light
+contains: docs/obsolete.md  (docs/**)
+contains: .claude/skills/old/SKILL.md  (*.md)

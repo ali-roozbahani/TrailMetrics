@@ -1,0 +1,4 @@
+args: --bogus
+exit: 2
+decision: full
+contains: usage error

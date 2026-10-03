@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA=0123456789abcdef0123456789abcdef01234567
+decision: full
+contains: is not a commit here
+output: decision=full
