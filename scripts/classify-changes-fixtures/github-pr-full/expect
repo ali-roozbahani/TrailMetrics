@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA={BASE}
+decision: full
+contains: .github/workflows/ci.yml  (not on the allowlist)
+output: decision=full

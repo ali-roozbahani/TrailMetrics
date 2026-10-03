@@ -1,0 +1,13 @@
+decision: light
+contains: docs/architecture/diagram.png  (docs/**)
+contains: docs/epics/plan.md  (docs/**)
+contains: README.md  (*.md)
+contains: BOARD.md  (*.md)
+contains: CLAUDE.md  (*.md)
+contains: data/README.md  (*.md)
+contains: .claude/skills/x/SKILL.md  (*.md)
+contains: .claude/settings.json  (.claude/**)
+contains: .github/CODEOWNERS  (.github/CODEOWNERS)
+contains: .github/workflows/pr-review.yml  (.github/workflows/pr-review.yml)
+contains: docs/my notes.md  (docs/**)
+contains: docs/ünïcode.md  (docs/**)

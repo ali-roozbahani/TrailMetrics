@@ -1,0 +1,4 @@
+decision: full
+contains: domain/src/commonMain/kotlin/Tracker.kt  (not on the allowlist)
+absent: BOARD.md  (
+absent: docs/guide.md  (

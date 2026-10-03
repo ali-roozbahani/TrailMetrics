@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA={BASE}
+decision: light
+contains: docs/x.md  (docs/**)
+output: decision=light

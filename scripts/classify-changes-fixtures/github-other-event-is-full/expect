@@ -1,0 +1,6 @@
+args: --github
+env: EVENT_NAME=workflow_dispatch
+env: PR_BASE_SHA={BASE}
+decision: full
+contains: (event 'workflow_dispatch': always full)
+output: decision=full

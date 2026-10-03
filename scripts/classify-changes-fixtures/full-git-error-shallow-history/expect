@@ -1,0 +1,4 @@
+setup: shallow
+decision: full
+contains: is not a commit here (missing, or shallow history)
+absent: README.md  (

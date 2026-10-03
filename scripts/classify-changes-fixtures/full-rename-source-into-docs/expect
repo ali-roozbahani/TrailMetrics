@@ -1,0 +1,3 @@
+decision: full
+contains: androidApp/app/src/main/kotlin/Old.kt  (not on the allowlist)
+absent: docs/Old.kt  (

@@ -1,0 +1,10 @@
+M	.github/workflows/ci.yml
+M	scripts/pre-push-check.sh
+M	build.gradle.kts
+M	settings.gradle.kts
+M	gradle/libs.versions.toml
+M	iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift
+M	androidApp/app/src/main/AndroidManifest.xml
+M	data/build.gradle.kts
+M	core/src/commonMain/kotlin/AppRoute.kt
+M	shared/build.gradle.kts

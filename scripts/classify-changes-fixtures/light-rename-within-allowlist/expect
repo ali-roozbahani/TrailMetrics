@@ -1,0 +1,5 @@
+decision: light
+contains: docs/old.md  (docs/**)
+contains: docs/new.md  (docs/**)
+contains: NOTES.md  (*.md)
+contains: .claude/notes.txt  (.claude/**)
