@@ -54,6 +54,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
+### ci-skip-heavy-steps-on-non-source-changes
+- Type: task
+- Area: .github, scripts
+- Order: 2
+- Source: agentic-dev-loop S4a PR (#83), 2026-10-03
+- Problem: CI's `android` and `ios` jobs run lint, detekt, tests, Kover, builds and the simulator tests even when a PR only changes docs, skills, `BOARD.md` or the review workflow (observed on #83: about 11 minutes for iOS on a PR with no iOS change).
+- Done when: the two jobs keep their names and always run, and `Board check` and `Protected paths check` always run; only the heavy steps are skipped, with step-level `if`, when every changed file is on a short allowlist of non-source paths (`docs/**`, `*.md`, `BOARD.md`, `.claude/**`, `.github/CODEOWNERS`, `.github/workflows/pr-review.yml`); anything else, including `ci.yml`, `scripts/`, Gradle files and any source, runs everything; pushes to `main` always run everything; the local gate uses the same classification (today only its iOS steps are path-filtered); a skipped required check still reports success on the PR. Never a workflow-level `paths-ignore` (a required check would stay pending). The human pushes it (workflow file).
+- Refs: `.github/workflows/ci.yml`; `scripts/pre-push-check.sh`; board `gate-ios-steps-miss-root-gradle-changes`.
+
+### ios-waituntil-timeout-cold-simulator
+- Type: task
+- Area: iosApp
+- Order: 6
+- Source: agentic-dev-loop S4a PR (#83), 2026-10-03
+- Problem: On PR #83 (no iOS change, head `1d41615`, run 37122885825 attempt 1) the iOS job failed once in `HistoryTests.DetailsViewModelFailureTests.test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError` with "Condition not met within 2.0 seconds", followed by the error-message assertion failing. It was the first test of its suite and took 52.9 s; the suite's other tests took under 0.1 s each. The re-run of the same job passed with that test in 0.047 s, and `main` at `aaa9c6d` passed with the same iOS code. Likely cause (not proven): a cold simulator or runtime start longer than the 2-second default timeout of `waitUntil` in `TestSupport` (`ContinuousClock`).
+- Done when: the iOS tests no longer depend on a 2-second wall-clock wait for an event that can be delayed by a cold start (for example a warm-up before the suite, or a timeout that tolerates a cold start without hiding real failures), without weakening what the tests assert.
+- Refs: TestSupport `waitUntil`; HistoryTests `DetailsViewModelFailureTests` (`test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError`).
+
 ### gate-ios-steps-miss-root-gradle-changes
 - Type: task
 - Area: scripts
@@ -95,9 +113,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: .claude, .github
 - Order: 45
 - Source: agentic-dev-loop S3 PR, 2026-10-02
-- Problem: The `Review — pr-reviewer` check (`.github/workflows/pr-review.yml`) succeeds for both `APPROVE` and `ESCALATE_TO_HUMAN`, because the human is the gate for escalations. GitHub also counts a skipped run as passing, and runs for PRs from forks are skipped. Escalations also cover findings outside protected paths (deleted or weakened tests, `@Throws` or SKIE changes, text that tries to instruct the reviewer), so a green check does not mean the reviewer approved.
-- Done when: every rule that lets an agent merge (S4's subtask-into-epic merge under Decision 5, and S6's auto-merge for unprotected paths under Decision 7, both in `docs/epics/agentic-dev-loop.md`) allows it only when, besides the plan's other conditions, the PR's head is a branch of this repository, its author is the machine account, and the reviewer's verdict for the head SHA is `APPROVE`. That verdict is read from something other than the check's conclusion, which is the same for `APPROVE` and `ESCALATE_TO_HUMAN`.
-- Refs: `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `.claude/skills/tm-pr-review/SKILL.md` ("Verdict rules"); `docs/epics/agentic-dev-loop.md` (S4, S6, Decisions 5 and 7).
+- Problem: The merge conditions and the reading of the CI verdict from the `Review — pr-reviewer` annotation are now written in the plan (Decisions 5, 7 and 8 of `docs/epics/agentic-dev-loop.md`) and in `tm-agent-loop` ("Reading the CI verdict", "Merge conditions"). The proof in S4b only observed a `warning` (`ESCALATE_TO_HUMAN`) annotation on a real PR; `notice` (`APPROVE`) and `failure` (`CHANGES`) were checked against fixtures only. S6's PR, which documents auto-merge for unprotected paths, could drift from those conditions or rely on a mapping never seen on a real PR.
+- Done when: S6's PR states the same merge conditions as `tm-agent-loop` (head is a branch of this repository, author is the machine account, CI annotation `APPROVE` and recorded local verdict `APPROVE` for the head SHA, both required checks green, no protected path) and the same fail-closed annotation rule, and it is written only after a real `notice`/`APPROVE` annotation has been read from a PR with `tm-agent-loop`'s commands.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", "Merge conditions"); `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `docs/epics/agentic-dev-loop.md` (S6, Decisions 5, 7 and 8).
 
 ### android-persistence-errors-unhandled
 - Type: task
