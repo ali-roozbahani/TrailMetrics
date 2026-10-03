@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ios-waituntil-timeout-cold-simulator
-- Type: task
-- Area: iosApp
-- Order: 6
-- Source: agentic-dev-loop S4a PR (#83), 2026-10-03
-- Problem: On PR #83 (no iOS change, head `1d41615`, run 37122885825 attempt 1) the iOS job failed once in `HistoryTests.DetailsViewModelFailureTests.test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError` with "Condition not met within 2.0 seconds", followed by the error-message assertion failing. It was the first test of its suite and took 52.9 s; the suite's other tests took under 0.1 s each. The re-run of the same job passed with that test in 0.047 s, and `main` at `aaa9c6d` passed with the same iOS code. Likely cause (not proven): a cold simulator or runtime start longer than the 2-second default timeout of `waitUntil` in `TestSupport` (`ContinuousClock`).
-- Done when: the iOS tests no longer depend on a 2-second wall-clock wait for an event that can be delayed by a cold start (for example a warm-up before the suite, or a timeout that tolerates a cold start without hiding real failures), without weakening what the tests assert.
-- Refs: TestSupport `waitUntil`; HistoryTests `DetailsViewModelFailureTests` (`test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError`).
-
 ### gate-ios-steps-miss-root-gradle-changes
 - Type: task
 - Area: scripts
@@ -265,3 +256,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-agent-loop` ("Reading the CI verdict") tells the agent to use `reviewDecision` instead of `reviewRequests`. With "Require review from Code Owners" on and required approvals at 0, `reviewDecision` stayed empty on a protected PR both before and after the code owner approved it (PR #85, a closed throwaway); only `mergeStateStatus` (`BLOCKED`, then `CLEAN`), `requested_reviewers` and the reviews list showed the review state.
 - Done when: the skill names `mergeStateStatus`, `gh api repos/{owner}/{repo}/pulls/<N>/reviews` and `requested_reviewers` as the signals for a pending or given review, and says that `reviewDecision` is empty at 0 required approvals.
 - Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
+
+### drift-epic-orchestration-gate-scope-after-light-decision
+- Type: drift
+- Area: .claude
+- Order: 920
+- Source: agentic-dev-loop run 1 (PR #87), 2026-10-03
+- Problem: `epic-orchestration`'s "Resource contention" bullet says "Every subtask runs the full gate: Gradle `detekt`, `lint`, `allTests test`, the Kover coverage report and `koverVerify`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild` once the diff touches `iosApp/` or the shared layer." Since #87 `scripts/pre-push-check.sh` and CI skip those heavy steps when `scripts/classify-changes.sh` decides `light` (non-source changes only), so a subtask with only non-source changes does not run them.
+- Done when: the lines say the heavy steps run unless `scripts/classify-changes.sh` decides `light`, and point to that script instead of repeating its allowlist.
+- Refs: `.claude/skills/epic-orchestration/SKILL.md` ("Resource contention"); `scripts/classify-changes.sh`; `scripts/pre-push-check.sh`.
