@@ -80,7 +80,11 @@ coverage. Minimums are set in `domain`, `data` and the three `androidApp` featur
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
 build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
 `data/`, `core/` or `shared/` other than markdown (`*.md`), or one of the root Gradle files
-`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`. Its last step prints the `pr-reviewer` verdict recorded for HEAD
+`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`.
+When those iOS steps will run, the gate first checks, after the change classification and
+before any heavy step, that the git-ignored iOS secrets config (README "iOS", step 2) exists;
+if it is missing, the gate stops at once with a non-zero exit, before the heavy steps and the
+verdict line. It tests existence only and never reads or creates the file. Its last step prints the `pr-reviewer` verdict recorded for HEAD
 (`APPROVE`, `CHANGES` or `ESCALATE_TO_HUMAN`, or that none is recorded); it is report only
 and never fails the gate. When and how the session runs the reviewer and records that verdict
 (after the last commit, before the gate's final run, again after every new commit) is in

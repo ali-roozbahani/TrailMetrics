@@ -22,6 +22,10 @@ git status --porcelain           # must be empty
 Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
 and report. If the previous run's PR has been merged, do the after-merge cleanup first.
 
+A run whose gate will run the iOS steps needs the git-ignored iOS secrets config (README
+"iOS", step 2) in the clone. The gate checks that it exists and stops at once if it is
+missing; the agent never reads or creates it, and stops and reports instead.
+
 ## One task per run
 
 A run ends when its PR is open and reported (Trial mode) or merged (after the trial). The
