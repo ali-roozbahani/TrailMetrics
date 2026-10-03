@@ -220,3 +220,4 @@
 - The human watches one full loop end to end: next task, reviewer verdict, gate, PR, both
   checks, merge, cleanup.
 - The human confirms a protected-path PR is blocked for the agent account.
+<!-- S5 throwaway test, never merged -->
