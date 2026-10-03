@@ -81,6 +81,10 @@ XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild
 build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
 `data/`, `core/` or `shared/` other than markdown (`*.md`), or one of the root Gradle files
 `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`.
+The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
+quoted or split. Fail-safe: when the gate cannot read the branch's exact list (no merge-base
+with `origin/main`, or `git diff` fails), the iOS steps count as required and a warning prints
+why, with the first line of git's error; an empty list read without an error does not count.
 When those iOS steps will run, the gate first checks, after the change classification and
 before any heavy step, that the git-ignored iOS secrets config (README "iOS", step 2) exists;
 if it is missing, the gate stops at once with a non-zero exit, before the heavy steps and the
@@ -98,7 +102,7 @@ How it is enforced, and what that means for the order of operations:
   always **commit → run the gate → push**. Any new commit (a fix, an amend, a review
   change) needs a fresh gate run before the next push.
 - The gate decides whether to run the iOS steps from **committed** changes only
-  (`git diff <merge-base with origin/main> HEAD`). Uncommitted iOS edits won't trigger
+  (`git diff --no-renames <merge-base with origin/main> HEAD`). Uncommitted iOS edits won't trigger
   them, which is one more reason to commit first.
 - The hook matches on command text. Any Bash call that merely *mentions* `git push` (a
   commit message or PR body passed inline) is blocked until the gate has passed. Pass long
