@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-ios-steps-miss-root-gradle-changes
-- Type: task
-- Area: scripts
-- Order: 10
-- Source: PR #67 drift + PR #75 review
-- Problem: `scripts/pre-push-check.sh` runs its iOS steps only when the branch diff matches `^(iosApp/|domain/|data/|core/|shared/)`. Root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also change the framework, but they skip the iOS steps. The pattern is also too broad in the other direction: every file under `iosApp/`, `domain/`, `data/`, `core/` and `shared/` sets `TOUCHES_IOS_OR_SHARED`, including documentation such as `data/README.md`, so a documentation-only change runs the full iOS build and SwiftLint (observed in #75).
-- Done when: documentation files (`*.md`) under those folders don't trigger the iOS steps; a change to a Kotlin or Swift source or build file under those folders still does; and the root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also trigger them.
-- Refs: `scripts/pre-push-check.sh` (`TOUCHES_IOS_OR_SHARED`).
-
 ### gate-missing-ios-secrets-file-check
 - Type: task
 - Area: scripts, .claude
