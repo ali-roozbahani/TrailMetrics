@@ -54,14 +54,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-ios-steps-miss-root-gradle-changes
+### gate-missing-ios-secrets-file-check
 - Type: task
-- Area: scripts
-- Order: 10
-- Source: PR #67 drift + PR #75 review
-- Problem: `scripts/pre-push-check.sh` runs its iOS steps only when the branch diff matches `^(iosApp/|domain/|data/|core/|shared/)`. Root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also change the framework, but they skip the iOS steps. The pattern is also too broad in the other direction: every file under `iosApp/`, `domain/`, `data/`, `core/` and `shared/` sets `TOUCHES_IOS_OR_SHARED`, including documentation such as `data/README.md`, so a documentation-only change runs the full iOS build and SwiftLint (observed in #75).
-- Done when: documentation files (`*.md`) under those folders don't trigger the iOS steps; a change to a Kotlin or Swift source or build file under those folders still does; and the root Gradle files (`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`) and `gradle/libs.versions.toml` also trigger them.
-- Refs: `scripts/pre-push-check.sh` (`TOUCHES_IOS_OR_SHARED`).
+- Area: scripts, .claude
+- Order: 15
+- Source: agentic-dev-loop run 2 (PR #88), 2026-10-03
+- Problem: a fresh clone without `iosApp/TrailMetrics/Secrets.xcconfig` (the Maps key, never committed; CI writes it from a secret) passes every gate step until the iOS build, about 15 minutes in, and fails there with "Unable to open base configuration reference file". The README ("iOS", step 2) and LEARNINGS.md (item 4) describe the file, but neither `tm-agent-loop`'s preconditions nor `scripts/pre-push-check.sh` check for it, and the credential deny rule blocks any command that names the file (even `test -f`), so an agent cannot check it from the shell.
+- Done when: when the iOS steps are going to run, the gate fails fast, before the long steps, with a message that points to the README step, by testing that the file exists and never reading its contents; `tm-agent-loop` preconditions mention it; and the decision whether a script inside the repo may test for the file despite the deny rule is stated and approved by the human in that PR.
+- Refs: `scripts/pre-push-check.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (Preconditions); README "iOS"; LEARNINGS.md.
 
 ### ci-use-build-kmp-framework-script
 - Type: task

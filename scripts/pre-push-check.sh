@@ -18,7 +18,7 @@ run_step() {
     fi
 }
 
-# --- Decide scope: did this branch touch iOS or shared/domain/data/core? ---
+# --- Decide scope: did this branch touch iOS, shared/domain/data/core or the root Gradle files? ---
 BASE_REF="$(git merge-base HEAD origin/main 2>/dev/null || echo "")"
 if [ -z "$BASE_REF" ]; then
     echo "Warning: could not find merge-base with origin/main; checking all changes vs HEAD~1"
@@ -26,8 +26,15 @@ if [ -z "$BASE_REF" ]; then
 fi
 CHANGED_FILES="$(git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true)"
 
+# The iOS steps run for a changed file under iosApp/, domain/, data/, core/ or shared/ that is not
+# markdown, and for the root Gradle files that configure the shared framework's build. Exact
+# paths and an exact `.md` suffix, as in scripts/classify-changes.sh: `data/README.md.kt` counts,
+# `androidApp/app/build.gradle.kts` does not. No `grep -q`: with pipefail, its early exit could
+# fail the pipeline on a match.
+IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml)$'
+IOS_PATHS_EXCLUDED='\.md$'
 TOUCHES_IOS_OR_SHARED=false
-if echo "$CHANGED_FILES" | grep -qE '^(iosApp/|domain/|data/|core/|shared/)'; then
+if [ -n "$(printf '%s\n' "$CHANGED_FILES" | grep -E "$IOS_PATHS" | grep -vE "$IOS_PATHS_EXCLUDED")" ]; then
     TOUCHES_IOS_OR_SHARED=true
 fi
 
