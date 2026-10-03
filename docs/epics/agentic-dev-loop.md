@@ -141,7 +141,7 @@
     - .claude/skills/tm-pr-review/SKILL.md     # the review input directory command only
     - .claude/skills/tm-pr-workflow/SKILL.md   # Tier 1 section only
     - docs/epics/agentic-dev-loop.md
-    - BOARD.md                                 # agentic-dev-loop and drift-tier1-gate-steps-omit-review-verdict only
+    - BOARD.md                                 # agentic-dev-loop and the Tier 1 review-verdict drift record only
   acceptance:
     - check-protected-paths.sh --validate and --self-test run, blocking, in the gate and in
       CI's android job; the gate also prints the diff's classification, report only.
