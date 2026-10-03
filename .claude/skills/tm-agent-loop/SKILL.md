@@ -199,10 +199,19 @@ would auto-merge: yes|no
 Counts toward the trial: yes|no
 ```
 
-"Counts toward the trial" is "no" whenever the PR touches a protected path (Decision 7).
+"Counts toward the trial" is "no" whenever the PR touches a protected path, or when its
+review check never produced a valid report (Decision 7).
 
 The human's decision on that PR is compared with it to count the trial of 5 consecutive PRs
 that touch no protected path; any disagreement restarts the count (Decision 7).
+
+A PR whose first review report was malformed (its first line not a verdict) and whose
+automatic retry, or a human re-run of the failed check, produced a valid report counts
+normally, by the final valid verdict (section 7 reads the latest run) compared with the
+human's decision. A PR whose check never produced a valid report (section 7 prints
+`NOT_APPROVE: ...`, and the annotation's message starts with none of `APPROVE.`,
+`ESCALATE_TO_HUMAN:` and `CHANGES:`) does not count toward the trial and is not a
+disagreement.
 
 ## After-merge cleanup
 
