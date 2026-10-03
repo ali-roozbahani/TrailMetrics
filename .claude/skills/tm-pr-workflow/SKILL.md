@@ -79,8 +79,12 @@ coverage. Minimums are set in `domain`, `data` and the three `androidApp` featur
 `shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict`, the shared
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
 build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
-`data/`, `core/` or `shared/` other than markdown (`*.md`), or one of the root Gradle files
-`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`.
+`data/`, `core/` or `shared/` other than markdown (`*.md`), one of the root Gradle files
+`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`,
+one of the files that run the Gradle build (`gradlew`, `gradle/wrapper/gradle-wrapper.jar`,
+`gradle/wrapper/gradle-wrapper.properties`, `gradle/gradle-daemon-jvm.properties`), or
+`scripts/build-kmp-framework.sh`. Not `gradlew.bat`, `scripts/pre-push-check.sh` itself or
+`scripts/classify-changes.sh`; CI's `ios` job runs in full for those (they are not `light`).
 The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
 quoted or split. Fail-safe: when the gate cannot read the branch's exact list (no merge-base
 with `origin/main`, or `git diff` fails), the iOS steps count as required and a warning prints
