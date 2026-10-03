@@ -124,7 +124,7 @@ The implementing session runs this after its last commit and before the gate's f
    ```bash
    SHA="$(git rev-parse HEAD)"; BASE="$(git merge-base HEAD origin/main)"
    IN="$(git rev-parse --path-format=absolute --git-path review-input)"
-   rm -rf "$IN" && mkdir -p "$IN"
+   mkdir -p "$IN" && rm -f -- "${IN:?}/head" "${IN:?}/base" "${IN:?}/branch" "${IN:?}/status" "${IN:?}/commits" "${IN:?}/diff" "${IN:?}/protected"
    echo "$SHA" > "$IN/head"; echo "$BASE" > "$IN/base"
    git rev-parse --abbrev-ref HEAD > "$IN/branch"
    git status --porcelain > "$IN/status"

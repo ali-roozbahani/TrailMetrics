@@ -38,6 +38,14 @@ echo
 
 run_step "board check" scripts/check-board.sh
 
+# Protected paths (.github/CODEOWNERS): the file must be valid and the classifier's own tests
+# must pass. Same commands as CI's android job.
+run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
+
+# Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
+echo "==> protected-path classification of this branch (report only, never fails the gate)"
+scripts/check-protected-paths.sh --base "$BASE_REF" 2>&1 | sed 's/^/    /' || true
+
 # --- Android / KMP (always) ---
 run_step "detekt"        ./gradlew detekt --console=plain
 run_step "android lint"  ./gradlew lint --console=plain
