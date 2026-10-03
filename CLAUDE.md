@@ -24,6 +24,7 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 - `tm-testing`          writing or changing tests on any platform
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
+- `tm-agent-loop`       a session started to work the board without a named task ("take the next task")
 
 Open epics, tasks and drift live in `BOARD.md`; how to add and remove records: `tm-pr-workflow` → "Board".
 

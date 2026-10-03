@@ -4,7 +4,9 @@
 > green for `APPROVE` and `ESCALATE_TO_HUMAN`); workflow files are pushed by the human; new
 > Decision 8 (reading the CI verdict); Decisions 5 and 7 spell out the merge conditions and
 > Decision 7 keeps "Allow auto-merge" off; S4 is split into S4a and S4b; S5 and S6 follow
-> that. The text below is the plan as amended; the approval line keeps its original date.
+> that. S4b also adds the two follow-up board records from the S4a PR, and no agent merges
+> any PR until S6 (Trial mode). The text below is the plan as amended; the approval line
+> keeps its original date.
 
 - **Slug:** agentic-dev-loop
 - **Integration branch:** none. A chain of plain PRs against `main`, each merged by the human.
@@ -164,7 +166,8 @@
     - .claude/skills/epic-orchestration/SKILL.md
     - .claude/skills/tm-pr-workflow/SKILL.md
     - CLAUDE.md                                # the skill list only
-    - BOARD.md                                 # narrow auto-merge-requires-approve-verdict only
+    - BOARD.md                                 # narrow auto-merge-requires-approve-verdict and add the two follow-up records
+    - docs/epics/agentic-dev-loop.md           # this entry and the amendment note only
   acceptance:
     - The loop skill covers picking the task with `scripts/check-board.sh --next`,
       implement, local review, fix, gate, push, PR, the retry budget and escalation to the
