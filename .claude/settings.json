@@ -1,4 +1,27 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.netrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/Library/Keychains/**)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(/local.properties)",
+      "Read(/iosApp/TrailMetrics/Secrets.xcconfig)",
+      "Bash(security *)",
+      "Bash(*/.ssh*)",
+      "Bash(*/.gnupg*)",
+      "Bash(*/.aws*)",
+      "Bash(*/.config/gh*)",
+      "Bash(*/.netrc*)",
+      "Bash(*/.git-credentials*)",
+      "Bash(*/Library/Keychains*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
