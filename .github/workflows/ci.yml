@@ -15,6 +15,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Decides whether the heavy steps below run: "light" only when every changed file of a
+      # pull request is on the non-source allowlist in scripts/classify-changes.sh; pushes and
+      # any error give "full". continue-on-error: if this step fails, the output is unset and
+      # every heavy step runs.
+      - name: Classify changes
+        id: changes
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: scripts/classify-changes.sh --github
+
       - name: Board check
         run: scripts/check-board.sh
 
@@ -23,32 +35,42 @@ jobs:
           scripts/check-protected-paths.sh --validate
           scripts/check-protected-paths.sh --self-test
 
+      - name: Change classification self-test
+        run: scripts/classify-changes.sh --self-test
+
       - name: Set up JDK 17
+        if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
+        if: steps.changes.outputs.decision != 'light'
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run lint
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew lint
 
       - name: Run detekt
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew detekt
 
       - name: Run unit tests
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew allTests test
 
       # Coverage report (Kover, merged in the root project): best-effort, can't fail the job.
       - name: Generate coverage report
+        if: steps.changes.outputs.decision != 'light'
         continue-on-error: true
         run: ./gradlew :koverXmlReport :koverHtmlReport :koverLog
 
       # Regression gate: each module's koverVerify minimum line coverage (rules in domain, data
       # and the three androidApp feature modules). Fails the job.
       - name: Verify coverage
+        if: steps.changes.outputs.decision != 'light'
         id: kover-verify
         run: ./gradlew koverVerify
 
@@ -63,6 +85,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Build
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew assembleDebug
 
   ios:
@@ -73,36 +96,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Decides whether the heavy steps below run: "light" only when every changed file of a
+      # pull request is on the non-source allowlist in scripts/classify-changes.sh; pushes and
+      # any error give "full". continue-on-error: if this step fails, the output is unset and
+      # every heavy step runs.
+      - name: Classify changes
+        id: changes
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: scripts/classify-changes.sh --github
+
       - name: Select Xcode
+        if: steps.changes.outputs.decision != 'light'
         run: sudo xcode-select -switch /Applications/Xcode.app
 
       - name: Install SwiftLint
+        if: steps.changes.outputs.decision != 'light'
         run: brew install swiftlint
 
       - name: Run SwiftLint
+        if: steps.changes.outputs.decision != 'light'
         run: |
           cd iosApp
           swiftlint lint --strict
 
       - name: Set up JDK 17
+        if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
+        if: steps.changes.outputs.decision != 'light'
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build KMP Shared Framework
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
 
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
       # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
       - name: Run iOS simulator tests
+        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test
 
       - name: Generate Secrets.xcconfig
+        if: steps.changes.outputs.decision != 'light'
         run: |
           cat <<EOF > iosApp/TrailMetrics/Secrets.xcconfig
           GMS_API_KEY = CI_PLACEHOLDER_KEY
@@ -110,6 +153,7 @@ jobs:
           EOF
 
       - name: Build iOS app
+        if: steps.changes.outputs.decision != 'light'
         run: |
           cd iosApp
           xcodebuild build \
@@ -125,6 +169,7 @@ jobs:
       # Every iosApp/Packages/<Name>/ with a Tests/ directory; others are skipped.
       # `xcodebuild test` needs a concrete simulator, not generic/platform=iOS Simulator.
       - name: Run iOS package tests
+        if: steps.changes.outputs.decision != 'light'
         run: |
           SIM_ID="$(xcrun simctl list devices available iPhone \
             | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | tail -1)"

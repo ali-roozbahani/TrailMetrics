@@ -31,6 +31,20 @@ if echo "$CHANGED_FILES" | grep -qE '^(iosApp/|domain/|data/|core/|shared/)'; th
     TOUCHES_IOS_OR_SHARED=true
 fi
 
+# --- Decide scope: may the heavy steps be skipped? ---
+# scripts/classify-changes.sh decides it, the same script as CI. "light" (every changed file is
+# on its non-source allowlist) skips the Android/KMP steps and the iOS steps; anything else,
+# including a missing merge-base or an error from the script, is "full".
+DECISION=full
+if [ "$BASE_REF" = HEAD~1 ]; then
+    CLASSIFICATION="$(printf 'full\n(no file list: no merge-base with origin/main)')"
+else
+    CLASSIFICATION="$(scripts/classify-changes.sh --base "$BASE_REF" 2>&1)"
+    if [ $? -eq 0 ] && [ "${CLASSIFICATION%%$'\n'*}" = light ]; then
+        DECISION=light
+    fi
+fi
+
 echo "Changed files since $BASE_REF:"
 echo "$CHANGED_FILES" | sed 's/^/  /'
 echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
@@ -41,39 +55,49 @@ run_step "board check" scripts/check-board.sh
 # Protected paths (.github/CODEOWNERS): the file must be valid and the classifier's own tests
 # must pass. Same commands as CI's android job.
 run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
+run_step "change classification self-test" scripts/classify-changes.sh --self-test
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
 scripts/check-protected-paths.sh --base "$BASE_REF" 2>&1 | sed 's/^/    /' || true
 
-# --- Android / KMP (always) ---
-run_step "detekt"        ./gradlew detekt --console=plain
-run_step "android lint"  ./gradlew lint --console=plain
-run_step "unit tests"    ./gradlew allTests test --console=plain
-
-# Coverage report (Kover, merged across modules in the root project). Best-effort: never
-# added to FAILURES. The enforced part is the "coverage verify" step below.
-echo "==> coverage report (best-effort, non-blocking)"
-COVERAGE_OUT="$(mktemp 2>/dev/null || echo "")"
-if [ -n "$COVERAGE_OUT" ] \
-    && ./gradlew :koverXmlReport :koverHtmlReport :koverLog --console=plain >"$COVERAGE_OUT" 2>&1; then
-    COVERAGE_LINE="$(grep -m1 'line coverage:' "$COVERAGE_OUT" | sed 's/^.*line coverage: *//' || true)"
-    echo "    merged line coverage: ${COVERAGE_LINE:-unknown}"
-    echo "    report: $REPO_ROOT/build/reports/kover/html/index.html (XML: build/reports/kover/report.xml)"
-else
-    echo "    warning: coverage report failed; continuing (does not affect the gate result)"
-    [ -n "$COVERAGE_OUT" ] && tail -n 20 "$COVERAGE_OUT" | sed 's/^/    /'
+# Report only: the change classification above and the files behind it. Never adds to FAILURES.
+echo "==> change classification of this branch (report only, never fails the gate): $DECISION"
+echo "$CLASSIFICATION" | tail -n +2 | sed 's/^/    /'
+if [ "$DECISION" = light ]; then
+    echo "    every changed file is on the non-source allowlist: Android/KMP and iOS steps skipped"
 fi
-[ -n "$COVERAGE_OUT" ] && rm -f "$COVERAGE_OUT"
 
-# Regression gate: each module's koverVerify rules (minimum line coverage, set in domain, data
-# and the three androidApp feature modules; the other modules have no rules yet).
-run_step "coverage verify" ./gradlew koverVerify --console=plain
+# --- Android / KMP (unless the decision is light) ---
+if [ "$DECISION" = full ]; then
+    run_step "detekt"        ./gradlew detekt --console=plain
+    run_step "android lint"  ./gradlew lint --console=plain
+    run_step "unit tests"    ./gradlew allTests test --console=plain
 
-run_step "assembleDebug" ./gradlew assembleDebug --console=plain
+    # Coverage report (Kover, merged across modules in the root project). Best-effort: never
+    # added to FAILURES. The enforced part is the "coverage verify" step below.
+    echo "==> coverage report (best-effort, non-blocking)"
+    COVERAGE_OUT="$(mktemp 2>/dev/null || echo "")"
+    if [ -n "$COVERAGE_OUT" ] \
+        && ./gradlew :koverXmlReport :koverHtmlReport :koverLog --console=plain >"$COVERAGE_OUT" 2>&1; then
+        COVERAGE_LINE="$(grep -m1 'line coverage:' "$COVERAGE_OUT" | sed 's/^.*line coverage: *//' || true)"
+        echo "    merged line coverage: ${COVERAGE_LINE:-unknown}"
+        echo "    report: $REPO_ROOT/build/reports/kover/html/index.html (XML: build/reports/kover/report.xml)"
+    else
+        echo "    warning: coverage report failed; continuing (does not affect the gate result)"
+        [ -n "$COVERAGE_OUT" ] && tail -n 20 "$COVERAGE_OUT" | sed 's/^/    /'
+    fi
+    [ -n "$COVERAGE_OUT" ] && rm -f "$COVERAGE_OUT"
 
-# --- iOS (only when relevant files changed) ---
-if [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
+    # Regression gate: each module's koverVerify rules (minimum line coverage, set in domain, data
+    # and the three androidApp feature modules; the other modules have no rules yet).
+    run_step "coverage verify" ./gradlew koverVerify --console=plain
+
+    run_step "assembleDebug" ./gradlew assembleDebug --console=plain
+fi
+
+# --- iOS (only when relevant files changed, and the decision is full) ---
+if [ "$DECISION" = full ] && [ "$TOUCHES_IOS_OR_SHARED" = true ]; then
     if command -v swiftlint >/dev/null 2>&1; then
         run_step "swiftlint" bash -c 'cd iosApp && swiftlint lint --strict'
     else
