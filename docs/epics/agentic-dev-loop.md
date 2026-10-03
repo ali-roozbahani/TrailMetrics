@@ -37,7 +37,8 @@
    re-run.
 4. **Protected paths.** The single source of truth is `.github/CODEOWNERS`, and
    `scripts/check-protected-paths.sh` classifies a diff from it. An agent never merges a PR
-   that touches a protected path; the human does. What a path cannot express (deleted
+   that touches a protected path; the human does. The one exception is a subtask PR into an
+   epic branch whose plan `allowed_paths` cover the path (Decision 5). What a path cannot express (deleted
    tests, `@Throws` declarations outside the shared module, anything else the reviewer
    judges critical) is enforced by the reviewer, which escalates it to the human.
 5. **Epics.** Agents may merge subtask PRs into the epic branch with
