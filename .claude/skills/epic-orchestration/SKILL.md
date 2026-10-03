@@ -27,7 +27,8 @@ conditions.
 ## Roles
 
 - **Human**: approves the plan and every change to it, sets up branch protection, merges
-  every PR (subtask → epic branch and epic → `main`), and does Tier 2.
+  the epic PR into `main` (only the human), merges subtask PRs into the epic branch until
+  the S6 trial is complete, and does Tier 2.
 - **Orchestrator**: the Claude Code session the human is talking to. It drafts the plan,
   creates the epic branch and its draft PR after approval, spawns subtask agents wave by
   wave, checks that each subtask PR stayed inside its `allowed_paths`, and keeps the epic
@@ -35,9 +36,12 @@ conditions.
 - **Subtask agent**: one per subtask. It follows `tm-pr-workflow` plus the code skills
   for its paths, and opens one PR against the epic branch.
 
-No agent merges any PR, into `main` or into the epic branch. The retired workflow doc only
-forbids merging into `main`. This skill applies the same rule to the epic branch
-(conservative reading: the human keeps every merge decision).
+The epic PR into `main` is the human's only, on the human's explicit command
+(`docs/epics/agentic-dev-loop.md`, Decision 5). Subtask PRs into the epic branch follow
+Decision 5: an agent may merge one only under the conditions in `tm-agent-loop` ("Merge
+conditions"), where the subtask's plan `allowed_paths` replace "touches no protected path".
+Until the S6 trial is complete, Trial mode applies to them like everything else: the agent
+posts its trial check and the human merges.
 
 ## Epic or single task?
 
@@ -376,8 +380,9 @@ unprotected. Don't create the ruleset yourself.
    there, within the scope that the conflicting files' owners had. Sync between waves,
    not during one.
 5. **Finish**: see "Merging the epic into main".
-6. **After merge**: the human deletes `feature/epic/<slug>` and the subtask branches
-   (`delete_branch_on_merge` is off in this repo).
+6. **After merge**: GitHub deletes the remote epic and subtask branches on merge
+   ("Automatically delete head branches" is on). Local branches are the agent's
+   after-merge cleanup (`tm-agent-loop`, "After-merge cleanup").
 
 **Abandoning an epic**: close the draft epic PR and delete the branch. Nothing reached
 `main`, which is the point of having an integration branch.
@@ -507,7 +512,9 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
 - **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
   on it. It lists drift and follow-ups in its PR description only, with
   `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
-- **Merge**: by the human only, once CI is green on both checks.
+- **Merge**: under Decision 5's conditions (`tm-agent-loop`, "Merge conditions", with the
+  subtask's `allowed_paths` in place of "touches no protected path"). Until the S6 trial is
+  complete, Trial mode: the agent posts its trial check and the human merges.
 
 ## Merging the epic into main
 
@@ -548,8 +555,9 @@ Recorded so the first real epic can confirm or correct them:
   named no convention. `ci.yml`'s `feature/**` trigger forces the prefix.
 - Protection for epic branches through a single ruleset: the retired workflow doc
   predated required checks on `main` and said nothing about epic branches.
-- No agent merges into the epic branch: the retired workflow doc only forbade merging into
-  `main`.
+- Subtask merges into the epic branch: the retired workflow doc only forbade merging into
+  `main`. Decision 5 of `docs/epics/agentic-dev-loop.md` now lets an agent merge them under
+  `tm-agent-loop`'s conditions, in Trial mode (the human merges) until S6.
 - The plan lives in `docs/epics/<slug>.md`: the retired workflow doc said the plan must be
   reviewed, not where it goes.
 - "Ready" means the dependency is merged, not just its PR opened.

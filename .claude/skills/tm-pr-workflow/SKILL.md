@@ -151,8 +151,9 @@ that there is nothing to check on a device (see #32, #35).
 - Push the branch you created (`git push -u origin <branch>`), then open the PR against
   `main` with `gh pr create --base main`. `gh` must be logged in as an account with write
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
-- Never push to `main`, never merge a PR, and never enable auto-merge. Only the human
-  merges, after CI is green and Tier 2 has passed.
+- Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
+  under the conditions in `tm-agent-loop` (none before the S6 trial is complete); the
+  human merges everything else, after CI is green and Tier 2 has passed.
 - **The PR title becomes the commit on `main`.** PRs are squash-merged as
   `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
 
@@ -272,7 +273,9 @@ position its `Order` gives it (records in a section are sorted by `Order`).
 2. The human does Tier 2 on a device.
 3. The human reviews the structure: does it follow the established pattern, respect module
    boundaries, and avoid duplicating something that should be shared?
-4. Only then does the human merge into `main`.
+4. Only then does the human merge into `main`, unless the PR meets the merge conditions in
+   `tm-agent-loop` (none do before the S6 trial is complete). `tm-agent-loop` also has the
+   after-merge cleanup and how to read the CI reviewer's verdict.
 
 Review comments turn into new commits on the same branch, each through the gate again.
 Answer them in the PR (see #35's comment summarising its second commit) rather than
@@ -287,6 +290,14 @@ silently force-pushing.
   approval count is **0**: review before merge is enforced by the human, not by GitHub
   (#30–#37 were all merged with no review). The required checks were added before #38
   merged.
+- **The review check is not required yet.** The `Review — pr-reviewer` check
+  (`.github/workflows/pr-review.yml`) runs on PRs, but it is not a required check until S5
+  of `docs/epics/agentic-dev-loop.md`.
+- **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
+  step of CI's `android` job).
+- **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
+  when it merges; the local branch is the agent's to delete (`tm-agent-loop`, "After-merge
+  cleanup").
 - **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it
   only gates pushes made from a Claude Code session. A push from a terminal skips it.
 - **CI doesn't mirror the gate exactly.** CI's `ios` job always runs SwiftLint, the iOS
