@@ -265,3 +265,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-pr-workflow`'s Boundaries say "An agent never merges a PR that touches a protected path. The human merges those." and the header of `.github/CODEOWNERS` says "An agent never merges a PR that touches a path listed here." Decisions 4 and 5 of `docs/epics/agentic-dev-loop.md` make one exception: a subtask PR into an epic branch whose plan `allowed_paths` cover the path (written in `tm-agent-loop`, "Merge conditions", condition 6). S4b's scope did not allow changing either line.
 - Done when: both lines state the exception or point to `tm-agent-loop` ("Merge conditions"), in a task that explicitly authorizes the `CODEOWNERS` change.
 - Refs: `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `.github/CODEOWNERS` (header comment); `.claude/skills/tm-agent-loop/SKILL.md` ("Merge conditions"); `docs/epics/agentic-dev-loop.md` (Decisions 4 and 5).
+
+### drift-loop-skill-reviewdecision-empty-at-zero-approvals
+- Type: drift
+- Area: .claude
+- Order: 910
+- Source: agentic-dev-loop S5 test, 2026-10-03
+- Problem: `tm-agent-loop` ("Reading the CI verdict") tells the agent to use `reviewDecision` instead of `reviewRequests`. With "Require review from Code Owners" on and required approvals at 0, `reviewDecision` stayed empty on a protected PR both before and after the code owner approved it (PR #85, a closed throwaway); only `mergeStateStatus` (`BLOCKED`, then `CLEAN`), `requested_reviewers` and the reviews list showed the review state.
+- Done when: the skill names `mergeStateStatus`, `gh api repos/{owner}/{repo}/pulls/<N>/reviews` and `requested_reviewers` as the signals for a pending or given review, and says that `reviewDecision` is empty at 0 required approvals.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
