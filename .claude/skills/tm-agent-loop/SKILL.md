@@ -153,11 +153,17 @@ gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
   --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — SwiftLint, Build") | [.name, .status, .conclusion] | @tsv'
 gh pr view "$N" --json isCrossRepository,author,headRefOid,baseRefName,state
 cat "$(git rev-parse --path-format=absolute --git-path .review-verdict)"   # "<SHA> APPROVE"
-git fetch origin && scripts/check-protected-paths.sh --base "$(git merge-base origin/main "$SHA")"
+git fetch origin
+# condition 6, PR against main:
+scripts/check-protected-paths.sh --base "$(git merge-base origin/main "$SHA")"
+# condition 6, subtask PR into an epic branch: every changed path must be in the subtask's allowed_paths
+git diff --name-only "$(git merge-base "origin/<epic branch>" "$SHA")" "$SHA"
+scripts/check-protected-paths.sh --base "$(git merge-base "origin/<epic branch>" "$SHA")"
 ```
 
-The protected-path check runs with the PR branch checked out at `$SHA`. If every condition
-holds, the merge command is:
+The base is the merge-base with the branch the PR targets: `origin/main` for a PR against
+`main`, the epic branch for a subtask PR. Run the protected-path check with the PR branch
+checked out at `$SHA`. If every condition holds, the merge command is:
 
 ```bash
 gh pr merge <N> --squash --match-head-commit <SHA>
@@ -165,12 +171,14 @@ gh pr merge <N> --squash --match-head-commit <SHA>
 
 GitHub's "Allow auto-merge" setting stays off: never enable it and never use
 `gh pr merge --auto`. The epic PR into `main` is never the agent's: only on the human's
-explicit command, with `gh pr merge --match-head-commit <tested SHA>`.
+explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic touches
+a protected path, the human also approves the PR on GitHub (Decision 5).
 
 ## Trial mode
 
 Until S6 documents otherwise, **no agent merges any PR**, including subtask PRs into an
-epic branch. Instead, once the checks are done, post one PR comment
+epic branch. Instead, once the checks are done, post one PR comment on every PR, including
+PRs that touch a protected path (condition 6 is then "no", so "would auto-merge: no")
 (`gh pr comment <N> --body-file <file>`):
 
 ```
@@ -184,7 +192,10 @@ Trial check (not acted on)
 6. No protected path: yes|no
 
 would auto-merge: yes|no
+Counts toward the trial: yes|no
 ```
+
+"Counts toward the trial" is "no" whenever the PR touches a protected path (Decision 7).
 
 The human's decision on that PR is compared with it to count the trial of 5 consecutive PRs
 that touch no protected path; any disagreement restarts the count (Decision 7).
