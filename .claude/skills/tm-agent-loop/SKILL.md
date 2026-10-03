@@ -8,7 +8,7 @@ description: Use when a TrailMetrics session is started to work through the boar
 One run takes one board record to a PR. The rules for each step live in other skills; this
 skill gives the order, the decisions between steps and the merge conditions. The merge
 conditions and the reading of the CI verdict are the plan's Decisions 5 to 8
-(`docs/epics/agentic-dev-loop.md`) and are written down only here.
+(`docs/epics/agentic-dev-loop.md`); among the skills they are written down only here.
 
 ## Preconditions
 
@@ -19,9 +19,8 @@ git fetch origin && git switch main && git pull --ff-only
 git status --porcelain           # must be empty
 ```
 
-Anything else (another login, another clone, a dirty tree, a pull that can't fast-forward):
-stop and report. If the previous run's PR has been merged, do the after-merge cleanup
-(below) first.
+Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
+and report. If the previous run's PR has been merged, do the after-merge cleanup first.
 
 ## One task per run
 
@@ -188,7 +187,7 @@ would auto-merge: yes|no
 ```
 
 The human's decision on that PR is compared with it to count the trial of 5 consecutive PRs
-that touch no protected path (Decision 7).
+that touch no protected path; any disagreement restarts the count (Decision 7).
 
 ## After-merge cleanup
 
@@ -215,8 +214,7 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 ## Never
 
 - Push to `main`, force-push or amend, or cancel a CI run.
-- Enable auto-merge or change repository settings.
-- Edit a protected path outside the task.
+- Enable auto-merge, change repository settings, or edit a protected path outside the task.
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
   wall: don't try to get around them.
 - Merge in Trial mode.
