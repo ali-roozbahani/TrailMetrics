@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ci-skip-heavy-steps-on-non-source-changes
-- Type: task
-- Area: .github, scripts
-- Order: 2
-- Source: agentic-dev-loop S4a PR (#83), 2026-10-03
-- Problem: CI's `android` and `ios` jobs run lint, detekt, tests, Kover, builds and the simulator tests even when a PR only changes docs, skills, `BOARD.md` or the review workflow (observed on #83: about 11 minutes for iOS on a PR with no iOS change).
-- Done when: the two jobs keep their names and always run, and `Board check` and `Protected paths check` always run; only the heavy steps are skipped, with step-level `if`, when every changed file is on a short allowlist of non-source paths (`docs/**`, `*.md`, `BOARD.md`, `.claude/**`, `.github/CODEOWNERS`, `.github/workflows/pr-review.yml`); anything else, including `ci.yml`, `scripts/`, Gradle files and any source, runs everything; pushes to `main` always run everything; the local gate uses the same classification (today only its iOS steps are path-filtered); a skipped required check still reports success on the PR. Never a workflow-level `paths-ignore` (a required check would stay pending). The human pushes it (workflow file).
-- Refs: `.github/workflows/ci.yml`; `scripts/pre-push-check.sh`; board `gate-ios-steps-miss-root-gradle-changes`.
-
 ### ios-waituntil-timeout-cold-simulator
 - Type: task
 - Area: iosApp
