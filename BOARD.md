@@ -265,3 +265,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-agent-loop` ("Reading the CI verdict") tells the agent to use `reviewDecision` instead of `reviewRequests`. With "Require review from Code Owners" on and required approvals at 0, `reviewDecision` stayed empty on a protected PR both before and after the code owner approved it (PR #85, a closed throwaway); only `mergeStateStatus` (`BLOCKED`, then `CLEAN`), `requested_reviewers` and the reviews list showed the review state.
 - Done when: the skill names `mergeStateStatus`, `gh api repos/{owner}/{repo}/pulls/<N>/reviews` and `requested_reviewers` as the signals for a pending or given review, and says that `reviewDecision` is empty at 0 required approvals.
 - Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
+
+### drift-epic-orchestration-gate-scope-after-light-decision
+- Type: drift
+- Area: .claude
+- Order: 920
+- Source: agentic-dev-loop run 1 (PR #87), 2026-10-03
+- Problem: `epic-orchestration`'s "Resource contention" bullet says "Every subtask runs the full gate: Gradle `detekt`, `lint`, `allTests test`, the Kover coverage report and `koverVerify`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild` once the diff touches `iosApp/` or the shared layer." Since #87 `scripts/pre-push-check.sh` and CI skip those heavy steps when `scripts/classify-changes.sh` decides `light` (non-source changes only), so a subtask with only non-source changes does not run them.
+- Done when: the lines say the heavy steps run unless `scripts/classify-changes.sh` decides `light`, and point to that script instead of repeating its allowlist.
+- Refs: `.claude/skills/epic-orchestration/SKILL.md` ("Resource contention"); `scripts/classify-changes.sh`; `scripts/pre-push-check.sh`.
