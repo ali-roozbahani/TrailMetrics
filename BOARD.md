@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ios-waituntil-timeout-cold-simulator
-- Type: task
-- Area: iosApp
-- Order: 6
-- Source: agentic-dev-loop S4a PR (#83), 2026-10-03
-- Problem: On PR #83 (no iOS change, head `1d41615`, run 37122885825 attempt 1) the iOS job failed once in `HistoryTests.DetailsViewModelFailureTests.test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError` with "Condition not met within 2.0 seconds", followed by the error-message assertion failing. It was the first test of its suite and took 52.9 s; the suite's other tests took under 0.1 s each. The re-run of the same job passed with that test in 0.047 s, and `main` at `aaa9c6d` passed with the same iOS code. Likely cause (not proven): a cold simulator or runtime start longer than the 2-second default timeout of `waitUntil` in `TestSupport` (`ContinuousClock`).
-- Done when: the iOS tests no longer depend on a 2-second wall-clock wait for an event that can be delayed by a cold start (for example a warm-up before the suite, or a timeout that tolerates a cold start without hiding real failures), without weakening what the tests assert.
-- Refs: TestSupport `waitUntil`; HistoryTests `DetailsViewModelFailureTests` (`test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError`).
-
 ### gate-ios-steps-miss-root-gradle-changes
 - Type: task
 - Area: scripts
