@@ -5,22 +5,39 @@ Run through scripts/check-ios-scope.sh (the entry point). Standard library only,
 the stock python3 of macOS and ubuntu-latest without installing anything.
 
   check-ios-scope.sh --self-test                  test the committed scripts/pre-push-check.sh
-  check-ios-scope.sh --self-test --script <file>  test another copy of it (used to show the
-                                                  test going red on a broken version)
+                                                  against the committed
+                                                  scripts/build-kmp-framework.sh
+  check-ios-scope.sh --self-test --script <file>  test another copy of the gate script (used
+                                                  to show the test going red on a broken
+                                                  version)
+  check-ios-scope.sh --self-test --build-script <file>
+                                                  take BUILD_FILES from another copy of the
+                                                  framework build script (same use)
 
 What it does, per run:
   1. Extracts, from the script itself, the lines from `# >>> iOS scope: ... (begin) >>>` to
      `# <<< iOS scope: ... (end) <<<`. It fails when a marker is missing, appears more than
      once, or the end marker comes before the begin marker; the fixtures in
      fixtures/extractor/ show each of these failing. The block is never retyped here.
-  2. Runs every case in fixtures/cases/ in its own scratch git repository: a base commit, the
+  2. Extracts the entries of BUILD_FILES, the framework inputs that the build script hashes,
+     from the build script itself (never a retyped list). It fails when the assignment is
+     missing, appears more than once, is not one line `BUILD_FILES="<paths>"`, contains `$`, a
+     backtick or a backslash, yields no entries, or yields an entry that is not a plain
+     relative file path (glob characters, a leading `/` or `./`, a `.` or `..` component, an
+     empty component such as a trailing `/`); the fixtures in fixtures/build-files-extractor/
+     show each of these failing.
+  3. Runs every case in fixtures/cases/ in its own scratch git repository: a base commit, the
      ref origin/main pointing at it, and a branch commit with the case's changes. The block
      runs as the gate runs it (`set -uo pipefail`, bash from PATH) in a separate bash process
      whose working directory is the repository root, and prints its variables to a file
      outside the repository.
-  3. Checks TOUCHES_IOS_OR_SHARED, BASE_REF (the merge-base, or HEAD~1 with the merge-base
+  4. Checks TOUCHES_IOS_OR_SHARED, BASE_REF (the merge-base, or HEAD~1 with the merge-base
      warning when there is none), the "not exact" warning and its reason (with the fail-safe
      line, or neither), the final CHANGED_FILES, an empty stderr and exit 0.
+  5. Runs every BUILD_FILES entry through the block with scope_of_paths() (one case per entry,
+     labelled build-files/<entry>) and expects TOUCHES_IOS_OR_SHARED=true: a file the build
+     script hashes must make the gate run its iOS steps. It compares two lists of paths, not
+     what the iOS build actually reads.
 
 Fixture format, fixtures/cases/<name>/:
   changes  (optional) one change per line, fields separated by a tab: `A <path>`, `M <path>`,
@@ -38,8 +55,12 @@ Fixture format, fixtures/cases/<name>/:
                       mktemp-fails (a stub `mktemp` that exits 1 comes first on PATH)
   Paths in `changes` and `files` may use the escapes \\n (newline), \\t (tab) and \\\\.
 
-The groups of checks are listed in GROUPS; a later check of the filter (for example one that
-runs each framework build input through it) is a new group that uses scope_of_paths().
+Fixture format, fixtures/extractor/<name>/ and fixtures/build-files-extractor/<name>/: the
+input (`script.sh`, a gate script, or `build-kmp-framework.sh`, a framework build script) and
+`expect`, one line `error: none` or `error: <text the error must contain>`.
+
+The groups of checks are listed in GROUPS; a later check of the filter is a new group that
+uses scope_of_paths(), as group_build_files does.
 """
 
 import os
@@ -53,6 +74,8 @@ from pathlib import Path
 
 BEGIN_RE = re.compile(r"^# >>> iOS scope: .+ \(begin\) >>>$")
 END_RE = re.compile(r"^# <<< iOS scope: .+ \(end\) <<<$")
+BUILD_FILES_ASSIGN_RE = re.compile(r"(?<![A-Za-z0-9_])BUILD_FILES\+?=")
+BUILD_FILES_LINE_RE = re.compile(r'^BUILD_FILES="([^"]*)"[ \t]*$')
 WARNING_PREFIX = "Warning: the changed-file list for the iOS scope is not exact: "
 FAIL_SAFE_LINE = "iOS/shared checks required: true (fail-safe)"
 MERGE_BASE_LINE = "Warning: could not find merge-base with origin/main; checking all changes vs HEAD~1"
@@ -93,6 +116,54 @@ def extract(path):
         raise ExtractError(f"end marker (line {ends[0] + 1}) comes before the begin marker "
                            f"(line {begins[0] + 1})")
     return "\n".join(lines[begins[0]:ends[0] + 1]) + "\n", begins[0] + 1, ends[0] + 1
+
+
+def extract_build_files(path):
+    """Returns (entries, line number) of the build script's BUILD_FILES assignment."""
+    try:
+        lines = path.read_text(encoding="utf-8").split("\n")
+    except OSError as e:
+        raise ExtractError(f"cannot read {path}: {e.strerror}")
+    # Any non-comment line that assigns BUILD_FILES (also `export BUILD_FILES=`, `+=`, an
+    # assignment after `;`) counts, so a second assignment can't hide behind another form.
+    found = [i for i, line in enumerate(lines)
+             if not line.lstrip().startswith("#") and BUILD_FILES_ASSIGN_RE.search(line)]
+    if not found:
+        raise ExtractError("BUILD_FILES assignment not found")
+    if len(found) > 1:
+        where = ", ".join(str(i + 1) for i in found)
+        raise ExtractError(f"BUILD_FILES is assigned {len(found)} times (lines {where})")
+    number = found[0] + 1
+    match = BUILD_FILES_LINE_RE.match(lines[found[0]])
+    if not match:
+        raise ExtractError(f"BUILD_FILES (line {number}) is not a single double-quoted one-line "
+                           f"value BUILD_FILES=\"<paths>\": '{lines[found[0]]}'")
+    value = match.group(1)
+    expansions = sorted(set(c for c in value if c in "$`\\"))
+    if expansions:
+        raise ExtractError(f"BUILD_FILES (line {number}) contains an expansion or escape "
+                           f"({' '.join(expansions)}), so its entries are not literal")
+    entries = value.split()
+    if not entries:
+        raise ExtractError(f"BUILD_FILES (line {number}) yields no entries")
+    for entry in entries:
+        problem = None
+        if any(c in entry for c in "*?[]{}~"):
+            problem = "has glob or expansion characters"
+        elif entry.startswith("/"):
+            problem = "starts with /"
+        elif entry.startswith("./"):
+            problem = "starts with ./"
+        elif entry.endswith("/"):
+            problem = "ends with /"
+        elif ".." in entry.split("/"):
+            problem = "has a .. component"
+        elif any(part in ("", ".") for part in entry.split("/")):
+            problem = "has an empty or . component"
+        if problem:
+            raise ExtractError(f"BUILD_FILES (line {number}) entry '{entry}' {problem}, so it is "
+                               "not a plain relative file path")
+    return entries, number
 
 
 # --- Scratch repositories ------------------------------------------------------------------
@@ -302,18 +373,22 @@ def run_case(fixture, block, bash):
     return errors, desc, output
 
 
-def run_extractor_fixture(fixture):
+def run_extractor_fixture(fixture, extractor=extract, input_name="script.sh"):
     want = (fixture / "expect").read_text(encoding="utf-8").strip()
     if not want.startswith("error: "):
         raise FixtureError("expect must be one line `error: none` or `error: <text>`")
     want = want[len("error: "):]
     try:
-        extract(fixture / "script.sh")
+        result = extractor(fixture / input_name)
         got = None
     except ExtractError as e:
         got = str(e)
     if want == "none":
-        return ([] if got is None else [f"extraction failed: {got}"]), "extracted", []
+        if got is not None:
+            return [f"extraction failed: {got}"], "", []
+        if extractor is extract_build_files:
+            return [], f"extracted {len(result[0])} entries", []
+        return [], "extracted", []
     if got is None:
         return [f"extraction succeeded, expected an error containing '{want}'"], "", []
     if want not in got:
@@ -323,17 +398,39 @@ def run_extractor_fixture(fixture):
 
 # --- Groups --------------------------------------------------------------------------------
 
-def group_extractor(fixtures, block, bash):
+def run_build_file(entry, block, bash, build_script):
+    touches = scope_of_paths(block, bash, [entry])
+    if touches != "true":
+        return [f"the filter returned TOUCHES_IOS_OR_SHARED={touches} for '{entry}': "
+                f"{build_script} hashes this file (BUILD_FILES), but the gate would skip the "
+                "iOS steps for a change to it"], "", []
+    return [], "touches=true", []
+
+
+def group_extractor(fixtures, block, bash, build):
     for fixture in sorted(p for p in (fixtures / "extractor").iterdir() if p.is_dir()):
         yield f"extractor/{fixture.name}", lambda f=fixture: run_extractor_fixture(f)
 
 
-def group_cases(fixtures, block, bash):
+def group_build_files_extractor(fixtures, block, bash, build):
+    for fixture in sorted(p for p in (fixtures / "build-files-extractor").iterdir() if p.is_dir()):
+        yield (f"build-files-extractor/{fixture.name}",
+               lambda f=fixture: run_extractor_fixture(f, extract_build_files,
+                                                       "build-kmp-framework.sh"))
+
+
+def group_cases(fixtures, block, bash, build):
     for fixture in sorted(p for p in (fixtures / "cases").iterdir() if p.is_dir()):
         yield f"cases/{fixture.name}", lambda f=fixture: run_case(f, block, bash)
 
 
-GROUPS = (group_extractor, group_cases)
+def group_build_files(fixtures, block, bash, build):
+    build_script, entries = build
+    for entry in entries:
+        yield f"build-files/{entry}", lambda e=entry: run_build_file(e, block, bash, build_script)
+
+
+GROUPS = (group_extractor, group_build_files_extractor, group_cases, group_build_files)
 
 
 def _report(label, errors, desc, output):
@@ -345,7 +442,14 @@ def _report(label, errors, desc, output):
     return 0
 
 
-def self_test(script_dir, script):
+def _shown(path, script_dir):
+    try:
+        return path.relative_to(script_dir.parent)
+    except ValueError:
+        return path
+
+
+def self_test(script_dir, script, build_script):
     fixtures = script_dir / "check-ios-scope-fixtures"
     missing = [tool for tool in ("bash", "git") if shutil.which(tool) is None]
     if missing:
@@ -363,9 +467,12 @@ def self_test(script_dir, script):
         print(f"check-ios-scope: FAILED, cannot extract the iOS scope block from {script}: {e}")
         return 1
     try:
-        shown = script.relative_to(script_dir.parent)
-    except ValueError:
-        shown = script
+        build_files, build_files_line = extract_build_files(build_script)
+    except ExtractError as e:
+        print(f"check-ios-scope: FAILED, cannot extract BUILD_FILES from {build_script}: {e}")
+        return 1
+    shown = _shown(script, script_dir)
+    shown_build = _shown(build_script, script_dir)
     with tempfile.TemporaryDirectory(prefix="ios-scope-") as t:
         tmp = Path(t)
         try:
@@ -377,11 +484,12 @@ def self_test(script_dir, script):
     probe = probe or {"ios_paths": "<block failed>", "ios_paths_excluded": "<block failed>"}
     print(f"--- iOS scope block extracted from {shown} (lines {first}-{last}): "
           f"IOS_PATHS={probe['ios_paths']} IOS_PATHS_EXCLUDED={probe['ios_paths_excluded']}; "
+          f"{len(build_files)} BUILD_FILES entries from {shown_build} (line {build_files_line}); "
           f"run with {bash} (bash {bash_version}), {git_version}")
 
     total = failed = 0
     for group in GROUPS:
-        for label, run in group(fixtures, block, bash):
+        for label, run in group(fixtures, block, bash, (shown_build, build_files)):
             total += 1
             try:
                 errors, desc, output = run()
@@ -395,6 +503,8 @@ def self_test(script_dir, script):
 def main(argv):
     script_dir = Path(__file__).resolve().parent
     script = script_dir / "pre-push-check.sh"
+    build_script = script_dir / "build-kmp-framework.sh"
+    usage = "usage: check-ios-scope.sh --self-test [--script <file>] [--build-script <file>]"
     want_self_test = False
     args = list(argv)
     while args:
@@ -403,14 +513,15 @@ def main(argv):
             want_self_test = True
         elif arg == "--script" and args:
             script = Path(args.pop(0)).resolve()
+        elif arg == "--build-script" and args:
+            build_script = Path(args.pop(0)).resolve()
         else:
-            print(f"usage: check-ios-scope.sh --self-test [--script <file>] (got '{arg}')",
-                  file=sys.stderr)
+            print(f"{usage} (got '{arg}')", file=sys.stderr)
             return 2
     if not want_self_test:
-        print("usage: check-ios-scope.sh --self-test [--script <file>]", file=sys.stderr)
+        print(usage, file=sys.stderr)
         return 2
-    return self_test(script_dir, script)
+    return self_test(script_dir, script, build_script)
 
 
 if __name__ == "__main__":
