@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### pr-review-retry-needs-committed-test
-- Type: task
-- Area: scripts, .github
-- Order: 17
-- Source: agentic-dev-loop run 7 (PR #93 or the number this PR gets), 2026-10-04
-- Problem: the one automatic retry in `.github/workflows/pr-review.yml` (step "Run pr-reviewer": a second run only when the first succeeded and its report's first line is neither a `VERDICT:` line nor `NO_VERDICT:`) and the mapping in "Map verdict" have no committed test. That PR's proof table came from an uncommitted scratch harness that extracted both `run:` scripts from the committed workflow with a YAML parser and ran them against a stub `claude` CLI that counts its calls. The check becomes required in S5, so a later edit could break the retry limits (never after a valid verdict, `NO_VERDICT` or a failed run; at most one retry; exactly one `Review — pr-reviewer` annotation) without anything going red.
-- Done when: a committed self-test, run in the gate and in CI, extracts the two `run:` scripts from the committed workflow (never a retyped copy) and checks, per scenario, the number of reviewer calls, the one annotation (level, title, start of message), the job result and that no report text reaches the log, covering at least the rows of that PR's proof table.
-- Refs: `.github/workflows/pr-review.yml` (steps "Run pr-reviewer", "Map verdict"); `scripts/classify-changes.sh` (`--self-test`, the pattern to follow); `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`.
-
 ### gate-ios-scope-filter-needs-committed-test
 - Type: task
 - Area: scripts
