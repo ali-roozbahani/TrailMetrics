@@ -41,6 +41,9 @@ jobs:
       - name: Reviewer workflow self-test
         run: scripts/check-pr-review-workflow.sh --self-test
 
+      - name: iOS scope self-test
+        run: scripts/check-ios-scope.sh --self-test
+
       - name: Set up JDK 17
         if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4

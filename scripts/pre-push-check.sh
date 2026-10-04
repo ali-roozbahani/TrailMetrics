@@ -104,6 +104,7 @@ run_step "board check" scripts/check-board.sh
 run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
 run_step "change classification self-test" scripts/classify-changes.sh --self-test
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
+run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
