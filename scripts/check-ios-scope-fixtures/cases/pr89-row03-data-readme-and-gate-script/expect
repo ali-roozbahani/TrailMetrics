@@ -1,0 +1,5 @@
+# PR #89 row 3: markdown under data/ plus the gate script itself
+touches: false
+warning: none
+files: data/README.md
+files: scripts/pre-push-check.sh

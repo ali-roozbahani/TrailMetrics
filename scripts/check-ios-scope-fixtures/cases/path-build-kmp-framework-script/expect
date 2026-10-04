@@ -1,0 +1,4 @@
+# exact file: the iOS steps' framework build
+touches: true
+warning: none
+files: scripts/build-kmp-framework.sh

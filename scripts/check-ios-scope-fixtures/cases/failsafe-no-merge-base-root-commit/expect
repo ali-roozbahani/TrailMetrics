@@ -1,0 +1,5 @@
+# no merge-base and no HEAD~1: both problems in the reason
+setup: no-merge-base-root-commit
+touches: true
+warning: no merge-base with origin/main (no common ancestor), so the HEAD~1 list is not this branch's diff; git diff HEAD~1 HEAD failed: {GIT_DIFF_ERROR}
+files: (none)

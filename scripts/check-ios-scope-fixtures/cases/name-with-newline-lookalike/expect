@@ -1,0 +1,4 @@
+# matched as one string: the part after the newline is not a path
+touches: false
+warning: none
+files: docs/a\ndata/x.kt

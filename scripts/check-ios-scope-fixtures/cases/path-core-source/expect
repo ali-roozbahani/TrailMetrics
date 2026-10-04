@@ -1,0 +1,4 @@
+# the core/ prefix
+touches: true
+warning: none
+files: core/src/commonMain/kotlin/X.kt

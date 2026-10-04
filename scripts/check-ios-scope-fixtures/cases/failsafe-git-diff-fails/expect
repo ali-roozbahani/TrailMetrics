@@ -1,0 +1,5 @@
+# git diff fails (corrupt tree object): true, with git's first error line
+setup: git-diff-fails
+touches: true
+warning: git diff {BASE} HEAD failed: {GIT_DIFF_ERROR}
+files: (none)

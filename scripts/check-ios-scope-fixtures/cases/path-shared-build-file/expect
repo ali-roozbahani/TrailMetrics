@@ -1,0 +1,4 @@
+# the shared/ prefix
+touches: true
+warning: none
+files: shared/build.gradle.kts

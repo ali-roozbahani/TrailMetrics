@@ -1,0 +1,4 @@
+# -z: no quoting of non-ASCII names
+touches: true
+warning: none
+files: iosApp/Packages/Ünïcode/Sources/Straße.swift

@@ -1,0 +1,4 @@
+# PR #89 row 12: the root Gradle rule is anchored at both ends
+touches: false
+warning: none
+files: foo/build.gradle.kts

@@ -1,0 +1,4 @@
+# the domain/ prefix
+touches: true
+warning: none
+files: domain/src/commonMain/kotlin/X.kt

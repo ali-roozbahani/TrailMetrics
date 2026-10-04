@@ -1,0 +1,4 @@
+# a deleted file counts
+touches: true
+warning: none
+files: domain/src/commonMain/kotlin/Y.kt
