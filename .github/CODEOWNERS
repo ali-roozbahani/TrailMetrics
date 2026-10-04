@@ -20,6 +20,9 @@
 /scripts/check-protected-paths.py           @ali-roozbahani
 /scripts/classify-changes.sh                @ali-roozbahani
 /scripts/classify-changes-fixtures/         @ali-roozbahani
+/scripts/check-pr-review-workflow.sh        @ali-roozbahani
+/scripts/check-pr-review-workflow.py        @ali-roozbahani
+/scripts/check-pr-review-workflow-fixtures/ @ali-roozbahani
 /scripts/build-kmp-framework.sh             @ali-roozbahani
 
 # Build and dependency files

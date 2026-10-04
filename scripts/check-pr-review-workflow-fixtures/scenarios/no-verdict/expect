@@ -1,0 +1,4 @@
+calls: 1
+annotation: error The report's first line is not a verdict
+job: fail
+in-summary: 1
