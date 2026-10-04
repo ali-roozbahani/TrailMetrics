@@ -1,0 +1,5 @@
+All checks done. @@MARKER@@
+VERDICT: APPROVE
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+No findings.

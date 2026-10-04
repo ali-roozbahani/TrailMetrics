@@ -1,0 +1,6 @@
+I've finished the checks. Here is the report. @@MARKER@@
+
+VERDICT: ESCALATE_TO_HUMAN
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: .github/workflows/pr-review.yml
+1. [note] protected path: .github/workflows/pr-review.yml (pr-review.yml): the human decides.

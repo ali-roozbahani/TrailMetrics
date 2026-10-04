@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### pr-review-retry-needs-committed-test
-- Type: task
-- Area: scripts, .github
-- Order: 17
-- Source: agentic-dev-loop run 7 (PR #93 or the number this PR gets), 2026-10-04
-- Problem: the one automatic retry in `.github/workflows/pr-review.yml` (step "Run pr-reviewer": a second run only when the first succeeded and its report's first line is neither a `VERDICT:` line nor `NO_VERDICT:`) and the mapping in "Map verdict" have no committed test. That PR's proof table came from an uncommitted scratch harness that extracted both `run:` scripts from the committed workflow with a YAML parser and ran them against a stub `claude` CLI that counts its calls. The check becomes required in S5, so a later edit could break the retry limits (never after a valid verdict, `NO_VERDICT` or a failed run; at most one retry; exactly one `Review — pr-reviewer` annotation) without anything going red.
-- Done when: a committed self-test, run in the gate and in CI, extracts the two `run:` scripts from the committed workflow (never a retyped copy) and checks, per scenario, the number of reviewer calls, the one annotation (level, title, start of message), the job result and that no report text reaches the log, covering at least the rows of that PR's proof table.
-- Refs: `.github/workflows/pr-review.yml` (steps "Run pr-reviewer", "Map verdict"); `scripts/classify-changes.sh` (`--self-test`, the pattern to follow); `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`.
-
 ### gate-ios-scope-filter-needs-committed-test
 - Type: task
 - Area: scripts
@@ -284,6 +275,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Decision 8 of `docs/epics/agentic-dev-loop.md` maps the `Review — pr-reviewer` annotation by level alone ("`failure` = `CHANGES`"). "Map verdict" in `.github/workflows/pr-review.yml` also writes a `failure` annotation when there is no valid report (a failed run, an empty report, a first line that is not a verdict, a wrong `REVIEWED_SHA`), and `tm-agent-loop` section 7 maps by level and the start of the message (`APPROVE.`, `ESCALATE_TO_HUMAN:`, `CHANGES:`), reading anything else as `NOT_APPROVE`. Decision 7 now says a PR whose check never produced a valid report does not count toward the trial, which only the message start tells apart from `CHANGES`.
 - Done when: Decision 8 maps by level and the start of the message, as `tm-agent-loop` section 7 does, and says that any other annotation is not a verdict.
 - Refs: `docs/epics/agentic-dev-loop.md` (Decisions 7 and 8); `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
+
+### drift-pr-review-log-env-prints-pr-body
+- Type: drift
+- Area: .github
+- Order: 230
+- Source: agentic-dev-loop run 8 (PR #94), 2026-10-04
+- Problem: the comment above the step "Build review inputs" in `.github/workflows/pr-review.yml` says "Nothing here prints PR or model text to the log, where it could act as a workflow command". The runner prints each step's `env:` block at the top of the step's log, and that step's `env:` carries `PR_BODY` (the PR description) and `HEAD_REF` (the author's branch name), so the PR description appears in that step's log. On PR #94 (run 37166301311) the body contained lines starting with `::error title=Review — pr-reviewer::`, and the check run still had only the titled `warning` and the untitled runner notice, so the runner did not process them as commands.
+- Done when: the human has chosen between (a) correcting the comment to the real property (header lines are not processed as commands, shown by that run) and (b) not passing PR text through `env:` at all (for example reading it from the event payload with `jq`), and the choice is implemented and shown.
+- Refs: `.github/workflows/pr-review.yml` (step "Build review inputs" and the comment above it); PR #94 review run 37166301311 (job "Review — pr-reviewer").
 
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift

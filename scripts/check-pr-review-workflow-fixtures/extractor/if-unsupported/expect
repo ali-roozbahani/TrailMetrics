@@ -1,0 +1,1 @@
+error: step 'Map verdict': if: ${{ failure() }} is not supported

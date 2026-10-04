@@ -1,0 +1,4 @@
+calls: 2
+annotation: error The reviewer returned an empty report.
+job: fail
+in-summary: none

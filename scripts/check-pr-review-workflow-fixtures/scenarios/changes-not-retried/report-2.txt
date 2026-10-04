@@ -1,0 +1,4 @@
+VERDICT: APPROVE
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+No findings. @@MARKER@@

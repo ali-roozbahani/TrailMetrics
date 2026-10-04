@@ -1,0 +1,4 @@
+VERDICT: CHANGES
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+1. [blocking] scripts/example.sh (@@MARKER@@): the problem; the fix.

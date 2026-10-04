@@ -1,0 +1,3 @@
+api-key: set
+call: exit=0 is_error=false subtype=success report=report-1.txt
+call: exit=1 is_error=true subtype=error_during_execution report=report-2.txt

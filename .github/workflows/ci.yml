@@ -38,6 +38,9 @@ jobs:
       - name: Change classification self-test
         run: scripts/classify-changes.sh --self-test
 
+      - name: Reviewer workflow self-test
+        run: scripts/check-pr-review-workflow.sh --self-test
+
       - name: Set up JDK 17
         if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4

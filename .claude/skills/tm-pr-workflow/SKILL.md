@@ -66,8 +66,12 @@ Branch: <type>/<slug>
 check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
 "Protected paths check" step of CI's `android` job) followed by a report-only line with the
 classifier's verdict on the branch's diff (`protected` or `unprotected` and the matching files;
-it never fails the gate), and the change classification self-test
-(`scripts/classify-changes.sh --self-test`). The heavy steps run unless
+it never fails the gate), the change classification self-test
+(`scripts/classify-changes.sh --self-test`) and the reviewer workflow self-test
+(`scripts/check-pr-review-workflow.sh --self-test`, also the "Reviewer workflow self-test" step
+of CI's `android` job: it runs the "Run pr-reviewer" and "Map verdict" scripts of
+`.github/workflows/pr-review.yml`, taken from the committed file, against a stub `claude`; it
+needs `python3` and `jq` and fails without them). The heavy steps run unless
 `scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
 decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
 `assembleDebug`, and the iOS steps below, which also need their path filter. After the tests it also generates the merged
