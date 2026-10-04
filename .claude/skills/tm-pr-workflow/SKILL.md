@@ -75,8 +75,9 @@ needs `python3` and `jq` and fails without them) and the iOS scope self-test
 (`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
 job: it runs the gate's iOS scope block below, extracted from the committed script between its
 `# >>> iOS scope: ... (begin) >>>` and `(end)` markers, in scratch git repositories, one case
-per fixture in `scripts/check-ios-scope-fixtures/`; it needs `python3`, `bash` and `git` and
-fails without them).
+per fixture in `scripts/check-ios-scope-fixtures/`, and it also checks that every `BUILD_FILES`
+entry of `scripts/build-kmp-framework.sh`, taken from the committed file, matches the filter; it
+needs `python3`, `bash` and `git` and fails without them).
 The heavy steps run unless
 `scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
 decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
