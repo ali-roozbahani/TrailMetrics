@@ -1,0 +1,5 @@
+# --no-renames: both paths are listed
+touches: true
+warning: none
+files: data/src/X.kt
+files: tools/X.kt

@@ -1,0 +1,4 @@
+# -z: a newline in a name does not split it
+touches: true
+warning: none
+files: data/new\nline.kt

@@ -1,0 +1,5 @@
+# mktemp fails (stub mktemp first on PATH): true, no file list
+setup: mktemp-fails
+touches: true
+warning: mktemp failed, so no file list
+files: (none)

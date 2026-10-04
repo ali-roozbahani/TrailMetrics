@@ -1,0 +1,4 @@
+# exact file: daemon JVM
+touches: true
+warning: none
+files: gradle/gradle-daemon-jvm.properties

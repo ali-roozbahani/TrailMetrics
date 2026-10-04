@@ -1,0 +1,4 @@
+# the prefixes are anchored at the start
+touches: false
+warning: none
+files: androidApp/data/x.kt

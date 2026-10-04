@@ -1,0 +1,4 @@
+# PR #89 row 14: an empty list read without an error stays false
+touches: false
+warning: none
+files: (none)

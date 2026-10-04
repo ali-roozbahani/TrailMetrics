@@ -1,0 +1,5 @@
+# PR #89 row 13: one counting file is enough
+touches: true
+warning: none
+files: data/README.md
+files: data/build.gradle.kts

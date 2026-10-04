@@ -54,24 +54,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-ios-scope-filter-needs-committed-test
-- Type: task
-- Area: scripts
-- Order: 18
-- Source: agentic-dev-loop run 3 (PR #89), 2026-10-03
-- Problem: the iOS scope filter in `scripts/pre-push-check.sh` (`IOS_PATHS`, `IOS_PATHS_EXCLUDED`, the `TOUCHES_IOS_OR_SHARED` test) has no committed test. PR #89's red/green table came from an uncommitted scratch harness, and the local reviewer marked the missing test as blocking. `scripts/classify-changes.sh --self-test` and `scripts/check-protected-paths.sh --self-test` already run in the gate and in CI.
-- Done when: a committed self-test (in the style of `scripts/classify-changes.sh --self-test`, run in the gate and CI) covers the filter's rows, including the rows of that table.
-- Refs: `scripts/pre-push-check.sh`; `scripts/classify-changes.sh` (`--self-test`, `scripts/classify-changes-fixtures/`); PR #89 description ("Proof").
-
 ### gate-ios-filter-must-match-framework-build-files
 - Type: task
 - Area: scripts
 - Order: 19
-- After: gate-ios-scope-filter-needs-committed-test
 - Source: agentic-dev-loop run 6 (PR #92 or the number this PR gets), 2026-10-04
 - Problem: `scripts/build-kmp-framework.sh` hashes its own list (`BUILD_FILES`) and the gate's iOS filter (`IOS_PATHS` in `scripts/pre-push-check.sh`) lists the same kind of files separately; nothing checks that they agree, so adding a framework input to the first without the second silently skips the iOS steps.
-- Done when: the committed self-test of `gate-ios-scope-filter-needs-committed-test` (or a check next to it) fails when an entry of `BUILD_FILES` does not match the filter.
-- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`); board `gate-ios-scope-filter-needs-committed-test`.
+- Done when: the committed iOS scope self-test (`scripts/check-ios-scope.sh --self-test`) (or a check next to it) fails when an entry of `BUILD_FILES` does not match the filter.
+- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`).
 
 ### ci-use-build-kmp-framework-script
 - Type: task

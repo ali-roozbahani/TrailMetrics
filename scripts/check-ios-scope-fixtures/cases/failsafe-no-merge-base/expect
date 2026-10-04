@@ -1,0 +1,5 @@
+# no merge-base: the HEAD~1 list (README.md only) is used, but the result is true
+setup: no-merge-base
+touches: true
+warning: no merge-base with origin/main (no common ancestor), so the HEAD~1 list is not this branch's diff
+files: README.md

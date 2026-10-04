@@ -1,0 +1,4 @@
+# Windows only; gradlew is anchored at both ends
+touches: false
+warning: none
+files: gradlew.bat

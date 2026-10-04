@@ -1,0 +1,4 @@
+# the gate script itself (CI's ios job runs in full for it)
+touches: false
+warning: none
+files: scripts/pre-push-check.sh

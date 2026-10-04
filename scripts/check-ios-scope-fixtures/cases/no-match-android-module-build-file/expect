@@ -1,0 +1,4 @@
+# a module build file outside the five prefixes
+touches: false
+warning: none
+files: androidApp/app/build.gradle.kts
