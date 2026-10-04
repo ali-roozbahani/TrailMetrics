@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### gate-ios-filter-must-match-framework-build-files
-- Type: task
-- Area: scripts
-- Order: 19
-- Source: agentic-dev-loop run 6 (PR #92 or the number this PR gets), 2026-10-04
-- Problem: `scripts/build-kmp-framework.sh` hashes its own list (`BUILD_FILES`) and the gate's iOS filter (`IOS_PATHS` in `scripts/pre-push-check.sh`) lists the same kind of files separately; nothing checks that they agree, so adding a framework input to the first without the second silently skips the iOS steps.
-- Done when: the committed iOS scope self-test (`scripts/check-ios-scope.sh --self-test`) (or a check next to it) fails when an entry of `BUILD_FILES` does not match the filter.
-- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`).
-
 ### ci-use-build-kmp-framework-script
 - Type: task
 - Area: ci
