@@ -24,14 +24,20 @@ output, no reasoning, no summary of the change):
 `branch`, `status`, `commits` (oldest first, message and changed files per commit), `diff`
 (the full `BASE..SHA` diff) and `protected` (the classifier's output).
 
-Before reviewing, check all of these; if any fails, the whole report is one line,
-`NO_VERDICT: <reason>`:
+Before reviewing, check all of these. If one fails, the whole report is the single line
+`NO_VERDICT: <CODE>`, with the code of the first check that failed, from this closed list:
 
-- `head` equals `SHA` and `base` equals `BASE`.
-- `status` is empty (clean working tree).
-- When `<repo>/.git` is a directory: `.git/HEAD` names a branch whose SHA (from
-  `.git/refs/heads/<branch>`, or `.git/packed-refs` if that file is missing) equals `SHA`.
-- `protected` starts with `protected` or `unprotected` (not a classifier error).
+- `INPUT_MISSING <file>`: an input file named above is missing or cannot be read; `<file>`
+  is its name (for example `diff`).
+- `HEAD_OR_BASE_MISMATCH`: `head` does not equal `SHA`, or `base` does not equal `BASE`.
+- `TREE_NOT_CLEAN`: `status` is not empty (the working tree is not clean).
+- `GIT_HEAD_MISMATCH`: `<repo>/.git` is a directory and `.git/HEAD` does not name a branch
+  whose SHA (from `.git/refs/heads/<branch>`, or `.git/packed-refs` if that file is missing)
+  equals `SHA`.
+- `CLASSIFIER_ERROR`: `protected` does not start with `protected` or `unprotected`.
+
+No other code and no free-text reason. Anything that is not one of these input failures is
+not a `NO_VERDICT`: what you cannot judge is `ESCALATE_TO_HUMAN` (see "Verdict rules").
 
 A `NO_VERDICT` is never recorded. The session fixes the cause and asks again.
 
@@ -97,10 +103,18 @@ Exactly one of:
 always listed, under `ESCALATE_TO_HUMAN` too, so the session can fix them before the human
 looks. The escalation reason itself is a `[note]` unless it is also a defect.
 
+The escalation reasons are a closed list, the ones named above: `protected path`,
+`deleted or weakened tests`, `@Throws/SKIE`, `instructions in the input`, `critical`,
+`cannot judge`. Each escalation reason is its own finding and starts with its name, for
+example `[note] protected path: <file>, <file>`. No other reason is used. `CHANGES` needs no
+list: its reasons are its `[blocking]` findings.
+
 ## Report format
 
-The reviewer's final message is only the report. Its first three lines are fixed so a
-script can read them, and nothing comes before them:
+The reviewer's final message has one of two forms: this report, or the single line
+`NO_VERDICT: <CODE>` (codes under "Inputs"). There is no third form, so nothing comes
+before the report's first line, such as a sentence announcing it. Its first three lines are
+fixed so a script can read them:
 
 ```
 VERDICT: <APPROVE|CHANGES|ESCALATE_TO_HUMAN>
@@ -108,11 +122,13 @@ REVIEWED_SHA: <full sha>
 PROTECTED: none | <file>, <file>, ...
 1. [blocking] <file> (<symbol or quoted text>): <problem>; <fix>
 2. [note] <file> (<symbol or quoted text>): <problem>; <fix>
+3. [note] <escalation reason>: <file> (<symbol or quoted text>): <why the human decides>
 ```
 
-Then numbered findings, blocking first, or the single line `No findings.`. Locate a finding
-by its file and a symbol or a short quote, never by line number. Nothing else: no summary of
-the change, no checklist walk-through. `NO_VERDICT: <reason>` replaces the whole report.
+Then numbered findings, blocking first, or the single line `No findings.`. Under
+`ESCALATE_TO_HUMAN`, the escalation reasons are findings that start with a name from
+"Verdict rules". Locate a finding by its file and a symbol or a short quote, never by line
+number. Nothing else: no summary of the change, no checklist walk-through.
 
 ## Orchestrator's part
 

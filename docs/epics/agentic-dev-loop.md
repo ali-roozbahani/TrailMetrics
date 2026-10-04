@@ -60,7 +60,11 @@
    verdict and the human's decision agree (any disagreement restarts the count), and only
    for PRs that touch no protected path. The trial counts only PRs that touch no protected
    path: a protected PR always escalates and the human merges it, so agreement there proves
-   nothing. After the trial the agent merges itself with
+   nothing. A PR whose first review report was malformed (its first line not a verdict) and
+   whose automatic retry, or a human re-run of the failed check, produced a valid report
+   counts normally, by the final valid verdict compared with the human's decision. A PR
+   whose check never produced a valid report does not count toward the trial and is not a
+   disagreement. After the trial the agent merges itself with
    `gh pr merge --squash --match-head-commit <SHA>`, and only when all of these hold: both
    required checks are green; the PR head is a branch of this repository; the author is the
    machine account; the CI annotation says `APPROVE` for that head SHA (Decision 8); the
@@ -204,7 +208,8 @@
   acceptance:
     - 5 consecutive board tasks that touch no protected path are done by the loop with the
       human merging, and the reviewer's verdict agreed with the human's decision on each
-      (Decision 7; PRs that touch a protected path do not count).
+      (Decision 7; PRs that touch a protected path, and PRs whose review check never
+      produced a valid report, do not count).
     - Afterwards one small PR documents auto-merge for unprotected paths under the
       conditions of Decision 7. The repository setting "Allow auto-merge" stays off.
   tier2: none
