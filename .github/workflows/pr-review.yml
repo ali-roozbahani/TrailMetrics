@@ -127,7 +127,7 @@ jobs:
         run: |
           set +e -uo pipefail
           if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-            echo "::error title=Review — pr-reviewer::secret ANTHROPIC_API_KEY is not set"
+            echo "::error::secret ANTHROPIC_API_KEY is not set"
             exit 1
           fi
           W="$RUNNER_TEMP/review"

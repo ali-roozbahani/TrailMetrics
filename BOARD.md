@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### pr-review-missing-key-writes-two-annotations
-- Type: task
-- Area: .github
-- Order: 16
-- Source: agentic-dev-loop run 7 (PR #93 or the number this PR gets), 2026-10-04
-- Problem: when the `ANTHROPIC_API_KEY` secret is missing, "Run pr-reviewer" in `.github/workflows/pr-review.yml` writes an `::error title=Review — pr-reviewer::` for it and exits 1, and "Map verdict" (which runs after a failed step) writes a second one ("The reviewer run failed (exit status: none)."). `tm-agent-loop` section 7 then reads `NOT_APPROVE: 2 annotations with that title`: fail closed, but not the one annotation that section 7 and the plan describe. Shown by the `api-key-missing` row of that PR's scratch harness, the same on `origin/main` and on that PR's head.
-- Done when: a missing key gives exactly one annotation with the title `Review — pr-reviewer`, shown by the harness row, and the check still fails.
-- Refs: `.github/workflows/pr-review.yml` (steps "Run pr-reviewer", "Map verdict"); `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", section 7).
-
 ### pr-review-retry-needs-committed-test
 - Type: task
 - Area: scripts, .github
