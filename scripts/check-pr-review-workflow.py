@@ -364,8 +364,11 @@ spec = specs[n - 1]
 if spec["raw"] is not None:
     sys.stdout.write(spec["raw"])
 else:
-    print(json.dumps({"type": "result", "subtype": spec["subtype"], "is_error": spec["is_error"],
-                      "num_turns": 18, "total_cost_usd": 0.42, "result": spec["report"]}))
+    answer = {"type": "result", "subtype": spec["subtype"], "is_error": spec["is_error"],
+              "num_turns": 18, "total_cost_usd": 0.42}
+    if spec["report"] is not None:
+        answer["result"] = spec["report"]
+    print(json.dumps(answer))
 sys.exit(spec["exit"])
 '''
 
@@ -379,8 +382,8 @@ def _marker(scenario, n):
 def load_scenario(fixture):
     """`stub`: `api-key: set|empty` and one `call:` line per answer, in call order, with
     `exit=N`, optional `is_error=true|false` (default false), `subtype=...` (default
-    success) and either `report=<file>`, `report=empty-string` or `output=<file>` (raw
-    stdout, not JSON). Report files use @@HEAD_SHA@@ and @@MARKER@@; every non-empty
+    success) and either `report=<file>`, `report=empty-string`, `report=absent` (a JSON
+    result with no `result` field) or `output=<file>` (raw stdout, not JSON). Report files use @@HEAD_SHA@@ and @@MARKER@@; every non-empty
     report must contain @@MARKER@@.
     `expect`: `calls: N`, `annotation: <notice|warning|error> <message start>`,
     `job: pass|fail`, `in-summary: <call numbers>|none`, and `command: <line>` for each
@@ -402,6 +405,8 @@ def load_scenario(fixture):
                 spec["raw"] = _fill(fixture / fields["output"], name, n, fixture)
             elif fields.get("report") == "empty-string":
                 spec["report"] = ""
+            elif fields.get("report") == "absent":
+                pass
             elif "report" in fields:
                 spec["report"] = _fill(fixture / fields["report"], name, n, fixture)
             else:
