@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REVIEW_MODEL: claude-opus-5-5
+  REVIEW_MODEL: claude-sonnet-5-5
   REVIEW_MAX_TURNS: '40'
   CLAUDE_CODE_VERSION: 2.1.288
   DISABLE_AUTOUPDATER: '1'
