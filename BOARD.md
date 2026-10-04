@@ -285,6 +285,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: Decision 8 maps by level and the start of the message, as `tm-agent-loop` section 7 does, and says that any other annotation is not a verdict.
 - Refs: `docs/epics/agentic-dev-loop.md` (Decisions 7 and 8); `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
 
+### drift-pr-review-log-env-prints-pr-body
+- Type: drift
+- Area: .github
+- Order: 230
+- Source: agentic-dev-loop run 8 (PR #94), 2026-10-04
+- Problem: the comment above the step "Build review inputs" in `.github/workflows/pr-review.yml` says "Nothing here prints PR or model text to the log, where it could act as a workflow command". The runner prints each step's `env:` block at the top of the step's log, and that step's `env:` carries `PR_BODY` (the PR description) and `HEAD_REF` (the author's branch name), so the PR description appears in that step's log. On PR #94 (run 37166301311) the body contained lines starting with `::error title=Review — pr-reviewer::`, and the check run still had only the titled `warning` and the untitled runner notice, so the runner did not process them as commands.
+- Done when: the human has chosen between (a) correcting the comment to the real property (header lines are not processed as commands, shown by that run) and (b) not passing PR text through `env:` at all (for example reading it from the event payload with `jq`), and the choice is implemented and shown.
+- Refs: `.github/workflows/pr-review.yml` (step "Build review inputs" and the comment above it); PR #94 review run 37166301311 (job "Review — pr-reviewer").
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude
