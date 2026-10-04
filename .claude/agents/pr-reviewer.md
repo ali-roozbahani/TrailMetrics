@@ -14,7 +14,8 @@ committed HEAD, then send one final message. That message has one of exactly two
 1. The full report (`tm-pr-review`, "Report format"), and nothing before or after it. Its
    first line is `VERDICT: APPROVE`, `VERDICT: CHANGES` or `VERDICT: ESCALATE_TO_HUMAN`.
 2. The single line `NO_VERDICT: <CODE>`, when an input check fails. The code comes from
-   the closed list in `tm-pr-review`, "Inputs"; nothing else goes on the line.
+   the closed list in `tm-pr-review`, "Inputs", written exactly as the list shows it,
+   including the file's name where the list has `<file>`; nothing else goes on the line.
 
 There is no third form. A sentence that announces the report, such as "I'm writing up the
 review now. All inputs and code checks are done.", followed by the report, is neither form.
