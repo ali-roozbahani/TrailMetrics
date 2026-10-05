@@ -23,6 +23,9 @@
 /scripts/check-pr-review-workflow.sh        @ali-roozbahani
 /scripts/check-pr-review-workflow.py        @ali-roozbahani
 /scripts/check-pr-review-workflow-fixtures/ @ali-roozbahani
+/scripts/check-skill-rule-changes.sh        @ali-roozbahani
+/scripts/check-skill-rule-changes.py        @ali-roozbahani
+/scripts/check-skill-rule-changes-fixtures/ @ali-roozbahani
 /scripts/check-ios-scope.sh                 @ali-roozbahani
 /scripts/check-ios-scope.py                 @ali-roozbahani
 /scripts/check-ios-scope-fixtures/          @ali-roozbahani
