@@ -29,3 +29,10 @@ kotlin {
         }
     }
 }
+
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here,
+// on purpose. This module holds shared declarations (`AppRoute`, `RouteUiError` and its
+// `toUiError()` mapping) and has no tests of its own, so its own line coverage is 0% (0/17 lines,
+// measured 2026-10-05). The root merged report shows 7 of those lines covered by the feature
+// modules' ViewModel tests, which this module's koverVerify can't see. A floor of 0 could never
+// fail. Add one, set the way domain's is, when the first test of its own runs on the Android host.
