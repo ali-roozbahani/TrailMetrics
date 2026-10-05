@@ -1,0 +1,3 @@
+base-script: sh-only
+head-script: same
+head-edit: remove-rule

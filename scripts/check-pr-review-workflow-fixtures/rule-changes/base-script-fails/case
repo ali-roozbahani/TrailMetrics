@@ -1,0 +1,3 @@
+base-script: failing
+head-script: same
+head-edit: remove-rule

@@ -1,0 +1,3 @@
+step: fail
+rule-changes: absent
+command: ::error::scripts/check-skill-rule-changes.sh from the base failed: no rule-changes input, no review

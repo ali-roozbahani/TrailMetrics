@@ -1,0 +1,3 @@
+base-script: absent
+head-script: added
+head-edit: remove-rule
