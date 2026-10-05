@@ -28,7 +28,18 @@ public class RouteViewModel: ObservableObject {
     // over an AsyncStream whose first consumer was cancelled (rather than the stream
     // finishing on its own) exits immediately without ever receiving anything, silently.
     // Exposing a factory instead lets each fresh `.task` get its own fresh stream.
+    //
+    // Between those streams nobody consumes: before RouteView's first `.task` runs (the
+    // loads started in init() can fail by then) and while a pushed screen covers it. An
+    // event emitted then goes to `pendingEvents` and the next stream delivers it first.
+    // Cancelling a consumer that waits for its next event ends its stream at once, so
+    // `yield` reports `.terminated` from then on and `emit` keeps the event instead (events
+    // already in a stream's buffer still reach its consumer before the loop ends).
     private var eventsContinuation: AsyncStream<RouteUiEvent>.Continuation?
+    /// Events emitted while no consumer was active, oldest first, at most `maxPendingEvents`.
+    private var pendingEvents: [RouteUiEvent] = []
+    /// A screen left covered keeps only the newest events; RouteView shows one error at a time.
+    private static let maxPendingEvents = 10
 
     /// The running route generation; cancelled by `cancelGeneration()` when its input becomes stale.
     private var generationTask: Task<Void, Never>?
@@ -52,12 +63,20 @@ public class RouteViewModel: ObservableObject {
 
     public func makeEventsStream() -> AsyncStream<RouteUiEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: RouteUiEvent.self)
+        for event in pendingEvents {
+            continuation.yield(event)
+        }
+        pendingEvents.removeAll()
         eventsContinuation = continuation
         return stream
     }
 
     private func emit(_ event: RouteUiEvent) {
-        eventsContinuation?.yield(event)
+        if case .enqueued = eventsContinuation?.yield(event) { return }
+        pendingEvents.append(event)
+        if pendingEvents.count > Self.maxPendingEvents {
+            pendingEvents.removeFirst()
+        }
     }
 
     private func emitError(_ error: Error) {

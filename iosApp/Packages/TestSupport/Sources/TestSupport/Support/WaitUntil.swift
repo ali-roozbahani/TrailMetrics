@@ -39,3 +39,18 @@ public func waitUntil(
         try? await Task.sleep(for: .milliseconds(10))
     }
 }
+
+/// Suspends until the caller's reference is the only strong one left to `object`, or fails like
+/// `waitUntil`. A ViewModel's fire-and-forget `Task { }`s (the loads in `init`, a save) capture
+/// `self` strongly until they finish, so this waits until each one has run its last line, for
+/// example the `emit` in its `catch`, when nothing else can be observed yet (no events consumer).
+/// The caller must hold no other reference (not a subject struct that keeps the object too).
+@MainActor
+public func waitUntilOnlyReference<Object: AnyObject>(
+    _ object: inout Object,
+    timeout: Duration = .seconds(2),
+    file: StaticString = #filePath,
+    line: UInt = #line
+) async {
+    await waitUntil(timeout: timeout, file: file, line: line) { isKnownUniquelyReferenced(&object) }
+}
