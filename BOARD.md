@@ -83,14 +83,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
-### route-start-tracking-repeated-navigation
+### android-route-start-tracking-repeated-navigation
 - Type: task
-- Area: iosApp/Route
-- Order: 92
-- Source: bugfix/ios-init-time-error-events-kept PR
-- Problem: `RouteViewModel.onStartTrackingClicked` has no guard against a repeated tap: each tap starts its own `Task`, and each emits `.navigateToTracking` once the profile read returns. Since `emit` keeps events emitted while no consumer is active and delivers them to the next stream, a second `.navigateToTracking` that arrives after `RouteView`'s `.task` was cancelled by the push is delivered when `RouteView` is revealed again, so returning from Tracking opens Tracking a second time. Before, that event was lost; a second one that arrives before the push still pushes twice. The window is the profile read's duration (a local read) after the push transition, so it was not reproduced; found by reading the code.
-- Done when: a repeated Start Tracking tap while one is in flight emits at most one `.navigateToTracking` (a guard like `generationTask` in `onGenerateRouteClicked`), with a Swift unit test that taps twice before the profile read returns and receives one navigation event.
-- Refs: `RouteViewModel.onStartTrackingClicked`, `emit`, `makeEventsStream`; `onGenerateRouteClicked` (the guard pattern); board `test-ios-ui-double-tap-and-stale-results`.
+- Area: androidApp/feature-route
+- Order: 93
+- Source: bugfix/ios-route-start-tracking-single-navigation PR
+- Problem: Android's `RouteViewModel.startTracking` (`RouteAction.StartTrackingClicked`) has no guard against a repeated tap: each tap launches its own coroutine, and each sends `RequestUserProfile` or `NavigateToTracking` into the `Channel.BUFFERED` events channel once the profile read returns. `RouteRoot` collects that channel in a `LaunchedEffect`, so a second `NavigateToTracking` that arrives while RouteScreen is still composed navigates to Tracking twice, and one that arrives after it left composition stays in the channel and is delivered when RouteScreen is composed again, opening Tracking again on return. Two taps without a profile open the profile sheet twice (the second only sets `showProfileSheet` again). Found by reading the code, not reproduced; iOS got the equivalent guard in that PR.
+- Done when: a repeated `StartTrackingClicked` while one is in flight sends at most one event (a guard like `generationJob` in `generateRoute`, released on every exit), with a JVM test that dispatches two `StartTrackingClicked` before the profile read returns and receives one `NavigateToTracking`, and one that a later, separate tap still works.
+- Refs: `androidApp/feature-route` `RouteViewModel.startTracking`, `generateRoute` (the guard pattern), `RouteScreen` (`RouteRoot`'s event collection); iOS `RouteViewModel.onStartTrackingClicked`.
 
 ### document-ios-pending-events-shape
 - Type: task
