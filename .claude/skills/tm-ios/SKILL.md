@@ -191,6 +191,8 @@ fails, so observe through a use case that turns the failure into a value on the 
     "build again" rather than link the stale copy. Don't declare the XCFramework as a phase
     output: Xcode reports "Cycle inside TrailMetrics".
   - `scripts/pre-push-check.sh` runs it before the iOS build and package tests.
+  - CI's `ios` job runs it in its "Build KMP Shared Framework" step, before the iOS
+    simulator tests and the `xcodebuild` build.
 - A per-user `xcuserdata/.../TrailMetrics.xcscheme` with the same name shadows the shared
   scheme and has no pre-action. If every Kotlin change ends in the "build again" error,
   delete the per-user copy.
