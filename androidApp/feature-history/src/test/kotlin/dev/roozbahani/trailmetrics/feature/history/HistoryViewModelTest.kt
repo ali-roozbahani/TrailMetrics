@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.feature.history
 
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
@@ -213,6 +214,39 @@ class HistoryViewModelTest {
             assertEquals(listOf(99L), activityHistoryRepository.deletedIds)
             assertEquals(HistoryState(activities = listOf(FIRST, SECOND), isLoading = false), viewModel.state.value)
         }
+
+    @Test
+    fun `a failing delete emits a general ShowError and keeps the record and its snapshot file`() =
+        runTest(testScheduler) {
+            val snapshot = tempFolder.newFile("snapshot-1.png")
+            val withSnapshot = activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath)
+            activityHistoryRepository.setActivities(listOf(withSnapshot, SECOND))
+            val viewModel = createViewModel()
+            subscribe(viewModel)
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+            activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+
+            viewModel.onAction(HistoryAction.DeleteConfirmed(withSnapshot))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<HistoryEvent>(HistoryEvent.ShowError(RouteUiError.General)), events)
+            assertEquals(emptyList(), activityHistoryRepository.deletedIds)
+            assertTrue(snapshot.exists())
+            assertEquals(listOf(withSnapshot, SECOND), viewModel.state.value.activities)
+        }
+
+    @Test
+    fun `a failing activity list stops loading and emits a general ShowError`() = runTest(testScheduler) {
+        activityHistoryRepository.observeActivitiesFailure = IllegalStateException("database locked")
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        subscribe(viewModel)
+        testScheduler.runCurrent()
+
+        assertEquals(HistoryState(activities = emptyList(), isLoading = false), viewModel.state.value)
+        assertEquals(listOf<HistoryEvent>(HistoryEvent.ShowError(RouteUiError.General)), events)
+    }
 
     @Test
     fun `deleting an activity whose snapshot path is blank removes only the record`() = runTest(testScheduler) {

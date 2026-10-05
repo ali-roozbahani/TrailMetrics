@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flow
 
 /**
  * In-memory [ActivityHistoryRepository]. [observeActivities] emits nothing until the first
@@ -22,6 +23,12 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
 
     /** When set, [getActivity] suspends until it is completed. */
     var getActivityGate: CompletableDeferred<Unit>? = null
+
+    /** When set, [getActivity] throws it (after the gate) instead of returning the record. */
+    var getActivityFailure: Throwable? = null
+
+    /** When set, the flow [observeActivities] returns throws it when collected, instead of emitting. */
+    var observeActivitiesFailure: Throwable? = null
 
     /** When set, [saveActivity] suspends until it is completed, before anything is stored. */
     var saveActivityGate: CompletableDeferred<Unit>? = null
@@ -51,11 +58,13 @@ class FakeActivityHistoryRepository : ActivityHistoryRepository {
         return id
     }
 
-    override fun observeActivities(): Flow<List<ActivityRecord>> = activities
+    override fun observeActivities(): Flow<List<ActivityRecord>> =
+        observeActivitiesFailure?.let { failure -> flow { throw failure } } ?: activities
 
     override suspend fun getActivity(id: Long): ActivityRecord? {
         requestedIds += id
         getActivityGate?.await()
+        getActivityFailure?.let { throw it }
         return currentActivities.firstOrNull { it.id == id }
     }
 

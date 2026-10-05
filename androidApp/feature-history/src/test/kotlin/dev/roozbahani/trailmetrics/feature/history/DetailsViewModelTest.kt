@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.feature.history
 
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
@@ -20,8 +21,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DetailsViewModelTest {
@@ -49,6 +49,13 @@ class DetailsViewModelTest {
         activityId = activityId,
         activityHistoryRepository = activityHistoryRepository
     )
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private fun TestScope.collectEvents(viewModel: DetailsViewModel): List<DetailsEvent> {
+        val events = mutableListOf<DetailsEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        return events
+    }
 
     /** What the repository and the file system looked like at the moment completion was signalled. */
     private data class DeleteCompletion(val deletedIds: List<Long>, val snapshotExists: Boolean)
@@ -103,6 +110,19 @@ class DetailsViewModelTest {
         testScheduler.runCurrent()
 
         assertEquals(DetailsState(activity = null, isLoading = false), viewModel.state.value)
+    }
+
+    @Test
+    fun `a failing load stops loading with no activity and emits a general ShowError`() = runTest(testScheduler) {
+        activityHistoryRepository.setActivities(listOf(FIRST))
+        activityHistoryRepository.getActivityFailure = IllegalStateException("database locked")
+
+        val viewModel = createViewModel(activityId = 1L)
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+
+        assertEquals(DetailsState(activity = null, isLoading = false), viewModel.state.value)
+        assertEquals(listOf<DetailsEvent>(DetailsEvent.ShowError(RouteUiError.General)), events)
     }
 
     @Test
@@ -207,32 +227,32 @@ class DetailsViewModelTest {
     }
 
     @Test
-    fun `a delete that throws can be retried`() {
-        val failure = IllegalStateException("database locked")
-        val thrown = assertFailsWith<IllegalStateException> {
-            runTest(testScheduler) {
-                val snapshot = tempFolder.newFile("snapshot-1.png")
-                activityHistoryRepository.setActivities(
-                    listOf(activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath))
-                )
-                val viewModel = createViewModel(activityId = 1L)
-                testScheduler.runCurrent()
-                activityHistoryRepository.deleteActivityFailure = failure
-                val completions = confirmDelete(viewModel, snapshot)
-                testScheduler.runCurrent()
-                assertEquals(emptyList(), completions)
-                assertTrue(snapshot.exists())
-                activityHistoryRepository.deleteActivityFailure = null
+    fun `a delete that throws emits a general ShowError instead of Deleted, keeps the snapshot and can be retried`() =
+        runTest(testScheduler) {
+            val snapshot = tempFolder.newFile("snapshot-1.png")
+            activityHistoryRepository.setActivities(
+                listOf(activityRecord(id = 1L, snapshotFilePath = snapshot.absolutePath))
+            )
+            val viewModel = createViewModel(activityId = 1L)
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+            activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
 
-                viewModel.onAction(DetailsAction.DeleteConfirmed)
-                testScheduler.runCurrent()
+            viewModel.onAction(DetailsAction.DeleteConfirmed)
+            testScheduler.runCurrent()
 
-                assertEquals(listOf(DeleteCompletion(deletedIds = listOf(1L), snapshotExists = false)), completions)
-            }
+            assertEquals(listOf<DetailsEvent>(DetailsEvent.ShowError(RouteUiError.General)), events)
+            assertEquals(emptyList(), activityHistoryRepository.deletedIds)
+            assertTrue(snapshot.exists())
+
+            activityHistoryRepository.deleteActivityFailure = null
+            viewModel.onAction(DetailsAction.DeleteConfirmed)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(DetailsEvent.ShowError(RouteUiError.General), DetailsEvent.Deleted), events)
+            assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+            assertFalse(snapshot.exists())
         }
-        // The failure is rethrown into viewModelScope (runTest reports it once the test body is done).
-        assertSame(failure, thrown)
-    }
 
     @Test
     fun `state keeps the loaded activity after delete`() = runTest(testScheduler) {

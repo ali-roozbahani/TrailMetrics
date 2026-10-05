@@ -12,6 +12,7 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -91,6 +92,19 @@ class RouteViewModelTest {
         assertEquals(1, locationRepository.getCurrentLocationCalls)
         assertEquals(1, userProfileRepository.getUserProfileCalls)
     }
+
+    @Test
+    fun `a failing profile load at init emits a general ShowError and leaves the profile unset`() =
+        runTest(testScheduler) {
+            userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
+            assertEquals(RouteState(startPoint = START, userProfile = null), viewModel.state.value)
+        }
 
     @Test
     fun `missing location permission emits ShowError then RequestLocationPermission in that order`() =
@@ -586,6 +600,37 @@ class RouteViewModelTest {
         assertEquals(UserProfile(68.25), viewModel.state.value.userProfile)
     }
 
+    @Test
+    fun `a failing profile save emits a general ShowError and keeps the previous profile`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        userProfileRepository.saveUserProfileFailure = IllegalStateException("disk full")
+
+        viewModel.onAction(RouteAction.UserProfileSaved(72.5))
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
+        assertEquals(emptyList(), userProfileRepository.savedProfiles)
+        assertEquals(PROFILE, viewModel.state.value.userProfile)
+    }
+
+    @Test
+    fun `a cancelled profile save emits no error and keeps the previous profile`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        userProfileRepository.saveUserProfileFailure = CancellationException("cancelled")
+
+        viewModel.onAction(RouteAction.UserProfileSaved(72.5))
+        testScheduler.runCurrent()
+
+        assertEquals(emptyList(), events)
+        assertEquals(PROFILE, viewModel.state.value.userProfile)
+    }
+
     // endregion
 
     // region start tracking
@@ -630,6 +675,24 @@ class RouteViewModelTest {
             events
         )
     }
+
+    @Test
+    fun `starting tracking when the profile load fails emits a general ShowError and does not navigate`() =
+        runTest(testScheduler) {
+            userProfileRepository.userProfile = PROFILE
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            testScheduler.runCurrent()
+            viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+            viewModel.onAction(RouteAction.GenerateRouteClicked)
+            testScheduler.runCurrent()
+            userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+
+            viewModel.onAction(RouteAction.StartTrackingClicked)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
+        }
 
     @Test
     fun `starting tracking with a profile but no route emits nothing`() = runTest(testScheduler) {
