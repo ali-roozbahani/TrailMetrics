@@ -27,6 +27,7 @@
 /scripts/check-ios-scope.py                 @ali-roozbahani
 /scripts/check-ios-scope-fixtures/          @ali-roozbahani
 /scripts/build-kmp-framework.sh             @ali-roozbahani
+/scripts/scrub-env.sh                       @ali-roozbahani
 
 # Build and dependency files
 /settings.gradle.kts                        @ali-roozbahani

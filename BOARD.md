@@ -257,6 +257,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has chosen between adding a dated note to that item (CI runs the script since this PR) and leaving it as history, and the choice is implemented.
 - Refs: `LEARNINGS.md` ("Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI", the iOS CI item); `.github/workflows/ci.yml` (`ios` job, step "Build KMP Shared Framework").
 
+### drift-ci-ios-xcodebuild-logs-environment
+- Type: drift
+- Area: .github
+- Order: 260
+- Source: agentic-dev-loop run 16 (the PR that adds `scripts/scrub-env.sh`), 2026-10-05
+- Problem: since that PR the local gate removes secret-looking variables (deny list in `scripts/scrub-env.sh`) from its environment before `xcodebuild` logs it; CI's `ios` job does not, and `.github/workflows/ci.yml` was not changed. Xcode prints the environment of the framework script's scheme pre-action and Run Script phase as `export NAME=...` lines. In the log of the job "iOS — SwiftLint, Build" of run 37297553551 (PR #101), 2305 lines contain `export ` (1748 distinct names), all in the step "Build iOS app". The exported names that match the deny list are 40 `GITHUB_*` names (for example `GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, `GITHUB_SHA`, `GITHUB_OUTPUT`) and `GMS_API_KEY` (a build setting from the iOS secrets config, which CI fills with a placeholder; not masked). `ACTIONS_ORCHESTRATION_ID` and `ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE` are exported too (no deny-list match). No exported name contains `TOKEN`, `SECRET`, `PASSWORD` or `CREDENTIAL`. One export line is masked by GitHub as a whole (`export ***`), so its name is not visible.
+- Done when: the human has decided how CI's `xcodebuild` steps ("Build iOS app", "Run iOS package tests") are protected (for example sourcing `scripts/scrub-env.sh` there, or leaving them as they are because the job holds no secret), and the decision is implemented and shown in a CI log, by names and counts only.
+- Refs: `.github/workflows/ci.yml` (`ios` job, steps "Build iOS app" and "Run iOS package tests"); `scripts/scrub-env.sh`; `scripts/pre-push-check.sh`; run 37297553551 (job "iOS — SwiftLint, Build").
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude
