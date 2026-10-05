@@ -33,6 +33,7 @@ struct SnapshotFileFixture {
     }
 
     func remove() {
+        // swiftlint:disable:next optional_try - cleanup only; the code under test may already have deleted the file
         try? FileManager.default.removeItem(at: url)
     }
 }

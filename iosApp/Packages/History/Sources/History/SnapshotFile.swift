@@ -27,5 +27,6 @@ func resolvedSnapshotURL(forStoredPath path: String?) -> URL? {
 /// the user can't act on (an exception to `tm-ios`'s "never drop an error" rule).
 func deleteSnapshotFile(forStoredPath path: String?) {
     guard let url = resolvedSnapshotURL(forStoredPath: path) else { return }
+    // swiftlint:disable:next optional_try - the record is already deleted; a file left behind is only an orphaned image
     try? FileManager.default.removeItem(at: url)
 }

@@ -35,6 +35,7 @@ public func waitUntil(
             XCTFail("Condition not met within \(effectiveTimeout)", file: file, line: line)
             return
         }
+        // swiftlint:disable:next optional_try - sleep throws only on cancellation; the deadline still ends the wait
         try? await Task.sleep(for: .milliseconds(10))
     }
 }

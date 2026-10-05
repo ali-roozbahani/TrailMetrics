@@ -33,6 +33,22 @@ cyclomatic_complexity:
   warning: 15
   error: 20
 
+# `tm-ios` ("SKIE interop from Swift"): never drop an error. A `try?` stays only where
+# dropping the error is deliberate, with the reason in a disable comment on the line above.
+custom_rules:
+  optional_try:
+    name: "Optional Try"
+    regex: '\btry\?'
+    excluded_match_kinds:
+      - comment
+      - comment.mark
+      - comment.url
+      - doccomment
+      - doccomment.field
+      - string
+    message: "`try?` drops the error. Handle it with do/catch, or, if dropping it is deliberate, add `// swiftlint:disable:next optional_try - <why the error can be dropped here>` above this line"
+    severity: error
+
 excluded:
   - Packages/*/.build/**
   - Packages/*/.swiftpm/**
