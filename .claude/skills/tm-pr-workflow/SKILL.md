@@ -81,8 +81,12 @@ it never fails the gate), the change classification self-test
 (`scripts/classify-changes.sh --self-test`), the reviewer workflow self-test
 (`scripts/check-pr-review-workflow.sh --self-test`, also the "Reviewer workflow self-test" step
 of CI's `android` job: it runs the "Run pr-reviewer" and "Map verdict" scripts of
-`.github/workflows/pr-review.yml`, taken from the committed file, against a stub `claude`; it
-needs `python3` and `jq` and fails without them) and the iOS scope self-test
+`.github/workflows/pr-review.yml`, taken from the committed file, against a stub `claude`, and
+its "Rule changes from the base" script in scratch git repositories; it needs `python3`, `jq`,
+`git` and `tar` and fails without them), the skill rule-change self-test
+(`scripts/check-skill-rule-changes.sh --self-test`, gate only, not a CI step: the script whose
+base-branch copy writes the reviewers' `rule-changes` input, `tm-pr-review` item 10) and the iOS
+scope self-test
 (`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
 job: it runs the gate's iOS scope block below, extracted from the committed script between its
 `# >>> iOS scope: ... (begin) >>>` and `(end)` markers, in scratch git repositories, one case
