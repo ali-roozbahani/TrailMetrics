@@ -63,15 +63,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: S6's PR states the same merge conditions as `tm-agent-loop` (head is a branch of this repository, author is the machine account, CI annotation `APPROVE` and recorded local verdict `APPROVE` for the head SHA, both required checks green, no protected path) and the same fail-closed annotation rule, and it is written only after a real `notice`/`APPROVE` annotation has been read from a PR with `tm-agent-loop`'s commands.
 - Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", "Merge conditions"); `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `docs/epics/agentic-dev-loop.md` (S6, Decisions 5, 7 and 8).
 
-### ci-job-timeouts
-- Type: task
-- Area: .github
-- Order: 47
-- Source: agentic-dev-loop run 18, 2026-10-05
-- Problem: neither job of `.github/workflows/ci.yml` (`android`, `ios`) has `timeout-minutes`, so a stalled job runs until GitHub's default limit (360 minutes) or until someone cancels it. On PR #103 (head `d1bc1a0`, run 37313512206) attempt 1 of `Android — Lint, Detekt, Tests, Build` printed its last task line `> Task :androidApp:app:packageDebug` at 13:05:15 UTC and stood in its Build step until the human cancelled it at 13:34:25 (job 34 minutes in all); attempt 2 passed in 4m20s. Green runs of both jobs on full (not `light`) runs from 2026-10-05 (runs 37293878897, 37296366381, 37297553551, 37302915630, 37305193167, 37311851201 and 37313512206 attempt 2): android 3.7 to 5.2 minutes, ios 9.4 to 17.4 minutes (the 17.3 and 17.4 were pushes to `main`). `.github/workflows/pr-review.yml` already has `timeout-minutes: 15`.
-- Done when: both jobs have a `timeout-minutes` chosen from the measured durations with a margin (the human's starting suggestion: android 20, ios 40, about 4 and 2.3 times the longest green run above), and the task's PR states the final numbers and why; that PR says explicitly that it changes `.github/workflows/ci.yml`, which this record authorizes (a workflow file: two-phase push, the human pushes it); and a later green CI run of each job shows it still passes under the limit.
-- Refs: `.github/workflows/ci.yml` (jobs `android`, `ios`); `.github/workflows/pr-review.yml` (`timeout-minutes: 15`); PR #103 run 37313512206 attempt 1.
-
 ### android-persistence-errors-unhandled
 - Type: task
 - Area: androidApp
@@ -200,6 +191,33 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The Android foreground tracking notification (built in `data`'s androidMain `TrackingService.buildNotification`) shows only "Tracking..."/"Paused - " plus distance. It has no elapsed time or other metrics. No doc or skill records whether that is intentional.
 - Done when: it shows elapsed time and key metrics, or the decision not to is documented.
 - Refs: `data/src/androidMain` `TrackingService.buildNotification`.
+
+### swiftlint-optional-try-rule-selftest
+- Type: task
+- Area: iosApp, scripts
+- Order: 192
+- Source: agentic-dev-loop run 18 review (PR #104), 2026-10-05
+- Problem: the custom rule `optional_try` in `iosApp/.swiftlint.yml` is turned off without failing `swiftlint lint --strict` if its `excluded_match_kinds` contains a name the installed SwiftLint does not know: SwiftLint only prints the warning "Invalid configuration for 'optional_try' rule. Falling back to default." and reports no `try?` at all (seen with SwiftLint 0.65.1 on a fixture: exit 0, 0 violations). CI's `ios` job installs SwiftLint with an unpinned `brew install swiftlint` (on PR #104's run it poured `swiftlint--0.65.1` from Homebrew, so the runner did not already have it, although `LEARNINGS.md` says SwiftLint ships preinstalled on `macos-latest` and needs no install step), so a new SwiftLint version could disable the rule silently. Nothing in the repository would notice.
+- Done when: a committed check (a script with fixtures, in the style of the existing self-tests: one fixture dir per case, a `--self-test`, fail loudly never skip) lints fixture Swift files and shows that an unannotated `try?` fails, an annotated one passes, `try?` inside a comment and a string passes, and that the check fails if SwiftLint prints an invalid-configuration message; it runs in `scripts/pre-push-check.sh` and in CI's `ios` job (a workflow change: its PR must say so and authorize it), the PR states whether SwiftLint is pinned in CI or why not, and the `LEARNINGS.md` line about SwiftLint being preinstalled matches what CI does.
+- Refs: `iosApp/.swiftlint.yml`; `.github/workflows/ci.yml` (`ios` job, steps "Install SwiftLint" and "Run SwiftLint"); `tm-ios` ("SwiftLint"); `LEARNINGS.md` (SwiftLint on `macos-latest` runners); PR #104.
+
+### swiftlint-disable-requires-reason-rule
+- Type: task
+- Area: iosApp
+- Order: 194
+- Source: agentic-dev-loop run 18 review (PR #104), 2026-10-05
+- Problem: the repo's convention is `// swiftlint:disable:next <rule> - <reason>`, but a disable comment with no reason, or with an empty one (` - ` and nothing after it), still passes `--strict` (seen with SwiftLint 0.65.1 on a fixture: exit 0, 0 violations); only review notices.
+- Done when: a check rejects a `swiftlint:disable` comment (any rule, `:next`, `:this`, `:previous` and the block forms) that has no ` - <reason>` text, every existing suppression under `iosApp/` complies or the PR lists the ones that do not with the human's decision, and the check is shown failing on an example without a reason and passing with one (a SwiftLint custom rule on comments, or a small script, whichever the PR justifies).
+- Refs: `iosApp/.swiftlint.yml`; `tm-ios` ("SwiftLint", suppression convention); board `drift-suppress-comments`.
+
+### wait-until-cancellation-spin
+- Type: task
+- Area: iosApp/TestSupport
+- Order: 196
+- Source: agentic-dev-loop run 18 review (PR #104), 2026-10-05
+- Problem: `waitUntil` in TestSupport polls with `try? await Task.sleep(for: .milliseconds(10))`; when the calling test task is cancelled, `Task.sleep` throws at once and the `try?` drops that, so the loop spins without any delay until its deadline (up to 120 seconds, `coldStartTimeout`, for the first wait in a test process). No failure is hidden, but the test burns CPU instead of stopping. The `optional_try` annotation on that line says only that the deadline still ends the wait.
+- Done when: `waitUntil` stops promptly when its task is cancelled (for example it checks `Task.isCancelled` or lets the cancellation error end the wait), a test shows it (red before, green after), and the `swiftlint:disable:next optional_try` comment is updated or removed to match the code.
+- Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift`; PR #104.
 
 ## Drift
 
