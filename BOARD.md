@@ -32,7 +32,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: chat 2026-10-02
 - Problem: Every task needs the human as reviewer, merger and Tier 2 tester, which is the slowest part of development.
 - Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on iOS (XCUITest) and Android (Compose UI tests), with a fast smoke subset in the local gate when the diff touches UI or ViewModels and the full UI suite in CI; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the two required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR.
-- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`, `test-feature-tracking-compose-ui`, `test-feature-history-compose-ui`, `test-feature-route-compose-ui`.
+- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`, `test-feature-tracking-compose-ui`, `test-feature-route-compose-ui`.
 
 ### route-completion-to-domain
 - Type: epic
@@ -109,7 +109,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: bugfix/ios-history-details-delete-and-load-errors PR
 - Problem: The iOS ViewModel guards for a repeated Finish (`TrackingViewModel.onFinishClicked`), a repeated delete confirmation (`DetailsViewModel.onDeleteConfirmed`), a repeated Generate (`RouteViewModel.onGenerateRouteClicked`) and Generate followed by Reset (`onResetClicked`) are covered by Swift unit tests in the packages, but nothing proves the Views deliver such taps to the ViewModel the way the tests do, and they can't be checked reliably by hand. The Android equivalents are the three `test-feature-*-compose-ui` records. There is no iOS UI-test target today: `TrailMetrics.xcodeproj` has only the `TrailMetrics` app and the `TrackingWidget` extension, and the shared `TrailMetrics` scheme has no testables. Design note: XCUITest drives the real app, so it needs deterministic fakes (location, directions, storage) injected at app launch (a launch argument read by the composition root, or a Koin override in `doInitKoinIos`); that seam doesn't exist yet and is part of this task.
 - Done when: a UI-test target exists in the shared scheme with a launch-time fake seam, and XCUITest scenarios cover: Finish tapped twice (one History entry), Generate then Reset (no route afterwards), Generate tapped twice (one directions request), delete confirmation tapped twice (one deletion), and a failed delete showing the "Error" alert.
-- Refs: `iosApp/TrailMetrics.xcodeproj`; `TrailMetricsApp` (`doInitKoinIos`), `KoinHelper`; `TrackingView`/`TrackingViewModel.onFinishClicked`; `RouteView`/`RouteViewModel.onGenerateRouteClicked`, `onResetClicked`; `DetailsView`/`DetailsViewModel.onDeleteConfirmed`; `HistoryView`; board `test-feature-tracking-compose-ui`, `test-feature-history-compose-ui`, `test-feature-route-compose-ui`.
+- Refs: `iosApp/TrailMetrics.xcodeproj`; `TrailMetricsApp` (`doInitKoinIos`), `KoinHelper`; `TrackingView`/`TrackingViewModel.onFinishClicked`; `RouteView`/`RouteViewModel.onGenerateRouteClicked`, `onResetClicked`; `DetailsView`/`DetailsViewModel.onDeleteConfirmed`; `HistoryView`; board `test-feature-tracking-compose-ui`, `test-feature-route-compose-ui`.
 
 ### test-feature-tracking-compose-ui
 - Type: task
@@ -119,15 +119,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: After the JVM tests, `feature-tracking`'s `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest), but this module's test source sets don't depend on them yet. The JVM tests of the double-Finish fix (tracking-finish-saves-twice) can only dispatch two `Finish` actions back to back; the real UI path is asynchronous and untested.
 - Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `TrackingScreen` and `saveSnapshotToFile` have tests, a double tap on the Finish button, including the asynchronous `map.snapshot` callback path in `TrackingScreen`, results in exactly one saved activity and one `Saved`, and the module's Kover floor is raised in the same PR.
 - Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
-
-### test-feature-history-compose-ui
-- Type: task
-- Area: androidApp/feature-history
-- Order: 120
-- Source: test-feature-history PR
-- Problem: After the JVM tests, `feature-history`'s `HistoryViewModel`, `DetailsViewModel`, `util/SnapshotFileDeleter` and `di/HistoryUiModule` are fully covered; everything left is Compose code with 0% covered: `HistoryScreen` (196 lines: `HistoryRoot`'s event handling, both `HistoryScreen` overloads, `ActivityRow`, the private `iconFor`/`labelFor` helpers, the preview) and `DetailsScreen` (179 lines: `DetailsRoot`'s event handling, both `DetailsScreen` overloads, the delete `AlertDialog`, `ActivityDetailsContent`, the preview). The screens hold no JVM-reachable pure logic: `labelFor` is `@Composable` and `iconFor` is private. They need Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest), but this module's test source sets don't depend on them yet. The JVM tests of the double-delete fix (details-delete-confirmed-twice) can only dispatch two `DeleteConfirmed` actions back to back; the real UI path is asynchronous and untested.
-- Done when: an explicit task adds the existing Robolectric/compose-ui-test catalog entries as this module's test dependencies, `HistoryScreen` and `DetailsScreen` have tests, a double tap on the delete dialog's confirm button in `DetailsScreen` results in exactly one delete and one `Deleted` (History is still on screen afterwards), and the module's Kover floor is raised in the same PR.
-- Refs: `androidApp/feature-history` `HistoryScreen`, `DetailsScreen`; `androidApp/feature-history/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
 
 ### test-feature-route-compose-ui
 - Type: task
@@ -292,6 +283,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: since that PR the local gate removes secret-looking variables (deny list in `scripts/scrub-env.sh`) from its environment before `xcodebuild` logs it; CI's `ios` job does not, and `.github/workflows/ci.yml` was not changed. Xcode prints the environment of the framework script's scheme pre-action and Run Script phase as `export NAME=...` lines. In the log of the job "iOS — SwiftLint, Build" of run 37297553551 (PR #101), 2305 lines contain `export ` (1748 distinct names), all in the step "Build iOS app". The exported names that match the deny list are 40 `GITHUB_*` names (for example `GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, `GITHUB_SHA`, `GITHUB_OUTPUT`) and `GMS_API_KEY` (a build setting from the iOS secrets config, which CI fills with a placeholder; not masked). `ACTIONS_ORCHESTRATION_ID` and `ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE` are exported too (no deny-list match). No exported name contains `TOKEN`, `SECRET`, `PASSWORD` or `CREDENTIAL`. One export line is masked by GitHub as a whole (`export ***`), so its name is not visible.
 - Done when: the human has decided how CI's `xcodebuild` steps ("Build iOS app", "Run iOS package tests") are protected (for example sourcing `scripts/scrub-env.sh` there, or leaving them as they are because the job holds no secret), and the decision is implemented and shown in a CI log, by names and counts only.
 - Refs: `.github/workflows/ci.yml` (`ios` job, steps "Build iOS app" and "Run iOS package tests"); `scripts/scrub-env.sh`; `scripts/pre-push-check.sh`; run 37297553551 (job "iOS — SwiftLint, Build").
+
+### drift-robolectric-users-claude-md-readme
+- Type: drift
+- Area: CLAUDE.md, README.md
+- Order: 270
+- Source: History and Details Compose UI tests PR (agent loop run 23), 2026-10-05
+- Problem: since that PR `feature-history`'s JVM tests use Robolectric (with compose-ui-test) for Compose UI tests of `HistoryScreen` and `DetailsScreen`. `CLAUDE.md` ("Testing stack") still says "Robolectric (catalog entry, used by `data`)", and `README.md` ("Testing strategy") still says "Android-only persistence tests use Robolectric where genuinely needed", with no mention of Compose UI tests. Neither file was in that PR's allowed files.
+- Done when: both lines name the Compose UI tests in `feature-history` (and any later feature module) as Robolectric users, or the human decides they stay as they are.
+- Refs: `CLAUDE.md` ("Testing stack"); `README.md` ("Testing strategy", the "Testing" row of the stack table); `androidApp/feature-history/build.gradle.kts`; `tm-testing` ("What's actually available today", "Compose UI tests").
+
+### drift-tm-android-tests-section-mockk
+- Type: drift
+- Area: .claude
+- Order: 280
+- Source: History and Details Compose UI tests PR (agent loop run 23), 2026-10-05
+- Problem: `tm-android`'s "Tests" section says "JUnit4 + MockK for Android-framework tests". MockK is not in `gradle/libs.versions.toml` and no module uses it (`tm-testing`, "What's actually available today"); Android-framework tests use JUnit4, `kotlin.test` assertions and hand-written fakes from `androidApp/core-testing`, under Robolectric where needed.
+- Done when: the line describes the current stack (JUnit4, `kotlin.test`, hand-written fakes, Robolectric/compose-ui-test where needed) and points to `tm-testing` for the rest.
+- Refs: `.claude/skills/tm-android/SKILL.md` ("Tests"); `.claude/skills/tm-testing/SKILL.md` ("What's actually available today"); `gradle/libs.versions.toml`.
 
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
