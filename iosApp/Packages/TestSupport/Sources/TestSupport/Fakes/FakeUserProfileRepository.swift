@@ -16,6 +16,8 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
     private var recordedSavedProfiles: [UserProfile] = []
     private var recordedGetCallCount = 0
     private var isFailingStorage: Bool
+    private var isHoldingReads = false
+    private var heldReads: [CheckedContinuation<Void, Never>] = []
 
     /// - Parameter isFailing: whether calls throw `StorageError` until `setFailing(false)`.
     public init(profile: UserProfile? = nil, isFailing: Bool = false) {
@@ -38,10 +40,34 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
         lock.withLock { isFailingStorage = isFailing }
     }
 
+    /// Makes every later `getUserProfile` call wait (already counted) until `releaseReads()`.
+    public func holdReads() {
+        lock.withLock { isHoldingReads = true }
+    }
+
+    /// Stops holding and lets every held `getUserProfile` call return, failing or not as
+    /// `setFailing` says by then.
+    public func releaseReads() {
+        let continuations = lock.withLock {
+            isHoldingReads = false
+            defer { heldReads = [] }
+            return heldReads
+        }
+        continuations.forEach { $0.resume() }
+    }
+
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getUserProfile`
     public func __getUserProfile() async throws -> UserProfile? {
-        try lock.withLock {
-            recordedGetCallCount += 1
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let mustWait = lock.withLock {
+                recordedGetCallCount += 1
+                guard isHoldingReads else { return false }
+                heldReads.append(continuation)
+                return true
+            }
+            if !mustWait { continuation.resume() }
+        }
+        return try lock.withLock {
             if isFailingStorage { throw StorageError() }
             return storedProfile
         }
