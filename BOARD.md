@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### swiftlint-try-optional-requires-reason
-- Type: task
-- Area: iosApp
-- Order: 35
-- Source: chat 2026-10-02
-- Problem: The "never drop an error" rule in `tm-ios` is only enforced by review: `try?` can be added without a reason and nothing fails. Today `try?` appears in `deleteSnapshotFile` (History) and in `TrackingLiveActivityController`'s `Activity.request` call, both best-effort, and in the test helpers `waitUntil` (TestSupport) and `SnapshotFileFixture` (HistoryTests).
-- Done when: a SwiftLint custom rule in `iosApp/.swiftlint.yml` rejects `try?` unless the line carries a `swiftlint:disable:next <rule> - <reason>` (the repo's existing convention for suppressions); the two best-effort sites (`deleteSnapshotFile`, the Live Activity `Activity.request`) carry it; the test-helper sites either carry it or are excluded from the rule with the decision stated in the PR; and the gate's `swiftlint lint --strict` run shows the rule works (fails on an unannotated `try?`, passes once annotated).
-- Refs: `iosApp/.swiftlint.yml`; History `deleteSnapshotFile`; Tracking `TrackingLiveActivityController` (`Activity.request`); TestSupport `waitUntil`; HistoryTests `SnapshotFileFixture`; `tm-ios` ("SKIE interop from Swift", never drop an error).
-
 ### auto-merge-requires-approve-verdict
 - Type: task
 - Area: .claude, .github
