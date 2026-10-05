@@ -43,7 +43,8 @@
    epic branch whose plan `allowed_paths` cover the path (Decision 5). What a path cannot
    express (deleted tests, `@Throws` declarations outside the shared module, anything else
    the reviewer judges critical) is enforced by the reviewer, which escalates it to the
-   human.
+   human. The protected set was narrowed by the epic in docs/epics/protected-paths-review.md;
+   .github/CODEOWNERS stays the single source of truth.
 5. **Epics.** Agents may merge subtask PRs into the epic branch with
    `gh pr merge --squash --match-head-commit <SHA>`, only when all of Decision 7's
    conditions hold except "touches no protected path": a subtask PR that touches a protected
