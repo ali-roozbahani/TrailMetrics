@@ -24,6 +24,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    // The Compose UI tests run on the JVM under Robolectric and read this module's strings.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -54,16 +61,20 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own tests (12.99%, measured on main after
-// test-feature-history).
+// little below this module's measured line coverage from its own tests (79.15%, measured after
+// test-feature-history-compose-ui).
 kover {
     reports {
         verify {
             rule {
-                minBound(11)
+                minBound(77)
             }
         }
     }
