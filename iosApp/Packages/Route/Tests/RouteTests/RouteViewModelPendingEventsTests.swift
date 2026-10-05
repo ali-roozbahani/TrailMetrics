@@ -66,6 +66,9 @@ final class RouteViewModelPendingEventsTests: XCTestCase {
         viewModel.onStartTrackingClicked()
 
         await waitUntil { recorder.events.count == 3 }
+        guard recorder.events.count == 3 else {
+            return XCTFail("Expected three events, got \(recorder.events)")
+        }
         XCTAssertTrue(recorder.events[0].shownError is RouteUiErrorMissingLocationPermission, "got \(recorder.events)")
         guard case .requestUserProfile = recorder.events[1] else {
             return XCTFail("Expected requestUserProfile second, got \(recorder.events)")
