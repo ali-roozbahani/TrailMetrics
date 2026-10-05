@@ -83,14 +83,23 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
-### ios-init-time-error-events-dropped
+### route-start-tracking-repeated-navigation
 - Type: task
-- Area: iosApp/Route, iosApp/Tracking
-- Order: 90
-- Source: bugfix/ios-swallowed-errors-and-throws-policy PR review
-- Problem: In iOS `RouteViewModel` and `TrackingViewModel`, `emit(_:)` yields to `eventsContinuation`, which exists only once the View's `.task` has called `makeEventsStream()`. The loads `RouteViewModel.getAndUpdateUserProfile`, `loadCurrentLocation` and `TrackingViewModel.loadUserProfile` start in `init`, before the View consumes events. If one fails before the stream exists, its `.showError` is yielded to a nil continuation and silently lost. The same happens while a pushed screen covers `RouteView`: its `.task` is cancelled and only re-created on return, so an event emitted in between is lost. The existing `loadCurrentLocation` error has the same timing. The new tests pass only because they create the recorder right after building the ViewModel, before the failing load completes. So the `@Throws` policy rule "Swift never drops an error" does not yet hold for init-time loads. Found by reading the code; not reproduced on a device. On the simulator a failure injected in `UserProfileRepositoryImpl.getUserProfile` was shown when the app opened (human check on PR #76), so the loss is timing dependent; the covered-screen case remains untested.
-- Done when: an error produced before the View starts consuming `makeEventsStream()`, or while no consumer is active, is delivered to the next consumer instead of being lost (for example by holding pending events until a stream exists), in both ViewModels, with a test per ViewModel that fails the profile (or location) load before calling `makeEventsStream()` and still receives the error.
-- Refs: `RouteViewModel.emit`, `makeEventsStream`, `getAndUpdateUserProfile`, `loadCurrentLocation`; `TrackingViewModel.emit`, `makeEventsStream`, `loadUserProfile`; `RouteView`/`TrackingView` `.task`; `tm-kmp-shared` ("`@Throws` policy" rule 4).
+- Area: iosApp/Route
+- Order: 92
+- Source: bugfix/ios-init-time-error-events-kept PR
+- Problem: `RouteViewModel.onStartTrackingClicked` has no guard against a repeated tap: each tap starts its own `Task`, and each emits `.navigateToTracking` once the profile read returns. Since `emit` keeps events emitted while no consumer is active and delivers them to the next stream, a second `.navigateToTracking` that arrives after `RouteView`'s `.task` was cancelled by the push is delivered when `RouteView` is revealed again, so returning from Tracking opens Tracking a second time. Before, that event was lost; a second one that arrives before the push still pushes twice. The window is the profile read's duration (a local read) after the push transition, so it was not reproduced; found by reading the code.
+- Done when: a repeated Start Tracking tap while one is in flight emits at most one `.navigateToTracking` (a guard like `generationTask` in `onGenerateRouteClicked`), with a Swift unit test that taps twice before the profile read returns and receives one navigation event.
+- Refs: `RouteViewModel.onStartTrackingClicked`, `emit`, `makeEventsStream`; `onGenerateRouteClicked` (the guard pattern); board `test-ios-ui-double-tap-and-stale-results`.
+
+### document-ios-pending-events-shape
+- Type: task
+- Area: .claude/skills/tm-ios
+- Order: 94
+- Source: bugfix/ios-init-time-error-events-kept PR
+- Problem: `tm-ios` ("ViewModel shape", the one-shot signals bullet) tells a new ViewModel to expose a `makeEventsStream()` factory that returns a new `AsyncStream` each time, pointing at `RouteViewModel`/`TrackingViewModel`. Both now also keep events emitted while no consumer is active (`pendingEvents`, at most 10, oldest dropped first) and deliver them to the next stream, because `yield` to a missing or terminated continuation loses them. The bullet is still accurate but doesn't say this, so a new screen written from the skill alone would lose init-time errors again. It is a protected path, so it was not changed in that PR.
+- Done when: the bullet says that events emitted with no active consumer are kept and delivered to the next stream (checking `yield`'s result, bounded), pointing at `RouteViewModel.emit`.
+- Refs: `.claude/skills/tm-ios/SKILL.md` ("ViewModel shape"); `RouteViewModel.emit`, `makeEventsStream`; `TrackingViewModel.emit`.
 
 ### test-ios-ui-double-tap-and-stale-results
 - Type: task
