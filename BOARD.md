@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### swiftlint-try-optional-requires-reason
-- Type: task
-- Area: iosApp
-- Order: 35
-- Source: chat 2026-10-02
-- Problem: The "never drop an error" rule in `tm-ios` is only enforced by review: `try?` can be added without a reason and nothing fails. Today `try?` appears in `deleteSnapshotFile` (History) and in `TrackingLiveActivityController`'s `Activity.request` call, both best-effort, and in the test helpers `waitUntil` (TestSupport) and `SnapshotFileFixture` (HistoryTests).
-- Done when: a SwiftLint custom rule in `iosApp/.swiftlint.yml` rejects `try?` unless the line carries a `swiftlint:disable:next <rule> - <reason>` (the repo's existing convention for suppressions); the two best-effort sites (`deleteSnapshotFile`, the Live Activity `Activity.request`) carry it; the test-helper sites either carry it or are excluded from the rule with the decision stated in the PR; and the gate's `swiftlint lint --strict` run shows the rule works (fails on an unannotated `try?`, passes once annotated).
-- Refs: `iosApp/.swiftlint.yml`; History `deleteSnapshotFile`; Tracking `TrackingLiveActivityController` (`Activity.request`); TestSupport `waitUntil`; HistoryTests `SnapshotFileFixture`; `tm-ios` ("SKIE interop from Swift", never drop an error).
-
 ### auto-merge-requires-approve-verdict
 - Type: task
 - Area: .claude, .github
@@ -71,6 +62,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The merge conditions and the reading of the CI verdict from the `Review — pr-reviewer` annotation are now written in the plan (Decisions 5, 7 and 8 of `docs/epics/agentic-dev-loop.md`) and in `tm-agent-loop` ("Reading the CI verdict", "Merge conditions"). The proof in S4b only observed a `warning` (`ESCALATE_TO_HUMAN`) annotation on a real PR; `notice` (`APPROVE`) and `failure` (`CHANGES`) were checked against fixtures only. S6's PR, which documents auto-merge for unprotected paths, could drift from those conditions or rely on a mapping never seen on a real PR.
 - Done when: S6's PR states the same merge conditions as `tm-agent-loop` (head is a branch of this repository, author is the machine account, CI annotation `APPROVE` and recorded local verdict `APPROVE` for the head SHA, both required checks green, no protected path) and the same fail-closed annotation rule, and it is written only after a real `notice`/`APPROVE` annotation has been read from a PR with `tm-agent-loop`'s commands.
 - Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", "Merge conditions"); `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `docs/epics/agentic-dev-loop.md` (S6, Decisions 5, 7 and 8).
+
+### ci-job-timeouts
+- Type: task
+- Area: .github
+- Order: 47
+- Source: agentic-dev-loop run 18, 2026-10-05
+- Problem: neither job of `.github/workflows/ci.yml` (`android`, `ios`) has `timeout-minutes`, so a stalled job runs until GitHub's default limit (360 minutes) or until someone cancels it. On PR #103 (head `d1bc1a0`, run 37313512206) attempt 1 of `Android — Lint, Detekt, Tests, Build` printed its last task line `> Task :androidApp:app:packageDebug` at 13:05:15 UTC and stood in its Build step until the human cancelled it at 13:34:25 (job 34 minutes in all); attempt 2 passed in 4m20s. Green runs of both jobs on full (not `light`) runs from 2026-10-05 (runs 37293878897, 37296366381, 37297553551, 37302915630, 37305193167, 37311851201 and 37313512206 attempt 2): android 3.7 to 5.2 minutes, ios 9.4 to 17.4 minutes (the 17.3 and 17.4 were pushes to `main`). `.github/workflows/pr-review.yml` already has `timeout-minutes: 15`.
+- Done when: both jobs have a `timeout-minutes` chosen from the measured durations with a margin (the human's starting suggestion: android 20, ios 40, about 4 and 2.3 times the longest green run above), and the task's PR states the final numbers and why; that PR says explicitly that it changes `.github/workflows/ci.yml`, which this record authorizes (a workflow file: two-phase push, the human pushes it); and a later green CI run of each job shows it still passes under the limit.
+- Refs: `.github/workflows/ci.yml` (jobs `android`, `ios`); `.github/workflows/pr-review.yml` (`timeout-minutes: 15`); PR #103 run 37313512206 attempt 1.
 
 ### android-persistence-errors-unhandled
 - Type: task

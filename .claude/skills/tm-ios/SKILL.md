@@ -127,10 +127,16 @@ fails, so observe through a use case that turns the failure into a value on the 
   event, and state stays as it was. Only Kotlin functions with `@Throws` can throw into Swift
   without crashing; see `tm-kmp-shared` ("`@Throws` policy"). History and Details have no
   events stream: they publish `errorMessage` and show it in an "Error" alert.
-  Exception: a best-effort side effect whose failure the user can't act on may use `try?` if
-  a comment at the call says why. The only two are `deleteSnapshotFile` (an orphaned image
-  file after the record is gone) and `TrackingLiveActivityController`'s `Activity.request`
-  (Live Activities can be turned off). No other `try?` is left in the feature packages' sources.
+  The `try?` part is enforced by SwiftLint: the custom rule `optional_try` (see "SwiftLint")
+  reports every `try?` outside comments and string literals as an error; the unstructured
+  `Task` part is still enforced by review only.
+  Exception: a best-effort side effect whose failure the user can't act on may use `try?` with
+  `// swiftlint:disable:next optional_try - <reason>` on the line above, the reason saying why
+  the error can be dropped there. The only two in production code are `deleteSnapshotFile` (an
+  orphaned image file after the record is gone) and `TrackingLiveActivityController`'s
+  `Activity.request` (Live Activities can be turned off). The test helpers `waitUntil`
+  (TestSupport) and `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no
+  other `try?` is left under `iosApp/`.
 - Generic collections crossing the bridge: check the inferred Swift type rather than
   assuming it (`HistoryViewModel`'s `[ActivityRecord]` is the worked example).
 
@@ -270,6 +276,14 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   `guard let`/`if let`, `as?` with explicit `else` handling, or `do`/`catch`.
 - Opt-in rules on top of the defaults: `force_unwrapping`, `unused_import`, `explicit_init`,
   `closure_spacing`, `empty_count` (use `.isEmpty`), `fatal_error_message`.
+- Custom rule `optional_try` (error): a regex for `try?`, not matched inside comments and
+  string literals (`excluded_match_kinds`); `try` and `try!` are not its business (`force_try`
+  covers `try!`). Handle the error with `do`/`catch`; a deliberate `try?` needs the
+  `swiftlint:disable:next optional_try - <reason>` comment on the line above (see "SKIE interop
+  from Swift", never drop an error). SwiftLint does not check that a reason is there or true:
+  review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
+  'optional_try' rule" and turns the rule off, without failing `--strict`.
 - Don't add `// swiftlint:disable` comments and don't edit `.swiftlint.yml` to make a
   violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. A suppression
-  needs explicit human approval and a stated reason.
+  needs explicit human approval and a stated reason. Every existing one has the form
+  `// swiftlint:disable:next <rule> - <reason>`.
