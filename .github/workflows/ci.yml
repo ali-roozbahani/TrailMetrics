@@ -141,7 +141,7 @@ jobs:
 
       - name: Build KMP Shared Framework
         if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
+        run: scripts/build-kmp-framework.sh
 
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses

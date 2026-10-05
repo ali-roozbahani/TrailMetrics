@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ci-use-build-kmp-framework-script
-- Type: task
-- Area: ci
-- Order: 20
-- Source: PR #67 drift
-- Problem: CI's `ios` job builds the shared XCFramework by calling `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` directly instead of `scripts/build-kmp-framework.sh`, so CI never exercises the script the gate and the Xcode pre-action use.
-- Done when: CI uses the script. The task must explicitly authorize the CI config change.
-- Refs: `.github/workflows/ci.yml` (ios job); `scripts/build-kmp-framework.sh`.
-
 ### kmp-framework-hash-misses-gradle-runtime-files
 - Type: task
 - Area: scripts
@@ -265,6 +256,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: the comment above the step "Build review inputs" in `.github/workflows/pr-review.yml` says "Nothing here prints PR or model text to the log, where it could act as a workflow command". The runner prints each step's `env:` block at the top of the step's log, and that step's `env:` carries `PR_BODY` (the PR description) and `HEAD_REF` (the author's branch name), so the PR description appears in that step's log. On PR #94 (run 37166301311) the body contained lines starting with `::error title=Review — pr-reviewer::`, and the check run still had only the titled `warning` and the untitled runner notice, so the runner did not process them as commands.
 - Done when: the human has chosen between (a) correcting the comment to the real property (header lines are not processed as commands, shown by that run) and (b) not passing PR text through `env:` at all (for example reading it from the event payload with `jq`), and the choice is implemented and shown.
 - Refs: `.github/workflows/pr-review.yml` (step "Build review inputs" and the comment above it); PR #94 review run 37166301311 (job "Review — pr-reviewer").
+
+### drift-kmp-framework-script-header-outside-ci
+- Type: drift
+- Area: scripts
+- Order: 240
+- Source: agentic-dev-loop run 13 (PR #99 or the number this PR gets), 2026-10-05
+- Problem: the header comment of `scripts/build-kmp-framework.sh` calls the script "The single entry point for that framework outside CI" and names only the scheme pre-action, the app target's build phase and `scripts/pre-push-check.sh` as callers. Since this PR, CI's `ios` job runs the script in its "Build KMP Shared Framework" step, so "outside CI" is stale. The file is a protected path, and a change to it matches the gate's iOS filter, so that change makes the gate's iOS steps required locally.
+- Done when: the comment names CI's `ios` job as a caller and no longer says "outside CI", in a PR that the human authorizes for this protected file.
+- Refs: `scripts/build-kmp-framework.sh` (header comment); `.github/workflows/ci.yml` (`ios` job, step "Build KMP Shared Framework").
+
+### drift-learnings-ios-ci-explicit-gradle-step
+- Type: drift
+- Area: learnings
+- Order: 250
+- Source: agentic-dev-loop run 13 (PR #99 or the number this PR gets), 2026-10-05
+- Problem: the `LEARNINGS.md` item under "Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI" says iOS CI builds the XCFramework before `xcodebuild` "via an explicit `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` step". Since this PR, that step runs `scripts/build-kmp-framework.sh`, so the item reads as stale. `LEARNINGS.md` is history, and its past entries are not rewritten.
+- Done when: the human has chosen between adding a dated note to that item (CI runs the script since this PR) and leaving it as history, and the choice is implemented.
+- Refs: `LEARNINGS.md` ("Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI", the iOS CI item); `.github/workflows/ci.yml` (`ios` job, step "Build KMP Shared Framework").
 
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
