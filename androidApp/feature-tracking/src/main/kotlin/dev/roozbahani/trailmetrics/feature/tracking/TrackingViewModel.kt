@@ -16,6 +16,7 @@ import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +43,7 @@ class TrackingViewModel(
 
     /**
      * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
-     * can't save the session again. Cleared by [start] for a new session, and if the save throws.
+     * can't save the session again. Cleared by [start] for a new session, and if the save fails.
      */
     private var isSessionSaved = false
 
@@ -54,7 +55,14 @@ class TrackingViewModel(
 
     init {
         viewModelScope.launch {
-            _userProfile.value = userProfileRepository.getUserProfile()
+            try {
+                _userProfile.value = userProfileRepository.getUserProfile()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Without a profile there are no calories, and Finish saves nothing.
+                _events.send(TrackingEvent.ShowError(RouteUiError.General))
+            }
         }
     }
 
@@ -143,7 +151,7 @@ class TrackingViewModel(
         val weightKg = _userProfile.value?.weightKg ?: return
         isSessionSaved = true
         viewModelScope.launch {
-            runCatching {
+            try {
                 saveActivityUseCase(
                     activityType = activityType,
                     plannedRoutePoints = plannedRoutePoints,
@@ -152,10 +160,14 @@ class TrackingViewModel(
                     startedAtEpochMillis = startedAtEpochMillis,
                     snapshotFilePath = snapshotFilePath
                 )
-            }.onFailure {
-                // Let the user retry; the failure itself still propagates.
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Let the user retry.
                 isSessionSaved = false
-            }.getOrThrow()
+                _events.send(TrackingEvent.ShowError(RouteUiError.General))
+                return@launch
+            }
             _events.send(TrackingEvent.Saved)
         }
     }
