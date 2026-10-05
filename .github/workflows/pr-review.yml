@@ -115,6 +115,35 @@ jobs:
             done
           } > "$W/message"
 
+      # The rule-weakening signal (tm-pr-review, input `rule-changes`): the BASE copy of
+      # scripts/check-skill-rule-changes.sh lists removed or rewritten rule lines in skills and
+      # CLAUDE.md files of merge base..head, so a PR can't edit the script it is judged by. A base
+      # without the script gets the bootstrap line; a base script that can't be extracted or exits
+      # non-zero fails the job (fail closed), and no rule-changes file is left for the reviewer.
+      # The output goes to the input file only, never to the log.
+      - name: Rule changes from the base
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          W="$RUNNER_TEMP/review"; IN="$W/input"; TRUSTED="$W/base"
+          rm -f -- "$IN/rule-changes" "$W/rule-changes"
+          MB="$(git merge-base "$HEAD_SHA" "$BASE_SHA")"
+          on_base="$(git ls-tree --name-only "$BASE_SHA" scripts/check-skill-rule-changes.sh)"
+          if [ -z "$on_base" ]; then
+            echo 'none (script not on the base)' > "$IN/rule-changes"
+            exit 0
+          fi
+          if ! git archive "$BASE_SHA" -- scripts/check-skill-rule-changes.sh \
+                scripts/check-skill-rule-changes.py | tar -x -C "$TRUSTED" \
+            || ! bash "$TRUSTED/scripts/check-skill-rule-changes.sh" "$MB" "$HEAD_SHA" > "$W/rule-changes"; then
+            rm -f -- "$W/rule-changes"
+            echo "::error::scripts/check-skill-rule-changes.sh from the base failed: no rule-changes input, no review"
+            exit 1
+          fi
+          mv -- "$W/rule-changes" "$IN/rule-changes"
+
       # The only step that sees the key. --tools and the empty strict MCP config keep the
       # agent at Read, Grep and Glob; dontAsk denies anything that would need a prompt; no
       # hooks run, since a base hook would execute scripts from the head's tree.
