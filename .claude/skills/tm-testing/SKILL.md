@@ -30,6 +30,13 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
   sets with `testImplementation` lines for those catalog entries plus
   `:androidApp:core-testing`. A new Android module's first test adds the same lines to
   its own `build.gradle.kts`. That is not a new dependency.
+- Compose UI tests run on the JVM under Robolectric, inside the module's `testDebugUnitTest`
+  (no emulator, no `androidTest`). `feature-history` is the first feature module with them:
+  its `build.gradle.kts` adds the catalog entries `robolectric`, `androidx-compose-ui-test-junit4`
+  and `androidx-compose-ui-test-manifest` (with `platform(libs.androidx.compose.bom)` for their
+  versions) as `testImplementation`, plus `testOptions.unitTests.isIncludeAndroidResources = true`
+  so tests can read string resources. `feature-route` and `feature-tracking` don't have them
+  yet; their first Compose UI test adds the same lines. See "Compose UI tests".
 - A task that adds MockK or Turbine must name it, add it to the catalog, and update this
   section in the same change.
 - Ktor `MockEngine` (`ktor-client-mock`, on the catalog's `ktor` version) is a `data`
@@ -187,6 +194,36 @@ class TrackingScreenRobot(private val rule: ComposeContentTestRule) {
 
 Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 `composeTestRule.setContent { ... }` + a couple of `onNodeWith...` calls is clearer there.
+
+### Screen tests through the real ViewModel (the pattern to copy)
+
+`feature-history`'s `DetailsScreenTest`/`HistoryScreenTest` (with `DetailsScreenRobot`/
+`HistoryScreenRobot`) are the reference. What they do:
+
+- `@RunWith(RobolectricTestRunner::class)`, `@Config(sdk = [35])` (as in `data`; add
+  `qualifiers = "w411dp-h891dp"` when a `LazyColumn` must compose several rows), and
+  `createAndroidComposeRule<ComponentActivity>()`, so strings come from
+  `rule.activity.getString(...)` instead of being copied into the test.
+- Test the `<X>Root`, not only the stateless `<X>Screen`, so event handling (navigation
+  callback, snackbar) is covered. In `@Before`: `Dispatchers.setMain(UnconfinedTestDispatcher(...))`
+  and `startKoin { modules(<feature>UiModule, module { /* fakes from core-testing */ }) }`;
+  in `@After`: `stopKoin()` and `resetMain()`. `koinViewModel()` then builds the real ViewModel.
+  Navigation lives in `androidApp/app`, so assert on the Root's callback (count its calls).
+- Hold a suspending call with the fake's gate (`deleteActivityGate`, `getActivityGate`, ...:
+  a `CompletableDeferred` the fake awaits). Act, assert nothing happened yet, `complete(Unit)`,
+  `rule.waitForIdle()`, assert. No `Thread.sleep`, no real delays.
+- Double tap: `performTouchInput { down(center); up(); down(center); up() }`. The injector
+  advances the main clock by the time between events (whatever `autoAdvance` is), and
+  `click()` includes a move that takes time, so `click(); click()` lets the first tap's
+  recomposition remove the button and the second tap hits nothing: the test passes with or
+  without the guard. Check it once by removing the guard in the working tree: the test must
+  fail on the doubled call (for `DetailsScreenTest`: `Expected <[1]>, actual <[1, 1]>.`).
+- Maps: wrap the content in `CompositionLocalProvider(LocalInspectionMode provides true)`.
+  maps-compose's `GoogleMap` then draws an empty `Box`, so no Maps SDK runs on the JVM; the
+  map's content (polylines, markers) is not tested. No production seam is needed for it.
+- Find nodes by visible text and content description first; a `testTag` is a production
+  change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
+  matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.
 
 ## What to test, and coverage priorities (current state: measured, uneven)
 
