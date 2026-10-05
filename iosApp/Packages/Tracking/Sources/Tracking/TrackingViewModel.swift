@@ -22,7 +22,15 @@ public class TrackingViewModel: ObservableObject {
     // after being covered and revealed once (see RouteViewModel.makeEventsStream()),
     // so it's fixed the same way pre-emptively rather than leaving a matching latent
     // bug for whenever something is later pushed on top of Tracking.
+    //
+    // Before TrackingView's first `.task` runs nobody consumes, and the profile load started
+    // in init() can fail by then. An event emitted while no consumer is active goes to
+    // `pendingEvents` and the next stream delivers it first, as in RouteViewModel.
     private var eventsContinuation: AsyncStream<TrackingUiEvent>.Continuation?
+    /// Events emitted while no consumer was active, oldest first, at most `maxPendingEvents`.
+    private var pendingEvents: [TrackingUiEvent] = []
+    /// Location issues can repeat while nobody consumes; TrackingView shows one error at a time.
+    private static let maxPendingEvents = 10
 
     private let trackingSessionManager: TrackingSessionManager
     private let userProfileRepository: UserProfileRepository
@@ -118,12 +126,20 @@ public class TrackingViewModel: ObservableObject {
 
     public func makeEventsStream() -> AsyncStream<TrackingUiEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: TrackingUiEvent.self)
+        for event in pendingEvents {
+            continuation.yield(event)
+        }
+        pendingEvents.removeAll()
         eventsContinuation = continuation
         return stream
     }
 
     private func emit(_ event: TrackingUiEvent) {
-        eventsContinuation?.yield(event)
+        if case .enqueued = eventsContinuation?.yield(event) { return }
+        pendingEvents.append(event)
+        if pendingEvents.count > Self.maxPendingEvents {
+            pendingEvents.removeFirst()
+        }
     }
 
     private func loadUserProfile() {
