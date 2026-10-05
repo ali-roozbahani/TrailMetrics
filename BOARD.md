@@ -257,6 +257,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has chosen between (a) correcting the comment to the real property (header lines are not processed as commands, shown by that run) and (b) not passing PR text through `env:` at all (for example reading it from the event payload with `jq`), and the choice is implemented and shown.
 - Refs: `.github/workflows/pr-review.yml` (step "Build review inputs" and the comment above it); PR #94 review run 37166301311 (job "Review — pr-reviewer").
 
+### drift-kmp-framework-script-header-outside-ci
+- Type: drift
+- Area: scripts
+- Order: 240
+- Source: agentic-dev-loop run 13 (PR #99 or the number this PR gets), 2026-10-05
+- Problem: the header comment of `scripts/build-kmp-framework.sh` calls the script "The single entry point for that framework outside CI" and names only the scheme pre-action, the app target's build phase and `scripts/pre-push-check.sh` as callers. Since this PR, CI's `ios` job runs the script in its "Build KMP Shared Framework" step, so "outside CI" is stale. The file is a protected path, and a change to it matches the gate's iOS filter, so that change makes the gate's iOS steps required locally.
+- Done when: the comment names CI's `ios` job as a caller and no longer says "outside CI", in a PR that the human authorizes for this protected file.
+- Refs: `scripts/build-kmp-framework.sh` (header comment); `.github/workflows/ci.yml` (`ios` job, step "Build KMP Shared Framework").
+
+### drift-learnings-ios-ci-explicit-gradle-step
+- Type: drift
+- Area: learnings
+- Order: 250
+- Source: agentic-dev-loop run 13 (PR #99 or the number this PR gets), 2026-10-05
+- Problem: the `LEARNINGS.md` item under "Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI" says iOS CI builds the XCFramework before `xcodebuild` "via an explicit `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` step". Since this PR, that step runs `scripts/build-kmp-framework.sh`, so the item reads as stale. `LEARNINGS.md` is history, and its past entries are not rewritten.
+- Done when: the human has chosen between adding a dated note to that item (CI runs the script since this PR) and leaving it as history, and the choice is implemented.
+- Refs: `LEARNINGS.md` ("Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI", the iOS CI item); `.github/workflows/ci.yml` (`ios` job, step "Build KMP Shared Framework").
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude
