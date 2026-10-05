@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
@@ -71,4 +72,5 @@ sealed interface DetailsAction {
 
 sealed interface DetailsEvent {
     data object Deleted : DetailsEvent
+    data class ShowError(val error: RouteUiError) : DetailsEvent
 }

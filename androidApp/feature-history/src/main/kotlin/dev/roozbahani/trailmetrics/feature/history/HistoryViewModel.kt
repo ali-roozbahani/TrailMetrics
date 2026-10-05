@@ -2,8 +2,10 @@ package dev.roozbahani.trailmetrics.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
+import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -15,7 +17,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class HistoryViewModel(
-    private val activityHistoryRepository: ActivityHistoryRepository
+    private val activityHistoryRepository: ActivityHistoryRepository,
+    private val observeActivitiesUseCase: ObserveActivitiesUseCase
 ) : ViewModel() {
 
     val state: StateFlow<HistoryState> = activityHistoryRepository.observeActivities()
@@ -65,4 +68,5 @@ sealed interface HistoryAction {
 
 sealed interface HistoryEvent {
     data class NavigateToDetails(val activityId: Long) : HistoryEvent
+    data class ShowError(val error: RouteUiError) : HistoryEvent
 }

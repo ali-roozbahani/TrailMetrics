@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.history
 
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,7 +45,10 @@ class HistoryViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel() = HistoryViewModel(activityHistoryRepository = activityHistoryRepository)
+    private fun createViewModel() = HistoryViewModel(
+        activityHistoryRepository = activityHistoryRepository,
+        observeActivitiesUseCase = ObserveActivitiesUseCase(activityHistoryRepository)
+    )
 
     // The state is stateIn(WhileSubscribed): keep a subscriber for the whole test.
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement

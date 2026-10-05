@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -83,11 +87,16 @@ fun HistoryRoot(
 ) {
     val viewModel: HistoryViewModel = koinViewModel()
     val state: HistoryState by viewModel.state.collectAsStateWithLifecycle()
+    val snackBarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is HistoryEvent.NavigateToDetails -> onActivityClicked(event.activityId)
+                is HistoryEvent.ShowError -> {
+                    snackBarHostState.showSnackbar(resources.getString(event.error.stringRes))
+                }
             }
         }
     }
@@ -95,6 +104,7 @@ fun HistoryRoot(
     HistoryScreen(
         state = state,
         onAction = viewModel::onAction,
+        snackBarHostState = snackBarHostState,
         bottomBar = bottomBar
     )
 }
@@ -103,12 +113,14 @@ fun HistoryRoot(
 fun HistoryScreen(
     state: HistoryState,
     onAction: (HistoryAction) -> Unit,
+    snackBarHostState: SnackbarHostState,
     bottomBar: @Composable () -> Unit = {}
 ) {
     var activityPendingDelete by remember { mutableStateOf<ActivityRecord?>(null) }
 
     Scaffold(
-        bottomBar = bottomBar
+        bottomBar = bottomBar,
+        snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -342,7 +354,8 @@ private fun HistoryScreenPreview() {
                 ),
                 isLoading = false
             ),
-            onAction = {}
+            onAction = {},
+            snackBarHostState = remember { SnackbarHostState() }
         )
     }
 }

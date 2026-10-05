@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.history.di
 
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
+import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.feature.history.DetailsState
 import dev.roozbahani.trailmetrics.feature.history.DetailsViewModel
 import dev.roozbahani.trailmetrics.feature.history.HistoryState
@@ -28,9 +29,10 @@ class HistoryUiModuleTest {
     private val testScheduler = TestCoroutineScheduler()
     private val activityHistoryRepository = FakeActivityHistoryRepository()
 
-    /** The binding the app's other modules provide, built from a fake. */
+    /** The bindings the app's other modules provide, built from a fake. */
     private val collaboratorsModule = module {
         single<ActivityHistoryRepository> { activityHistoryRepository }
+        factory { ObserveActivitiesUseCase(activityHistoryRepository = get()) }
     }
 
     private val koin = koinApplication { modules(historyUiModule, collaboratorsModule) }.koin
