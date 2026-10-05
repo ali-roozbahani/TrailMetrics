@@ -63,15 +63,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: S6's PR states the same merge conditions as `tm-agent-loop` (head is a branch of this repository, author is the machine account, CI annotation `APPROVE` and recorded local verdict `APPROVE` for the head SHA, both required checks green, no protected path) and the same fail-closed annotation rule, and it is written only after a real `notice`/`APPROVE` annotation has been read from a PR with `tm-agent-loop`'s commands.
 - Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", "Merge conditions"); `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `docs/epics/agentic-dev-loop.md` (S6, Decisions 5, 7 and 8).
 
-### android-persistence-errors-unhandled
-- Type: task
-- Area: androidApp
-- Order: 50
-- Source: bugfix/ios-swallowed-errors-and-throws-policy PR
-- Problem: The Android ViewModels call the persistence repositories inside `viewModelScope.launch` without handling a failure, and no `CoroutineExceptionHandler` exists, so a database or storage exception crashes the app. `RouteViewModel` `saveUserProfile`, `startTracking` and `getAndUpdateUserProfile` call `UserProfileRepository` unguarded; `TrackingViewModel`'s init profile load is unguarded, and `finish` resets `isSessionSaved` on failure but rethrows with `getOrThrow()`; `DetailsViewModel`'s init `getActivity` is unguarded and `deleteActivity` rethrows the same way; `HistoryViewModel.deleteActivity` is unguarded and its `state` (`observeActivities().stateIn`) has no `catch`. Found by reading the code; not reproduced. `HistoryViewModel.state` can build on the domain `ObserveActivitiesUseCase` (added by bugfix/ios-history-details-delete-and-load-errors, which iOS already uses) to survive a failing `observeActivities()`.
-- Done when: the `@Throws` policy's rules 4 and 5 in `tm-kmp-shared` hold on Android too: every such failure reaches the user through the screen's existing error event or state, never crashes, and leaves state consistent (a failed save does not update the profile, a failed start does not navigate, a failed delete does not send `Deleted`), each with an `onAction` test using a throwing fake from `core-testing`.
-- Refs: `androidApp/feature-route` `RouteViewModel`; `feature-tracking` `TrackingViewModel` (init, `finish`); `feature-history` `DetailsViewModel` (init, `deleteActivity`), `HistoryViewModel` (`state`, `deleteActivity`); `core-testing` `FakeUserProfileRepository`, `FakeActivityHistoryRepository`; `tm-kmp-shared` ("`@Throws` policy").
-
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -218,6 +209,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `waitUntil` in TestSupport polls with `try? await Task.sleep(for: .milliseconds(10))`; when the calling test task is cancelled, `Task.sleep` throws at once and the `try?` drops that, so the loop spins without any delay until its deadline (up to 120 seconds, `coldStartTimeout`, for the first wait in a test process). No failure is hidden, but the test burns CPU instead of stopping. The `optional_try` annotation on that line says only that the deadline still ends the wait.
 - Done when: `waitUntil` stops promptly when its task is cancelled (for example it checks `Task.isCancelled` or lets the cancellation error end the wait), a test shows it (red before, green after), and the `swiftlint:disable:next optional_try` comment is updated or removed to match the code.
 - Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift`; PR #104.
+
+### tracking-finish-without-profile-silent
+- Type: task
+- Area: androidApp/feature-tracking, iosApp/Tracking
+- Order: 198
+- Source: bugfix/android-persistence-errors-handled PR, 2026-10-05
+- Problem: On both platforms the tracking screen's Finish returns without saving, without an event and without a message when no user profile is loaded (Android `TrackingViewModel.finish`: `_userProfile.value?.weightKg ?: return`; iOS `onFinishClicked`: `guard let userProfile = loadedUserProfile else { return }`). Since that PR the failed profile load itself is shown once as a general error, but a later Finish tap still does nothing visible, and the profile is never read again for that screen, so the session can't be saved.
+- Done when: a Finish without a loaded profile on either platform either reads the profile again before saving or tells the user why nothing was saved (through the screen's existing error event), with a ViewModel test per platform; a Finish tap while the profile is still loading keeps working as today.
+- Refs: `androidApp/feature-tracking` `TrackingViewModel` (`finish`, init); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`onFinishClicked`); `tm-kmp-shared` ("`@Throws` policy", rules 4 and 5).
 
 ## Drift
 
