@@ -492,6 +492,14 @@ Also required in Build Settings: `ENABLE_USER_SCRIPT_SANDBOXING = NO`,
 otherwise the Gradle invocation fails with
 `Execution failed for task ':shared:checkSandboxAndWriteProtection'`.
 
+Decision (2026-10-05): `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and
+`gradle/gradle-daemon-jvm.properties` are not framework inputs and stay out
+of the hash, because they only launch the Gradle version that the hashed
+`gradle-wrapper.properties` names or select the daemon's JVM; the gate's
+iOS filter lists them on purpose so its iOS steps still run for them, and
+a diff of only these files leaves a matching stamp "up to date" (delete
+the stamp if one of them ever does change the framework).
+
 ---
 
 ## Phase I — Enforcement (allWarningsAsErrors, Detekt, SwiftLint) and CI

@@ -178,6 +178,14 @@ fails, so observe through a use case that turns the failure into a value on the 
   `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash changed or the
   XCFramework is missing. The stamp is deleted before Gradle and written only after it
   succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
+  Deliberately not hashed: `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and
+  `gradle/gradle-daemon-jvm.properties`. `gradle-wrapper.properties` names the Gradle version;
+  the first two only launch that version and the third only selects the JVM that runs the
+  Gradle daemon, so none of them is expected to change the Kotlin/Native output. The gate's iOS
+  filter (`IOS_PATHS`) still lists all three, so its iOS steps run when the build tooling
+  changes. On a machine whose stamp matches, a diff of only these files makes the gate's
+  "KMP XCFramework" step print "up to date" and skip Gradle. That is intended; if a change to
+  one of them ever does change the framework, delete the stamp to force the rebuild.
 - Callers:
   - The shared `TrailMetrics` scheme
     (`TrailMetrics.xcodeproj/xcshareddata/xcschemes/TrailMetrics.xcscheme`) runs it as a
