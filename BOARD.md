@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ci-use-build-kmp-framework-script
-- Type: task
-- Area: ci
-- Order: 20
-- Source: PR #67 drift
-- Problem: CI's `ios` job builds the shared XCFramework by calling `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` directly instead of `scripts/build-kmp-framework.sh`, so CI never exercises the script the gate and the Xcode pre-action use.
-- Done when: CI uses the script. The task must explicitly authorize the CI config change.
-- Refs: `.github/workflows/ci.yml` (ios job); `scripts/build-kmp-framework.sh`.
-
 ### kmp-framework-hash-misses-gradle-runtime-files
 - Type: task
 - Area: scripts
