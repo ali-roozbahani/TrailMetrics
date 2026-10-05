@@ -8,5 +8,5 @@ val RouteUiError.stringRes: Int
     get() = when (this) {
         RouteUiError.LocationUnavailable -> R.string.msg_location_unavailable
         RouteUiError.MissingLocationPermission -> R.string.msg_missing_location_permission
-        RouteUiError.General -> R.string.msg_general_location_error
+        RouteUiError.General -> R.string.msg_general_error
     }

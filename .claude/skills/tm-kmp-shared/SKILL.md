@@ -97,9 +97,8 @@ coroutine scope with no handler, and its Swift iterator `fatalError`s on the err
 therefore doesn't iterate it directly: `ObserveActivitiesUseCase` (domain) maps each emission to
 `ActivitiesUpdate.Loaded` and turns an `Exception` (never an `Error` or cancellation), thrown
 when `observeActivities()` is called or while collecting, into one `ActivitiesUpdate.Failed`,
-then completes; `invoke()` itself never throws. iOS `HistoryViewModel` consumes that; Android
-still uses the repository Flow (board `android-persistence-errors-unhandled`). A new Flow that
-Swift iterates and that can fail needs the same treatment.
+then completes; `invoke()` itself never throws. The iOS and Android `HistoryViewModel`s both
+consume that. A new Flow that Swift iterates and that can fail needs the same treatment.
 
 ## Events that must not be silently dropped
 

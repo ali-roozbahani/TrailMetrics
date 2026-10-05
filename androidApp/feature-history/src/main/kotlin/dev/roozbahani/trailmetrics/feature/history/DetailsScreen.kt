@@ -25,6 +25,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,7 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
 import dev.roozbahani.trailmetrics.core.map.TrailGoogleMap
@@ -80,11 +84,16 @@ fun DetailsRoot(
 ) {
     val viewModel: DetailsViewModel = koinViewModel(parameters = { parametersOf(activityId) })
     val state: DetailsState by viewModel.state.collectAsStateWithLifecycle()
+    val snackBarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 DetailsEvent.Deleted -> onNavigateBack()
+                is DetailsEvent.ShowError -> {
+                    snackBarHostState.showSnackbar(resources.getString(event.error.stringRes))
+                }
             }
         }
     }
@@ -92,7 +101,8 @@ fun DetailsRoot(
     DetailsScreen(
         state = state,
         onAction = viewModel::onAction,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        snackBarHostState = snackBarHostState
     )
 }
 
@@ -100,12 +110,15 @@ fun DetailsRoot(
 fun DetailsScreen(
     state: DetailsState,
     onAction: (DetailsAction) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    snackBarHostState: SnackbarHostState
 ) {
     val activity = state.activity
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackBarHostState) }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -314,7 +327,8 @@ private fun DetailsScreenPreview() {
                 isLoading = false
             ),
             onAction = {},
-            onNavigateBack = {}
+            onNavigateBack = {},
+            snackBarHostState = remember { SnackbarHostState() }
         )
     }
 }

@@ -2,9 +2,11 @@ package dev.roozbahani.trailmetrics.feature.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,13 +29,20 @@ class DetailsViewModel(
 
     /**
      * Set synchronously before the delete is launched, so a second confirmation (a double tap)
-     * can't delete again or send a second Deleted. Cleared if the delete throws.
+     * can't delete again or send a second Deleted. Cleared if the delete fails.
      */
     private var isDeleteStarted = false
 
     init {
         viewModelScope.launch {
-            val activity = activityHistoryRepository.getActivity(activityId)
+            val activity = try {
+                activityHistoryRepository.getActivity(activityId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(DetailsEvent.ShowError(RouteUiError.General))
+                null
+            }
             _state.update { it.copy(activity = activity, isLoading = false) }
         }
     }
@@ -48,12 +57,16 @@ class DetailsViewModel(
         if (isDeleteStarted) return
         isDeleteStarted = true
         viewModelScope.launch {
-            runCatching {
+            try {
                 activityHistoryRepository.deleteActivity(activityId)
-            }.onFailure {
-                // Let the user retry; the failure itself still propagates.
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Keep the snapshot file and let the user retry.
                 isDeleteStarted = false
-            }.getOrThrow()
+                _events.send(DetailsEvent.ShowError(RouteUiError.General))
+                return@launch
+            }
             deleteSnapshotFile(_state.value.activity?.snapshotFilePath)
             _events.send(DetailsEvent.Deleted)
         }
@@ -71,4 +84,5 @@ sealed interface DetailsAction {
 
 sealed interface DetailsEvent {
     data object Deleted : DetailsEvent
+    data class ShowError(val error: RouteUiError) : DetailsEvent
 }

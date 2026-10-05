@@ -14,6 +14,7 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -137,14 +138,29 @@ class RouteViewModel(
     private fun saveUserProfile(weightKg: Double) {
         viewModelScope.launch {
             val userProfile = UserProfile(weightKg)
-            userProfileRepository.saveUserProfile(userProfile)
+            try {
+                userProfileRepository.saveUserProfile(userProfile)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // The profile in state stays the last one that was saved.
+                _events.send(RouteEvent.ShowError(RouteUiError.General))
+                return@launch
+            }
             _state.update { state -> state.copy(userProfile = userProfile) }
         }
     }
 
     private fun startTracking() {
         viewModelScope.launch {
-            val profile = userProfileRepository.getUserProfile()
+            val profile = try {
+                userProfileRepository.getUserProfile()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(RouteEvent.ShowError(RouteUiError.General))
+                return@launch
+            }
             if (profile == null) {
                 _events.send(RouteEvent.RequestUserProfile)
             } else {
@@ -165,7 +181,14 @@ class RouteViewModel(
 
     private fun getAndUpdateUserProfile() {
         viewModelScope.launch {
-            val userProfile = userProfileRepository.getUserProfile()
+            val userProfile = try {
+                userProfileRepository.getUserProfile()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(RouteEvent.ShowError(RouteUiError.General))
+                return@launch
+            }
             _state.update { state -> state.copy(userProfile = userProfile) }
         }
     }

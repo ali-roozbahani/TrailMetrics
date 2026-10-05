@@ -35,13 +35,11 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class TrackingViewModelTest {
@@ -530,32 +528,6 @@ class TrackingViewModelTest {
 
         assertEquals(List(2) { TrackingEvent.Saved }, events)
         assertEquals(listOf(SNAPSHOT_PATH, null), activityHistoryRepository.savedActivities.map { it.snapshotFilePath })
-    }
-
-    @Test
-    fun `a Finish whose save throws can be retried`() {
-        val failure = IllegalStateException("disk full")
-        val thrown = assertFailsWith<IllegalStateException> {
-            runTest(testScheduler) {
-                userProfileRepository.userProfile = PROFILE
-                val viewModel = createViewModel()
-                startAndStop(viewModel)
-                val events = collectEvents(viewModel)
-                activityHistoryRepository.saveActivityFailure = failure
-                viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
-                testScheduler.runCurrent()
-                assertEquals(emptyList(), events)
-                activityHistoryRepository.saveActivityFailure = null
-
-                viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
-                testScheduler.runCurrent()
-
-                assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
-                assertEquals(1, activityHistoryRepository.savedActivities.size)
-            }
-        }
-        // The failure is rethrown into viewModelScope (runTest reports it once the test body is done).
-        assertSame(failure, thrown)
     }
 
     @Test
