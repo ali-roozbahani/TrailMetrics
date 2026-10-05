@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### kmp-framework-hash-misses-gradle-runtime-files
-- Type: task
-- Area: scripts
-- Order: 25
-- Source: agentic-dev-loop run 6 (PR #92 or the number this PR gets), 2026-10-04
-- Problem: the gate's iOS steps now run for `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and `gradle/gradle-daemon-jvm.properties`, but `scripts/build-kmp-framework.sh` does not hash them (its `BUILD_FILES` has `gradle/wrapper/gradle-wrapper.properties` and none of these three). On a machine whose `shared/build/.xcode_kmp_stamp` matches, a diff of only these files makes the gate's "KMP XCFramework" step print "up to date" and skip Gradle, so the XCFramework is not rebuilt with the new launcher or daemon JVM; only the gate's Android/KMP Gradle steps run them. Found by reading the code; not reproduced.
-- Done when: the human has decided whether these three files are framework inputs; if so `BUILD_FILES` lists them (and `tm-ios` "Build integration" and `LEARNINGS.md` say so), shown by a stamp that no longer matches after a change to each.
-- Refs: `scripts/build-kmp-framework.sh` (`BUILD_FILES`); `scripts/pre-push-check.sh` (`IOS_PATHS`); `tm-ios` ("Build integration"); `LEARNINGS.md` (the `build-kmp-framework.sh` item).
-
 ### kover-verify-remaining-modules
 - Type: task
 - Area: build
