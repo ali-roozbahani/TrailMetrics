@@ -24,4 +24,12 @@ final class EventRecorder {
     func stop() {
         task?.cancel()
     }
+
+    /// Stops consuming and returns once every event yielded to the stream so far is in
+    /// `events`: a cancelled `AsyncStream` consumer still receives what is already buffered
+    /// before its loop ends.
+    func stopAndDrain() async {
+        task?.cancel()
+        await task?.value
+    }
 }
