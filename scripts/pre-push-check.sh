@@ -116,6 +116,7 @@ run_step "change classification self-test" scripts/classify-changes.sh --self-te
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
+run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
@@ -190,7 +191,17 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     # tests below never link a stale XCFramework, whichever Xcode scheme is picked up.
     run_step "KMP XCFramework" scripts/build-kmp-framework.sh
 
+    # Both xcodebuild steps print their output (stderr too) through scripts/filter-xcode-log.sh,
+    # which drops Xcode's dumps of the build settings it passes to script phases (`export NAME\=value`
+    # lines, a Maps key among them). pipefail keeps xcodebuild's failure. Fail closed: without an
+    # executable filter the step fails before xcodebuild starts, so nothing unfiltered is printed.
     run_step "iOS build" bash -c '
+        set -o pipefail
+        filter="$PWD/scripts/filter-xcode-log.sh"
+        if [ ! -f "$filter" ] || [ ! -x "$filter" ]; then
+            echo "scripts/filter-xcode-log.sh is missing or not executable: xcodebuild not run"
+            exit 1
+        fi
         cd iosApp
         xcodebuild build \
             -project TrailMetrics.xcodeproj \
@@ -200,13 +211,18 @@ if [ "$RUN_IOS_STEPS" = true ]; then
             ARCHS=arm64 \
             EXCLUDED_ARCHS=x86_64 \
             ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO 2>&1 | "$filter"
     '
 
     # Runs after "iOS build": the packages link the XCFramework that build produces.
     # Every iosApp/Packages/<Name>/ with a Tests/ directory is tested; others are skipped.
     run_step "iOS package tests" bash -c '
         set -uo pipefail
+        filter="$PWD/scripts/filter-xcode-log.sh"
+        if [ ! -f "$filter" ] || [ ! -x "$filter" ]; then
+            echo "scripts/filter-xcode-log.sh is missing or not executable: xcodebuild not run"
+            exit 1
+        fi
         SIM_ID="$(xcrun simctl list devices available iPhone \
             | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}" | tail -1)"
         if [ -z "$SIM_ID" ]; then
@@ -225,7 +241,7 @@ if [ "$RUN_IOS_STEPS" = true ]; then
                 -scheme "$name" \
                 -destination "platform=iOS Simulator,id=$SIM_ID" \
                 -skipMacroValidation \
-                CODE_SIGNING_ALLOWED=NO) || status=1
+                CODE_SIGNING_ALLOWED=NO 2>&1 | "$filter") || status=1
         done
         exit $status
     '

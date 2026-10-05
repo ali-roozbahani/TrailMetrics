@@ -65,7 +65,14 @@ Branch: <type>/<slug>
 secret-looking variables from its own environment (deny list by name in `scripts/scrub-env.sh`;
 it prints the count and the names, never a value, and stops if the file cannot be sourced or a
 matching variable cannot be removed), so no step and no `xcodebuild` log inherits a token; it
-also runs the scrub self-test (`scripts/scrub-env.sh --self-test`, fake values only). It always runs the board check
+also runs the scrub self-test (`scripts/scrub-env.sh --self-test`, fake values only). Build
+settings are not in its environment, so both `xcodebuild` steps print their output (stderr too)
+through `scripts/filter-xcode-log.sh`, which hides Xcode's exported-environment lines (whitespace,
+then `export` or `setenv`, then whitespace: the build settings, the Maps key among them, that Xcode
+passes to script phases; not the arguments on the `xcodebuild` command line, which `xcodebuild`
+echoes, so the gate must never pass a secret there); the raw `xcodebuild` log is not kept, and without an executable filter
+those steps fail before `xcodebuild` starts. The gate runs that script's self-test
+(`scripts/filter-xcode-log.sh --self-test`, fake values only) next to the scrub one. It always runs the board check
 (`scripts/check-board.sh`, also the first step of CI's `android` job), the protected-paths
 check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
 "Protected paths check" step of CI's `android` job) followed by a report-only line with the
