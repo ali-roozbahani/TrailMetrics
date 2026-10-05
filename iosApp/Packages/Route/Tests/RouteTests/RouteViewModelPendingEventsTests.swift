@@ -115,10 +115,11 @@ final class RouteViewModelPendingEventsTests: XCTestCase {
             userProfileRepository: userProfileRepository
         )
         await waitUntilOnlyReference(&viewModel)
+        // One tap at a time: a tap while the previous one is still in flight is ignored.
         for _ in 0..<Self.maxPendingEvents {
             viewModel.onStartTrackingClicked()
+            await waitUntilOnlyReference(&viewModel)
         }
-        await waitUntilOnlyReference(&viewModel)
 
         let recorder = EventRecorder(viewModel.makeEventsStream())
         defer { recorder.stop() }

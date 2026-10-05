@@ -43,6 +43,8 @@ public class RouteViewModel: ObservableObject {
 
     /// The running route generation; cancelled by `cancelGeneration()` when its input becomes stale.
     private var generationTask: Task<Void, Never>?
+    /// The running Start Tracking tap (profile read, then one event); a tap while it runs is ignored.
+    private var startTrackingTask: Task<Void, Never>?
 
     private let getCurrentLocationUseCase: GetCurrentLocationUseCase
     private let generateClosedRouteUseCase: GenerateClosedRouteUseCase
@@ -182,7 +184,14 @@ public class RouteViewModel: ObservableObject {
     }
 
     public func onStartTrackingClicked() {
-        Task {
+        // A tap while one runs would emit a second event: a second `.navigateToTracking` pushes
+        // Tracking twice, or is kept while Tracking covers RouteView and opens it again on return.
+        guard startTrackingTask == nil else { return }
+
+        startTrackingTask = Task {
+            // Nothing cancels this Task or replaces it while it runs, so every exit releases
+            // the guard and a later, separate tap works again.
+            defer { startTrackingTask = nil }
             let profile: UserProfile?
             do {
                 profile = try await userProfileRepository.getUserProfile()
