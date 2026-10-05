@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### kover-verify-remaining-modules
-- Type: task
-- Area: build
-- Order: 30
-- Source: original coverage plan
-- Problem: `koverVerify` floors exist only in `domain`, `data` and the three `androidApp/feature-*` modules. `core`, `shared`, `androidApp/app` and `androidApp/core-ui` have none. The repo has no record that the merged root report was re-checked against the per-module reports (`data` excludes generated classes only in its own report).
-- Done when: each of those modules has a floor or an explicit documented exclusion, and the root-vs-module report check is written down.
-- Refs: `build.gradle.kts` (root Kover merge); each module's `build.gradle.kts` `kover` block; `tm-pr-workflow` ("Tier 1").
-
 ### swiftlint-try-optional-requires-reason
 - Type: task
 - Area: iosApp

@@ -60,3 +60,10 @@ kotlin {
         }
     }
 }
+
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here,
+// on purpose. This module is the umbrella and Koin composition root (`initKoin`, platform modules,
+// the iOS `KoinHelper` and XCFramework export); its only test is in iosTest, which Kover can't
+// measure, so its own line coverage is 0% (0/17 lines, measured 2026-10-05). A floor of 0 could
+// never fail. Add one, set the way domain's is, when the first test of its own runs on the Android
+// host (commonTest or the Android host test).

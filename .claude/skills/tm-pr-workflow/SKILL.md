@@ -87,7 +87,17 @@ report step is best-effort and never fails the gate. The next step, `koverVerify
 enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
 coverage. Minimums are set in `domain`, `data` and the three `androidApp` feature modules'
 `build.gradle.kts`, a little below each module's measured coverage from its own tests. `core`,
-`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum yet. It adds `swiftlint lint --strict`, the shared
+`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum on purpose: they have no tests
+of their own that Kover measures (0% own line coverage), so a floor could never fail; each one's
+`build.gradle.kts` says what the module is and gets a floor when its first test of its own runs on
+the Android host. The merged root report is not the sum of the module reports. Checked on
+2026-10-05 with `./gradlew koverXmlReport`, then the `LINE` counter of each report
+(`for f in build/reports/kover/report.xml */build/reports/kover/report.xml androidApp/*/build/reports/kover/report.xml; do echo "$f $(grep -o '<counter type="LINE"[^>]*/>' "$f" | tail -1)"; done`):
+the nine modules' own reports sum to 723 of 2121 lines covered, the root to 906 of 2327. All of
+the difference is `data`'s generated Room and BuildKonfig classes (206 lines, 169 covered), which
+only `data`'s own report excludes, and 14 lines in `domain` (7) and `core` (7) covered only by other
+modules' tests. Repeat it when a module joins the root merge block or a Kover filter changes.
+It adds `swiftlint lint --strict`, the shared
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
 build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
 `data/`, `core/` or `shared/` other than markdown (`*.md`), one of the root Gradle files

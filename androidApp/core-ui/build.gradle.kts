@@ -37,3 +37,9 @@ dependencies {
     implementation(libs.maps.compose)
     implementation(libs.play.services.maps)
 }
+
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here,
+// on purpose. This module is declarative Compose UI (theme, `MetricCell`, map composables) plus the
+// `RouteUiError` string mapping, and has no tests of its own, so its own line coverage is 0%
+// (0/113 lines, measured 2026-10-05). A floor of 0 could never fail. Add one, set the way the
+// feature modules' are, when the first test of its own runs on the Android host.
