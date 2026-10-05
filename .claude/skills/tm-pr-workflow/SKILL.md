@@ -61,7 +61,11 @@ Branch: <type>/<slug>
 
 ## Tier 1: the local gate (agent's job)
 
-`scripts/pre-push-check.sh` must exit 0 before any push. It always runs the board check
+`scripts/pre-push-check.sh` must exit 0 before any push. Before any step it removes
+secret-looking variables from its own environment (deny list by name in `scripts/scrub-env.sh`;
+it prints the count and the names, never a value, and stops if the file cannot be sourced or a
+matching variable cannot be removed), so no step and no `xcodebuild` log inherits a token; it
+also runs the scrub self-test (`scripts/scrub-env.sh --self-test`, fake values only). It always runs the board check
 (`scripts/check-board.sh`, also the first step of CI's `android` job), the protected-paths
 check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
 "Protected paths check" step of CI's `android` job) followed by a report-only line with the

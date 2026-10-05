@@ -8,6 +8,16 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Remove secret-looking variables (deny list in scripts/scrub-env.sh) from the gate's own
+# environment before any step runs: xcodebuild logs the environment of the framework script's
+# pre-action and Run Script phase, and no step needs a token. Fail closed: if the file cannot be
+# sourced or a matching variable cannot be removed, the gate stops.
+if ! source "$REPO_ROOT/scripts/scrub-env.sh" || ! scrub_secret_env; then
+    echo "!!  could not remove secret-looking variables from the environment (scripts/scrub-env.sh)"
+    echo "Gate stopped before any step. Do not push."
+    exit 1
+fi
+
 FAILURES=()
 run_step() {
     local name="$1"; shift
@@ -105,6 +115,7 @@ run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate 
 run_step "change classification self-test" scripts/classify-changes.sh --self-test
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
+run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
