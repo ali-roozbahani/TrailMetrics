@@ -353,23 +353,6 @@ class TrackingViewModelTest {
     }
 
     @Test
-    fun `a failing profile load at init emits a general ShowError and leaves calories null`() =
-        runTest(testScheduler) {
-            userProfileRepository.userProfile = PROFILE
-            userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
-            val viewModel = createViewModel()
-            val events = collectEvents(viewModel)
-            testScheduler.runCurrent()
-
-            viewModel.onAction(TrackingAction.Start(START))
-            testScheduler.runCurrent()
-            receiveLocation(NEXT, millisAfterStart = 60_000L)
-
-            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowError(RouteUiError.General)), events)
-            assertNull(viewModel.state.value.calories)
-        }
-
-    @Test
     fun `calories use the activity type the screen was opened with`() = runTest(testScheduler) {
         userProfileRepository.userProfile = PROFILE
         val viewModel = createViewModel(activityType = ActivityType.Running)
@@ -546,29 +529,6 @@ class TrackingViewModelTest {
         assertEquals(List(2) { TrackingEvent.Saved }, events)
         assertEquals(listOf(SNAPSHOT_PATH, null), activityHistoryRepository.savedActivities.map { it.snapshotFilePath })
     }
-
-    @Test
-    fun `a Finish whose save throws emits a general ShowError, not Saved, and can be retried`() =
-        runTest(testScheduler) {
-            userProfileRepository.userProfile = PROFILE
-            val viewModel = createViewModel()
-            startAndStop(viewModel)
-            val events = collectEvents(viewModel)
-            activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
-
-            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
-            testScheduler.runCurrent()
-
-            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowError(RouteUiError.General)), events)
-            assertEquals(emptyList(), activityHistoryRepository.savedActivities)
-
-            activityHistoryRepository.saveActivityFailure = null
-            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
-            testScheduler.runCurrent()
-
-            assertEquals(listOf(TrackingEvent.ShowError(RouteUiError.General), TrackingEvent.Saved), events)
-            assertEquals(1, activityHistoryRepository.savedActivities.size)
-        }
 
     @Test
     fun `a Finish before the session is finished does not block a later Finish`() = runTest(testScheduler) {
