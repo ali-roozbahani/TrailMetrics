@@ -69,7 +69,8 @@ also runs the scrub self-test (`scripts/scrub-env.sh --self-test`, fake values o
 settings are not in its environment, so both `xcodebuild` steps print their output (stderr too)
 through `scripts/filter-xcode-log.sh`, which hides Xcode's exported-environment lines (whitespace,
 then `export` or `setenv`, then whitespace: the build settings, the Maps key among them, that Xcode
-passes to script phases); the raw `xcodebuild` log is not kept, and without an executable filter
+passes to script phases; not the arguments on the `xcodebuild` command line, which `xcodebuild`
+echoes, so the gate must never pass a secret there); the raw `xcodebuild` log is not kept, and without an executable filter
 those steps fail before `xcodebuild` starts. The gate runs that script's self-test
 (`scripts/filter-xcode-log.sh --self-test`, fake values only) next to the scrub one. It always runs the board check
 (`scripts/check-board.sh`, also the first step of CI's `android` job), the protected-paths
