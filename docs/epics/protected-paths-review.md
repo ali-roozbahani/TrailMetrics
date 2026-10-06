@@ -13,6 +13,9 @@
   tests (their own tasks on the board), any app code, GitHub repository settings, and
   `LEARNINGS.md` (it is not protected today and stays unprotected).
 - **Approved by:** Ali Roozbahani on 2026-10-06
+- **Amended:** on 2026-10-06 (after S1, S2 and S3 were merged) by Ali Roozbahani: Decision 3 now
+  compares sentences instead of whole lines, and subtask S3b is added before S4, which now
+  depends on it. Nothing else changed.
 
 ## Why
 
@@ -42,13 +45,17 @@ closes that gap mechanically.
    `.claude/skills/tm-testing/`. They describe how the code is written; the process rules
    live in the skills of Decision 1. An edit to them is judged by the reviewer like any other
    file in the diff, with the extra rule of Decision 3.
-3. **Rule-weakening signal.** A new script `scripts/check-skill-rule-changes.sh` (with a
+3. **Rule-weakening signal.** A script `scripts/check-skill-rule-changes.sh` (with a
    `--self-test` and fixtures) reads a diff and lists every removed or rewritten line, in any
    file under `.claude/skills/` or in `CLAUDE.md`, that contains a rule word (`must`, `never`,
-   `always`, `do not`, `don't`, `required`, `forbidden`, `only`, `at most`, `at least`) or a
-   number inside such a line. Removed lines whose text reappears unchanged elsewhere in the
-   same file are ignored (moved lines). The reviewer receives the list as a deterministic
-   input, taken from the base branch like the classifier. A non-empty list is
+   `always`, `do not`, `don't`, `required`, `forbidden`, `only`, `at most`, `at least`; a number
+   inside such a line is part of its text, so changing it rewrites the line). A removed line is
+   ignored when every sentence of it that contains a rule word reappears unchanged, word for
+   word, in the added lines of the same hunk of the same file: that covers moved lines,
+   re-wrapped paragraphs, and lines whose other text changed while the rule sentences stayed
+   (S3 compared whole lines; S3b compares sentences, after the first real-history check showed
+   three of four listed lines were such noise). The reviewer receives the list as a
+   deterministic input, taken from the base branch like the classifier. A non-empty list is
    `ESCALATE_TO_HUMAN` with a finding named `rule-weakened`, unless the task text names
    that exact change. Additions and purely factual edits pass. The signal runs from the base
    branch, so a PR cannot edit it to pass.
@@ -150,11 +157,30 @@ closes that gap mechanically.
     - Phase split: the agent stops before the push (pr-review.yml); the human pushes.
   tier2: none
 
+- id: S3b
+  title: Rule-weakening signal compares sentences, not whole lines
+  branch: chore/rule-change-sentences
+  skills: [tm-pr-workflow, tm-pr-review]
+  depends_on: [S3]
+  allowed_paths:
+    - docs/epics/protected-paths-review.md   # this amendment, committed as the human saved it
+    - scripts/check-skill-rule-changes.sh
+    - scripts/check-skill-rule-changes.py
+    - scripts/check-skill-rule-changes-fixtures/
+    - .claude/skills/tm-pr-review/SKILL.md   # item 10, only where its text would be wrong
+    - BOARD.md
+  acceptance:
+    - A removed line is listed only when at least one of its rule-word sentences does not reappear unchanged in the added lines of the same hunk; the output format is unchanged.
+    - The self-test keeps every earlier case and adds cases for the three noise patterns of the real-history check (text inserted between two unchanged sentences, the rule sentence kept while the other half of the line changed, a rule sentence moved within its hunk) and for the cases that must still be listed (a changed number inside a rule sentence, a rule sentence extended with an exception, one of two rule sentences dropped); it was shown failing against a deliberately broken version and then passing.
+    - The real-history check is run again over the last ten skill-touching merged PRs with the base's script and the new script side by side: the new list is a subset of the old one, and every line that disappeared is explained as noise.
+    - Phase split: none (no workflow file changes); the agent pushes.
+  tier2: none
+
 - id: S4
   title: Open the reference skills, add the digest
   branch: chore/open-reference-skills
   skills: [tm-pr-workflow, tm-pr-review]
-  depends_on: [S2, S3]
+  depends_on: [S2, S3b]
   allowed_paths:
     - .github/CODEOWNERS
     - scripts/check-protected-paths.sh
@@ -177,7 +203,8 @@ closes that gap mechanically.
 ## Waves
 
 S1, then S2 and S3 in either order (they share only `scripts/pre-push-check.sh` and
-`.github/CODEOWNERS`, so one at a time), then S4. One PR at a time.
+`.github/CODEOWNERS`, so one at a time), then S3b, then S4. One PR at a time. S1, S2 and S3
+are merged.
 
 ## Epic-level Tier 2
 
