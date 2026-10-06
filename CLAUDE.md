@@ -41,7 +41,8 @@ lists the remaining known deviations in the migrated code, which are not to be c
 `kotlin.test` for `domain` and any other commonTest/KMP code, with hand-written fakes;
 HTTP-level repository tests in `data` commonTest use Ktor `MockEngine` (`ktor-client-mock`).
 Android tests: JUnit4 + `kotlin.test` assertions + `kotlinx-coroutines-test` + hand-written
-fakes; Robolectric (catalog entry, used by `data`) where Android-framework code needs it.
+fakes; Robolectric (catalog entry, used by `data` and by the Compose UI tests of `feature-history`
+and `feature-route`) where Android-framework code needs it.
 MockK and Turbine are not in the catalog. No JUnit5, no AssertK, no Truth. Details: `tm-testing`.
 
 ## Hard rules (always apply)
