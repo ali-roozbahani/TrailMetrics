@@ -32,7 +32,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: chat 2026-10-02
 - Problem: Every task needs the human as reviewer, merger and Tier 2 tester, which is the slowest part of development.
 - Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on iOS (XCUITest) and Android (Compose UI tests), with a fast smoke subset in the local gate when the diff touches UI or ViewModels and the full UI suite in CI; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the two required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR.
-- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`, `test-feature-tracking-compose-ui`.
+- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`.
 
 ### route-completion-to-domain
 - Type: epic
@@ -107,18 +107,27 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Order: 100
 - After: agentic-dev-loop
 - Source: bugfix/ios-history-details-delete-and-load-errors PR
-- Problem: The iOS ViewModel guards for a repeated Finish (`TrackingViewModel.onFinishClicked`), a repeated delete confirmation (`DetailsViewModel.onDeleteConfirmed`), a repeated Generate (`RouteViewModel.onGenerateRouteClicked`) and Generate followed by Reset (`onResetClicked`) are covered by Swift unit tests in the packages, but nothing proves the Views deliver such taps to the ViewModel the way the tests do, and they can't be checked reliably by hand. The Android equivalents are the three `test-feature-*-compose-ui` records. There is no iOS UI-test target today: `TrailMetrics.xcodeproj` has only the `TrailMetrics` app and the `TrackingWidget` extension, and the shared `TrailMetrics` scheme has no testables. Design note: XCUITest drives the real app, so it needs deterministic fakes (location, directions, storage) injected at app launch (a launch argument read by the composition root, or a Koin override in `doInitKoinIos`); that seam doesn't exist yet and is part of this task.
+- Problem: The iOS ViewModel guards for a repeated Finish (`TrackingViewModel.onFinishClicked`), a repeated delete confirmation (`DetailsViewModel.onDeleteConfirmed`), a repeated Generate (`RouteViewModel.onGenerateRouteClicked`) and Generate followed by Reset (`onResetClicked`) are covered by Swift unit tests in the packages, but nothing proves the Views deliver such taps to the ViewModel the way the tests do, and they can't be checked reliably by hand. The Android equivalents are done: the Compose UI tests of `feature-history`, `feature-route` and `feature-tracking` cover them under Robolectric. There is no iOS UI-test target today: `TrailMetrics.xcodeproj` has only the `TrailMetrics` app and the `TrackingWidget` extension, and the shared `TrailMetrics` scheme has no testables. Design note: XCUITest drives the real app, so it needs deterministic fakes (location, directions, storage) injected at app launch (a launch argument read by the composition root, or a Koin override in `doInitKoinIos`); that seam doesn't exist yet and is part of this task.
 - Done when: a UI-test target exists in the shared scheme with a launch-time fake seam, and XCUITest scenarios cover: Finish tapped twice (one History entry), Generate then Reset (no route afterwards), Generate tapped twice (one directions request), delete confirmation tapped twice (one deletion), and a failed delete showing the "Error" alert.
-- Refs: `iosApp/TrailMetrics.xcodeproj`; `TrailMetricsApp` (`doInitKoinIos`), `KoinHelper`; `TrackingView`/`TrackingViewModel.onFinishClicked`; `RouteView`/`RouteViewModel.onGenerateRouteClicked`, `onResetClicked`; `DetailsView`/`DetailsViewModel.onDeleteConfirmed`; `HistoryView`; board `test-feature-tracking-compose-ui`.
+- Refs: `iosApp/TrailMetrics.xcodeproj`; `TrailMetricsApp` (`doInitKoinIos`), `KoinHelper`; `TrackingView`/`TrackingViewModel.onFinishClicked`; `RouteView`/`RouteViewModel.onGenerateRouteClicked`, `onResetClicked`; `DetailsView`/`DetailsViewModel.onDeleteConfirmed`; `HistoryView`.
 
-### test-feature-tracking-compose-ui
+### tracking-camera-update-without-maps-initialized
 - Type: task
 - Area: androidApp/feature-tracking
-- Order: 110
-- Source: test-feature-tracking PR
-- Problem: After the JVM tests, `feature-tracking`'s `TrackingViewModel`, `RouteCompletionTracker` and `di/TrackingUiModule` are fully covered; everything left is Android-framework code with 0% covered: `TrackingScreen` (284 lines: `TrackingRoot`'s event handling and permission flow, both `TrackingScreen` overloads, `MetricsDisplay`, the preview, `hasLocationPermission`) and `util/MapSnapshotSaver` (19 lines: `saveSnapshotToFile` scaling, PNG write and `IOException` path). They need Robolectric and/or compose-ui-test. The catalog already has `robolectric` (used by `data`), `androidx-compose-ui-test-junit4` and `androidx-compose-ui-test-manifest` (used by `androidApp/app` androidTest). The JVM tests of the double-Finish fix (tracking-finish-saves-twice) can only dispatch two `Finish` actions back to back; the real UI path is asynchronous and untested.
-- Done when: `TrackingScreen` and `saveSnapshotToFile` have tests, a double tap on the Finish button, including the asynchronous `map.snapshot` callback path in `TrackingScreen`, results in exactly one saved activity and one `Saved`, and the module's Kover floor is raised in the same PR.
-- Refs: `androidApp/feature-tracking` `TrackingScreen`, `MetricsDisplay`, `util/MapSnapshotSaver.kt`; `androidApp/feature-tracking/build.gradle.kts` `minBound`; `tm-testing` ("Compose UI tests", "What's actually available today").
+- Order: 112
+- Source: Tracking screen Compose UI tests PR, 2026-10-07
+- Problem: `TrackingScreen`'s `LaunchedEffect(state.currentPath)` calls `CameraUpdateFactory.newLatLng` on every path change, whether or not a map exists. `CameraUpdateFactory` works only after `MapsInitializer` has filled it from Google Play services (normally when the `MapView` is created); before that it throws `NullPointerException` ("CameraUpdateFactory is not initialized"). Without a fake factory, 15 of the 26 `TrackingScreenTest` cases (map not rendered) fail with that exception. On a device where the Maps SDK cannot initialize (Google Play services missing, disabled or outdated), the first location fix after Start would therefore throw inside the effect. Found while writing the tests, not reproduced on a device.
+- Done when: a path change without an initialized Maps SDK neither throws nor stops tracking (for example the camera update is built only once the map is there, as `cameraPositionState.animate` already waits for it), shown by a Compose UI test that does not install the fake factory.
+- Refs: `androidApp/feature-tracking` `TrackingScreen` (`LaunchedEffect(state.currentPath)`); `TrackingScreenTest`, `fakes/FakeGoogleMap.kt` (`installFactories`).
+
+### document-rendered-map-test-fake
+- Type: task
+- Area: .claude/skills/tm-testing
+- Order: 115
+- Source: Tracking screen Compose UI tests PR, 2026-10-07
+- Problem: `tm-testing` ("Compose UI tests", the Maps bullet) describes only `LocalInspectionMode`, under which maps-compose draws an empty `Box` and nothing inside the map runs. `feature-tracking`'s `TrackingScreenSnapshotTest` now also renders the map in a JVM test with test sources only: a Robolectric shadow of `MapView` (`ShadowMapView`, which must extend `ShadowViewGroup`) answers `getMapAsync` with a real `GoogleMap` over a `java.lang.reflect.Proxy` `IGoogleMapDelegate` (`FakeGoogleMap`), so `MapEffect` and the map's callbacks such as `snapshot { }` can be driven by the test. The skill does not mention this, so a later screen test that needs the map could add a production seam instead.
+- Done when: the Maps bullet says when to use each of the two ways and points at `FakeGoogleMap`/`ShadowMapView`, including what the fake does not do (map content is still not asserted, the factories are fakes).
+- Refs: `.claude/skills/tm-testing/SKILL.md` ("Compose UI tests"); `androidApp/feature-tracking/src/test` `fakes/FakeGoogleMap.kt`, `TrackingScreenSnapshotTest`.
 
 ### tracking-location-path-double-clock-read
 - Type: task
@@ -292,3 +301,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: the comment above the `kover` block in `androidApp/feature-history/build.gradle.kts` says the floor is a little below the module's measured line coverage "(79.15%, measured after test-feature-history-compose-ui)", and the one in `androidApp/feature-tracking/build.gradle.kts` "(30.02%, measured on main after test-feature-tracking)". Both name a board slug that is gone from `BOARD.md` and a measured figure that goes stale with the next test; the floor itself is each module's entry in `config/kover-floors.properties`. `androidApp/feature-route/build.gradle.kts` no longer names a figure. Both build files are protected paths outside this PR's scope.
 - Done when: both comments stop naming a measured figure and a board slug, as `androidApp/feature-route/build.gradle.kts` does, keeping their sentence about how `config/kover-floors.properties` is read.
 - Refs: `androidApp/feature-history/build.gradle.kts`, `androidApp/feature-tracking/build.gradle.kts` (comment above the `kover` block); `androidApp/feature-route/build.gradle.kts`; `config/kover-floors.properties`.
+
+### drift-robolectric-users-omit-feature-tracking
+- Type: drift
+- Area: docs
+- Order: 340
+- Source: Tracking screen Compose UI tests PR, 2026-10-07
+- Problem: `CLAUDE.md` ("Testing stack") says Robolectric is "used by `data` and by the Compose UI tests of `feature-history` and `feature-route`", and `README.md` says the same twice (the "Testing strategy" bullet and the Testing row of the stack table). Since that PR `feature-tracking`'s Compose UI tests (`TrackingScreenTest`, `TrackingScreenSnapshotTest`) and `MapSnapshotSaverTest` run under Robolectric too. `CLAUDE.md` is a protected path, and neither file was in that PR's `allowed_paths`.
+- Done when: both files name `feature-tracking` among the Robolectric users (or name no module list at all), in a PR the human authorizes for `CLAUDE.md`.
+- Refs: `CLAUDE.md` ("Testing stack"); `README.md` ("Testing strategy", the stack table's Testing row); `androidApp/feature-tracking/src/test`.
