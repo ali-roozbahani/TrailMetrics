@@ -87,6 +87,12 @@ fails, so observe through a use case that turns the failure into a value on the 
   `AsyncStream` each time (see `RouteViewModel`/`TrackingViewModel`). Don't store a single
   `let events` stream: an `AsyncStream` has one consumer for its whole life, and a cancelled
   `.task` (screen covered by a push) leaves it dead the next time the view appears.
+  Between two streams nobody consumes (before the first `.task` runs, so a failed load
+  started in `init`, and while the screen is covered), and `yield` to a missing or terminated
+  continuation loses the event. So `emit` keeps every event that `yield` does not report as
+  `.enqueued` in `pendingEvents` (at most `maxPendingEvents`, 10, oldest dropped first), and
+  `makeEventsStream()` yields those to the new stream first (see `RouteViewModel.emit`;
+  `TrackingViewModel.emit` is the same).
 - iOS is **not** part of the Android MVI migration. iOS ViewModels expose intent methods
   (`onGenerateRouteClicked()`, `onMapTapped(_:)`). Keep that style. Some existing methods
   take completion closures (`TrackingViewModel.onFinishClicked(snapshotFilePath:onSaved:)`,
