@@ -35,8 +35,8 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
   its `build.gradle.kts` adds the catalog entries `robolectric`, `androidx-compose-ui-test-junit4`
   and `androidx-compose-ui-test-manifest` (with `platform(libs.androidx.compose.bom)` for their
   versions) as `testImplementation`, plus `testOptions.unitTests.isIncludeAndroidResources = true`
-  so tests can read string resources. `feature-route` and `feature-tracking` don't have them
-  yet; their first Compose UI test adds the same lines. See "Compose UI tests".
+  so tests can read string resources. All three feature modules (`feature-history`,
+  `feature-route`, `feature-tracking`) now have them. See "Compose UI tests".
 - A task that adds MockK or Turbine must name it, add it to the catalog, and update this
   section in the same change.
 - Ktor `MockEngine` (`ktor-client-mock`, on the catalog's `ktor` version) is a `data`
