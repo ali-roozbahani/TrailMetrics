@@ -239,24 +239,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
 
-### drift-protected-path-merge-exception-wording
-- Type: drift
-- Area: .claude, .github
-- Order: 210
-- Source: agentic-dev-loop S4b PR review, 2026-10-03
-- Problem: `tm-pr-workflow`'s Boundaries say "An agent never merges a PR that touches a protected path. The human merges those." and the header of `.github/CODEOWNERS` says "An agent never merges a PR that touches a path listed here." Decisions 4 and 5 of `docs/epics/agentic-dev-loop.md` make one exception: a subtask PR into an epic branch whose plan `allowed_paths` cover the path (written in `tm-agent-loop`, "Merge conditions", condition 6). S4b's scope did not allow changing either line.
-- Done when: both lines state the exception or point to `tm-agent-loop` ("Merge conditions"), in a task that explicitly authorizes the `CODEOWNERS` change.
-- Refs: `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `.github/CODEOWNERS` (header comment); `.claude/skills/tm-agent-loop/SKILL.md` ("Merge conditions"); `docs/epics/agentic-dev-loop.md` (Decisions 4 and 5).
-
-### drift-plan-decision-8-maps-failure-level-to-changes
-- Type: drift
-- Area: docs
-- Order: 220
-- Source: agentic-dev-loop run 7 (PR #93 or the number this PR gets), 2026-10-04
-- Problem: Decision 8 of `docs/epics/agentic-dev-loop.md` maps the `Review — pr-reviewer` annotation by level alone ("`failure` = `CHANGES`"). "Map verdict" in `.github/workflows/pr-review.yml` also writes a `failure` annotation when there is no valid report (a failed run, an empty report, a first line that is not a verdict, a wrong `REVIEWED_SHA`), and `tm-agent-loop` section 7 maps by level and the start of the message (`APPROVE.`, `ESCALATE_TO_HUMAN:`, `CHANGES:`), reading anything else as `NOT_APPROVE`. Decision 7 now says a PR whose check never produced a valid report does not count toward the trial, which only the message start tells apart from `CHANGES`.
-- Done when: Decision 8 maps by level and the start of the message, as `tm-agent-loop` section 7 does, and says that any other annotation is not a verdict.
-- Refs: `docs/epics/agentic-dev-loop.md` (Decisions 7 and 8); `.github/workflows/pr-review.yml` (step "Map verdict"); `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
-
 ### drift-pr-review-log-env-prints-pr-body
 - Type: drift
 - Area: .github
@@ -293,15 +275,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has decided how CI's `xcodebuild` steps ("Build iOS app", "Run iOS package tests") are protected (for example sourcing `scripts/scrub-env.sh` there, or leaving them as they are because the job holds no secret), and the decision is implemented and shown in a CI log, by names and counts only.
 - Refs: `.github/workflows/ci.yml` (`ios` job, steps "Build iOS app" and "Run iOS package tests"); `scripts/scrub-env.sh`; `scripts/pre-push-check.sh`; run 37297553551 (job "iOS — SwiftLint, Build").
 
-### drift-robolectric-users-claude-md-readme
-- Type: drift
-- Area: CLAUDE.md, README.md
-- Order: 270
-- Source: History and Details Compose UI tests PR (agent loop run 23), 2026-10-05
-- Problem: since that PR `feature-history`'s JVM tests use Robolectric (with compose-ui-test) for Compose UI tests of `HistoryScreen` and `DetailsScreen`. `CLAUDE.md` ("Testing stack") still says "Robolectric (catalog entry, used by `data`)", and `README.md` ("Testing strategy") still says "Android-only persistence tests use Robolectric where genuinely needed", with no mention of Compose UI tests. Neither file was in that PR's allowed files.
-- Done when: both lines name the Compose UI tests in `feature-history` (and any later feature module) as Robolectric users, or the human decides they stay as they are.
-- Refs: `CLAUDE.md` ("Testing stack"); `README.md` ("Testing strategy", the "Testing" row of the stack table); `androidApp/feature-history/build.gradle.kts`; `tm-testing` ("What's actually available today", "Compose UI tests").
-
 ### drift-tm-android-tests-section-mockk
 - Type: drift
 - Area: .claude
@@ -311,56 +284,11 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the line describes the current stack (JUnit4, `kotlin.test`, hand-written fakes, Robolectric/compose-ui-test where needed) and points to `tm-testing` for the rest.
 - Refs: `.claude/skills/tm-android/SKILL.md` ("Tests"); `.claude/skills/tm-testing/SKILL.md` ("What's actually available today"); `gradle/libs.versions.toml`.
 
-### drift-pr-review-workflow-wrapper-header
+### drift-kover-comments-name-removed-board-slugs
 - Type: drift
-- Area: scripts
-- Order: 290
-- Source: protected-paths-review S3 (skill rule-change signal PR), 2026-10-06
-- Problem: the header comment of `scripts/check-pr-review-workflow.sh` says the self-test "runs the "Run pr-reviewer" and "Map verdict" scripts" and "The scripts under test need jq; without python3 or jq the self-test fails". Since S3 the self-test also runs the "Rule changes from the base" step of `.github/workflows/pr-review.yml` in scratch git repositories (fixtures in `scripts/check-pr-review-workflow-fixtures/rule-changes/`) and also needs `git` and `tar`. The wrapper was not in S3's `allowed_paths`.
-- Done when: the header names the three steps and the four tools, as the docstring of `scripts/check-pr-review-workflow.py` and `tm-pr-workflow` ("Tier 1") do.
-- Refs: `scripts/check-pr-review-workflow.sh` (header comment); `scripts/check-pr-review-workflow.py` (docstring); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
-
-### drift-pr-review-item-5-lowered-minbound
-- Type: drift
-- Area: .claude
-- Order: 300
-- Source: protected-paths-review S2 (Kover floors ratchet PR), 2026-10-06
-- Problem: `tm-pr-review` checklist item 5 ("Deleted or weakened tests") lists "a lowered Kover `minBound`". Since S2 the floors are not `minBound` literals in the module `build.gradle.kts` files: each module passes its entry of `config/kover-floors.properties` to `minBound`, and `scripts/check-kover-floors.sh` fails the gate and CI when an entry is lower than on the base. A lowered floor now shows up in the diff as a lowered value in that file (or as a changed read in a build file). `tm-pr-review` is a protected process skill outside S2's `allowed_paths`.
-- Done when: item 5 names a lowered floor in `config/kover-floors.properties` (and a build file that stops reading it), in place of "a lowered Kover `minBound`".
-- Refs: `.claude/skills/tm-pr-review/SKILL.md` (Checklist, item 5); `config/kover-floors.properties`; `scripts/check-kover-floors.sh`.
-
-### drift-epic-orchestration-protected-files-list
-- Type: drift
-- Area: .claude
-- Order: 310
-- Source: protected-paths-review S4 (open reference skills PR), 2026-10-06
-- Problem: `epic-orchestration` ("allowed_paths conventions for this repo") says `allowed_paths` never overrides "the protected files from `tm-pr-workflow` (docs/architecture, CI, lint config, the gate, the hook, skills, `CLAUDE.md`)". `tm-pr-workflow` keeps no such list (`.github/CODEOWNERS` is the single source of truth), and since S4 the four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are not protected. The same skill ("The plan") also says `docs/epics/` "sits outside the protected `docs/architecture/`", while CODEOWNERS owns `/docs/epics/`. `epic-orchestration` is a protected process skill outside S4's `allowed_paths`.
-- Done when: both places point to `.github/CODEOWNERS` (and `scripts/check-protected-paths.sh --files`) for what is protected instead of naming paths, and no longer say that every skill is protected or that `docs/epics/` is unprotected.
-- Refs: `.claude/skills/epic-orchestration/SKILL.md` ("allowed_paths conventions for this repo", "The plan"); `.github/CODEOWNERS`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries").
-
-### drift-feature-route-kover-comment-stale-measured-figure
-- Type: drift
-- Area: androidApp/feature-route
-- Order: 320
-- Source: raise-feature-route-kover-floor PR, 2026-10-06
-- Problem: The comment above the `kover` block in `androidApp/feature-route/build.gradle.kts` says the floor is "a little below this module's measured line coverage from its own tests (25.87%, measured on main after test-feature-route)". The module's measured line coverage is now 27.98% (`./gradlew :androidApp:feature-route:koverLog` on main at 5bb4a6b), and its floor in `config/kover-floors.properties` is 26, which is above the 25.87% the comment names. The build file is a protected path outside that PR's `allowed_paths`.
-- Done when: the comment names the module's current measured coverage, or stops naming a figure.
-- Refs: `androidApp/feature-route/build.gradle.kts` (comment above the `kover` block); `config/kover-floors.properties`.
-
-### drift-loop-skill-reviewdecision-empty-at-zero-approvals
-- Type: drift
-- Area: .claude
-- Order: 910
-- Source: agentic-dev-loop S5 test, 2026-10-03
-- Problem: `tm-agent-loop` ("Reading the CI verdict") tells the agent to use `reviewDecision` instead of `reviewRequests`. With "Require review from Code Owners" on and required approvals at 0, `reviewDecision` stayed empty on a protected PR both before and after the code owner approved it (PR #85, a closed throwaway); only `mergeStateStatus` (`BLOCKED`, then `CLEAN`), `requested_reviewers` and the reviews list showed the review state.
-- Done when: the skill names `mergeStateStatus`, `gh api repos/{owner}/{repo}/pulls/<N>/reviews` and `requested_reviewers` as the signals for a pending or given review, and says that `reviewDecision` is empty at 0 required approvals.
-- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict").
-
-### drift-epic-orchestration-gate-scope-after-light-decision
-- Type: drift
-- Area: .claude
-- Order: 920
-- Source: agentic-dev-loop run 1 (PR #87), 2026-10-03
-- Problem: `epic-orchestration`'s "Resource contention" bullet says "Every subtask runs the full gate: Gradle `detekt`, `lint`, `allTests test`, the Kover coverage report and `koverVerify`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild` once the diff touches `iosApp/` or the shared layer." Since #87 `scripts/pre-push-check.sh` and CI skip those heavy steps when `scripts/classify-changes.sh` decides `light` (non-source changes only), so a subtask with only non-source changes does not run them.
-- Done when: the lines say the heavy steps run unless `scripts/classify-changes.sh` decides `light`, and point to that script instead of repeating its allowlist.
-- Refs: `.claude/skills/epic-orchestration/SKILL.md` ("Resource contention"); `scripts/classify-changes.sh`; `scripts/pre-push-check.sh`.
+- Area: androidApp/feature-history, androidApp/feature-tracking
+- Order: 330
+- Source: protected drift cleanup PR (chore/protected-drift-cleanup), 2026-10-06
+- Problem: the comment above the `kover` block in `androidApp/feature-history/build.gradle.kts` says the floor is a little below the module's measured line coverage "(79.15%, measured after test-feature-history-compose-ui)", and the one in `androidApp/feature-tracking/build.gradle.kts` "(30.02%, measured on main after test-feature-tracking)". Both name a board slug that is gone from `BOARD.md` and a measured figure that goes stale with the next test; the floor itself is each module's entry in `config/kover-floors.properties`. `androidApp/feature-route/build.gradle.kts` no longer names a figure. Both build files are protected paths outside this PR's scope.
+- Done when: both comments stop naming a measured figure and a board slug, as `androidApp/feature-route/build.gradle.kts` does, keeping their sentence about how `config/kover-floors.properties` is read.
+- Refs: `androidApp/feature-history/build.gradle.kts`, `androidApp/feature-tracking/build.gradle.kts` (comment above the `kover` block); `androidApp/feature-route/build.gradle.kts`; `config/kover-floors.properties`.

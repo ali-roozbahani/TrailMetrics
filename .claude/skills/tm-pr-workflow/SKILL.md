@@ -275,7 +275,10 @@ End the description with the attribution line the session specifies.
   protected (their `SKILL.md` files have ownerless lines in CODEOWNERS), so an agent may edit
   them in a task that calls for it; the reviewer judges that diff like any other, and the
   rule-change signal (`tm-pr-review` item 10) escalates any removed or rewritten rule line.
-- An agent never merges a PR that touches a protected path. The human merges those.
+- An agent never merges a PR that touches a protected path. The human merges those. The one
+  exception is a subtask PR into an epic branch whose plan `allowed_paths` cover the path
+  (`tm-agent-loop`, "Merge conditions", condition 6); the epic PR into `main` is always the
+  human's.
 - **Docs follow the code you changed.** Before opening the PR, fix in the same PR any line
   in a skill or `CLAUDE.md` that directly describes the current state of the code this
   task changed and is now wrong. That is part of the task, not a side effect, so it needs

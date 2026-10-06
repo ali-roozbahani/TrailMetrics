@@ -73,9 +73,12 @@
    protected path. GitHub's repository setting "Allow auto-merge" stays off permanently.
 8. **Reading the CI verdict.** The `Review — pr-reviewer` check's conclusion cannot tell
    `APPROVE` from `ESCALATE_TO_HUMAN` (it is green for both), so an agent reads the verdict
-   from the check run's annotation on the PR head SHA: level `notice` = `APPROVE`,
-   `warning` = `ESCALATE_TO_HUMAN`, `failure` = `CHANGES`. This is to be proven on a real PR
-   in S4b; if the verdict cannot be read that way, the plan is amended again.
+   from the check run's annotation on the PR head SHA, by its level and the start of its
+   message: level `notice` with a message starting `APPROVE.` = `APPROVE`, `warning` with a
+   message starting `ESCALATE_TO_HUMAN:` = `ESCALATE_TO_HUMAN`, `failure` with a message
+   starting `CHANGES:` = `CHANGES`. Any other annotation (for example a `failure` written
+   when there is no valid report) is not a verdict, and never `APPROVE`. This is to be proven
+   on a real PR in S4b; if the verdict cannot be read that way, the plan is amended again.
 
 ## Subtasks
 
@@ -171,7 +174,7 @@
     - .claude/skills/epic-orchestration/SKILL.md
     - .claude/skills/tm-pr-workflow/SKILL.md
     - CLAUDE.md                                # the skill list only
-    - BOARD.md                                 # narrow auto-merge-requires-approve-verdict and add the two follow-up records
+    - BOARD.md                                 # narrow the auto-merge record to the APPROVE verdict and add the two follow-up records
     - docs/epics/agentic-dev-loop.md           # this entry and the amendment note only
   acceptance:
     - The loop skill covers picking the task with `scripts/check-board.sh --next`,

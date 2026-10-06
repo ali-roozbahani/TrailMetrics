@@ -85,7 +85,7 @@ iosApp/
 - **Stop vs. Finish are distinct events** — leaving the tracking screen early (`Stop`) never persists an activity; only an explicit `Finish` click triggers `SaveActivityUseCase`. Conflating the two would have silently persisted abandoned sessions.
 - **Shared navigation identity, native navigation mechanics** — `AppRoute` (a plain `@Serializable` sealed interface in `core`) is the single source of truth for what screens exist; each platform wires it into its own idiomatic navigation API (Navigation Compose's type-safe `composable<T>()` on Android, `NavigationStack`/`NavigationPath` on iOS via SKIE's Swift enum export) rather than sharing a navigation framework itself.
 - **`core` (KMP) vs. `core-ui` (Android-only) are deliberately separate modules** — the Compose compiler Gradle plugin instruments every Kotlin compilation in a module it's applied to, including iOS targets, so Compose code cannot coexist with an iOS target in the same module. See [`ADR-003-core-ui-split.md`](docs/architecture/ADR-003-core-ui-split.md).
-- **Testing strategy** — pure domain logic uses `kotlin.test` with hand-written fakes (Kotlin/Native has no reflection, so no MockK in shared modules); Android-only persistence tests use Robolectric where genuinely needed; HTTP-level repository tests run in shared `commonTest` against a Ktor `MockEngine`. See [`domain/README.md`](domain/README.md) and [`data/README.md`](data/README.md).
+- **Testing strategy** — pure domain logic uses `kotlin.test` with hand-written fakes (Kotlin/Native has no reflection, so no MockK in shared modules); Robolectric is used only where genuinely needed: the Android-only persistence tests (`data`) and the Compose UI tests of `feature-history` and `feature-route`; HTTP-level repository tests run in shared `commonTest` against a Ktor `MockEngine`. See [`domain/README.md`](domain/README.md) and [`data/README.md`](data/README.md).
 
 ---
 
@@ -116,7 +116,7 @@ The goal is that anyone reading this repository — human or automated — can t
 | Image loading | Coil (Android) |
 | Concurrency | Kotlin Coroutines & Flow |
 | Live tracking UI | Android foreground service notification, iOS ActivityKit Live Activity (Lock Screen + Dynamic Island) |
-| Testing | `kotlin.test` + hand-written fakes + Ktor `MockEngine` (shared), JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` + hand-written fakes + Robolectric (Android-only) |
+| Testing | `kotlin.test` + hand-written fakes + Ktor `MockEngine` (shared), JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` + hand-written fakes + Robolectric (Android-only: `data` persistence and the Compose UI tests of `feature-history` and `feature-route`) |
 | Static analysis | Detekt (`config/detekt/detekt.yml`), SwiftLint (`iosApp/.swiftlint.yml`), Android Lint |
 | CI/CD | GitHub Actions — separate Android (`ubuntu-latest`) and iOS (`macos-latest`) jobs on every PR and push to `main` |
 | Build | Gradle Version Catalog (`libs.versions.toml`), Swift Package Manager (iOS local packages) |

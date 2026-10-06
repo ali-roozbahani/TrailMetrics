@@ -136,9 +136,13 @@ starting `CHANGES:` = `CHANGES`. Anything else is **not** `APPROVE`: no annotati
 title, more than one, a level and message that disagree, a check run that is not completed,
 or an annotation from a different SHA. Fail closed: only the exact output `APPROVE` counts.
 
-Don't use `gh pr view --json reviewRequests`: the machine token lacks `read:org`. Use
-`reviewDecision` (`gh pr view <N> --json reviewDecision`) or the REST API
-(`gh api repos/{owner}/{repo}/pulls/<N>/requested_reviewers`).
+Don't use `gh pr view --json reviewRequests`: the machine token lacks `read:org`. For a
+pending or given review, read `mergeStateStatus` (`gh pr view <N> --json mergeStateStatus`;
+`BLOCKED` while a required code owner review is pending), the reviews list
+(`gh api repos/{owner}/{repo}/pulls/<N>/reviews`) and the requested reviewers
+(`gh api repos/{owner}/{repo}/pulls/<N>/requested_reviewers`). Don't rely on
+`reviewDecision` (`gh pr view <N> --json reviewDecision`): it stays empty when the required
+approval count is 0, before and after a code owner approves.
 
 ## 8. Merge conditions
 
@@ -188,7 +192,7 @@ touches a protected path, the human also approves the PR on GitHub (Decision 5).
 
 Once the conditions of section 8 are checked and, when all six are "yes", the merge command
 has run, post one PR comment on every PR, including PRs that touch a protected path
-(condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
+(for a PR against `main`, condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
 
 ```
 Merge check
@@ -198,7 +202,7 @@ Merge check
 3. Author is peter-christofer-bot: yes|no
 4. CI annotation APPROVE: yes|no (<title>, <level>, "<first words of message>")
 5. Local verdict APPROVE for <SHA>: yes|no
-6. No protected path: yes|no
+6. No protected path (subtask PR into an epic branch: allowed_paths cover every changed path): yes|no
 
 Merged: yes|no (<reason when no>)
 ```
@@ -207,8 +211,10 @@ The reason after "no" is the condition that is "no", or the first line of the me
 command's refusal. The agent runs the merge command in section 8 only when all six are "yes",
 and does the after-merge cleanup only if the PR merged. When any condition is "no", the
 comment is posted without a merge attempt, and the agent reports to the human, who merges;
-a refused merge is reported the same way. A PR that touches a protected path, the epic PR
-into `main` and a PR whose CI annotation is not `APPROVE` are never the agent's to merge.
+a refused merge is reported the same way. A PR that touches a protected path is never the
+agent's to merge, except a subtask PR into an epic branch whose plan `allowed_paths` for that
+subtask cover every changed path (section 8, condition 6). The epic PR into `main` and a PR
+whose CI annotation is not `APPROVE` are never the agent's to merge.
 "Allow auto-merge" and `gh pr merge --auto` stay forbidden (section 8).
 
 ## After-merge cleanup

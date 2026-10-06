@@ -97,9 +97,10 @@ but never commits it unprompted.
   `feature-x`. Tests are never a separate parallel subtask (`tm-testing` owns how to write
   them).
 - `allowed_paths` never overrides a boundary. Module boundaries from `tm-kmp-shared` and
-  the protected files from `tm-pr-workflow` (docs/architecture, CI, lint config, the gate,
-  the hook, skills, `CLAUDE.md`) stay off-limits unless the epic's human-approved scope
-  names them.
+  the protected paths stay off-limits unless the epic's human-approved scope names them.
+  Which paths are protected is decided by `.github/CODEOWNERS` alone (`tm-pr-workflow`,
+  "Boundaries"); check a path with `scripts/check-protected-paths.sh --files <path>...`
+  instead of relying on a list here.
 - **Disjoint means no file could match two concurrent subtasks' globs.** Check it on
   globs, not only on the files you expect: `androidApp/**` and
   `androidApp/feature-history/**` overlap.
@@ -141,8 +142,9 @@ contract subtask. They never run alongside it with a stubbed API.
 An epic's plan is a committed file, `docs/epics/<epic-slug>.md`. It is the first commit
 on the epic branch, so the epic branch differs from `main` and its draft PR can be opened. The
 plan is also the record in history of how the epic was split. (Assumption: `docs/epics/`
-is a new directory this skill introduces. It sits outside the protected
-`docs/architecture/`.) The file records **decisions**. Live status (which PRs are open or
+is a new directory this skill introduces. Whether it is protected is decided by
+`.github/CODEOWNERS`; check with `scripts/check-protected-paths.sh --files`.) The file
+records **decisions**. Live status (which PRs are open or
 merged) goes in the epic PR description, so that subtask PRs never edit the plan file and
 never conflict on it.
 
@@ -428,9 +430,11 @@ confirm it and report under "Drift found" if it isn't.
 
 The caution that still applies to parallel worktrees:
 
-- **Resource contention.** Every subtask runs the full gate: Gradle `detekt`, `lint`,
-  `allTests test`, the Kover coverage report and `koverVerify`, `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild`
-  once the diff touches `iosApp/` or the shared layer. Each worktree has its own build
+- **Resource contention.** Every subtask runs the full gate. Its heavy steps (Gradle
+  `detekt`, `lint`, `allTests test`, the Kover coverage report and `koverVerify`,
+  `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild` once the diff
+  touches `iosApp/` or the shared layer) run unless `scripts/classify-changes.sh` decides
+  `light`; that script, not this skill, says which changes are `light`. Each worktree has its own build
   directories and Gradle daemon. Several gates at once on one machine compete for CPU,
   memory and the shared `~/.gradle` cache locks, and can be slower in total than running
   them one after another. Default to **at most two** concurrent subtasks, and fewer when

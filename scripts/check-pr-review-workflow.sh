@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Reviewer workflow self-test: runs the "Run pr-reviewer" and "Map verdict" scripts of
 # .github/workflows/pr-review.yml, taken from the committed file, against a stub `claude` CLI,
-# one scenario per fixture in scripts/check-pr-review-workflow-fixtures/. Gate and CI step.
+# one scenario per fixture in scripts/check-pr-review-workflow-fixtures/scenarios/, and its
+# "Rule changes from the base" script in scratch git repositories, one case per fixture in
+# scripts/check-pr-review-workflow-fixtures/rule-changes/. Gate and CI step.
 #
 #   scripts/check-pr-review-workflow.sh --self-test                    the committed workflow
 #   scripts/check-pr-review-workflow.sh --self-test --workflow <file>  another copy of it
 #
 # The logic is in check-pr-review-workflow.py (python3 standard library, present on macOS and
-# ubuntu-latest). The scripts under test need jq; without python3 or jq the self-test fails.
+# ubuntu-latest). The scripts under test need jq, git and tar; without python3, jq, git or tar
+# the self-test fails.
 set -uo pipefail
 
 if ! command -v python3 >/dev/null 2>&1; then

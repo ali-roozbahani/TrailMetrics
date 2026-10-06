@@ -2,7 +2,9 @@
 # scripts/check-protected-paths.sh reads it to classify a diff as protected or unprotected,
 # and `scripts/check-protected-paths.sh --validate` checks it. Use only the syntax that
 # script's header documents. An agent never merges a PR that touches a protected path: one
-# whose last matching line here has an owner. A line with no owner makes its path not owned
+# whose last matching line here has an owner. The one exception is a subtask PR into an epic
+# branch whose plan allowed_paths cover the path (.claude/skills/tm-agent-loop/SKILL.md,
+# "Merge conditions", condition 6). A line with no owner makes its path not owned
 # (the later line wins, as on GitHub); only the four reference skill files may have one.
 
 # Agent and repository configuration, docs that need the human's approval

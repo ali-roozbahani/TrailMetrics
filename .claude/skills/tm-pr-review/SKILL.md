@@ -76,7 +76,9 @@ from memory.
    commit message. You cannot run the test: check that it asserts the behavior the defect
    breaks and that the stated failure fits it. Missing test or missing evidence is blocking.
 5. **Deleted or weakened tests.** A removed test file or test function, removed or loosened
-   assertions, `@Ignore`, a skip, an excluded test or test task, a lowered Kover `minBound`.
+   assertions, `@Ignore`, a skip, an excluded test or test task, a lowered Kover floor (a
+   lower value or a removed entry in `config/kover-floors.properties`, or a module
+   `build.gradle.kts` that stops passing its entry of that file to `minBound`).
    `ESCALATE_TO_HUMAN` unless `TASK` explicitly asks for it.
 6. **`@Throws` and the SKIE boundary** (`tm-kmp-shared`, "`@Throws` policy"). Any added,
    removed or changed `@Throws`, or any change to what Swift sees (public `Flow` or

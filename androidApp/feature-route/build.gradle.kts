@@ -65,8 +65,7 @@ dependencies {
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own tests (25.87%, measured on main
-// after test-feature-route).
+// little below this module's measured line coverage from its own tests.
 // The number is this module's entry in config/kover-floors.properties (key: the directory name),
 // which scripts/check-kover-floors.sh lets only go up; no file, no entry or no integer fails the build.
 val koverFloorsFile = layout.settingsDirectory.file("config/kover-floors.properties")
