@@ -1,11 +1,20 @@
 # Protected paths: this file is the single source of truth for them.
 # scripts/check-protected-paths.sh reads it to classify a diff as protected or unprotected,
 # and `scripts/check-protected-paths.sh --validate` checks it. Use only the syntax that
-# script's header documents. An agent never merges a PR that touches a path listed here.
+# script's header documents. An agent never merges a PR that touches a protected path: one
+# whose last matching line here has an owner. A line with no owner makes its path not owned
+# (the later line wins, as on GitHub); only the four reference skill files may have one.
 
 # Agent and repository configuration, docs that need the human's approval
 /.github/                                   @ali-roozbahani
 /.claude/                                   @ali-roozbahani
+# Reference skills: not owned, so an agent may edit them; the reviewer judges the diff and
+# the rule-change signal escalates a removed or rewritten rule line. Files, not directories,
+# so a file added next to one of them stays protected by /.claude/.
+/.claude/skills/tm-ios/SKILL.md
+/.claude/skills/tm-android/SKILL.md
+/.claude/skills/tm-kmp-shared/SKILL.md
+/.claude/skills/tm-testing/SKILL.md
 /CLAUDE.md                                  @ali-roozbahani
 /docs/architecture/                         @ali-roozbahani
 /docs/epics/                                @ali-roozbahani
@@ -35,6 +44,7 @@
 /scripts/build-kmp-framework.sh             @ali-roozbahani
 /scripts/scrub-env.sh                       @ali-roozbahani
 /scripts/filter-xcode-log.sh                @ali-roozbahani
+/scripts/skill-changes-digest.sh            @ali-roozbahani
 
 # Build and dependency files
 /settings.gradle.kts                        @ali-roozbahani

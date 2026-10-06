@@ -61,6 +61,14 @@ from memory.
 3. **Protected paths.** `protected` is `scripts/check-protected-paths.sh --base BASE`
    output. Also check the `diff` file list against `.github/CODEOWNERS` yourself. Any
    protected file, or a disagreement between the two, means `ESCALATE_TO_HUMAN`.
+   CODEOWNERS can contain ownerless lines (allowed for the four reference skill files of
+   `tm-ios`, `tm-android`, `tm-kmp-shared` and `tm-testing`): a file whose last matching line
+   has no owner is not protected. For those lines the classifier's output is authoritative,
+   and a disagreement between it and your own reading still means `ESCALATE_TO_HUMAN`.
+   A diff that changes the YAML front matter (the block between the first two `---` lines) of
+   a reference skill, or that adds a file under `.claude/skills/` next to a reference skill's
+   `SKILL.md`, is `ESCALATE_TO_HUMAN` with the reason `protected path` and a note that says
+   which of the two it is: front matter can carry settings, and item 10 does not look at it.
 4. **Bugfix: red test first** (`tm-testing`, "Bugfixes: red test first"). A bugfix task
    (`bugfix/` branch, `fix` type, or a task that describes a defect) needs a test that
    reproduces the defect in the diff, in a commit before or the same as the fix (see

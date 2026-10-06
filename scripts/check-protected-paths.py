@@ -20,7 +20,7 @@ renamed out of a protected path still shows its old, protected path.
 Supported CODEOWNERS subset (what GitHub does for these is the same; anything else is
 rejected rather than guessed):
   - `# ...` lines are comments; blank lines are ignored. Each other line is
-    `<pattern> <owner>...`.
+    `<pattern> <owner>...`, or `<pattern>` alone (an ownerless line, see below).
   - A leading `/` anchors the pattern to the repo root. A pattern with a `/` anywhere but at
     the end is anchored too. A pattern with no `/` (or only a trailing one) matches a name at
     any depth.
@@ -30,8 +30,13 @@ rejected rather than guessed):
   - `**` crosses directories. It must be a whole path segment: `**/x`, `a/**/x`, `a/**`.
   - Matching is case-sensitive.
   - Not supported: negation (`!`), escaped characters (`\\`), character classes (`[...]`).
-Every owner must be @ali-roozbahani, so a file is protected when any pattern matches it. The
-line reported for a file is its last matching pattern (the one GitHub would use).
+Every owner must be @ali-roozbahani. As on GitHub, the last matching line decides: a file is
+protected when its last matching line has an owner, and the line reported for it is that line's
+pattern. A line with no owner makes the files it matches not owned, so they are unprotected
+when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
+skill files) may be ownerless; any other ownerless line is an error in classification too (exit
+2), so one stray line can't unprotect a directory. --validate also rejects an ownerless line
+that a later line matches as well (the later line overrides it, so it has no effect).
 """
 
 import os
@@ -43,6 +48,15 @@ from pathlib import Path
 
 CODEOWNERS = Path(".github") / "CODEOWNERS"
 OWNER = "@ali-roozbahani"
+# The only lines that may have no owner: the reference skills, which an agent may edit
+# (docs/epics/protected-paths-review.md, Decisions 2 and 5). File patterns, not directories, so
+# a file added next to one of them stays protected by /.claude/.
+UNOWNED_PATTERNS = (
+    "/.claude/skills/tm-ios/SKILL.md",
+    "/.claude/skills/tm-android/SKILL.md",
+    "/.claude/skills/tm-kmp-shared/SKILL.md",
+    "/.claude/skills/tm-testing/SKILL.md",
+)
 DEFAULT_BASE = "origin/main"
 USAGE = ("usage: check-protected-paths.sh [--base <ref> | --files <path>... | --validate | "
          "--self-test] [--root <dir>]")
@@ -55,6 +69,10 @@ class Rule:
         self.line = line
         self.regex = None
         self.syntax_problem = syntax_problem(pattern)
+        self.ownerless_problem = None
+        if not owners and pattern not in UNOWNED_PATTERNS:
+            self.ownerless_problem = ("no owner (only these patterns may have none: "
+                                      + ", ".join(UNOWNED_PATTERNS) + ")")
 
 
 def syntax_problem(pattern):
@@ -117,8 +135,8 @@ def parse_codeowners(text, where):
             problems.append(f"{loc}: {rule.syntax_problem}")
         else:
             rule.regex = compile_pattern(rule.pattern)
-        if not rule.owners:
-            problems.append(f"{loc}: no owner (expected {OWNER})")
+        if rule.ownerless_problem:
+            problems.append(f"{loc}: {rule.ownerless_problem}")
         for owner in rule.owners:
             if owner != OWNER:
                 problems.append(f"{loc}: owner '{owner}' is not {OWNER}")
@@ -143,7 +161,7 @@ def classify(rules, files):
     hits = []
     for path in files:
         rule = matching_rule(rules, path)
-        if rule is not None:
+        if rule is not None and rule.owners:
             hits.append(f"{path}  ({rule.pattern})")
     return ["protected" if hits else "unprotected"] + hits
 
@@ -166,10 +184,12 @@ def load_rules(root):
 def run_classify(root, base, files):
     try:
         rules, _ = load_rules(root)
-        unsupported = [f"{CODEOWNERS}:{r.line}: '{r.pattern}': {r.syntax_problem}"
-                       for r in rules if r.syntax_problem]
+        unsupported = [f"{CODEOWNERS}:{r.line}: '{r.pattern}': {problem}"
+                       for r in rules for problem in (r.syntax_problem, r.ownerless_problem)
+                       if problem]
         if unsupported:
-            # Fail closed: a pattern this script can't read could hide a protected path.
+            # Fail closed: a pattern this script can't read could hide a protected path, and an
+            # ownerless line outside UNOWNED_PATTERNS could unprotect one.
             raise RuntimeError("unsupported CODEOWNERS syntax, run --validate:\n  "
                                + "\n  ".join(unsupported))
         if files is None:
@@ -193,6 +213,16 @@ def run_validate(root):
     for rule in rules:
         if rule.regex is not None and not any(rule.regex.match(p) for p in tracked):
             problems.append(f"{CODEOWNERS}:{rule.line}: '{rule.pattern}': matches no tracked file")
+    for index, rule in enumerate(rules):
+        if rule.owners or rule.regex is None:
+            continue
+        paths = [p for p in tracked if rule.regex.match(p)] + [rule.pattern.lstrip("/")]
+        later = [r for r in rules[index + 1:]
+                 if r.regex is not None and any(r.regex.match(p) for p in paths)]
+        if later:
+            problems.append(f"{CODEOWNERS}:{rule.line}: '{rule.pattern}': ownerless line is "
+                            f"overridden by line {later[0].line} ('{later[0].pattern}'), so it has "
+                            f"no effect; put it after that line")
     problems.sort(key=lambda p: int(p.split(":")[1]))
     for problem in problems:
         print(problem)
@@ -271,8 +301,19 @@ build.gradle.kts   @ali-roozbahani
 /docs/epics/       @ali-roozbahani
 """
 
+# GOOD_CODEOWNERS plus /.claude/ and, after it, the four ownerless reference skill lines.
+REF_CODEOWNERS = (GOOD_CODEOWNERS + "/.claude/ @ali-roozbahani\n"
+                  + "".join(f"{pattern}\n" for pattern in UNOWNED_PATTERNS))
+
+REF_SKILLS = [pattern.lstrip("/") for pattern in UNOWNED_PATTERNS]
+OTHER_CLAUDE = [".claude/skills/tm-pr-review/SKILL.md", ".claude/skills/tm-pr-workflow/SKILL.md",
+                ".claude/skills/tm-agent-loop/SKILL.md",
+                ".claude/skills/epic-orchestration/SKILL.md", ".claude/settings.json",
+                ".claude/agents/pr-reviewer.md", ".claude/skills/tm-ios/extra.sh"]
+
 TRACKED = [".github/CODEOWNERS", "CLAUDE.md", "build.gradle.kts", "data/build.gradle.kts",
-           "docs/epics/plan.md", "README.md", "data/src/A.kt"]
+           "docs/epics/plan.md", "README.md", "data/src/A.kt", "shared/A.kt"] \
+          + REF_SKILLS + OTHER_CLAUDE[:-1]
 
 # (name, CODEOWNERS text or None for GOOD_CODEOWNERS, args, exit code, exact stdout or None,
 #  texts that must appear in stdout + stderr)
@@ -311,6 +352,33 @@ E2E_CASES = [
      ["--validate"], 1, None, ["CODEOWNERS:6: '/missing/': matches no tracked file",
                                "FAILED, 1 problem(s)"]),
     ("missing CODEOWNERS", "", ["--files", "CLAUDE.md"], 2, "", ["CODEOWNERS not found"]),
+    # Ownerless lines: the four reference skill files only, after the line they override.
+    ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
+     "unprotected\n", []),
+    ("ownerless: the rest of .claude/ stays protected", REF_CODEOWNERS, ["--files"] + OTHER_CLAUDE,
+     0, "protected\n" + "".join(f"{f}  (/.claude/)\n" for f in OTHER_CLAUDE), []),
+    ("ownerless: reference skill plus CLAUDE.md", REF_CODEOWNERS,
+     ["--files", REF_SKILLS[0], "CLAUDE.md"], 0, "protected\nCLAUDE.md  (/CLAUDE.md)\n", []),
+    ("ownerless: diff of a reference skill only", REF_CODEOWNERS,
+     ["--base", "main", "--branch", "skill"], 0, "unprotected\n", []),
+    ("ownerless: validate OK", REF_CODEOWNERS, ["--validate"], 0, None, ["OK, 9 patterns"]),
+    ("ownerless: /shared/ rejected by validate", REF_CODEOWNERS + "/shared/\n", ["--validate"], 1,
+     None, ["CODEOWNERS:11: '/shared/': no owner (only these patterns may have none",
+            "FAILED, 1 problem(s)"]),
+    ("ownerless: /shared/ is an error in classification", REF_CODEOWNERS + "/shared/\n",
+     ["--files", "shared/A.kt"], 2, "", ["unsupported CODEOWNERS syntax", "'/shared/': no owner"]),
+    ("ownerless: line before /.claude/ flagged by validate",
+     GOOD_CODEOWNERS + UNOWNED_PATTERNS[0] + "\n/.claude/ @ali-roozbahani\n", ["--validate"], 1,
+     None, [f"CODEOWNERS:6: '{UNOWNED_PATTERNS[0]}': ownerless line is overridden by line 7 "
+            "('/.claude/')", "FAILED, 1 problem(s)"]),
+    ("ownerless: line before /.claude/ unprotects nothing",
+     GOOD_CODEOWNERS + UNOWNED_PATTERNS[0] + "\n/.claude/ @ali-roozbahani\n",
+     ["--files", REF_SKILLS[0]], 0, f"protected\n{REF_SKILLS[0]}  (/.claude/)\n", []),
+    ("ownerless: a reference skill line with a foreign owner too",
+     REF_CODEOWNERS.replace(UNOWNED_PATTERNS[1] + "\n",
+                            UNOWNED_PATTERNS[1] + " @ali-roozbahani @someone-else\n"),
+     ["--validate"], 1, None, [f"CODEOWNERS:8: '{UNOWNED_PATTERNS[1]}': owner '@someone-else' is "
+                               "not @ali-roozbahani", "FAILED, 1 problem(s)"]),
 ]
 
 
@@ -322,7 +390,8 @@ def git(repo, *args):
 
 def make_repo(repo, codeowners):
     """main holds TRACKED; branch `unprotected` edits README.md, `mixed` edits README.md and
-    CLAUDE.md, `rename` moves docs/epics/plan.md to notes/plan.md."""
+    CLAUDE.md, `skill` edits the first reference skill, `rename` moves docs/epics/plan.md to
+    notes/plan.md."""
     git(repo, "init", "-q")
     git(repo, "checkout", "-q", "-b", "main")
     for name in TRACKED:
@@ -335,7 +404,8 @@ def make_repo(repo, codeowners):
         (repo / CODEOWNERS).unlink()  # TRACKED created it as a placeholder
     git(repo, "add", "-A")
     git(repo, "commit", "-q", "-m", "base")
-    for branch, edits in [("mixed", ["README.md", "CLAUDE.md"]), ("unprotected", ["README.md"])]:
+    for branch, edits in [("mixed", ["README.md", "CLAUDE.md"]), ("skill", REF_SKILLS[:1]),
+                          ("unprotected", ["README.md"])]:
         git(repo, "checkout", "-q", "-b", branch, "main")
         for name in edits:
             (repo / name).write_text("changed\n", encoding="utf-8")
