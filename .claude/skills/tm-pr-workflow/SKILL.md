@@ -164,8 +164,9 @@ How it is enforced, and what that means for the order of operations:
   a floor to make a PR pass. If coverage barely moves because the remaining code needs
   infrastructure that isn't available, say so in the PR instead of padding tests.
   `scripts/check-kover-floors.sh` (gate and CI) fails when a floor is lower than on the base,
-  when a module whose `build.gradle.kts` reads the file has no entry, and when an entry has no
-  such module. Lowering a floor is not supported by the mechanism: it needs a human PR that
+  when a module whose `build.gradle.kts` reads the file has no entry, when an entry has no
+  such module, and when a floor's entry is gone while the module that held it still exists.
+  Lowering a floor is not supported by the mechanism: it needs a human PR that
   changes the script. A new module's first floor is a new entry plus the same read in its
   `build.gradle.kts`.
 - A task is not done until Tier 1 has been run **and** its result reported in the PR.

@@ -22,9 +22,11 @@ the floors moved into it) gives them from the `minBound(<n>)` literal of each of
 
 Fails (exit 1, one message per problem on stderr): an invalid floors file, a floor lower than the
 same key on the base, a module without an entry, an entry without a module, two modules with the
-same directory name, a root build.gradle.kts that reads the file. Passes (exit 0, a report on
-stdout): every floor equal or higher, a new module with a floor, and a key that is gone together
-with its module. Exit 2 for a usage or git error, never a pass.
+same directory name, a root build.gradle.kts that reads the file, a base floor whose entry is gone
+while the base's build file that held it still exists (the module stopped reading the file).
+Passes (exit 0, a report on stdout): every floor equal or higher, a new module with a floor, and
+a key that is gone together with its module (the base's build file that held it is gone too).
+Exit 2 for a usage or git error, never a pass.
 """
 
 import os
@@ -149,14 +151,20 @@ def base_files(repo, sha):
 
 
 def base_floors(repo, ref, sha):
-    """(floors, source line) of the base commit, or raises Violation when it has none."""
+    """(floors, {key: build file path}, source line) of the base commit, or raises Violation
+    when it has none. The paths are the base's build files that held each floor."""
     files = base_files(repo, sha)
+    build_files = sorted(p for p in files if Path(p).name == BUILD_FILE)
     if FLOORS_FILE in files:
         data = git(repo, ["cat-file", "blob", f"{sha}:{FLOORS_FILE}"])
-        return parse_floors(data, f"{FLOORS_FILE} at {ref}"), \
+        paths = {}
+        for path in build_files:
+            if FLOORS_FILE.encode() in git(repo, ["cat-file", "blob", f"{sha}:{path}"]):
+                paths.setdefault(module_key(path), path)
+        return parse_floors(data, f"{FLOORS_FILE} at {ref}"), paths, \
             f"base floors: {FLOORS_FILE} at {ref}"
-    literals, problems = {}, []
-    for path in sorted(p for p in files if Path(p).name == BUILD_FILE):
+    literals, paths, problems = {}, {}, []
+    for path in build_files:
         text = git(repo, ["cat-file", "blob", f"{sha}:{path}"]).decode("utf-8", "replace")
         values = MIN_BOUND_RE.findall(text)
         if not values:
@@ -169,19 +177,20 @@ def base_floors(repo, ref, sha):
             problems.append(f"{path} at {ref}: no unique module key for its minBound literal")
         else:
             literals[key] = int(values[0])
+            paths[key] = path
     if problems:
         raise Violation(problems)
     if not literals:
         raise Violation([f"the base {ref} has neither {FLOORS_FILE} nor a minBound(<n>) literal "
                          f"in a {BUILD_FILE}: nothing to compare the floors with"])
-    return literals, (f"base floors: minBound literals in the {BUILD_FILE} files at {ref} "
+    return literals, paths, (f"base floors: minBound literals in the {BUILD_FILE} files at {ref} "
                       f"(the base has no {FLOORS_FILE})")
 
 
 def check(repo, ref):
     """Returns the report lines, or raises Violation or GitError."""
     sha = resolve(repo, ref)
-    base, source = base_floors(repo, ref, sha)
+    base, base_paths, source = base_floors(repo, ref, sha)
     floors_path = Path(repo) / FLOORS_FILE
     if not floors_path.is_file():
         raise Violation([f"{FLOORS_FILE} is missing in the working tree"])
@@ -198,8 +207,13 @@ def check(repo, ref):
         old, new = base.get(key), floors.get(key)
         if old is None:
             report.append(f"  {key}: new, {new}")
+        elif new is None and key not in modules and (Path(repo) / base_paths.get(key, "-")).is_file():
+            problems.append(f"{key}: floor {old} (base) removed while its module "
+                            f"{base_paths[key]} still exists (it no longer reads {FLOORS_FILE}); "
+                            "a floor goes only together with its module")
         elif new is None:
-            report.append(f"  {key}: {old} on the base, gone with its module")
+            if key not in modules:
+                report.append(f"  {key}: {old} on the base, gone with its module")
         elif new < old:
             problems.append(f"{key}: floor lowered from {old} (base) to {new} (new)")
         else:

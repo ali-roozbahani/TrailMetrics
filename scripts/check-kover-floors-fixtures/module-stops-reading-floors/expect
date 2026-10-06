@@ -1,0 +1,3 @@
+exit: 1
+stderr: data: floor 43 (base) removed while its module data/build.gradle.kts still exists
+absent: gone with its module
