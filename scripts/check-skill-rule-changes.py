@@ -18,15 +18,27 @@ file named `CLAUDE.md` (at the root or in any directory). Nothing else is read.
 What is listed: every removed line (a `-` line of the diff, so a rewritten line too) that holds
 a rule word: must, never, always, do not, don't, required, forbidden, only, at most, at least;
 whole words, case-insensitive, the two-word ones with any whitespace between their words.
-A rewritten rule line is listed whatever changed in it, a number included.
+A rewritten rule line is listed whatever changed in one of its rule sentences, a number included.
 
 What is not listed:
   - Added lines, ever.
-  - A removed line whose words reappear unchanged, as a contiguous sequence of words, in the
-    added lines of one hunk of the same file (words are split on whitespace and compared
-    exactly, so a moved line and a re-wrapped paragraph pass, and a line moved with one word
-    changed does not). Words joined across two hunks do not count, so a paragraph re-wrapped
-    around an unchanged line can be listed: noise rather than a missed weakening.
+  - A removed line of which every sentence that holds a rule word reappears unchanged, as a
+    contiguous sequence of words, in the added lines of one hunk of the same file. Words are
+    split on whitespace and compared exactly, punctuation included, so a moved line, a
+    re-wrapped paragraph and a line whose other sentences changed pass, and a rule sentence
+    with one word changed does not. Sentences without a rule word are not compared. Words
+    joined across two hunks do not count, so a paragraph re-wrapped around an unchanged line
+    can be listed: noise rather than a missed weakening. The listed text is the whole line.
+
+Sentences: a sentence ends at a word that ends in `.`, `!` or `?`, optionally followed by closing
+`)`, `"`, `*`, `_` or backticks. Not an end: `;`, `:` and dashes (a clause stays with its
+sentence); the abbreviations e.g., i.e., etc., vs., cf. (any case, after an opening bracket,
+quote or emphasis too); a mark inside an inline code span (an odd number of backticks before it
+on the line, as in `try?`); a period inside a word (scripts/x.sh, 0.9.11). A Markdown list marker
+at the start of the line (-, *, +, 1., 12.) is dropped and belongs to no sentence; any other
+prefix (#, >, 1)) stays in the first sentence. A line that begins or ends inside a sentence (a
+wrapped paragraph) holds a fragment, which is a sentence of its own. Fewer boundaries never list
+less, so an unsure case is not a boundary.
 
 Files:
   - A deleted file lists its rule lines. A rename without content change lists nothing; a
@@ -63,6 +75,12 @@ DIFF_OPTIONS = ["--no-color", "--no-ext-diff", "--no-textconv", "--no-relative",
 HUNK_RE = re.compile(rb"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 BINARY_TEXT = "(binary file changed or deleted; its text cannot be checked for rule words)"
+
+# A sentence ends at a word ending in . ! or ? plus optional closers (group 1 ends at the mark).
+SENTENCE_END = re.compile(r"([.!?])[)\"*_`]*$")
+OPENERS = "([\"*_`"
+ABBREVIATIONS = {"e.g.", "i.e.", "etc.", "vs.", "cf."}
+LIST_MARKER = re.compile(r"[-*+]|\d+\.")
 
 
 class GitError(Exception):
@@ -161,6 +179,46 @@ def contains_run(haystack, needle):
     return any(haystack[i:i + n] == needle for i in range(len(haystack) - n + 1))
 
 
+def ends_sentence(word, backticks_before):
+    """True when `word` ends a sentence: it ends in `.`, `!` or `?`, optionally followed by
+    closing `)`, `"`, `*`, `_` or backticks, is not one of ABBREVIATIONS, and the mark is not
+    inside an inline code span (an odd number of backticks before it on the line, as in `try?`)."""
+    match = SENTENCE_END.search(word)
+    if not match:
+        return False
+    if (backticks_before + word[:match.start()].count("`")) % 2:
+        return False
+    return word[:match.end(1)].lstrip(OPENERS).lower() not in ABBREVIATIONS
+
+
+def sentences(text):
+    """Splits a removed line into sentences, each a list of words (split on whitespace). A
+    leading Markdown list marker is dropped; a fragment at either end of the line is a sentence
+    of its own. Fewer boundaries never list less, so anything unsure is not a boundary."""
+    words = text.split()
+    if words and LIST_MARKER.fullmatch(words[0]):
+        words = words[1:]
+    result, current, backticks = [], [], 0
+    for word in words:
+        current.append(word)
+        if ends_sentence(word, backticks):
+            result.append(current)
+            current = []
+        backticks += word.count("`")
+    if current:
+        result.append(current)
+    return result
+
+
+def retained(text, added_hunks):
+    """True when every sentence of the line that holds a rule word reappears, as a contiguous
+    word sequence, in the added words of one hunk. A line whose rule word is in no sentence (it
+    can't happen, the split keeps every word but a list marker) is not retained."""
+    rule_sentences = [s for s in sentences(text) if has_rule_word(" ".join(s))]
+    return bool(rule_sentences) and all(
+        any(contains_run(hunk, sentence) for hunk in added_hunks) for sentence in rule_sentences)
+
+
 def items_for(repo, base, head, status, old, old_blob, new):
     """The listed items of one raw diff entry, as (path, line, text)."""
     if status == "A" or not covered(old):
@@ -177,8 +235,7 @@ def items_for(repo, base, head, status, old, old_blob, new):
     for line, text in removed:
         if not has_rule_word(text):
             continue
-        needle = text.split()
-        if any(contains_run(hunk, needle) for hunk in added_hunks):
+        if retained(text, added_hunks):
             continue
         items.append((old, line, text[:-1] if text.endswith("\r") else text))
     return items
@@ -218,6 +275,37 @@ MATCH_CASES = [
     ("do nothing", False),
     ("at mostly", False),
     ("a number: 15 minutes", False),
+]
+
+# (line, its sentences joined with " | "): the sentence split of a removed line.
+SPLIT_CASES = [
+    ("Always run the gate. Never push to `main`.", "Always run the gate. | Never push to `main`."),
+    ("Is it done? Push it! Then stop.", "Is it done? | Push it! | Then stop."),
+    ("Never push to `main`; work on a branch: always.", "Never push to `main`; work on a branch: always."),
+    ("Never push - not even once.", "Never push - not even once."),
+    ("- Never push.", "Never push."),
+    ("* Never push.", "Never push."),
+    ("+ Never push.", "Never push."),
+    ("3. Never push.", "Never push."),
+    ("12. Never push. Use a branch.", "Never push. | Use a branch."),
+    ("1) Never push.", "1) Never push."),
+    ("# Never push.", "# Never push."),
+    ("> Never push.", "> Never push."),
+    ("Never add a library, e.g. MockK, here.", "Never add a library, e.g. MockK, here."),
+    ("Use fakes (i.e. no mocks), etc. vs. stubs, cf. tm-testing.",
+     "Use fakes (i.e. no mocks), etc. vs. stubs, cf. tm-testing."),
+    ("E.g. this. I.E. that.", "E.g. this. | I.E. that."),
+    ("Lists (a, b, etc.) end here. Next.", "Lists (a, b, etc.) end here. | Next."),
+    ("Lists a, b, etc.). Next.", "Lists a, b, etc.). | Next."),
+    ("Run scripts/x.sh in 0.9.11 builds. Done.", "Run scripts/x.sh in 0.9.11 builds. | Done."),
+    ("**Never push.** (Use a branch.) \"Stop.\" _Wait._ `Run it`. Done",
+     "**Never push.** | (Use a branch.) | \"Stop.\" | _Wait._ | `Run it`. | Done"),
+    ("Never use `try?` outside tests.", "Never use `try?` outside tests."),
+    ("Never use `x. y` here. Done.", "Never use `x. y` here. | Done."),
+    ("Say 'stop.' Then go.", "Say 'stop.' Then go."),
+    ("then completes; it never throws. iOS consumes that; Android",
+     "then completes; it never throws. | iOS consumes that; Android"),
+    ("-", ""),
 ]
 
 FIXTURES = "check-skill-rule-changes-fixtures"
@@ -300,6 +388,13 @@ def self_test(script_dir):
         actual = has_rule_word(text)
         failed += actual != expected
         print(f"    {'ok  ' if actual == expected else 'FAIL'} {text!r:32} expected {expected}, got {actual}")
+    print("--- sentence split")
+    for text, expected in SPLIT_CASES:
+        total += 1
+        actual = " | ".join(" ".join(s) for s in sentences(text))
+        failed += actual != expected
+        print(f"    {'ok  ' if actual == expected else 'FAIL'} {text!r}"
+              + ("" if actual == expected else f"\n         expected {expected!r}, got {actual!r}"))
 
     fixtures = script_dir / FIXTURES
     entry = script_dir / "check-skill-rule-changes.sh"
