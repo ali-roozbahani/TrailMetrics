@@ -169,25 +169,26 @@ scripts/check-protected-paths.sh --base "$(git merge-base "origin/<epic branch>"
 
 The base is the merge-base with the branch the PR targets: `origin/main` for a PR against
 `main`, the epic branch for a subtask PR. Run the protected-path check with the PR branch
-checked out at `$SHA`. Post the "Merge check" comment ("Auto-merge"). If every condition
-holds, the merge command is:
+checked out at `$SHA`. If every condition holds, the merge command is:
 
 ```bash
 gh pr merge <N> --squash --match-head-commit <SHA> --subject "<PR title> (#<N>)" --body ""
 ```
 
 `--subject` and the empty `--body` make the commit on `main` the PR title only, as the
-human's squash merge does. Then do the after-merge cleanup in the same run.
+human's squash merge does. Then post the "Merge check" comment with the result
+("Auto-merge") and, if the PR merged, do the after-merge cleanup in the same run.
 
 GitHub's "Allow auto-merge" setting stays off: never enable it and never use
-`gh pr merge --auto`. The epic PR into `main` is never the agent's: only on the human's
-explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic touches
-a protected path, the human also approves the PR on GitHub (Decision 5).
+`gh pr merge --auto`. The epic PR into `main` is never the agent's: the human merges it, on
+their own explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic
+touches a protected path, the human also approves the PR on GitHub (Decision 5).
 
 ## Auto-merge
 
-Once the checks are done, post one PR comment on every PR, including PRs that touch a
-protected path (condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
+Once the conditions of section 8 are checked and, when all six are "yes", the merge command
+has run, post one PR comment on every PR, including PRs that touch a protected path
+(condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
 
 ```
 Merge check
@@ -202,11 +203,13 @@ Merge check
 Merged: yes|no (<reason when no>)
 ```
 
-The agent merges only when all six are "yes", with the command in section 8, and then does
-the after-merge cleanup. When any condition is "no", it does not merge and reports to the
-human, who merges. A PR that touches a protected path, the epic PR into `main` and a PR whose
-CI annotation is not `APPROVE` are never the agent's to merge. "Allow auto-merge" and
-`gh pr merge --auto` stay forbidden (section 8).
+The reason after "no" is the condition that is "no", or the first line of the merge
+command's refusal. The agent runs the merge command in section 8 only when all six are "yes",
+and does the after-merge cleanup only if the PR merged. When any condition is "no", the
+comment is posted without a merge attempt, and the agent reports to the human, who merges;
+a refused merge is reported the same way. A PR that touches a protected path, the epic PR
+into `main` and a PR whose CI annotation is not `APPROVE` are never the agent's to merge.
+"Allow auto-merge" and `gh pr merge --auto` stay forbidden (section 8).
 
 ## After-merge cleanup
 
