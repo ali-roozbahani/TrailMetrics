@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Rule-weakening signal: lists every removed or rewritten line that holds a rule word, in any file
-# under .claude/skills/ and in every file named CLAUDE.md, between two commits. Both reviewers get
-# its output as the review input `rule-changes`, computed by the BASE branch's copy of this script
-# (tm-pr-review, "Inputs"; .github/workflows/pr-review.yml, "Rule changes from the base").
+# under .claude/skills/ and in every file named CLAUDE.md, between two commits, unless every
+# sentence of that line that holds a rule word reappears unchanged, word for word, in the added
+# lines of the same hunk of the same file (how a line splits into sentences: the docstring of
+# check-skill-rule-changes.py). Both reviewers get its output as the review input `rule-changes`,
+# computed by the BASE branch's copy of this script (tm-pr-review, "Inputs";
+# .github/workflows/pr-review.yml, "Rule changes from the base").
 #
 #   scripts/check-skill-rule-changes.sh [--repo <dir>] <base> <head>   git diff <base> <head>
 #   scripts/check-skill-rule-changes.sh --self-test                     run the fixtures in
