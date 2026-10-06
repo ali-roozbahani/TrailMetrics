@@ -311,6 +311,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the line describes the current stack (JUnit4, `kotlin.test`, hand-written fakes, Robolectric/compose-ui-test where needed) and points to `tm-testing` for the rest.
 - Refs: `.claude/skills/tm-android/SKILL.md` ("Tests"); `.claude/skills/tm-testing/SKILL.md` ("What's actually available today"); `gradle/libs.versions.toml`.
 
+### drift-pr-review-workflow-wrapper-header
+- Type: drift
+- Area: scripts
+- Order: 290
+- Source: protected-paths-review S3 (skill rule-change signal PR), 2026-10-06
+- Problem: the header comment of `scripts/check-pr-review-workflow.sh` says the self-test "runs the "Run pr-reviewer" and "Map verdict" scripts" and "The scripts under test need jq; without python3 or jq the self-test fails". Since S3 the self-test also runs the "Rule changes from the base" step of `.github/workflows/pr-review.yml` in scratch git repositories (fixtures in `scripts/check-pr-review-workflow-fixtures/rule-changes/`) and also needs `git` and `tar`. The wrapper was not in S3's `allowed_paths`.
+- Done when: the header names the three steps and the four tools, as the docstring of `scripts/check-pr-review-workflow.py` and `tm-pr-workflow` ("Tier 1") do.
+- Refs: `scripts/check-pr-review-workflow.sh` (header comment); `scripts/check-pr-review-workflow.py` (docstring); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude

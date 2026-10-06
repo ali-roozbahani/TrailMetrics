@@ -114,6 +114,7 @@ run_step "board check" scripts/check-board.sh
 run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
 run_step "change classification self-test" scripts/classify-changes.sh --self-test
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
+run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test

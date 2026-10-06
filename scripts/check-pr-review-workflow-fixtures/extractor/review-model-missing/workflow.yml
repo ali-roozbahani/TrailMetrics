@@ -9,7 +9,13 @@ jobs:
     name: Review — pr-reviewer
     runs-on: ubuntu-latest
     steps:
-      # The step under test.
+      # The steps under test.
+      - name: Rule changes from the base
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          echo rule
       - name: Run pr-reviewer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -1,0 +1,4 @@
+# The stand-in prints none, then exits 3: the step fails and leaves no file.
+step: fail
+rule-changes: absent
+command: ::error::scripts/check-skill-rule-changes.sh from the base failed: no rule-changes input, no review

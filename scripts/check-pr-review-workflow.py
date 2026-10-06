@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-test of the reviewer workflow's retry and verdict mapping.
+"""Self-test of the reviewer workflow's rule-changes input, retry and verdict mapping.
 
 Run through scripts/check-pr-review-workflow.sh (the entry point). Standard library only, so
 it runs on the stock python3 of macOS and ubuntu-latest without installing anything.
@@ -10,10 +10,11 @@ it runs on the stock python3 of macOS and ubuntu-latest without installing anyth
                                                              older or broken version)
 
 What it does, per run:
-  1. Extracts, from the workflow file itself, the `run:` scripts of the steps "Run
-     pr-reviewer" and "Map verdict" and the workflow's literal `env:` (REVIEW_MODEL and
-     REVIEW_MAX_TURNS are required), with the small YAML-subset parser below. It fails when a
-     step is missing or appears twice, its `run:` is empty, a script contains a GitHub
+  1. Extracts, from the workflow file itself, the `run:` scripts of the steps "Rule changes
+     from the base", "Run pr-reviewer" and "Map verdict" and the workflow's literal `env:`
+     (REVIEW_MODEL and REVIEW_MAX_TURNS are required), with the small YAML-subset parser below.
+     It fails when a step is missing or appears twice, the three are not in one job in that
+     order, a `run:` is empty, a script contains a GitHub
      expression (`${{`, which this harness cannot evaluate), or the steps use something the
      harness does not emulate (`shell:`, `defaults:`, `working-directory:`,
      `continue-on-error:`, an `if:` other than none, success(), always() or !cancelled()).
@@ -29,6 +30,12 @@ What it does, per run:
      with `::` listed as `command:`, the job result, the "Attempt 2 of 2" summary line if and
      only if there were two calls, and each report's marker in the summary where listed and
      never in the log.
+  4. Runs the "Rule changes from the base" script once per case in fixtures/rule-changes/, in
+     a scratch git repository whose base branch has the real scripts/check-skill-rule-changes
+     files from this directory, a failing stand-in, only the wrapper, or none, and whose head
+     may carry a tampered copy. Checks the step's result, the exact content of
+     input/rule-changes (or that it is absent; a stale file is put there first), the workflow
+     commands in the log, and that no line of the diff reaches the log.
 
 Nothing here prints a raw log line: log lines appear only after a `log> ` prefix, so a
 workflow command in a report can never be processed by the runner that runs this test.
@@ -44,6 +51,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+RULE_STEP = "Rule changes from the base"
 RUN_STEP = "Run pr-reviewer"
 MAP_STEP = "Map verdict"
 REQUIRED_ENV = ("REVIEW_MODEL", "REVIEW_MAX_TURNS")
@@ -53,8 +61,9 @@ PR_TEXT_MARKER = "ZQXPRTEXTMARKER"
 STEP_TIMEOUT = 60
 
 # Step env values that are GitHub expressions get a scratch value; "ANTHROPIC_API_KEY" is
-# set or empty per scenario.
-SCRATCH_STEP_ENV = {"ANTHROPIC_API_KEY", "HEAD_SHA"}
+# set or empty per scenario; in the rule-changes cases HEAD_SHA and BASE_SHA are the scratch
+# repository's commits.
+SCRATCH_STEP_ENV = {"ANTHROPIC_API_KEY", "HEAD_SHA", "BASE_SHA"}
 IF_ALWAYS = {"always()", "!cancelled()"}
 IF_SUCCESS = {"success()"}
 UNSUPPORTED_STEP_KEYS = ("shell", "working-directory", "continue-on-error")
@@ -282,7 +291,7 @@ def extract(path):
     if not isinstance(jobs, dict):
         raise ExtractError("the workflow has no jobs: mapping")
 
-    found = {RUN_STEP: [], MAP_STEP: []}
+    found = {RULE_STEP: [], RUN_STEP: [], MAP_STEP: []}
     for job_id, job in jobs.items():
         steps = job.get("steps") if isinstance(job, dict) else None
         for index, step in enumerate(steps if isinstance(steps, list) else []):
@@ -293,10 +302,13 @@ def extract(path):
             raise ExtractError(f"step '{name}' not found")
         if len(hits) > 1:
             raise ExtractError(f"step '{name}' appears {len(hits)} times")
+    (rule_job, rule_index, rule_step), = found[RULE_STEP]
     (run_job, run_index, run_step), = found[RUN_STEP]
     (map_job, map_index, map_step), = found[MAP_STEP]
-    if run_job != map_job:
-        raise ExtractError(f"steps '{RUN_STEP}' and '{MAP_STEP}' are in different jobs")
+    if not rule_job == run_job == map_job:
+        raise ExtractError(f"steps '{RULE_STEP}', '{RUN_STEP}' and '{MAP_STEP}' are not in one job")
+    if rule_index > run_index:
+        raise ExtractError(f"step '{RULE_STEP}' comes after '{RUN_STEP}'")
     if run_index > map_index:
         raise ExtractError(f"step '{MAP_STEP}' comes before '{RUN_STEP}'")
     job = jobs[run_job]
@@ -311,7 +323,7 @@ def extract(path):
             raise ExtractError(f"{key} not found in the workflow's or the job's env:")
 
     steps = {}
-    for name, step in ((RUN_STEP, run_step), (MAP_STEP, map_step)):
+    for name, step in ((RULE_STEP, rule_step), (RUN_STEP, run_step), (MAP_STEP, map_step)):
         for key in UNSUPPORTED_STEP_KEYS:
             if key in step:
                 raise ExtractError(f"step '{name}': {key}: is not supported by the harness")
@@ -610,9 +622,159 @@ def run_extractor_fixture(fixture):
     return [], f"failed as intended: {got}"
 
 
+# --- The rule-changes step, in a scratch repository. The base branch's commit A holds a skill
+# and, per case, the rule-change script; main moves on to B (so the merge base A is not the
+# base SHA); the PR head branches from A, edits the skill and may change the script.
+
+RULE_SCRIPTS = ("scripts/check-skill-rule-changes.sh", "scripts/check-skill-rule-changes.py")
+RULE_SKILL = ".claude/skills/tm-sample/SKILL.md"
+RULE_SKILL_TEXT = f"# Sample\n\nYou must run the gate. {PR_TEXT_MARKER} ::warning::injected\nThe gate is a script.\n"
+FAILING_SCRIPT = "#!/usr/bin/env bash\necho none\necho 'stand-in: base script error' >&2\nexit 3\n"
+TAMPERED_SCRIPT = "#!/usr/bin/env bash\necho none\n"
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), "-c", "user.name=self-test",
+                           "-c", "user.email=self-test@example.invalid", "-c", "commit.gpgsign=false"]
+                          + list(args), check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _write(repo, rel, text, mode=0o644):
+    path = repo / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    path.chmod(mode)
+
+
+def load_rule_case(fixture):
+    """`case`: `base-script: real|failing|sh-only|absent`, `head-script: same|tampered|added`,
+    `head-edit: remove-rule|factual`. `expect`: `step: pass|fail`, `rule-changes: absent` or one
+    `line: <text>` per expected line of the file, and `command: <line>` for each workflow
+    command the log must have exactly once."""
+    case = {}
+    for line in (fixture / "case").read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            key, _, value = line.partition(": ")
+            case[key] = value
+    allowed = {"base-script": {"real", "failing", "sh-only", "absent"},
+               "head-script": {"same", "tampered", "added"},
+               "head-edit": {"remove-rule", "factual"}}
+    for key, values in allowed.items():
+        if case.get(key) not in values:
+            raise ValueError(f"{fixture.name}/case: '{key}' must be one of {sorted(values)}")
+    expect = {"step": None, "absent": False, "lines": [], "commands": []}
+    for line in (fixture / "expect").read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        key, _, value = line.partition(": ")
+        if key == "step" and value in ("pass", "fail"):
+            expect["step"] = value
+        elif key == "rule-changes" and value == "absent":
+            expect["absent"] = True
+        elif key == "line":
+            expect["lines"].append(value)
+        elif key == "command":
+            expect["commands"].append(value)
+        else:
+            raise ValueError(f"{fixture.name}/expect: unknown line '{line}'")
+    if expect["step"] is None or expect["absent"] == bool(expect["lines"]):
+        raise ValueError(f"{fixture.name}/expect: needs 'step:' and either 'rule-changes: absent' "
+                         "or 'line:' lines")
+    return case, expect
+
+
+def run_rule_fixture(fixture, extracted, bash, script_dir):
+    case, expect = load_rule_case(fixture)
+    real = {rel: (script_dir / Path(rel).name).read_text(encoding="utf-8") for rel in RULE_SCRIPTS}
+    with tempfile.TemporaryDirectory(prefix="tm-pr-review-rules-") as tmp:
+        tmp = Path(tmp)
+        repo = tmp / "workspace"
+        repo.mkdir()
+        _git(repo, "init", "-q")
+        _write(repo, RULE_SKILL, RULE_SKILL_TEXT)
+        _write(repo, "README.md", "readme\n")
+        if case["base-script"] in ("real", "sh-only"):
+            _write(repo, RULE_SCRIPTS[0], real[RULE_SCRIPTS[0]], 0o755)
+        if case["base-script"] == "real":
+            _write(repo, RULE_SCRIPTS[1], real[RULE_SCRIPTS[1]])
+        if case["base-script"] == "failing":
+            _write(repo, RULE_SCRIPTS[0], FAILING_SCRIPT, 0o755)
+            _write(repo, RULE_SCRIPTS[1], "raise SystemExit(3)\n")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "A")
+        _git(repo, "branch", "-M", "main")
+        _write(repo, "README.md", "readme, moved on\n")
+        _git(repo, "commit", "-q", "-am", "B")
+        base_sha = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "checkout", "-q", "-b", "pr", "HEAD~1")
+        skill = RULE_SKILL_TEXT.replace("The gate is a script.", "The gate is a shell script.")
+        if case["head-edit"] == "remove-rule":
+            skill = "\n".join(l for l in skill.split("\n") if not l.startswith("You must"))
+        _write(repo, RULE_SKILL, skill)
+        if case["head-script"] == "tampered":
+            _write(repo, RULE_SCRIPTS[0], TAMPERED_SCRIPT, 0o755)
+        if case["head-script"] == "added":
+            _write(repo, RULE_SCRIPTS[0], real[RULE_SCRIPTS[0]], 0o755)
+            _write(repo, RULE_SCRIPTS[1], real[RULE_SCRIPTS[1]])
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "head")
+        head_sha = _git(repo, "rev-parse", "HEAD")
+
+        runner_temp = tmp / "runner"
+        work = runner_temp / "review"
+        (work / "input").mkdir(parents=True)
+        (work / "base").mkdir()
+        (work / "input" / "rule-changes").write_text("none\n", encoding="utf-8")  # stale
+        home = tmp / "home"
+        home.mkdir()
+        step = extracted["steps"][RULE_STEP]
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(home),
+               "TMPDIR": str(tmp), "RUNNER_TEMP": str(runner_temp),
+               "GITHUB_STEP_SUMMARY": str(tmp / "summary.md")}
+        env.update(extracted["env"])
+        scratch = {"ANTHROPIC_API_KEY": "", "HEAD_SHA": head_sha, "BASE_SHA": base_sha}
+        for key, value in step["env"].items():
+            env[key] = scratch[key] if value is None else value
+        script = tmp / "step.sh"
+        script.write_text(step["script"], encoding="utf-8")
+        try:
+            proc = subprocess.run([bash, "-e", str(script)], cwd=repo, env=env,
+                                  stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, timeout=STEP_TIMEOUT)
+            code, log = proc.returncode, proc.stdout.decode("utf-8", errors="replace")
+        except subprocess.TimeoutExpired:
+            code, log = "timeout", ""
+        out = work / "input" / "rule-changes"
+        content = out.read_text(encoding="utf-8") if out.exists() else None
+
+    errors = []
+    result = "pass" if code == 0 else "fail"
+    if result != expect["step"]:
+        errors.append(f"step {result} (exit {code}), expected {expect['step']}")
+    if expect["absent"] and content is not None:
+        errors.append(f"input/rule-changes exists ({content!r}), expected it absent")
+    if not expect["absent"]:
+        want = "".join(f"{line}\n" for line in expect["lines"])
+        if content != want:
+            errors.append(f"input/rule-changes {content!r}, expected {want!r}")
+    log_lines = log.splitlines()
+    commands = [l for l in log_lines if l.lstrip().startswith("::")]
+    for line in commands:
+        if line not in expect["commands"]:
+            errors.append(f"unexpected workflow command: log> {line}")
+    for command in expect["commands"]:
+        if commands.count(command) != 1:
+            errors.append(f"expected once, found {commands.count(command)} times: log> {command}")
+    if PR_TEXT_MARKER in log:
+        errors.append("a line of the diff reached the log")
+    desc = f"step {result}, rule-changes " + ("absent" if content is None
+                                             else f"{len(content.splitlines())} line(s)")
+    return errors, desc, log_lines
+
+
 def self_test(script_dir, workflow):
     fixtures = script_dir / "check-pr-review-workflow-fixtures"
-    missing = [tool for tool in ("bash", "jq") if shutil.which(tool) is None]
+    missing = [tool for tool in ("bash", "jq", "git", "tar") if shutil.which(tool) is None]
     if missing:
         print(f"check-pr-review-workflow: FAILED, not found on PATH: {', '.join(missing)} "
               "(the scripts under test need them)", file=sys.stderr)
@@ -651,6 +813,22 @@ def self_test(script_dir, workflow):
         except (OSError, ValueError, KeyError) as e:
             errors, desc, log_lines = [f"fixture error: {e}"], "", []
         failed += _report(f"scenarios/{fixture.name}", errors, desc, log_lines)
+    rule_lines = len(extracted["steps"][RULE_STEP]["script"].splitlines())
+    print(f"--- rule-changes ({fixtures.name}/rule-changes), '{RULE_STEP}' {rule_lines} lines "
+          f"extracted from {shown_path}, base copies of {', '.join(RULE_SCRIPTS)} from "
+          f"{script_dir.name}/")
+    rule_cases = sorted(p for p in (fixtures / "rule-changes").iterdir() if p.is_dir()) \
+        if (fixtures / "rule-changes").is_dir() else []
+    if not rule_cases:
+        total += 1
+        failed += _report("rule-changes", ["no cases found"], "")
+    for fixture in rule_cases:
+        total += 1
+        try:
+            errors, desc, log_lines = run_rule_fixture(fixture, extracted, bash, script_dir)
+        except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as e:
+            errors, desc, log_lines = [f"fixture error: {e}"], "", []
+        failed += _report(f"rule-changes/{fixture.name}", errors, desc, log_lines)
     print(f"check-pr-review-workflow self-test: {total - failed}/{total} fixtures passed")
     return 1 if failed or total == 0 else 0
 
