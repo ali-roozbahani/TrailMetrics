@@ -40,6 +40,9 @@ class RouteViewModel(
     /** The running route generation; cancelled by [cancelGeneration] when its input becomes stale. */
     private var generationJob: Job? = null
 
+    /** The running Start tracking; a Job is inactive once it ends in any way, which releases the guard. */
+    private var startTrackingJob: Job? = null
+
     init {
         loadCurrentLocation()
         getAndUpdateUserProfile()
@@ -152,7 +155,9 @@ class RouteViewModel(
     }
 
     private fun startTracking() {
-        viewModelScope.launch {
+        // A tap while one is in flight would send a second RequestUserProfile or NavigateToTracking.
+        if (startTrackingJob?.isActive == true) return
+        startTrackingJob = viewModelScope.launch {
             val profile = try {
                 userProfileRepository.getUserProfile()
             } catch (e: CancellationException) {
