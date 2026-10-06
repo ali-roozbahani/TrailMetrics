@@ -320,6 +320,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the header names the three steps and the four tools, as the docstring of `scripts/check-pr-review-workflow.py` and `tm-pr-workflow` ("Tier 1") do.
 - Refs: `scripts/check-pr-review-workflow.sh` (header comment); `scripts/check-pr-review-workflow.py` (docstring); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
 
+### drift-pr-review-item-5-lowered-minbound
+- Type: drift
+- Area: .claude
+- Order: 300
+- Source: protected-paths-review S2 (Kover floors ratchet PR), 2026-10-06
+- Problem: `tm-pr-review` checklist item 5 ("Deleted or weakened tests") lists "a lowered Kover `minBound`". Since S2 the floors are not `minBound` literals in the module `build.gradle.kts` files: each module passes its entry of `config/kover-floors.properties` to `minBound`, and `scripts/check-kover-floors.sh` fails the gate and CI when an entry is lower than on the base. A lowered floor now shows up in the diff as a lowered value in that file (or as a changed read in a build file). `tm-pr-review` is a protected process skill outside S2's `allowed_paths`.
+- Done when: item 5 names a lowered floor in `config/kover-floors.properties` (and a build file that stops reading it), in place of "a lowered Kover `minBound`".
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` (Checklist, item 5); `config/kover-floors.properties`; `scripts/check-kover-floors.sh`.
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude
