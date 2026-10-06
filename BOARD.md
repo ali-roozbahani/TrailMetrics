@@ -54,6 +54,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
+### auto-merge-requires-approve-verdict
+- Type: task
+- Area: .claude, .github
+- Order: 45
+- Source: agentic-dev-loop S3 PR, 2026-10-02
+- Problem: The merge conditions and the reading of the CI verdict from the `Review — pr-reviewer` annotation are now written in the plan (Decisions 5, 7 and 8 of `docs/epics/agentic-dev-loop.md`) and in `tm-agent-loop` ("Reading the CI verdict", "Merge conditions"). The proof in S4b only observed a `warning` (`ESCALATE_TO_HUMAN`) annotation on a real PR; `notice` (`APPROVE`) and `failure` (`CHANGES`) were checked against fixtures only. S6's PR, which documents auto-merge for unprotected paths, could drift from those conditions or rely on a mapping never seen on a real PR.
+- Done when: S6's PR states the same merge conditions as `tm-agent-loop` (head is a branch of this repository, author is the machine account, CI annotation `APPROVE` and recorded local verdict `APPROVE` for the head SHA, both required checks green, no protected path) and the same fail-closed annotation rule, and it is written only after a real `notice`/`APPROVE` annotation has been read from a PR with `tm-agent-loop`'s commands.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("Reading the CI verdict", "Merge conditions"); `.github/workflows/pr-review.yml` (job `Review — pr-reviewer`, step "Map verdict"); `docs/epics/agentic-dev-loop.md` (S6, Decisions 5, 7 and 8).
+
+### loop-skill-merge-check-wording
+- Type: task
+- Area: .claude
+- Order: 46
+- Source: local pr-reviewer notes on the agentic-dev-loop S6 PR, 2026-10-06
+- Problem: Two lines of `tm-agent-loop` added by S6 can mislead. (a) Section 8 has the agent post the "Merge check" comment, which ends with `Merged: yes|no`, before it runs `gh pr merge`; if that merge then fails (the head moved, or the PR is behind `main` under strict protection), the comment says `Merged: yes` although nothing merged. (b) "Never" now says the agent never merges "an epic PR into `main`", while section 8 says that PR is merged "only on the human's explicit command, with `gh pr merge --match-head-commit <tested SHA>`", which reads as if an agent may run that command when told to.
+- Done when: the `Merged:` line of the "Merge check" comment reports the result of the merge attempt (for example, the comment is posted after the attempt, or a failed attempt is reported in a second comment), and "Never" and section 8 say the same thing about who runs the merge of an epic PR into `main`; the six merge conditions are unchanged.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("8. Merge conditions", "Auto-merge", "Never"); `docs/epics/agentic-dev-loop.md` (Decisions 5 and 7).
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
