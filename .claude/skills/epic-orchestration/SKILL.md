@@ -27,8 +27,8 @@ conditions.
 ## Roles
 
 - **Human**: approves the plan and every change to it, sets up branch protection, merges
-  the epic PR into `main` (only the human), merges subtask PRs into the epic branch until
-  the S6 trial is complete, and does Tier 2.
+  the epic PR into `main` (only the human), merges every subtask PR into the epic branch
+  that an agent may not merge (`tm-agent-loop`, "Merge conditions"), and does Tier 2.
 - **Orchestrator**: the Claude Code session the human is talking to. It drafts the plan,
   creates the epic branch and its draft PR after approval, spawns subtask agents wave by
   wave, checks that each subtask PR stayed inside its `allowed_paths`, and keeps the epic
@@ -40,8 +40,7 @@ The epic PR into `main` is the human's only, on the human's explicit command
 (`docs/epics/agentic-dev-loop.md`, Decision 5). Subtask PRs into the epic branch follow
 Decision 5: an agent may merge one only under the conditions in `tm-agent-loop` ("Merge
 conditions"), where the subtask's plan `allowed_paths` replace "touches no protected path".
-Until the S6 trial is complete, Trial mode applies to them like everything else: the agent
-posts its trial check and the human merges.
+The human merges every other subtask PR.
 
 ## Epic or single task?
 
@@ -513,8 +512,8 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
   on it. It lists drift and follow-ups in its PR description only, with
   `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
 - **Merge**: under Decision 5's conditions (`tm-agent-loop`, "Merge conditions", with the
-  subtask's `allowed_paths` in place of "touches no protected path"). Until the S6 trial is
-  complete, Trial mode: the agent posts its trial check and the human merges.
+  subtask's `allowed_paths` in place of "touches no protected path"). The agent posts its
+  merge check (`tm-agent-loop`, "Auto-merge"); when a condition is "no", the human merges.
 
 ## Merging the epic into main
 
@@ -557,7 +556,7 @@ Recorded so the first real epic can confirm or correct them:
   predated required checks on `main` and said nothing about epic branches.
 - Subtask merges into the epic branch: the retired workflow doc only forbade merging into
   `main`. Decision 5 of `docs/epics/agentic-dev-loop.md` now lets an agent merge them under
-  `tm-agent-loop`'s conditions, in Trial mode (the human merges) until S6.
+  `tm-agent-loop`'s conditions; the human merges every other subtask PR.
 - The plan lives in `docs/epics/<slug>.md`: the retired workflow doc said the plan must be
   reviewed, not where it goes.
 - "Ready" means the dependency is merged, not just its PR opened.

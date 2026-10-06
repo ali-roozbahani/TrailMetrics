@@ -1,6 +1,6 @@
 ---
 name: tm-agent-loop
-description: Use when a TrailMetrics session is started to work through the board without a named task ("take the next task", "work the board"). Covers one run from picking the record with scripts/check-board.sh --next to an open (and, after the trial, merged) PR — implement, protected-path check, local review and its fix budget, gate, push, PR, waiting for CI, reading the CI reviewer's verdict from its annotation, the merge conditions, Trial mode, after-merge cleanup, and when to stop and report. Not for the per-PR rules themselves (see tm-pr-workflow) or for epics (see epic-orchestration).
+description: Use when a TrailMetrics session is started to work through the board without a named task ("take the next task", "work the board"). Covers one run from picking the record with scripts/check-board.sh --next to a merged PR, or an open one reported to the human — implement, protected-path check, local review and its fix budget, gate, push, PR, waiting for CI, reading the CI reviewer's verdict from its annotation, the merge conditions, auto-merge, after-merge cleanup, and when to stop and report. Not for the per-PR rules themselves (see tm-pr-workflow) or for epics (see epic-orchestration).
 ---
 
 # TrailMetrics agent loop
@@ -28,8 +28,9 @@ missing; the agent never reads or creates it, and stops and reports instead.
 
 ## One task per run
 
-A run ends when its PR is open and reported (Trial mode) or merged (after the trial). The
-next task is a new run; the human clears the session between runs.
+A run ends when its PR is merged, or open and reported when a merge condition is "no"
+(section 8, "Auto-merge"). The next task is a new run; the human clears the session between
+runs.
 
 ## 1. Pick
 
@@ -141,7 +142,8 @@ Don't use `gh pr view --json reviewRequests`: the machine token lacks `read:org`
 
 ## 8. Merge conditions
 
-Check each one, in order, for the PR's current head SHA. All must hold:
+Once the checks are done, check each one, in order, for the PR's current head SHA. All must
+hold:
 
 1. Both required checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`
    and `iOS — SwiftLint, Build` (names exactly).
@@ -170,23 +172,26 @@ The base is the merge-base with the branch the PR targets: `origin/main` for a P
 checked out at `$SHA`. If every condition holds, the merge command is:
 
 ```bash
-gh pr merge <N> --squash --match-head-commit <SHA>
+gh pr merge <N> --squash --match-head-commit <SHA> --subject "<PR title> (#<N>)" --body ""
 ```
+
+`--subject` and the empty `--body` make the commit on `main` the PR title only, as the
+human's squash merge does. Then post the "Merge check" comment with the result
+("Auto-merge") and, if the PR merged, do the after-merge cleanup in the same run.
 
 GitHub's "Allow auto-merge" setting stays off: never enable it and never use
-`gh pr merge --auto`. The epic PR into `main` is never the agent's: only on the human's
-explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic touches
-a protected path, the human also approves the PR on GitHub (Decision 5).
+`gh pr merge --auto`. The epic PR into `main` is never the agent's: the human merges it, on
+their own explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic
+touches a protected path, the human also approves the PR on GitHub (Decision 5).
 
-## Trial mode
+## Auto-merge
 
-Until S6 documents otherwise, **no agent merges any PR**, including subtask PRs into an
-epic branch. Instead, once the checks are done, post one PR comment on every PR, including
-PRs that touch a protected path (condition 6 is then "no", so "would auto-merge: no")
-(`gh pr comment <N> --body-file <file>`):
+Once the conditions of section 8 are checked and, when all six are "yes", the merge command
+has run, post one PR comment on every PR, including PRs that touch a protected path
+(condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
 
 ```
-Trial check (not acted on)
+Merge check
 
 1. Required checks green on <SHA>: yes|no
 2. Head is a branch of this repository: yes|no
@@ -195,27 +200,20 @@ Trial check (not acted on)
 5. Local verdict APPROVE for <SHA>: yes|no
 6. No protected path: yes|no
 
-would auto-merge: yes|no
-Counts toward the trial: yes|no
+Merged: yes|no (<reason when no>)
 ```
 
-"Counts toward the trial" is "no" whenever the PR touches a protected path, or when its
-review check never produced a valid report (Decision 7).
-
-The human's decision on that PR is compared with it to count the trial of 5 consecutive PRs
-that touch no protected path; any disagreement restarts the count (Decision 7).
-
-A PR whose first review report was malformed (its first line not a verdict) and whose
-automatic retry, or a human re-run of the failed check, produced a valid report counts
-normally, by the final valid verdict (section 7 reads the latest run) compared with the
-human's decision. A PR whose check never produced a valid report (section 7 prints
-`NOT_APPROVE: ...`, and the annotation's message starts with none of `APPROVE.`,
-`ESCALATE_TO_HUMAN:` and `CHANGES:`) does not count toward the trial and is not a
-disagreement.
+The reason after "no" is the condition that is "no", or the first line of the merge
+command's refusal. The agent runs the merge command in section 8 only when all six are "yes",
+and does the after-merge cleanup only if the PR merged. When any condition is "no", the
+comment is posted without a merge attempt, and the agent reports to the human, who merges;
+a refused merge is reported the same way. A PR that touches a protected path, the epic PR
+into `main` and a PR whose CI annotation is not `APPROVE` are never the agent's to merge.
+"Allow auto-merge" and `gh pr merge --auto` stay forbidden (section 8).
 
 ## After-merge cleanup
 
-At the start of the next run, or right after the agent's own merge (Decision 6):
+Right after the agent's own merge, or at the start of the next run (Decision 6):
 
 ```bash
 gh pr view <N> --json state      # must be MERGED
@@ -234,6 +232,7 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 - A protected-path change the task did not call for.
 - CI red after a green gate.
 - Anything that would need a force-push, an amend, a cancelled run or reading a credential.
+- A merge condition that is "no" (section 8).
 
 ## Never
 
@@ -241,4 +240,4 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 - Enable auto-merge, change repository settings, or edit a protected path outside the task.
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
   wall: don't try to get around them.
-- Merge in Trial mode.
+- Merge a PR for which one of section 8's conditions is not met, or an epic PR into `main`.
