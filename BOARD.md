@@ -34,15 +34,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on iOS (XCUITest) and Android (Compose UI tests), with a fast smoke subset in the local gate when the diff touches UI or ViewModels and the full UI suite in CI; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the two required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR.
 - Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`, `test-feature-tracking-compose-ui`, `test-feature-route-compose-ui`.
 
-### protected-paths-review
-- Type: epic
-- Area: scripts, .github, .claude, androidApp
-- Order: 42
-- Source: chat 2026-10-06
-- Problem: Every skill under `.claude/` and every `build.gradle.kts` is protected, so a PR that only fixes a factual line in a reference skill or raises a Kover floor escalates to the human, does not count toward the S6 trial and cannot be merged by an agent after it. At the same time the skills are the agent's persistent instructions, so an unreviewed edit that weakens a rule is a real risk: a PR can weaken a rule in one PR and be judged by the weakened rule in the next.
-- Done when: a human-approved plan exists under `docs/epics/`. Then: (S1) the plan and this record are committed and `docs/epics/agentic-dev-loop.md` Decision 4 points to the plan; (S2) the five Kover floors live in `config/kover-floors.properties`, read by the build, and `scripts/check-kover-floors.sh` fails in the gate and in CI when a floor is lower than on the base, an entry is missing or an entry has no module; (S3) `scripts/check-skill-rule-changes.sh` lists removed or rewritten rule lines in skills and `CLAUDE.md`, both reviewers receive its output computed from the base branch, and a non-empty list escalates with the finding `rule-weakened`; (S4) the four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are unowned in `.github/CODEOWNERS` while every other path under `.claude/` stays protected, `scripts/check-protected-paths.sh` handles ownerless lines and `--validate` rejects them elsewhere, `scripts/skill-changes-digest.sh` prints skill changes since a date, and the skills' text about what is protected matches CODEOWNERS.
-- Refs: `docs/epics/protected-paths-review.md`; `.github/CODEOWNERS`; `scripts/check-protected-paths.sh`; `.claude/skills/tm-pr-review`; `.claude/skills/tm-pr-workflow`.
-
 ### route-completion-to-domain
 - Type: epic
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
@@ -228,6 +219,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a Finish without a loaded profile on either platform either reads the profile again before saving or tells the user why nothing was saved (through the screen's existing error event), with a ViewModel test per platform; a Finish tap while the profile is still loading keeps working as today.
 - Refs: `androidApp/feature-tracking` `TrackingViewModel` (`finish`, init); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`onFinishClicked`); `tm-kmp-shared` ("`@Throws` policy", rules 4 and 5).
 
+### skill-changes-digest-self-test
+- Type: task
+- Area: scripts
+- Order: 199
+- Source: protected-paths-review S4 (open reference skills PR), 2026-10-06
+- Problem: `scripts/skill-changes-digest.sh` (the human-run digest of skill and `CLAUDE.md` changes on `origin/main`) has no self-test, so a regression in its date validation, its first-parent commit selection or its `+`/`-` line filter would go unnoticed until the human runs it. The gate and CI files were outside S4's `allowed_paths`, so it was shown by hand only.
+- Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
+- Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
+
 ## Drift
 
 ### drift-suppress-comments
@@ -328,6 +328,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-pr-review` checklist item 5 ("Deleted or weakened tests") lists "a lowered Kover `minBound`". Since S2 the floors are not `minBound` literals in the module `build.gradle.kts` files: each module passes its entry of `config/kover-floors.properties` to `minBound`, and `scripts/check-kover-floors.sh` fails the gate and CI when an entry is lower than on the base. A lowered floor now shows up in the diff as a lowered value in that file (or as a changed read in a build file). `tm-pr-review` is a protected process skill outside S2's `allowed_paths`.
 - Done when: item 5 names a lowered floor in `config/kover-floors.properties` (and a build file that stops reading it), in place of "a lowered Kover `minBound`".
 - Refs: `.claude/skills/tm-pr-review/SKILL.md` (Checklist, item 5); `config/kover-floors.properties`; `scripts/check-kover-floors.sh`.
+
+### drift-epic-orchestration-protected-files-list
+- Type: drift
+- Area: .claude
+- Order: 310
+- Source: protected-paths-review S4 (open reference skills PR), 2026-10-06
+- Problem: `epic-orchestration` ("allowed_paths conventions for this repo") says `allowed_paths` never overrides "the protected files from `tm-pr-workflow` (docs/architecture, CI, lint config, the gate, the hook, skills, `CLAUDE.md`)". `tm-pr-workflow` keeps no such list (`.github/CODEOWNERS` is the single source of truth), and since S4 the four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are not protected. The same skill ("The plan") also says `docs/epics/` "sits outside the protected `docs/architecture/`", while CODEOWNERS owns `/docs/epics/`. `epic-orchestration` is a protected process skill outside S4's `allowed_paths`.
+- Done when: both places point to `.github/CODEOWNERS` (and `scripts/check-protected-paths.sh --files`) for what is protected instead of naming paths, and no longer say that every skill is protected or that `docs/epics/` is unprotected.
+- Refs: `.claude/skills/epic-orchestration/SKILL.md` ("allowed_paths conventions for this repo", "The plan"); `.github/CODEOWNERS`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries").
 
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
