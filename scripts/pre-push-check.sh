@@ -115,9 +115,29 @@ run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate 
 run_step "change classification self-test" scripts/classify-changes.sh --self-test
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
 run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --self-test
+run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
+
+# Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
+# every classification, light included (no Gradle needed). Same check as CI's android job, which
+# compares with the PR's base commit. Fail closed: a missing or non-executable script, or no
+# merge-base with origin/main (BASE_REF fell back to HEAD~1, which is not this branch's base),
+# fails the step.
+check_kover_floors() {
+    local script="$REPO_ROOT/scripts/check-kover-floors.sh"
+    if [ ! -f "$script" ] || [ ! -x "$script" ]; then
+        echo "scripts/check-kover-floors.sh is missing or not executable"
+        return 1
+    fi
+    if [ "$BASE_REF" = HEAD~1 ]; then
+        echo "no merge-base with origin/main: nothing to compare the floors with"
+        return 1
+    fi
+    "$script" --base "$BASE_REF"
+}
+run_step "kover floors" check_kover_floors
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
@@ -173,8 +193,9 @@ if [ "$DECISION" = full ]; then
     fi
     [ -n "$COVERAGE_OUT" ] && rm -f "$COVERAGE_OUT"
 
-    # Regression gate: each module's koverVerify rules (minimum line coverage, set in domain, data
-    # and the three androidApp feature modules; the other modules have no rules yet).
+    # Regression gate: each module's koverVerify rules (minimum line coverage in domain, data and
+    # the three androidApp feature modules, values in config/kover-floors.properties; the other
+    # modules have no rules yet).
     run_step "coverage verify" ./gradlew koverVerify --console=plain
 
     run_step "assembleDebug" ./gradlew assembleDebug --console=plain
