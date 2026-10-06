@@ -338,6 +338,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: both places point to `.github/CODEOWNERS` (and `scripts/check-protected-paths.sh --files`) for what is protected instead of naming paths, and no longer say that every skill is protected or that `docs/epics/` is unprotected.
 - Refs: `.claude/skills/epic-orchestration/SKILL.md` ("allowed_paths conventions for this repo", "The plan"); `.github/CODEOWNERS`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries").
 
+### drift-feature-route-kover-comment-stale-measured-figure
+- Type: drift
+- Area: androidApp/feature-route
+- Order: 320
+- Source: raise-feature-route-kover-floor PR, 2026-10-06
+- Problem: The comment above the `kover` block in `androidApp/feature-route/build.gradle.kts` says the floor is "a little below this module's measured line coverage from its own tests (25.87%, measured on main after test-feature-route)". The module's measured line coverage is now 27.98% (`./gradlew :androidApp:feature-route:koverLog` on main at 5bb4a6b), and its floor in `config/kover-floors.properties` is 26, which is above the 25.87% the comment names. The build file is a protected path outside that PR's `allowed_paths`.
+- Done when: the comment names the module's current measured coverage, or stops naming a figure.
+- Refs: `androidApp/feature-route/build.gradle.kts` (comment above the `kover` block); `config/kover-floors.properties`.
+
 ### drift-loop-skill-reviewdecision-empty-at-zero-approvals
 - Type: drift
 - Area: .claude
