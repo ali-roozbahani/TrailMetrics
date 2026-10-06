@@ -74,15 +74,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
-### android-route-start-tracking-repeated-navigation
-- Type: task
-- Area: androidApp/feature-route
-- Order: 93
-- Source: bugfix/ios-route-start-tracking-single-navigation PR
-- Problem: Android's `RouteViewModel.startTracking` (`RouteAction.StartTrackingClicked`) has no guard against a repeated tap: each tap launches its own coroutine, and each sends `RequestUserProfile` or `NavigateToTracking` into the `Channel.BUFFERED` events channel once the profile read returns. `RouteRoot` collects that channel in a `LaunchedEffect`, so a second `NavigateToTracking` that arrives while RouteScreen is still composed navigates to Tracking twice, and one that arrives after it left composition stays in the channel and is delivered when RouteScreen is composed again, opening Tracking again on return. Two taps without a profile open the profile sheet twice (the second only sets `showProfileSheet` again). Found by reading the code, not reproduced; iOS got the equivalent guard in that PR.
-- Done when: a repeated `StartTrackingClicked` while one is in flight sends at most one event (a guard like `generationJob` in `generateRoute`, released on every exit), with a JVM test that dispatches two `StartTrackingClicked` before the profile read returns and receives one `NavigateToTracking`, and one that a later, separate tap still works.
-- Refs: `androidApp/feature-route` `RouteViewModel.startTracking`, `generateRoute` (the guard pattern), `RouteScreen` (`RouteRoot`'s event collection); iOS `RouteViewModel.onStartTrackingClicked`.
-
 ### document-ios-pending-events-shape
 - Type: task
 - Area: .claude/skills/tm-ios
@@ -128,6 +119,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-testing` ("Compose UI tests", the Maps bullet) describes only `LocalInspectionMode`, under which maps-compose draws an empty `Box` and nothing inside the map runs. `feature-tracking`'s `TrackingScreenSnapshotTest` now also renders the map in a JVM test with test sources only: a Robolectric shadow of `MapView` (`ShadowMapView`, which must extend `ShadowViewGroup`) answers `getMapAsync` with a real `GoogleMap` over a `java.lang.reflect.Proxy` `IGoogleMapDelegate` (`FakeGoogleMap`), so `MapEffect` and the map's callbacks such as `snapshot { }` can be driven by the test. The skill does not mention this, so a later screen test that needs the map could add a production seam instead.
 - Done when: the Maps bullet says when to use each of the two ways and points at `FakeGoogleMap`/`ShadowMapView`, including what the fake does not do (map content is still not asserted, the factories are fakes).
 - Refs: `.claude/skills/tm-testing/SKILL.md` ("Compose UI tests"); `androidApp/feature-tracking/src/test` `fakes/FakeGoogleMap.kt`, `TrackingScreenSnapshotTest`.
+
+### tracking-finish-double-tap-leaves-orphan-snapshot
+- Type: task
+- Area: androidApp/feature-tracking
+- Order: 120
+- Source: PR #121 review (reviewer note), 2026-10-07
+- Problem: With a real map, every tap on `TrackingScreen`'s Finish button calls `map.snapshot { }`, and every snapshot callback with a bitmap writes a new `activity_<millis>.png` into `filesDir` (`saveSnapshotToFile`) before it dispatches `TrackingAction.Finish(path)`. `TrackingViewModel.finish` accepts only the first `Finish` (`isSessionSaved`), so on a double tap the second callback still writes its PNG, but no saved activity points at it and nothing deletes it. `TrackingScreenSnapshotTest` (the double-tap test) already shows two snapshot requests, both delivered, and one saved activity; it does not count the files, so the second file is read from the code, not observed. The name has millisecond resolution, so two callbacks in the same millisecond write the same file and the second overwrites the first instead. It is a small storage leak per double tap, not a data loss: the saved activity keeps a valid snapshot.
+- Done when: a repeated Finish tap leaves at most one snapshot file for the session (for example no second snapshot is requested while one is pending, or the unreferenced file is deleted), with a test in `feature-tracking` that counts the files in `filesDir` after a double tap and both snapshot callbacks (the `TrackingScreenSnapshotTest` setup exists).
+- Refs: `androidApp/feature-tracking` `TrackingScreen` (the Finish button), `util/MapSnapshotSaver.kt` (`saveSnapshotToFile`), `TrackingScreenSnapshotTest`, `TrackingViewModel.finish`.
 
 ### tracking-location-path-double-clock-read
 - Type: task

@@ -62,14 +62,8 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
         rule.onNodeWithText(string(R.string.btn_generate_route)).performClick()
     }
 
-    /** Two taps with no move in between, so the second lands before any recomposition can remove the button. */
     fun doubleTapGenerate() = apply {
-        rule.onNodeWithText(string(R.string.btn_generate_route)).performTouchInput {
-            down(center)
-            up()
-            down(center)
-            up()
-        }
+        doubleTap(R.string.btn_generate_route)
     }
 
     /** The top-right icon button (its content description); the panel's button has the same text. */
@@ -88,6 +82,10 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
 
     fun clickStartTracking() = apply {
         rule.onNodeWithText(string(R.string.btn_start_tracking)).performClick()
+    }
+
+    fun doubleTapStartTracking() = apply {
+        doubleTap(R.string.btn_start_tracking)
     }
 
     fun enterWeight(text: String) = apply {
@@ -173,6 +171,16 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
 
     fun assertMessageShown(@StringRes message: Int) = apply {
         rule.onNodeWithText(string(message)).assertExists()
+    }
+
+    /** Two taps with no move in between, so the second lands before any recomposition can remove the button. */
+    private fun doubleTap(@StringRes text: Int) {
+        rule.onNodeWithText(string(text)).performTouchInput {
+            down(center)
+            up()
+            down(center)
+            up()
+        }
     }
 
     @StringRes

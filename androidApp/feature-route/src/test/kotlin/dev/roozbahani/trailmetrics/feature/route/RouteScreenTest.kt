@@ -266,6 +266,23 @@ class RouteScreenTest {
     }
 
     @Test
+    fun `tapping Start Tracking twice while the profile read is in flight starts tracking once`() {
+        userProfileRepository.userProfile = PROFILE
+        showRouteGenerating(WP_A, WP_B, WP_C, gate = null).assertPanelShown()
+        val profileGate = CompletableDeferred<Unit>()
+        userProfileRepository.getUserProfileGate = profileGate
+
+        robot.doubleTapStartTracking().waitForIdle()
+        assertEquals(emptyList(), startTrackingCalls)
+
+        profileGate.complete(Unit)
+        robot.waitForIdle()
+
+        assertEquals(1, startTrackingCalls.size)
+        assertEquals(listOf(StartTrackingCall(START, ROUTE_COORDINATES, ActivityType.Running)), startTrackingCalls)
+    }
+
+    @Test
     fun `Start Tracking passes the activity type selected in the panel`() {
         userProfileRepository.userProfile = PROFILE
 
