@@ -84,15 +84,21 @@ of CI's `android` job: it runs the "Run pr-reviewer" and "Map verdict" scripts o
 `.github/workflows/pr-review.yml`, taken from the committed file, against a stub `claude`, and
 its "Rule changes from the base" script in scratch git repositories; it needs `python3`, `jq`,
 `git` and `tar` and fails without them), the skill rule-change self-test
-(`scripts/check-skill-rule-changes.sh --self-test`, gate only, not a CI step: the script whose
-base-branch copy writes the reviewers' `rule-changes` input, `tm-pr-review` item 10) and the iOS
-scope self-test
+(`scripts/check-skill-rule-changes.sh --self-test`, also the "Skill rule-change self-test" step
+of CI's `android` job: the script whose base-branch copy writes the reviewers' `rule-changes`
+input, `tm-pr-review` item 10), the Kover floors self-test (`scripts/check-kover-floors.sh
+--self-test`, also the "Kover floors self-test" step of CI's `android` job) and the iOS scope
+self-test
 (`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
 job: it runs the gate's iOS scope block below, extracted from the committed script between its
 `# >>> iOS scope: ... (begin) >>>` and `(end)` markers, in scratch git repositories, one case
 per fixture in `scripts/check-ios-scope-fixtures/`, and it also checks that every `BUILD_FILES`
 entry of `scripts/build-kmp-framework.sh`, taken from the committed file, matches the filter; it
 needs `python3`, `bash` and `git` and fails without them).
+The gate also runs the Kover floors check in every classification, light included
+(`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
+floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
+on push events.
 The heavy steps run unless
 `scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
 decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
@@ -100,8 +106,9 @@ decision and its files, report only): `detekt`, Android `lint`, `allTests test` 
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
 enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
-coverage. Minimums are set in `domain`, `data` and the three `androidApp` feature modules'
-`build.gradle.kts`, a little below each module's measured coverage from its own tests. `core`,
+coverage. Minimums are set in `config/kover-floors.properties`, one entry per module for `domain`,
+`data` and the three `androidApp` feature modules, whose `build.gradle.kts` reads it, a little
+below each module's measured coverage from its own tests. `core`,
 `shared`, `androidApp/app` and `androidApp/core-ui` have no minimum on purpose: they have no tests
 of their own that Kover measures (0% own line coverage), so a floor could never fail; each one's
 `build.gradle.kts` says what the module is and gets a floor when its first test of its own runs on
@@ -150,11 +157,17 @@ How it is enforced, and what that means for the order of operations:
 - `./gradlew test` on its own runs zero tests. KMP tests only run under `allTests`. Use
   the gate script, not a hand-picked Gradle command, and read test counts from `allTests`.
 - **Coverage ratchet.** A PR that adds tests to a module with a Kover floor raises that floor
-  (`minBound` in its `build.gradle.kts`) in the same PR, to the module's measured line coverage
+  (its entry in `config/kover-floors.properties`, which its `build.gradle.kts` reads) in the
+  same PR, to the module's measured line coverage
   (`./gradlew :<module>:koverLog`) minus 1 to 2 points, rounded down. Verify it once: set it 1
   point above the measured value, see `koverVerify` fail for that module, restore. Never lower
   a floor to make a PR pass. If coverage barely moves because the remaining code needs
   infrastructure that isn't available, say so in the PR instead of padding tests.
+  `scripts/check-kover-floors.sh` (gate and CI) fails when a floor is lower than on the base,
+  when a module whose `build.gradle.kts` reads the file has no entry, and when an entry has no
+  such module. Lowering a floor is not supported by the mechanism: it needs a human PR that
+  changes the script. A new module's first floor is a new entry plus the same read in its
+  `build.gradle.kts`.
 - A task is not done until Tier 1 has been run **and** its result reported in the PR.
 
 ## Retry budget (2 fix attempts)
