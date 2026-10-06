@@ -1,0 +1,2 @@
+exit: 1
+stderr: config/kover-floors.properties, line 2: `domain` is '101', not an integer from 0 to 100

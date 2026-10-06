@@ -1,0 +1,2 @@
+exit: 1
+stderr: data: floor lowered from 43 (base) to 0 (new)

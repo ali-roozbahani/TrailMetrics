@@ -1,0 +1,4 @@
+args: --base no-such-ref
+exit: 2
+stderr: 'no-such-ref' is not a commit
+absent: kover floors: ok

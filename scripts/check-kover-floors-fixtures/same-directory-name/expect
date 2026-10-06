@@ -1,0 +1,2 @@
+exit: 1
+stderr: androidApp/domain/build.gradle.kts and domain/build.gradle.kts have the same directory name `domain`

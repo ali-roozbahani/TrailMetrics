@@ -1,0 +1,4 @@
+exit: 1
+stderr: domain: floor lowered from 95 (base) to 94 (new)
+stderr: kover floors: FAILED (1 problem
+absent: kover floors: ok

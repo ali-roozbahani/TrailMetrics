@@ -1,0 +1,5 @@
+exit: 0
+stdout: base floors: minBound literals in the build.gradle.kts files at <base> (the base has no config/kover-floors.properties)
+stdout: domain: 95 -> 95 (equal)
+stdout: feature-route: 24 -> 24 (equal)
+stdout: kover floors: ok (3 modules

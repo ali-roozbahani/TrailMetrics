@@ -1,0 +1,2 @@
+exit: 1
+stderr: line 3: `data` has a blank value

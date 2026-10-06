@@ -1,0 +1,3 @@
+// Kover floor from the shared floors file.
+val koverFloor = providers.fileContents(layout.settingsDirectory.file("config/kover-floors.properties")).asText.get()
+kover { reports { verify { rule { minBound(koverFloor.toInt()) } } } }

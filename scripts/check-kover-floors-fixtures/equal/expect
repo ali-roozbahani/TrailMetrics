@@ -1,0 +1,5 @@
+exit: 0
+stdout: base floors: config/kover-floors.properties at <base>
+stdout: domain: 95 -> 95 (equal)
+stdout: data: 43 -> 43 (equal)
+stdout: kover floors: ok (2 modules

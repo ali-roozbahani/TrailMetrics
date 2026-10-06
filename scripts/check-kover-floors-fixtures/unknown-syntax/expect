@@ -1,0 +1,6 @@
+exit: 1
+stderr: line 2: unknown syntax 'domain: 95'
+stderr: line 3: unknown syntax ':data=43'
+stderr: line 4: unknown syntax '  data=43'
+stderr: line 5: unknown syntax '! data=43'
+stderr: kover floors: FAILED (4 problems

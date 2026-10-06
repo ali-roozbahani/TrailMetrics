@@ -1,0 +1,2 @@
+exit: 1
+stderr: data/build.gradle.kts reads config/kover-floors.properties, which has no entry `data`

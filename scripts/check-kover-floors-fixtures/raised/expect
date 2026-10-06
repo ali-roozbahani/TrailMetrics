@@ -1,0 +1,4 @@
+exit: 0
+stdout: domain: 95 -> 96 (raised)
+stdout: data: 43 -> 50 (raised)
+stdout: kover floors: ok
