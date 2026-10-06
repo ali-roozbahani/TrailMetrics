@@ -250,8 +250,10 @@ with `./gradlew detekt`. It is part of the local pre-push gate
 
 ## Tests
 
-Test code follows `tm-testing`. In short: JUnit4 + MockK for Android-framework tests, with
-`kotlin.test` assertions; `kotlin.test` + hand-written fakes in `domain`; no Truth, no
+Test code follows `tm-testing`, which has the rest. In short: JUnit4 with `kotlin.test`
+assertions, `kotlinx-coroutines-test` and hand-written fakes for Android tests (MockK is not
+in the catalog), and compose-ui-test for Compose UI tests; `kotlin.test` + hand-written fakes
+in `domain`; no Truth, no
 JUnit5; `UnconfinedTestDispatcher` unless a test needs to control dispatch order;
 Robolectric only when a test genuinely needs the Android framework. The three feature
 modules have JVM test source sets, sharing fakes via `androidApp/core-testing`. Truth was removed in #32.
