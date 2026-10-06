@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### loop-skill-merge-check-wording
-- Type: task
-- Area: .claude
-- Order: 46
-- Source: local pr-reviewer notes on the agentic-dev-loop S6 PR, 2026-10-06
-- Problem: Two lines of `tm-agent-loop` added by S6 can mislead. (a) Section 8 has the agent post the "Merge check" comment, which ends with `Merged: yes|no`, before it runs `gh pr merge`; if that merge then fails (the head moved, or the PR is behind `main` under strict protection), the comment says `Merged: yes` although nothing merged. (b) "Never" now says the agent never merges "an epic PR into `main`", while section 8 says that PR is merged "only on the human's explicit command, with `gh pr merge --match-head-commit <tested SHA>`", which reads as if an agent may run that command when told to.
-- Done when: the `Merged:` line of the "Merge check" comment reports the result of the merge attempt (for example, the comment is posted after the attempt, or a failed attempt is reported in a second comment), and "Never" and section 8 say the same thing about who runs the merge of an epic PR into `main`; the six merge conditions are unchanged.
-- Refs: `.claude/skills/tm-agent-loop/SKILL.md` ("8. Merge conditions", "Auto-merge", "Never"); `docs/epics/agentic-dev-loop.md` (Decisions 5 and 7).
-
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
