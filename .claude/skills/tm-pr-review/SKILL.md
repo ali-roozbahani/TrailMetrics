@@ -94,7 +94,9 @@ from memory.
     branch's copy of the script prints it: `none`, `none (script not on the base)` (the base
     predates the script), or one line per removed or rewritten line that holds a rule word, in
     a file under `.claude/skills/` or in a `CLAUDE.md`, as `<file>:<line on the base side>:
-    <text>`. Anything other than exactly one of the two `none` lines (an empty file too) is
+    <text>`; a line is left out when every sentence of it that holds a rule word reappears
+    unchanged in the added lines of one hunk of the same file, and the listed text is the
+    whole line. Anything other than exactly one of the two `none` lines (an empty file too) is
     `ESCALATE_TO_HUMAN` with one finding `rule-weakened` that quotes each listed line, unless
     `TASK` explicitly names that exact change for every listed line. Judge each listed line
     against the diff and say in the finding whether it really weakens a rule (removed,
