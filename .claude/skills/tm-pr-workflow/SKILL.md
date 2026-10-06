@@ -218,8 +218,10 @@ that there is nothing to check on a device (see #32, #35).
   `main` with `gh pr create --base main`. `gh` must be logged in as an account with write
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
 - Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
-  under the conditions in `tm-agent-loop` (none before the S6 trial is complete); the
-  human merges everything else, after CI is green and Tier 2 has passed.
+  under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
+  green and Tier 2 has passed. The Tier 2 section of a PR the agent merges stays in its
+  description; the human does those checks when testing the feature (the epic-level
+  Tier 2), not before the merge.
 - **The PR title becomes the commit on `main`.** PRs are squash-merged as
   `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
 
@@ -344,8 +346,9 @@ position its `Order` gives it (records in a section are sorted by `Order`).
 3. The human reviews the structure: does it follow the established pattern, respect module
    boundaries, and avoid duplicating something that should be shared?
 4. Only then does the human merge into `main`, unless the PR meets the merge conditions in
-   `tm-agent-loop` (none do before the S6 trial is complete). `tm-agent-loop` also has the
-   after-merge cleanup and how to read the CI reviewer's verdict.
+   `tm-agent-loop`: then the agent merges it, and the human does step 2 when testing the
+   feature (the epic-level Tier 2). `tm-agent-loop` also has the after-merge cleanup and
+   how to read the CI reviewer's verdict.
 
 Review comments turn into new commits on the same branch, each through the gate again.
 Answer them in the PR (see #35's comment summarising its second commit) rather than
