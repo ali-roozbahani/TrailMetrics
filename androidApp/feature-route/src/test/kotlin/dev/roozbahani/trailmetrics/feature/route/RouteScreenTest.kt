@@ -190,6 +190,17 @@ class RouteScreenTest {
     }
 
     @Test
+    fun `Generate stays disabled with three waypoints while there is no start point`() {
+        locationRepository.currentLocationResult = Result.failure(RouteError.LocationUnavailable())
+
+        showRoute()
+            .longPressMap(WP_A, WP_B, WP_C)
+            .assertGenerateDisabled()
+
+        assertEquals(0, directionsRepository.requests.size)
+    }
+
+    @Test
     fun `while the directions call is in flight Generate is disabled and shows the loading indicator`() {
         val gate = CompletableDeferred<Unit>()
         showRouteGenerating(WP_A, WP_B, WP_C, gate = gate)
