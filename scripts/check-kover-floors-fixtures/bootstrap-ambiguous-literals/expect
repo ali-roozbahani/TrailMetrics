@@ -1,0 +1,2 @@
+exit: 1
+stderr: data/build.gradle.kts at <base> has 2 minBound literals

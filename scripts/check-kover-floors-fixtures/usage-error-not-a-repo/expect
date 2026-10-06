@@ -1,0 +1,5 @@
+setup: no-repo
+args: --base HEAD
+exit: 2
+stderr: 'HEAD' is not a commit in <repo>
+absent: kover floors: ok

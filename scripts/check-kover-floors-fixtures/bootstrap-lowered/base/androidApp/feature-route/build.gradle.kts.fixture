@@ -1,0 +1,9 @@
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(24)
+            }
+        }
+    }
+}

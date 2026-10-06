@@ -1,0 +1,2 @@
+exit: 1
+stderr: has neither config/kover-floors.properties nor a minBound(<n>) literal

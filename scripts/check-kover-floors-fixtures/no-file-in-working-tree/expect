@@ -1,0 +1,2 @@
+exit: 1
+stderr: config/kover-floors.properties is missing in the working tree

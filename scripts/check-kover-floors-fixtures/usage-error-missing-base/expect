@@ -1,0 +1,3 @@
+args: --base
+exit: 2
+stderr: usage: check-kover-floors.sh

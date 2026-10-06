@@ -45,6 +45,33 @@ jobs:
       - name: iOS scope self-test
         run: scripts/check-ios-scope.sh --self-test
 
+      - name: Skill rule-change self-test
+        run: scripts/check-skill-rule-changes.sh --self-test
+
+      - name: Kover floors self-test
+        run: scripts/check-kover-floors.sh --self-test
+
+      # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
+      # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
+      # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
+      - name: Kover floors check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != pull_request ]; then
+            echo "Skipped: a '$EVENT_NAME' event has no base commit to compare the floors with."
+            exit 0
+          fi
+          if [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "PR_BASE_SHA is not a commit SHA"
+            exit 1
+          fi
+          if ! git cat-file -e "$PR_BASE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --quiet --depth=1 origin "$PR_BASE_SHA"
+          fi
+          scripts/check-kover-floors.sh --base "$PR_BASE_SHA"
+
       - name: Set up JDK 17
         if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4
