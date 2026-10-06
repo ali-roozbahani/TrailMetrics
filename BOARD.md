@@ -210,6 +210,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `waitUntil` stops promptly when its task is cancelled (for example it checks `Task.isCancelled` or lets the cancellation error end the wait), a test shows it (red before, green after), and the `swiftlint:disable:next optional_try` comment is updated or removed to match the code.
 - Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift`; PR #104.
 
+### selftest-scratch-repo-hardening-other-scripts
+- Type: task
+- Area: scripts
+- Order: 197
+- Source: fix of the skill rule-change self-test cleanup PR, 2026-10-06
+- Problem: `check-kover-floors.py`, `check-protected-paths.py`, `check-pr-review-workflow.py` and `classify-changes.sh` build scratch git repositories and commit in them without `gc.auto=0` and `maintenance.auto=false`, and remove them with a bare `tempfile.TemporaryDirectory` or `rm -rf`; `check-ios-scope.py` has `gc.auto=0` but not `maintenance.auto=false`. The same "Directory not empty" failure that once stopped the skill rule-change self-test in CI could hit any of them.
+- Done when: each gets the same git flags and the same resilient cleanup as `check-skill-rule-changes.py` (or one shared approach the human agrees), with its self-test still passing.
+- Refs: `scripts/check-kover-floors.py`; `scripts/check-protected-paths.py`; `scripts/check-pr-review-workflow.py`; `scripts/classify-changes.sh`; `scripts/check-ios-scope.py`; `scripts/check-skill-rule-changes.py` (`remove_scratch`).
+
 ### tracking-finish-without-profile-silent
 - Type: task
 - Area: androidApp/feature-tracking, iosApp/Tracking

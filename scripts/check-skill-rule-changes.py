@@ -56,11 +56,14 @@ The diff options are fixed (myers, indent heuristic, no context, no external dif
 so the user's git config can't change which lines are removed.
 """
 
+import errno
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 USAGE = "usage: check-skill-rule-changes.sh [--repo <dir>] <base> <head> | --self-test"
@@ -311,6 +314,75 @@ SPLIT_CASES = [
 FIXTURES = "check-skill-rule-changes-fixtures"
 
 
+def fake_rmtree(errors, always=False):
+    """An rmtree that raises `errors` one per call, then succeeds, or with `always` keeps raising
+    the last one. Returns it and the list of paths it was called with."""
+    calls = []
+
+    def rmtree(path):
+        calls.append(path)
+        if len(calls) <= len(errors) or always:
+            raise errors[min(len(calls), len(errors)) - 1]
+    return rmtree, calls
+
+
+def enotempty():
+    return OSError(errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY))
+
+
+def check_retries_then_succeeds():
+    rmtree, calls = fake_rmtree([enotempty(), enotempty()])
+    sleeps = []
+    try:
+        remove_scratch("/scratch/x", rmtree=rmtree, sleep=sleeps.append)
+    except OSError as error:
+        return f"raised {error!r}"
+    if len(calls) != 3 or len(sleeps) != 2:
+        return f"{len(calls)} rmtree calls and {len(sleeps)} sleeps, expected 3 and 2"
+    return ""
+
+
+def check_gives_up_and_names_what_is_left():
+    tmp = tempfile.mkdtemp(prefix="tm-rule-changes-left-")
+    try:
+        (Path(tmp) / ".git").mkdir()
+        (Path(tmp) / ".git" / "gc.pid").write_text("1\n")
+        rmtree, _ = fake_rmtree([enotempty()], always=True)
+        try:
+            remove_scratch(tmp, rmtree=rmtree, sleep=lambda _: None)
+        except OSError as error:
+            message = str(error)
+            if error.errno != errno.ENOTEMPTY or tmp not in message \
+                    or os.path.join(".git", "gc.pid") not in message:
+                return f"error does not name the path and the file left: {message!r}"
+            return ""
+        return "returned, expected an OSError"
+    finally:
+        shutil.rmtree(tmp)
+
+
+def check_other_error_raised_at_once():
+    rmtree, calls = fake_rmtree([PermissionError(errno.EACCES, os.strerror(errno.EACCES))])
+    sleeps = []
+    try:
+        remove_scratch("/scratch/x", rmtree=rmtree, sleep=sleeps.append)
+    except PermissionError:
+        if len(calls) != 1 or sleeps:
+            return f"{len(calls)} rmtree calls and {len(sleeps)} sleeps, expected 1 and 0"
+        return ""
+    except OSError as error:
+        return f"raised {error!r}, expected the PermissionError"
+    return "returned, expected the PermissionError"
+
+
+REMOVE_SCRATCH_CASES = [
+    ("ENOTEMPTY twice, then removed: returns after 2 sleeps", check_retries_then_succeeds),
+    ("ENOTEMPTY every time: raises, naming the path and what is left",
+     check_gives_up_and_names_what_is_left),
+    ("PermissionError: raised at once, no sleep", check_other_error_raised_at_once),
+]
+
+
 def fixture_path(rel):
     """Fixture trees spell `.claude` as `dot-claude` and `CLAUDE.md` as `CLAUDE.md.fixture`,
     so no agent tool picks them up as real instructions."""
@@ -322,8 +394,35 @@ def fixture_path(rel):
 
 def self_git(repo, *args):
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=self-test",
-                    "-c", "user.email=self-test@example.invalid", "-c", "commit.gpgsign=false"]
+                    "-c", "user.email=self-test@example.invalid", "-c", "commit.gpgsign=false",
+                    "-c", "gc.auto=0", "-c", "maintenance.auto=false"]
                    + list(args), check=True, capture_output=True)
+
+
+def remove_scratch(path, rmtree=shutil.rmtree, sleep=time.sleep, attempts=5):
+    """Removes a scratch directory. Only `Directory not empty` (ENOTEMPTY) is retried, after 0.2
+    seconds: something may still be writing into it (one CI run failed this way; the writer is
+    unknown). Any other error is raised at once. When every attempt fails, the error names the
+    path and what is left under it (at most 50 relative paths), so a CI log shows it."""
+    for attempt in range(attempts):
+        if attempt:
+            sleep(0.2)
+        try:
+            rmtree(path)
+            return
+        except OSError as error:
+            if error.errno != errno.ENOTEMPTY:
+                raise
+            last = error
+    left = []
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        left += [os.path.relpath(os.path.join(root, name), path) for name in dirs + sorted(files)]
+        if len(left) > 50:
+            break
+    shown = ", ".join(left[:50]) + (", ..." if len(left) > 50 else "")
+    raise OSError(errno.ENOTEMPTY, f"cannot remove {path} after {attempts} attempts ({last}); "
+                                   f"still present: {shown or 'nothing'}") from last
 
 
 def commit_tree(repo, tree, message):
@@ -360,7 +459,8 @@ def run_fixture(entry, fixture):
     want_stdout = stdout_file.read_text(encoding="utf-8") if stdout_file.exists() else ""
     args_file = fixture / "args"
     args = args_file.read_text(encoding="utf-8").split() if args_file.exists() else ["BASE", "HEAD"]
-    with tempfile.TemporaryDirectory(prefix="tm-rule-changes-") as tmp:
+    tmp = tempfile.mkdtemp(prefix="tm-rule-changes-")
+    try:
         repo = Path(tmp)
         self_git(repo, "init", "-q")
         shas = {"BASE": commit_tree(repo, fixture / "base", "base"),
@@ -371,6 +471,8 @@ def run_fixture(entry, fixture):
                                 capture_output=True, text=True, env=env)
         output = result.stdout.replace(shas["BASE"], "<base>").replace(shas["HEAD"], "<head>")
         err = result.stderr.replace(shas["BASE"], "<base>").replace(shas["HEAD"], "<head>")
+    finally:
+        remove_scratch(tmp)
     errors = []
     if result.returncode != expect["exit"]:
         errors.append(f"exit {result.returncode}, expected {expect['exit']}")
@@ -395,6 +497,12 @@ def self_test(script_dir):
         failed += actual != expected
         print(f"    {'ok  ' if actual == expected else 'FAIL'} {text!r}"
               + ("" if actual == expected else f"\n         expected {expected!r}, got {actual!r}"))
+    print("--- remove_scratch (injected rmtree and sleep)")
+    for name, check in REMOVE_SCRATCH_CASES:
+        total += 1
+        problem = check()
+        failed += bool(problem)
+        print(f"    {'FAIL' if problem else 'ok  '} {name}" + (f": {problem}" if problem else ""))
 
     fixtures = script_dir / FIXTURES
     entry = script_dir / "check-skill-rule-changes.sh"
