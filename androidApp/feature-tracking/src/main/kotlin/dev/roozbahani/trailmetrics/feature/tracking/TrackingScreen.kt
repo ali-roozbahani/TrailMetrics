@@ -85,6 +85,7 @@ import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
 import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -147,7 +148,9 @@ fun TrackingRoot(
         viewModel.events.collect { event ->
             when (event) {
                 is TrackingEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
+                    // A child of this effect, so the next event is not held until the snackbar is
+                    // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
+                    launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
                 }
 
                 is TrackingEvent.RequestLocationPermission -> {
