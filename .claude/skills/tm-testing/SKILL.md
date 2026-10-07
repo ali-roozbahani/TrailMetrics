@@ -218,9 +218,23 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
   recomposition remove the button and the second tap hits nothing: the test passes with or
   without the guard. Check it once by removing the guard in the working tree: the test must
   fail on the doubled call (for `DetailsScreenTest`: `Expected <[1]>, actual <[1, 1]>.`).
-- Maps: wrap the content in `CompositionLocalProvider(LocalInspectionMode provides true)`.
-  maps-compose's `GoogleMap` then draws an empty `Box`, so no Maps SDK runs on the JVM; the
-  map's content (polylines, markers) is not tested. No production seam is needed for it.
+- Maps: when the test needs no map callback, wrap the content in
+  `CompositionLocalProvider(LocalInspectionMode provides true)`, as the Route, Details and
+  Tracking robots do. maps-compose's `GoogleMap` then draws an empty `Box`, so no Maps SDK
+  runs on the JVM; the map's content (polylines, markers) is not tested. No production seam
+  is needed for it.
+  When the test must drive a map callback (`MapEffect`, `GoogleMap.snapshot { }`), render the
+  map instead, as `feature-tracking`'s `TrackingScreenSnapshotTest` does with test sources
+  only (`src/test/.../fakes/FakeGoogleMap.kt`): `@Config(shadows = [ShadowMapView::class])`
+  replaces `MapView` with a Robolectric shadow (it must extend `ShadowViewGroup`, the shadow
+  of its superclass chain) whose `getMapAsync` answers at once with a real `GoogleMap` over
+  `FakeGoogleMap`'s `Proxy` delegate. The test sets `FakeGoogleMap.current` before composing
+  and composes with `LocalInspectionMode` false. Every delegate call returns a default except
+  `snapshot`, whose callback the test delivers with `deliverSnapshot(...)`. The map's content
+  is still not asserted, and the camera and bitmap-descriptor factories are fakes installed by
+  `FakeGoogleMap.installFactories()` (`TrackingScreenTest` installs them under
+  `LocalInspectionMode` too, because `TrackingScreen` builds a camera update even with no map
+  shown).
 - Find nodes by visible text and content description first; a `testTag` is a production
   change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
   matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.

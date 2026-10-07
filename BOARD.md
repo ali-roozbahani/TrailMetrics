@@ -74,15 +74,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
-### document-ios-pending-events-shape
-- Type: task
-- Area: .claude/skills/tm-ios
-- Order: 94
-- Source: bugfix/ios-init-time-error-events-kept PR
-- Problem: `tm-ios` ("ViewModel shape", the one-shot signals bullet) tells a new ViewModel to expose a `makeEventsStream()` factory that returns a new `AsyncStream` each time, pointing at `RouteViewModel`/`TrackingViewModel`. Both now also keep events emitted while no consumer is active (`pendingEvents`, at most 10, oldest dropped first) and deliver them to the next stream, because `yield` to a missing or terminated continuation loses them. The bullet is still accurate but doesn't say this, so a new screen written from the skill alone would lose init-time errors again. It is a protected path, so it was not changed in that PR.
-- Done when: the bullet says that events emitted with no active consumer are kept and delivered to the next stream (checking `yield`'s result, bounded), pointing at `RouteViewModel.emit`.
-- Refs: `.claude/skills/tm-ios/SKILL.md` ("ViewModel shape"); `RouteViewModel.emit`, `makeEventsStream`; `TrackingViewModel.emit`.
-
 ### android-route-error-snackbar-covers-generate
 - Type: task
 - Area: androidApp/feature-route
@@ -110,15 +101,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `TrackingScreen`'s `LaunchedEffect(state.currentPath)` calls `CameraUpdateFactory.newLatLng` on every path change, whether or not a map exists. `CameraUpdateFactory` works only after `MapsInitializer` has filled it from Google Play services (normally when the `MapView` is created); before that it throws `NullPointerException` ("CameraUpdateFactory is not initialized"). Without a fake factory, 15 of the 26 `TrackingScreenTest` cases (map not rendered) fail with that exception. On a device where the Maps SDK cannot initialize (Google Play services missing, disabled or outdated), the first location fix after Start would therefore throw inside the effect. Found while writing the tests, not reproduced on a device.
 - Done when: a path change without an initialized Maps SDK neither throws nor stops tracking (for example the camera update is built only once the map is there, as `cameraPositionState.animate` already waits for it), shown by a Compose UI test that does not install the fake factory.
 - Refs: `androidApp/feature-tracking` `TrackingScreen` (`LaunchedEffect(state.currentPath)`); `TrackingScreenTest`, `fakes/FakeGoogleMap.kt` (`installFactories`).
-
-### document-rendered-map-test-fake
-- Type: task
-- Area: .claude/skills/tm-testing
-- Order: 115
-- Source: Tracking screen Compose UI tests PR, 2026-10-07
-- Problem: `tm-testing` ("Compose UI tests", the Maps bullet) describes only `LocalInspectionMode`, under which maps-compose draws an empty `Box` and nothing inside the map runs. `feature-tracking`'s `TrackingScreenSnapshotTest` now also renders the map in a JVM test with test sources only: a Robolectric shadow of `MapView` (`ShadowMapView`, which must extend `ShadowViewGroup`) answers `getMapAsync` with a real `GoogleMap` over a `java.lang.reflect.Proxy` `IGoogleMapDelegate` (`FakeGoogleMap`), so `MapEffect` and the map's callbacks such as `snapshot { }` can be driven by the test. The skill does not mention this, so a later screen test that needs the map could add a production seam instead.
-- Done when: the Maps bullet says when to use each of the two ways and points at `FakeGoogleMap`/`ShadowMapView`, including what the fake does not do (map content is still not asserted, the factories are fakes).
-- Refs: `.claude/skills/tm-testing/SKILL.md` ("Compose UI tests"); `androidApp/feature-tracking/src/test` `fakes/FakeGoogleMap.kt`, `TrackingScreenSnapshotTest`.
 
 ### tracking-finish-double-tap-leaves-orphan-snapshot
 - Type: task
@@ -283,15 +265,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: since that PR the local gate removes secret-looking variables (deny list in `scripts/scrub-env.sh`) from its environment before `xcodebuild` logs it; CI's `ios` job does not, and `.github/workflows/ci.yml` was not changed. Xcode prints the environment of the framework script's scheme pre-action and Run Script phase as `export NAME=...` lines. In the log of the job "iOS — SwiftLint, Build" of run 37297553551 (PR #101), 2305 lines contain `export ` (1748 distinct names), all in the step "Build iOS app". The exported names that match the deny list are 40 `GITHUB_*` names (for example `GITHUB_REPOSITORY`, `GITHUB_RUN_ID`, `GITHUB_SHA`, `GITHUB_OUTPUT`) and `GMS_API_KEY` (a build setting from the iOS secrets config, which CI fills with a placeholder; not masked). `ACTIONS_ORCHESTRATION_ID` and `ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE` are exported too (no deny-list match). No exported name contains `TOKEN`, `SECRET`, `PASSWORD` or `CREDENTIAL`. One export line is masked by GitHub as a whole (`export ***`), so its name is not visible.
 - Done when: the human has decided how CI's `xcodebuild` steps ("Build iOS app", "Run iOS package tests") are protected (for example sourcing `scripts/scrub-env.sh` there, or leaving them as they are because the job holds no secret), and the decision is implemented and shown in a CI log, by names and counts only.
 - Refs: `.github/workflows/ci.yml` (`ios` job, steps "Build iOS app" and "Run iOS package tests"); `scripts/scrub-env.sh`; `scripts/pre-push-check.sh`; run 37297553551 (job "iOS — SwiftLint, Build").
-
-### drift-tm-android-tests-section-mockk
-- Type: drift
-- Area: .claude
-- Order: 280
-- Source: History and Details Compose UI tests PR (agent loop run 23), 2026-10-05
-- Problem: `tm-android`'s "Tests" section says "JUnit4 + MockK for Android-framework tests". MockK is not in `gradle/libs.versions.toml` and no module uses it (`tm-testing`, "What's actually available today"); Android-framework tests use JUnit4, `kotlin.test` assertions and hand-written fakes from `androidApp/core-testing`, under Robolectric where needed.
-- Done when: the line describes the current stack (JUnit4, `kotlin.test`, hand-written fakes, Robolectric/compose-ui-test where needed) and points to `tm-testing` for the rest.
-- Refs: `.claude/skills/tm-android/SKILL.md` ("Tests"); `.claude/skills/tm-testing/SKILL.md` ("What's actually available today"); `gradle/libs.versions.toml`.
 
 ### drift-kover-comments-name-removed-board-slugs
 - Type: drift
