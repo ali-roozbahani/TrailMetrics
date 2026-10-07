@@ -34,6 +34,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on iOS (XCUITest) and Android (Compose UI tests), with a fast smoke subset in the local gate when the diff touches UI or ViewModels and the full UI suite in CI; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the two required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR.
 - Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`; board `test-ios-ui-double-tap-and-stale-results`.
 
+### protected-paths-review-2
+- Type: epic
+- Area: .github, scripts, .claude, shared, iosApp/Packages/SharedKit, data
+- Order: 45
+- Source: chat 2026-10-07 (the human's decision: protect the control plane, open the product code)
+- Problem: `.github/CODEOWNERS` protects product code besides the control plane: `/shared/`, `/iosApp/Packages/SharedKit/` and the persistence paths (`local/database`, `local/dao`, `local/entity`, `data/schemas/`), so ordinary features (a `KoinHelper` getter, a stored field) escalate to the human. No automated control protects stored data today (no migration, no migration test, no schema check), CI does not run `shared`'s iOS tests, the reviewer does not cover test support, and some control-plane files are not protected (nested `CLAUDE.md`, `CLAUDE.local.md`, `.mcp.json`, nested `.claude/`, nested lint config, other Gradle build scripts). `tm-pr-workflow` still says review is not enforced by GitHub and the review check is not required.
+- Done when: a human-approved plan under `docs/epics/` comes first; then the compensating controls it names are on `main` (schema check and export freshness in the gate and CI, a migration harness with a pinned database file name, CI runs `shared`'s iOS tests, reviewer rules for persistence and test support), the control-plane gaps are protected, `--self-test` of `check-protected-paths` checks a table of real paths against the committed CODEOWNERS, and only then CODEOWNERS no longer owns `shared/` (except its `build.gradle.kts`), the `SharedKit` sources (except `Package.swift`) and the persistence paths; `tm-pr-workflow` describes the branch protection the human stated.
+- Refs: `docs/epics/protected-paths-review-2.md`; `docs/epics/protected-paths-review.md`; `.github/CODEOWNERS`; `scripts/check-protected-paths.py`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-review/SKILL.md`.
+
 ### route-completion-to-domain
 - Type: epic
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
@@ -53,6 +62,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Refs: `androidApp/core-ui`, `iosApp/Packages/DesignSystem`; Figma MCP.
 
 ## Tasks
+
+### test-koin-graph
+- Type: task
+- Area: shared
+- Order: 50
+- Source: plan `protected-paths-review-2`, Q4, 2026-10-07
+- Problem: no test verifies the Koin graph that `initKoin` and the platform modules build (`shared/src/commonMain/.../di/KoinInit.kt`, `PlatformModules.android.kt`, `PlatformModules.ios.kt`, and the `data/.../di/` modules they include). `koin-test` is in the catalog and no module uses it, so a missing or wrong binding fails only at app start; the same gap exists in the already open `data/.../di/`.
+- Done when: a test builds the graph on each platform with fakes for the platform pieces and fails when a binding is missing, shown failing on a deliberately broken graph; the dependency it adds is named in the task (`shared/build.gradle.kts` is protected, so the human merges that PR).
+- Refs: `docs/epics/protected-paths-review-2.md` (F5, Q4); `shared/src/commonMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinInit.kt`; `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinHelper.kt`; `shared/build.gradle.kts`; `gradle/libs.versions.toml` (`koin-test`).
 
 ### ios-live-activity-ticker
 - Type: task
