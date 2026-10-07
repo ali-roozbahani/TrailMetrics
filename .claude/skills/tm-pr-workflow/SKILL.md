@@ -366,9 +366,9 @@ position its `Order` gives it (records in a section are sorted by `Order`).
 ## After the PR is open (human's steps, for context)
 
 1. CI runs on the PR. It should already be green because the gate mirrors it.
-2. The human checks the Tier 2 list: an automated test named for each user-visible
-   behavior, and a valid reason for any human check (see "Tier 2: what automated tests
-   cannot show").
+2. CI's `pr-reviewer` checks the Tier 2 list against the diff: a test that exists and
+   asserts each user-visible behavior, or a valid reason for a human check (`tm-pr-review`,
+   item 11).
 3. The human reviews the structure: does it follow the established pattern, respect module
    boundaries, and avoid duplicating something that should be shared?
 4. Only then does the human merge into `main`, unless the PR meets the merge conditions in
