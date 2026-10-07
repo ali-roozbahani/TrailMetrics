@@ -1,7 +1,7 @@
 # Epic: Protected paths review 2: protect the control plane, open the product code
 
 - **Slug:** protected-paths-review-2
-- **Status:** proposed
+- **Status:** approved
 - **Integration branch:** none. A chain of plain PRs against `main`, one at a time. Every
   subtask below touches a protected path (`.github/`, `.claude/`, `scripts/`, `docs/epics/` or
   a path this epic opens only in its last subtasks), so the human merges each one and none
@@ -22,7 +22,7 @@
   CI reviewer's model, prompt and permissions; the trial of `agentic-dev-loop`; the code
   under `data/.../local/mapper/` and `data/.../local/repository/`, which is not protected today
   and stays open.
-- **Approved by:** <left for the human>
+- **Approved by:** Ali Roozbahani on 2026-10-07 (answers to Q1 to Q7 below, and the S6 split)
 
 ## Principle (as the human stated it)
 
@@ -251,18 +251,18 @@ and the `Review — pr-reviewer` check are required on `main`.
    (`@Throws`/SKIE and any change to Swift-visible `Flow`/`suspend` signatures or `KoinHelper`
    that the policy does not sanction or the task does not name: escalate), the iOS build and
    package tests in the gate and in CI (F5), and two controls added first: CI runs `shared`'s
-   `iosTest` (S3), and reviewer item 5 covers test support (S6). *Rejected:* keeping
+   `iosTest` (S3), and reviewer item 5 covers test support (S6a). *Rejected:* keeping
    `KoinHelper.kt` protected on its own: it is the step every iOS feature needs, the same
    Swift-visible API is already open in `domain`/`data`/`core`, and item 6 escalates exactly the
    unsanctioned changes. *Rejected:* waiting for a Swift API dump check: it needs a tool that
-   is not in the repo (open question Q5).
+   is not in the repo (Q5, answered: item 6 is the control for now).
 3. **`iosApp/Packages/SharedKit/` opens, except `Package.swift`** (S7a). The directory line is
    removed; `Package.swift` stays protected through `Package.swift`. Opened: `Sources/**` and
    `.gitignore`. Swift source here is compiled and linted like every other package; the
    package's build-time behaviour lives in `Package.swift` only. *Rejected:* keeping it
    protected: its one source line has no control-plane role.
 4. **Persistence opens after its controls exist** (S7b). The four persistence lines are removed
-   once S4, S5 and S6 are merged. The risk is user data: a change that makes an existing
+   once S4, S5 and S6b are merged. The risk is user data: a change that makes an existing
    database fail to open (Room's identity check) or silently lose rows. The controls:
    - **Schema check** (S4): a script `scripts/check-room-schema.sh` (`.py`, fixtures,
      `--self-test`), run in the gate in every classification and in CI's `android` job, that
@@ -274,7 +274,7 @@ and the `Review — pr-reviewer` check are required on `main`.
      `data/src/commonTest/.../local/database/` that contains the text `MIGRATION_M_N`; (d) the
      head's current version has no schema file; (e) a file under `data/src/*Main/` calls a
      `fallbackToDestructiveMigration` variant. Exact text and path checks only; whether the
-     test really proves the data survives is the reviewer's (S6).
+     test really proves the data survives is the reviewer's (S6b).
    - **Schema export freshness** (S4): after the build, the gate and CI's `android` job fail
      when `data/schemas/` has a modified or untracked file. This is what catches an entity or
      converter change at an unchanged version: Room rewrites the current version's schema
@@ -287,24 +287,27 @@ and the `Review — pr-reviewer` check are required on `main`.
      its rows. `getRoomDatabase` gets the app's migration list (empty at version 1), so the
      test and the app use the same list. A pinned test of the database file name (the
      `ConvertersTest` pattern), so a rename is a changed assertion (item 5). No new dependency.
-   - **Reviewer rule** (S6): a new `tm-pr-review` item for persistence: a diff that changes an
+   - **Reviewer rule** (S6b): a new `tm-pr-review` item for persistence: a diff that changes an
      entity, the `@Database` annotation, a converter's stored form, `data/schemas/` or the
      database builder needs the version bump, the new schema file, `MIGRATION_M_N` and a
      harness case that inserts rows at M and asserts them at N; missing any is blocking. A
      migration that drops a table or column, or deletes or rewrites rows, and any change to the
      database file name, directory or driver, is `ESCALATE_TO_HUMAN` with the reason
-     `critical` (open question Q3).
+     `critical` (Q3, answered: escalate).
    `data/schemas/` opens together with the code: with rule (a) its existing files are
    append-only, and a new file must match the version bump.
    *Rejected:* opening persistence now and relying on the reviewer alone: no test today opens
    an existing database (F4), so the reviewer would have nothing to check against.
    *Rejected:* Room's `MigrationTestHelper`: it is in a Room testing artifact that is not in
-   the catalog, so it needs a new dependency (open question Q2).
+   the catalog, so it needs a new dependency (Q2, answered: no new dependency now; if the
+   harness cannot be built without it, S5 stops and reports and the human decides).
    *Rejected:* keeping `data/schemas/` protected while the code opens: every entity change
    adds a schema file, so every schema change would still escalate, against the principle.
 5. **Close the control-plane gaps of F7** (S2). Protect, at any depth: `CLAUDE.md`,
    `CLAUDE.local.md`, `.mcp.json`, `.claude/` (the four reference skill files stay ownerless,
-   after it), `lint.xml`, `.swiftlint.yml`, `*.gradle`; and `/buildSrc/`. `--validate` learns a
+   after it), `lint.xml`, `.swiftlint.yml`, `*.gradle`; and `/buildSrc/` and the root
+   `/.gitignore` (Q6, answered: protect it; S2 adds the CODEOWNERS line and its self-test row and
+   does not review the file's entries). `--validate` learns a
    short list of patterns that may match no tracked file yet (they protect a file before it
    exists), the same way `UNOWNED_PATTERNS` lists the only ownerless lines.
    *Rejected:* adding a reviewer rule instead: an unprotected PR can be agent-merged after the
@@ -317,7 +320,12 @@ and the `Review — pr-reviewer` check are required on `main`.
    CODEOWNERS, so the gate and CI fail if CODEOWNERS and the table disagree.
 7. **Order.** Controls first, each its own PR; then one CODEOWNERS PR per group (S7a for
    `shared/` and `SharedKit`, S7b for persistence), so `shared/` does not wait for the
-   persistence work. Every subtask is protected (each touches `.github/`, `.claude/`,
+   persistence work: the reviewer work is split into S6a (test support, needed by S7a) and S6b
+   (persistence, needed by S7b), and S7a's `depends_on` chain (S2, S3, S6a, each on S1 only)
+   reaches none of S4, S5 or S6b. Suggested execution order: the `shared/` track first (S2, S3,
+   S6a, S7a), because the iOS UI-test work on the board (`test-ios-ui-double-tap-and-stale-results`)
+   needs to edit `shared/`; then the persistence track (S4, S5, S6b, S7b), which may interleave
+   with other work. Every subtask is protected (each touches `.github/`, `.claude/`,
    `scripts/` or a path that is still protected when it runs), so the human merges all of them.
 8. **Changes to `.github/workflows/`** (S3, S4) are pushed by the human
    (`agentic-dev-loop`, Decision 1): the agent builds and runs the gate locally, stops before
@@ -331,14 +339,15 @@ and the `Review — pr-reviewer` check are required on `main`.
 | Path group | Files on `main` | Today | Proposed | Reason (evidence) | Must exist first (state today) | Subtask |
 |---|---|---|---|---|---|---|
 | shared build file | `shared/build.gradle.kts` | protected (`/shared/`) | protected (`build.gradle.kts`) | Gradle script, runs at configuration; SKIE and XCFramework export (F1) | none | S7a keeps it, S2 table proves it |
-| shared source | `shared/src/{commonMain,androidMain,iosMain}/**` | protected | open | compiled only; Swift-visible API mostly already open in `domain`/`data`/`core` (F1) | item 6 (exists); iOS build and package tests in gate and CI (exist); CI runs `shared` `iosTest` (missing, S3); item 5 covers test support (missing, S6) | S7a |
+| shared source | `shared/src/{commonMain,androidMain,iosMain}/**` | protected | open | compiled only; Swift-visible API mostly already open in `domain`/`data`/`core` (F1) | item 6 (exists); iOS build and package tests in gate and CI (exist); CI runs `shared` `iosTest` (missing, S3); item 5 covers test support (missing, S6a) | S7a |
 | shared tests | `shared/src/iosTest/**` | protected | open | test code, run by `allTests` (F1) | item 5 (exists); CI run (missing, S3) | S7a |
 | shared docs, other | `shared/README.md`, `shared/.gitignore` | protected | open | not executed (F1) | item 9, docs follow code (exists) | S7a |
 | SharedKit `Package.swift` | `iosApp/Packages/SharedKit/Package.swift` | protected (`/iosApp/Packages/SharedKit/`) | protected (`Package.swift`) | declares targets, plugins, binary path (F2) | none | S7a keeps it, S2 table proves it |
 | SharedKit sources | `iosApp/Packages/SharedKit/Sources/**`, `.gitignore` | protected | open | one re-export line, compiled only (F2) | SwiftLint, iOS build, package tests in gate and CI (exist) | S7a |
-| persistence code | `data/src/*Main/.../local/database/**`, `data/src/commonMain/.../local/{dao,entity}/**` | protected | open | compiled only; risk is stored data (F3, F4) | repository suite (exists); `ConvertersTest` pins (exists); migration harness and file-name pin (missing, S5); schema check (missing, S4); reviewer rule (missing, S6) | S7b |
+| persistence code | `data/src/*Main/.../local/database/**`, `data/src/commonMain/.../local/{dao,entity}/**` | protected | open | compiled only; risk is stored data (F3, F4) | repository suite (exists); `ConvertersTest` pins (exists); migration harness and file-name pin (missing, S5); schema check (missing, S4); reviewer rule (missing, S6b) | S7b |
 | persistence schemas | `data/schemas/**` | protected | open | data written by Room's KSP step (F3) | schema check and export freshness (missing, S4) | S7b |
 | agent instructions below the root | nested `CLAUDE.md`, `CLAUDE.local.md`, `.mcp.json`, nested `.claude/` | unprotected | protected | read by agent sessions; CI reviewer already distrusts them (F7) | `--validate` accepts not-yet-existing patterns (missing, S2) | S2 |
+| root ignore file | `/.gitignore` | unprotected | protected | `tm-pr-workflow` and `epic-orchestration` rely on the Android SDK properties file and the iOS secrets config being git-ignored; an edit there is seen by the reviewer only (Q6) | none (a tracked file, so `--validate` needs no change for it) | S2 |
 | nested lint config | `lint.xml`, `.swiftlint.yml` at any depth | unprotected (except `/iosApp/.swiftlint.yml`) | protected | lint tools read them from subdirectories (F7, verified in S2) | same | S2 |
 | other Gradle build scripts | `*.gradle`, `/buildSrc/` | unprotected | protected | Gradle runs them (F7, verified in S2) | same | S2 |
 
@@ -354,12 +363,12 @@ and the `Review — pr-reviewer` check are required on `main`.
     - docs/epics/protected-paths-review-2.md
     - BOARD.md
   acceptance:
-    - This plan is committed, status proposed; after the human's review it is committed as the human saved it, with the "Approved by" line filled in.
+    - This plan is committed; after the human's review it records his answers to Q1 to Q7, status approved, with the "Approved by" line filled in at his instruction.
     - BOARD.md has one epic record with this slug and a unique Order; check-board.sh passes.
   tier2: none (docs only, nothing user-visible changes)
 
 - id: S2
-  title: Protect agent instruction files, nested lint config and other build scripts; self-test against the real CODEOWNERS
+  title: Protect agent instruction files, nested lint config, other build scripts and the root .gitignore; self-test against the real CODEOWNERS
   branch: chore/protect-control-plane-gaps
   skills: [tm-pr-workflow, tm-pr-review]
   depends_on: [S1]
@@ -371,11 +380,12 @@ and the `Review — pr-reviewer` check are required on `main`.
     - docs/epics/protected-paths-review.md    # Decision 9: one pointer sentence
     - BOARD.md
   acceptance:
-    - CODEOWNERS owns CLAUDE.md, CLAUDE.local.md, .mcp.json, .claude/, lint.xml, .swiftlint.yml and *.gradle at any depth and /buildSrc/; the four reference skill lines stay ownerless and after .claude/; `--validate` passes.
+    - CODEOWNERS owns CLAUDE.md, CLAUDE.local.md, .mcp.json, .claude/, lint.xml, .swiftlint.yml and *.gradle at any depth, /buildSrc/ and the root /.gitignore; the four reference skill lines stay ownerless and after .claude/; `--validate` passes.
     - `--validate` accepts a pattern that matches no tracked file only when it is in a named list in the script, and still rejects any other such pattern (both shown, and self-test cases for both).
-    - "`--self-test` has a table of real paths classified against the committed .github/CODEOWNERS: at least one path per Decision 1 group and per new pattern is protected with the expected winning pattern (including shared/build.gradle.kts by /shared/ today, iosApp/Packages/SharedKit/Package.swift, data/CLAUDE.md, androidApp/app/lint.xml, iosApp/Packages/History/.swiftlint.yml, settings.gradle, buildSrc/x.kt, .mcp.json), and the four reference skill files and an unprotected source file are unprotected; the table was shown failing when a CODEOWNERS line was removed."
+    - "`--self-test` has a table of real paths classified against the committed .github/CODEOWNERS: at least one path per Decision 1 group and per new pattern is protected with the expected winning pattern (including shared/build.gradle.kts by /shared/ today, iosApp/Packages/SharedKit/Package.swift, data/CLAUDE.md, androidApp/app/lint.xml, iosApp/Packages/History/.swiftlint.yml, settings.gradle, buildSrc/x.kt, .mcp.json, .gitignore), and the four reference skill files and an unprotected source file are unprotected; the table was shown failing when a CODEOWNERS line was removed."
     - "Shown in this repo, in a throwaway local branch never pushed: Android lint reads a module lint.xml and SwiftLint a nested .swiftlint.yml, and Gradle runs a Groovy build script or a buildSrc directory as F7 says; any that does not hold is reported, and its pattern is kept or dropped as the human decides."
     - Decision 1 of docs/epics/protected-paths-review.md gets one sentence pointing to this plan (Decision 9); nothing else in that file changes.
+    - The root /.gitignore is protected by its CODEOWNERS line and its self-test row only; its entries are not read or reviewed in this subtask.
   tier2: none (CI and scripts only, nothing user-visible changes)
 
 - id: S3
@@ -435,12 +445,27 @@ and the `Review — pr-reviewer` check are required on `main`.
     - The harness writes a version 1 database with plain SQL from 1.json's createSql into a file, inserts rows, opens it through the app's builder path and migration list, and asserts every field of every row; it runs on testAndroidHostTest and iosSimulatorArm64Test.
     - Shown red in a throwaway local branch for an entity field added without a version bump and migration, then green on the branch.
     - The database file name is one constant, used by both actuals, and a test pins its value.
-    - No new dependency (catalog and build files untouched). If the harness cannot be built with the current dependencies, the agent stops and reports (open question Q2).
+    - No new dependency (catalog and build files untouched). If the harness cannot be built with the current dependencies, the agent stops and reports, and the human decides about Room's testing artifact (Q2, answered).
   tier2: none (tests and an unchanged database open path; nothing user-visible changes; the harness and DatabaseBuilder tests are the automated proof)
 
-- id: S6
-  title: Reviewer rules for persistence and test support
-  branch: chore/review-persistence-and-test-support
+- id: S6a
+  title: Reviewer item 5 covers test support
+  branch: chore/review-test-support
+  skills: [tm-pr-workflow, tm-pr-review]
+  depends_on: [S1]
+  allowed_paths:
+    - .claude/skills/tm-pr-review/SKILL.md
+    - .claude/agents/pr-reviewer.md           # only if it states the item count
+    - BOARD.md
+  acceptance:
+    - Item 5 also covers test support used by tests in a main source set (shared/src/iosMain/**/testsupport/**) and the Swift fakes package (iosApp/Packages/TestSupport/**).
+    - The description's item count line and every other mention of the count match.
+    - The rule-change list for the PR is shown (additions only expected; any listed line is explained).
+  tier2: none (skill only)
+
+- id: S6b
+  title: Reviewer rule for persistence
+  branch: chore/review-persistence
   skills: [tm-pr-workflow, tm-pr-review]
   depends_on: [S4, S5]
   allowed_paths:
@@ -449,8 +474,7 @@ and the `Review — pr-reviewer` check are required on `main`.
     - BOARD.md
   acceptance:
     - tm-pr-review has a persistence item as Decision 4 states it (blocking when the bump, schema file, MIGRATION_M_N or harness case is missing; ESCALATE_TO_HUMAN, reason critical, for a destructive migration or a change to the database file name, directory or driver), naming check-room-schema.sh and the harness by path.
-    - Item 5 also covers test support used by tests in a main source set (shared/src/iosMain/**/testsupport/**) and the Swift fakes package (iosApp/Packages/TestSupport/**).
-    - The description's item count and every other mention of the count match.
+    - The description's item count and every other mention of the count match again.
     - The rule-change list for the PR is shown (additions only expected; any listed line is explained).
   tier2: none (skill only)
 
@@ -458,7 +482,7 @@ and the `Review — pr-reviewer` check are required on `main`.
   title: Open shared/ and SharedKit sources
   branch: chore/open-shared-sources
   skills: [tm-pr-workflow, tm-pr-review]
-  depends_on: [S2, S3, S6]
+  depends_on: [S2, S3, S6a]
   allowed_paths:
     - .github/CODEOWNERS
     - scripts/check-protected-paths.py        # real-path table rows
@@ -475,7 +499,7 @@ and the `Review — pr-reviewer` check are required on `main`.
   title: Open the persistence paths
   branch: chore/open-persistence
   skills: [tm-pr-workflow, tm-pr-review]
-  depends_on: [S4, S5, S6, S7a]
+  depends_on: [S4, S5, S6b, S7a]
   allowed_paths:
     - .github/CODEOWNERS
     - scripts/check-protected-paths.py        # real-path table rows
@@ -494,59 +518,78 @@ One PR at a time (no integration branch; most subtasks share `BOARD.md`, and S2,
 S7b share `.github/CODEOWNERS` and `scripts/check-protected-paths.py`).
 
 - Wave 1: S1
-- Wave 2: S2, S3, S4, S5 in any order (all depend only on S1). Suggested: S2 first (it adds the
-  real-path table that S4, S7a and S7b extend), then S3, S4, S5.
-- Wave 3: S6 (needs S4 and S5 to name their files)
-- Wave 4: S7a, then S7b
+- Wave 2: S2, S3, S6a, S4, S5 in any order (all depend only on S1); S2 first (it adds the
+  real-path table that S4, S7a and S7b extend).
+- Wave 3: S6b (needs S4 and S5 to name their files)
+- Wave 4: S7a, S7b (S7b after S7a)
+
+Suggested execution order (Decision 7): the `shared/` track first, S2, S3, S6a, S7a, because the
+human wants `shared/` open soon (the iOS UI-test work on the board needs to edit `shared/`); then
+the persistence track, S4, S5, S6b, S7b, which may interleave with other work. S7a can merge
+before any persistence subtask starts.
 
 ## Risks and what could go wrong
 
 | Risk | Caught by | Gap and follow-up |
 |---|---|---|
-| A `shared/` change compiles but changes the exported Swift API in a way no Swift test sees | reviewer item 6 (escalates unsanctioned Swift-visible changes) | No API dump check. Not covered automatically; Q5. |
-| A `KoinHelper` or platform module change leaves a binding missing; the app crashes at start | nothing automated (same today for the open `data/.../di/`) | Not covered; Q4 (Koin graph test with the catalog's `koin-test`). |
-| An agent weakens `SwiftTestSupport` or a Swift fake so Swift tests pass vacuously | item 5 once S6 extends it | Before S6: not covered, so S7a waits for S6. |
+| A `shared/` change compiles but changes the exported Swift API in a way no Swift test sees | reviewer item 6 (escalates unsanctioned Swift-visible changes) | No API dump check. Not covered automatically; Q5 answered: item 6 is the control for now. |
+| A `KoinHelper` or platform module change leaves a binding missing; the app crashes at start | nothing automated (same today for the open `data/.../di/`) | Not covered; follow-up board record `test-koin-graph` (Q4 answered: not a prerequisite). |
+| An agent weakens `SwiftTestSupport` or a Swift fake so Swift tests pass vacuously | item 5 once S6a extends it | Before S6a: not covered, so S7a waits for S6a. |
 | `shared`'s `iosTest` is skipped because the push came without the hook | CI after S3 | Before S3: only the local gate runs it, so S7a waits for S3. |
 | An entity changes without a version bump; existing users' databases fail to open | export freshness (S4) sees the rewritten schema file; rule (a) forbids committing it; the harness (S5) fails to open the version 1 database | Covered after S4 and S5. |
-| A version bump without a migration, or a migration without a test | S4 rule (c) | A test that names the migration but asserts nothing: reviewer (S6). |
-| A migration that compiles and is tested but drops data on purpose (column removed) | S6 escalates it (`critical`) | Decision is the human's (Q3). |
-| The database file name or directory changes; users silently get an empty database | pinned name test (S5) is a changed assertion, item 5 escalates; S6 escalates | Covered after S5 and S6. |
+| A version bump without a migration, or a migration without a test | S4 rule (c) | A test that names the migration but asserts nothing: reviewer (S6b). |
+| A migration that compiles and is tested but drops data on purpose (column removed) | S6b escalates it (`critical`) | Decision is the human's (Q3 answered: escalate). |
+| The database file name or directory changes; users silently get an empty database | pinned name test (S5) is a changed assertion, item 5 escalates; S6b escalates | Covered after S5 and S6b. |
 | A migration works on the platform SQLite (Android host) but not on the bundled driver | the harness also runs on the iOS simulator with the bundled driver (S5) | The Android app's bundled driver itself is not tested on the host (LEARNINGS, "BundledSQLiteDriver's Android artifact has no host-JVM native lib"); not covered on Android. |
 | A Room upgrade (human PR) reformats schema files | rule (a) compares `version` and `identityHash`, not bytes | A real identity change on an upgrade fails the check; the human's PR then also changes the script (protected). |
 | An agent adds a nested `CLAUDE.md`, `.mcp.json` or lint config | protected after S2 | Before S2: not covered; S2 comes first in wave 2. |
 | A CODEOWNERS edit opens more than intended | the real-path table (S2) in the gate and CI; the CI reviewer classifies with the base's CODEOWNERS | Covered after S2. |
 | A path pattern meant to protect a future file never matches because the tool reads another name | S2 verifies each tool's file name in this repo | Unverified ones are reported, not assumed. |
 | Opening paths lets the agent merge persistence or `shared/` PRs after the trial | intended; the six merge conditions still hold | none |
+| A routine `KoinHelper` getter for a new iOS dependency is escalated by reviewer item 6 after S7a, so `shared/` stays slow | nothing yet; it shows on the first such PR | Item 6 escalates "any change to what Swift sees (public `Flow` or `suspend` signatures reachable from Swift, `KoinHelper`) that the policy does not sanction or `TASK` does not name", and "the policy" it points to is `tm-kmp-shared`'s "`@Throws` policy", which says nothing about getters. So an added getter escalates unless the task names it; whether `tm-kmp-shared`'s "Adding a dependency iOS needs" (step 2: add the getter) counts as sanctioning it is unclear in the text. Follow-up: the human and the reviewer's text are tuned on the first such PR (a task, not part of this epic). |
 
-## Open questions for the human
+## Questions for the human and his answers
 
 - **Q1. Include S2 (closing the control-plane gaps of F7) in this epic?** Options: (a) yes,
   before any path opens; (b) a separate epic later; (c) drop it. Recommendation: (a), because
   an unprotected nested instruction or lint file can change what judges every later PR,
   which is the human's first concern.
+  **Answered 2026-10-07: (a) yes**, S2 stays in this epic and runs first among the controls.
+  Changed: Waves and the suggested order put S2 first.
 - **Q2. If the migration harness cannot be built with the current dependencies (S5), may S5 add
   Room's testing artifact (`MigrationTestHelper`)?** Options: (a) no, stop and report; (b) yes,
   named in S5's scope now. Recommendation: (a) first; decide (b) with the report in hand. I
   could not verify from the repository that the plain-SQL approach works with Room 3.0.2.
+  **Answered 2026-10-07: (a)**, S5 stops and reports; the human then decides about Room's testing
+  artifact; no new dependency now. Changed: Decision 4 and S5's acceptance say so.
 - **Q3. Destructive migrations and database location changes: escalate (`critical`) or only
   block without a test?** Options: (a) escalate; (b) treat as normal development with a test.
   Recommendation: (a): dropping user data is a product decision, not a code question.
+  **Answered 2026-10-07: (a)**, a destructive migration and any change of the database file name,
+  directory or driver escalate with the reason `critical`. Changed: Decision 4 and S6b record it.
 - **Q4. Koin graph verification (`koin-test`, in the catalog, unused) as a prerequisite for S7a?**
   Options: (a) prerequisite; (b) follow-up board record. Recommendation: (b): the same gap
   exists today in the open `data/.../di/`, so it is not specific to `shared/`; adding it
   touches `shared/build.gradle.kts` (protected) and names a dependency.
+  **Answered 2026-10-07: (b)**, no Koin graph test as a prerequisite; a board record instead.
+  Changed: the risks table points to the board record `test-koin-graph`.
 - **Q5. Exported Swift API dump check.** Options: (a) follow-up task to find a tool; (b) accept
   reviewer item 6 as the control. Recommendation: (b) for now; there is no such tool in the
   repo and adding one is a new dependency.
+  **Answered 2026-10-07: (b)**, no Swift API dump check; reviewer item 6 is the control for now.
+  Changed: Decision 2 and the risks table say so.
 - **Q6. `.gitignore` files.** They are unprotected today. `tm-pr-workflow` and
   `epic-orchestration` rely on the Android SDK properties file and the iOS secrets config being
   git-ignored. An edit that stops ignoring them is seen by the reviewer only. Options: (a)
   protect the root `/.gitignore`; (b) leave open. Recommendation: (a), as part of S2; I did not
   read the file's entries (the session's deny rules cover commands that name those files).
+  **Answered 2026-10-07: (a)**, the root `/.gitignore` becomes protected as part of S2; its entries
+  are not read or reviewed. Changed: Decision 5, the path-group table and S2's scope and acceptance.
 - **Q7. Board Order and `After`.** The record gets Order 45 and no `After`: it does not need
   `agentic-dev-loop` (Order 40, whose open parts are the test seam, UI test targets and the
   trial) to be gone first. Options: (a) as is; (b) `After: agentic-dev-loop`. Recommendation:
   (a).
+  **Answered 2026-10-07: (a)**, Order 45 and no `After`. Changed: nothing.
 
 ## Epic-level Tier 2
 
