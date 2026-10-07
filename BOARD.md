@@ -83,6 +83,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: after a failed directions call, Generate can be tapped while the error snackbar is shown (for example the snackbar placed so it does not cover the bottom controls), with a `RouteScreenTest` case that taps Generate while the snackbar is still on screen and gets a second request; `RouteScreenRobot.waitForSnackbarToHide` is then no longer needed by the failure test.
 - Refs: `androidApp/feature-route` `RouteScreen` (`Scaffold` `snackbarHost`, the bottom `Column` with the Generate button); `RouteScreenTest` (`a failed directions call shows the error and Generate can be tapped again`), `RouteScreenRobot.waitForSnackbarToHide`.
 
+### android-error-snackbar-covers-start-buttons
+- Type: task
+- Area: androidApp/feature-tracking, androidApp/feature-route
+- Order: 97
+- Source: PR from bugfix/screen-events-not-blocked-by-snackbar, 2026-10-07
+- Problem: The error snackbar takes the taps meant for a start button below it, as `android-route-error-snackbar-covers-generate` describes for Generate. On the Tracking screen, `TrackingScreen`'s `SnackbarHost` lies over Start: in `TrackingScreenTest` (411x891 dp), with the error of a failed profile read shown, a tap on Start does not start the session, so the user can start only once the snackbar's short duration (4 s) has passed. On the Route screen the same happens to the panel's Start Tracking button: a tap on it while the error of a failed profile read is shown does not reach the ViewModel. Found by the Compose UI tests, not checked on a device.
+- Done when: Start (Tracking) and Start Tracking (Route) can be tapped while an error snackbar is shown, with a Compose UI test per screen that taps the button while the snackbar is on screen and sees the session start (Tracking) or tracking start (Route); `RouteScreenRobot.startTrackingThroughViewModel` is then no longer needed by the tests that use it.
+- Refs: `androidApp/feature-tracking` `TrackingScreen` (`Scaffold` `snackbarHost`, the Start button); `androidApp/feature-route` `RouteScreen` (`Scaffold` `snackbarHost`, the Start Tracking panel); `TrackingScreenTest` (`two errors in a row are shown one after the other in order`, which holds the profile read for this reason), `RouteScreenRobot.startTrackingThroughViewModel`.
+
 ### test-ios-ui-double-tap-and-stale-results
 - Type: task
 - Area: iosApp
@@ -110,15 +119,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `TrackingScreen`'s Finish button requests no second `map.snapshot { }` while one is pending, but the guard is released when the callback fires, before the save ends. A Finish tap after the snapshot arrived while the save is still running requests a new snapshot and writes a second `activity_<millis>.png`, which `TrackingViewModel.finish` ignores (`isSessionSaved`), so nothing references or deletes it. A save that fails also leaves its snapshot file behind, and the retry writes a new one. `TrackingScreenSnapshotTest`'s slow-save test ("a double tap on Finish whose first save is slow saves one activity") takes this path and does not count the files.
 - Done when: a Finish whose snapshot file ends up referenced by no saved activity (ignored by the ViewModel, or its save failed) leaves no file in `filesDir`, with a test that counts the files after a tap during a slow save and after a failed save followed by a successful retry.
 - Refs: `androidApp/feature-tracking` `TrackingScreen` (the Finish button), `util/MapSnapshotSaver.kt` (`saveSnapshotToFile`), `TrackingViewModel.finish`, `TrackingScreenSnapshotTest`.
-
-### tracking-events-wait-for-error-snackbar
-- Type: task
-- Area: androidApp/feature-tracking
-- Order: 130
-- Source: PR from bugfix/tracking-finish-single-snapshot, 2026-10-07
-- Problem: `TrackingRoot` collects `TrackingEvent`s in one `LaunchedEffect` and calls the suspending `snackBarHostState.showSnackbar(...)` inside the collector for `ShowError`. The next event waits until the snackbar is dismissed: after a failed save, a successful retry within the snackbar's duration saves the activity, but `Saved` (and so `onNavigateBack`) arrives only when the error snackbar times out. `TrackingScreenSnapshotTest` ("a Finish after a failed save asks for a new snapshot and saves the activity") advances the test clock past the snackbar for this reason.
-- Done when: a `Saved` (or any other event) after a `ShowError` is handled without waiting for the snackbar to be dismissed, with a Compose UI test that retries Finish while the error snackbar is shown and sees `onNavigateBack` at once.
-- Refs: `androidApp/feature-tracking` `TrackingRoot` (the events `LaunchedEffect`), `TrackingScreenSnapshotTest`.
 
 ### tracking-location-path-double-clock-read
 - Type: task
