@@ -375,6 +375,7 @@ and the `Review — pr-reviewer` check are required on `main`.
     - `--validate` accepts a pattern that matches no tracked file only when it is in a named list in the script, and still rejects any other such pattern (both shown, and self-test cases for both).
     - "`--self-test` has a table of real paths classified against the committed .github/CODEOWNERS: at least one path per Decision 1 group and per new pattern is protected with the expected winning pattern (including shared/build.gradle.kts by /shared/ today, iosApp/Packages/SharedKit/Package.swift, data/CLAUDE.md, androidApp/app/lint.xml, iosApp/Packages/History/.swiftlint.yml, settings.gradle, buildSrc/x.kt, .mcp.json), and the four reference skill files and an unprotected source file are unprotected; the table was shown failing when a CODEOWNERS line was removed."
     - "Shown in this repo, in a throwaway local branch never pushed: Android lint reads a module lint.xml and SwiftLint a nested .swiftlint.yml, and Gradle runs a Groovy build script or a buildSrc directory as F7 says; any that does not hold is reported, and its pattern is kept or dropped as the human decides."
+    - Decision 1 of docs/epics/protected-paths-review.md gets one sentence pointing to this plan (Decision 9); nothing else in that file changes.
   tier2: none (CI and scripts only, nothing user-visible changes)
 
 - id: S3
