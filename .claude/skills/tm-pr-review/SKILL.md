@@ -1,6 +1,6 @@
 ---
 name: tm-pr-review
-description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the ten checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
+description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the eleven checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
 ---
 
 # TrailMetrics pre-push review
@@ -113,6 +113,18 @@ from memory.
     softened, a limit loosened) or not (moved, reworded with the same force, a count
     corrected); the verdict escalates either way. The list is the input as given: a line the
     script missed is still judged under items 1 and 2.
+11. **Tier 2: automated tests for user-visible behavior** (`tm-pr-workflow`, "Tier 2: what
+    automated tests cannot show"). If the diff changes user-visible behavior (a screen, a
+    ViewModel state, a navigation, a notification text), each such behavior needs a test, in
+    the diff or on `main`, that asserts it, at the level `tm-testing` gives it (a ViewModel
+    test, a Compose UI test under Robolectric, a Swift unit test in the package, `kotlin.test`
+    in `domain`). When `TASK` holds the PR description (CI's reviewer gets it there), its
+    Tier 2 must name that test for each behavior, or give a human check with a reason from
+    that section. A behavior that no test asserts although one could, a bare "nothing to
+    check on a device" for such a diff, a named test that does not exist, or a test that does
+    not assert the behavior is blocking. A behavior that no test can show for a reason from
+    that section is a `[note]` naming the behavior and the reason, so the PR lists it as a
+    human check.
 
 ## Verdict rules
 
