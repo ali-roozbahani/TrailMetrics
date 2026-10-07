@@ -237,9 +237,10 @@ user-visible changes (see #32, #35).
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
 - Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
   under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
-  green. A human check listed under Tier 2 does not block a merge: it stays in the PR's
-  description, and the human does it after the merge, when testing the feature (the
-  epic-level Tier 2).
+  green and Tier 2 has passed (every human check the PR lists is done). A human check
+  listed under Tier 2 does not block a merge the agent makes: it stays in the PR's
+  description, and the human does it when testing the feature (the epic-level Tier 2),
+  not before the merge.
 - **The PR title becomes the commit on `main`.** PRs are squash-merged as
   `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
 
@@ -366,16 +367,15 @@ position its `Order` gives it (records in a section are sorted by `Order`).
 ## After the PR is open (human's steps, for context)
 
 1. CI runs on the PR. It should already be green because the gate mirrors it.
-2. CI's `pr-reviewer` checks the Tier 2 list against the diff: a test that exists and
-   asserts each user-visible behavior, or a valid reason for a human check (`tm-pr-review`,
-   item 11).
+2. The human checks the Tier 2 list (CI's `pr-reviewer` checks it too, `tm-pr-review`
+   item 11): a test named for each user-visible behavior, or a valid reason for a human
+   check, and does any human check it lists.
 3. The human reviews the structure: does it follow the established pattern, respect module
    boundaries, and avoid duplicating something that should be shared?
 4. Only then does the human merge into `main`, unless the PR meets the merge conditions in
-   `tm-agent-loop`: then the agent merges it. Either way, the human checks listed under
-   Tier 2 are done after the merge, when the human tests the feature (the epic-level
-   Tier 2). `tm-agent-loop` also has the after-merge cleanup and how to read the CI
-   reviewer's verdict.
+   `tm-agent-loop`: then the agent merges it, and the human does step 2's human checks
+   when testing the feature (the epic-level Tier 2). `tm-agent-loop` also has the
+   after-merge cleanup and how to read the CI reviewer's verdict.
 
 Review comments turn into new commits on the same branch, each through the gate again.
 Answer them in the PR (see #35's comment summarising its second commit) rather than
