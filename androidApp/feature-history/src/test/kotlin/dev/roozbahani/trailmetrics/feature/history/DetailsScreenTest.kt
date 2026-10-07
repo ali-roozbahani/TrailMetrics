@@ -163,6 +163,43 @@ class DetailsScreenTest {
             .assertNotFoundShown()
     }
 
+    @Test
+    fun `a delete retried while the error of the failed delete is shown navigates back at once`() {
+        activityHistoryRepository.setActivities(listOf(FIRST))
+        activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+        showDetails(activityId = 1L)
+            .clickDelete()
+            .confirmDelete()
+            .assertErrorShown()
+
+        activityHistoryRepository.deleteActivityFailure = null
+        robot.clickDelete().confirmDelete().waitForIdle()
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertErrorShown()
+        assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
+        assertEquals(1, navigateBackCalls, "Deleted is handled while the error is shown")
+    }
+
+    @Test
+    fun `two failed deletes in a row show their errors one after the other`() {
+        activityHistoryRepository.setActivities(listOf(FIRST))
+        activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+
+        // Both errors have the same text (every Details error is the general one), so the order
+        // can't be seen here; that none is dropped and they come one at a time can.
+        showDetails(activityId = 1L)
+            .clickDelete()
+            .confirmDelete()
+            .clickDelete()
+            .confirmDelete()
+            .assertOneErrorShown()
+            .waitForSnackbarToHide()
+            .assertOneErrorShown()
+            .waitForSnackbarToHide()
+            .assertErrorNotShown()
+    }
+
     private companion object {
         val FIRST = activityRecord(id = 1L)
     }

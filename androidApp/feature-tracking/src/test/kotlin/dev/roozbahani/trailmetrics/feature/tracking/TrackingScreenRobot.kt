@@ -148,6 +148,16 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         rule.onNodeWithText(string(message)).assertExists()
     }
 
+    fun assertMessageNotShown(@StringRes message: Int) = apply {
+        rule.onNodeWithText(string(message)).assertDoesNotExist()
+    }
+
+    /** Lets the shown snackbar's short duration (4 s) and its exit pass on the test clock. */
+    fun waitForSnackbarToHide() = apply {
+        rule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)
+        rule.waitForIdle()
+    }
+
     private fun assertButtons(shown: List<Int>) {
         CONTROL_BUTTONS.forEach { label ->
             if (label in shown) button(label).assertExists() else button(label).assertDoesNotExist()
@@ -164,6 +174,9 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
     private fun string(@StringRes id: Int): String = rule.activity.getString(id)
 
     private companion object {
+        /** `SnackbarDuration.Short` without accessibility services, plus a margin. */
+        const val SNACKBAR_SHORT_MILLIS = 5_000L
+
         val CONTROL_BUTTONS = listOf(
             R.string.btn_tracking_start,
             R.string.btn_tracking_pause,

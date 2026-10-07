@@ -75,6 +75,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -124,7 +125,9 @@ fun RouteRoot(
         viewModel.events.collect { event ->
             when (event) {
                 is RouteEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(context.getString(event.error.stringRes))
+                    // A child of this effect, so the next event is not held until the snackbar is
+                    // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
+                    launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
                 }
 
                 is RouteEvent.RequestLocationPermission -> {

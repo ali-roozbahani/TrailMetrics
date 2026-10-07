@@ -188,8 +188,6 @@ class TrackingScreenSnapshotTest {
         robot.waitForIdle()
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(0, navigateBackCalls)
-        // TrackingRoot handles the next event only once the error snackbar is gone (a short one, 4 s).
-        composeRule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)
 
         fixture.activityHistoryRepository.saveActivityFailure = null
         robot.clickFinish().waitForIdle()
@@ -231,9 +229,4 @@ class TrackingScreenSnapshotTest {
     }
 
     private fun bitmap(width: Int, height: Int): Bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-
-    private companion object {
-        /** `SnackbarDuration.Short` without accessibility services, plus a margin. */
-        const val SNACKBAR_SHORT_MILLIS = 5_000L
-    }
 }

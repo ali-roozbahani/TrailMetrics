@@ -156,6 +156,41 @@ class HistoryScreenTest {
             .assertErrorShown()
     }
 
+    @Test
+    fun `a row tapped while the error of a failed delete is shown opens its details at once`() {
+        activityHistoryRepository.setActivities(listOf(RUN))
+        activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+        showHistory()
+            .clickDelete()
+            .confirmDelete()
+            .assertErrorShown()
+
+        robot.clickRow(CoreStrings.activity_type_running)
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertErrorShown()
+        assertEquals(listOf(RUN.id), clickedActivityIds)
+    }
+
+    @Test
+    fun `two failed deletes in a row show their errors one after the other`() {
+        activityHistoryRepository.setActivities(listOf(RUN))
+        activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+
+        // Both errors have the same text (every History error is the general one), so the order
+        // can't be seen here; that none is dropped and they come one at a time can.
+        showHistory()
+            .clickDelete()
+            .confirmDelete()
+            .clickDelete()
+            .confirmDelete()
+            .assertOneErrorShown()
+            .waitForSnackbarToHide()
+            .assertOneErrorShown()
+            .waitForSnackbarToHide()
+            .assertErrorNotShown()
+    }
+
     private companion object {
         val RUN = activityRecord(id = 1L)
         val RIDE = activityRecord(id = 2L).copy(

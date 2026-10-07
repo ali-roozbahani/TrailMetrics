@@ -1,7 +1,9 @@
 package dev.roozbahani.trailmetrics.feature.route
 
+import android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.error.toUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
@@ -33,8 +35,11 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * [RouteRoot] with the real [RouteViewModel] from [routeModule], on fake repositories, under
@@ -335,6 +340,74 @@ class RouteScreenTest {
 
     // endregion
 
+    // region events while an error is shown
+
+    @Test
+    fun `Start Tracking retried while the error of a failed profile read is shown starts tracking at once`() {
+        userProfileRepository.userProfile = PROFILE
+        showRouteGenerating(WP_A, WP_B, WP_C, gate = null).assertPanelShown()
+        userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+        robot.clickStartTracking()
+            .waitForIdle()
+            .assertMessageShown(RouteUiError.General.stringRes)
+        assertEquals(emptyList(), startTrackingCalls)
+
+        userProfileRepository.getUserProfileFailure = null
+        robot.startTrackingThroughViewModel().waitForIdle()
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertMessageShown(RouteUiError.General.stringRes)
+        assertEquals(listOf(StartTrackingCall(START, ROUTE_COORDINATES, ActivityType.Running)), startTrackingCalls)
+    }
+
+    @Test
+    fun `Start Tracking retried without a profile while the error is shown opens the profile sheet at once`() {
+        showRouteGenerating(WP_A, WP_B, WP_C, gate = null).assertPanelShown()
+        userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+        robot.clickStartTracking()
+            .waitForIdle()
+            .assertMessageShown(RouteUiError.General.stringRes)
+            .assertProfileSheetNotShown()
+
+        userProfileRepository.getUserProfileFailure = null
+        robot.startTrackingThroughViewModel().waitForIdle()
+
+        robot.assertMessageShown(RouteUiError.General.stringRes)
+            .assertProfileSheetShown()
+        assertEquals(emptyList(), startTrackingCalls)
+    }
+
+    @Test
+    fun `a missing location permission shows its error and asks for the permission at once`() {
+        locationRepository.currentLocationResult = Result.failure(RouteError.MissingLocationPermission())
+
+        showRoute().waitForIdle()
+
+        robot.assertMessageShown(RouteError.MissingLocationPermission().toUiError().stringRes)
+        val request = assertNotNull(shadowOf(composeRule.activity).lastRequestedPermission, "a permission request")
+        assertContentEquals(LOCATION_PERMISSIONS, request.requestedPermissions)
+    }
+
+    @Test
+    fun `two errors in a row are shown one after the other in order`() {
+        locationRepository.currentLocationResult = Result.failure(RouteError.LocationUnavailable())
+        userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+        val locationError = RouteError.LocationUnavailable().toUiError().stringRes
+
+        // The ViewModel's init reads the location first, then the profile.
+        showRoute()
+            .waitForIdle()
+            .assertMessageShown(locationError)
+            .assertMessageNotShown(RouteUiError.General.stringRes)
+            .waitForSnackbarToHide()
+            .assertMessageNotShown(locationError)
+            .assertMessageShown(RouteUiError.General.stringRes)
+            .waitForSnackbarToHide()
+            .assertMessageNotShown(RouteUiError.General.stringRes)
+    }
+
+    // endregion
+
     private data class StartTrackingCall(
         val startPoint: Coordinates,
         val plannedRoutePoints: List<Coordinates>,
@@ -359,5 +432,9 @@ class RouteScreenTest {
             distanceMeters = 1234.0
         )
         val ROUTE_COORDINATES = GENERATED_ROUTE.points.map { it.coordinates }
+        val LOCATION_PERMISSIONS = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
     }
 }

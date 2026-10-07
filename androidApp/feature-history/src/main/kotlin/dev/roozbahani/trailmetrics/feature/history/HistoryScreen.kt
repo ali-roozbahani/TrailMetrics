@@ -62,6 +62,7 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import java.text.DateFormat
 import java.util.Date
@@ -95,7 +96,9 @@ fun HistoryRoot(
             when (event) {
                 is HistoryEvent.NavigateToDetails -> onActivityClicked(event.activityId)
                 is HistoryEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(resources.getString(event.error.stringRes))
+                    // A child of this effect, so the next event is not held until the snackbar is
+                    // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
+                    launch { snackBarHostState.showSnackbar(resources.getString(event.error.stringRes)) }
                 }
             }
         }
