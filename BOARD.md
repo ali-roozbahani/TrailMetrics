@@ -67,7 +67,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: shared
 - Order: 50
-- After: protected-paths-review-2
 - Source: plan `protected-paths-review-2`, Q4, 2026-10-07
 - Problem: no test verifies the Koin graph that `initKoin` and the platform modules build (`shared/src/commonMain/.../di/KoinInit.kt`, `PlatformModules.android.kt`, `PlatformModules.ios.kt`, and the `data/.../di/` modules they include). `koin-test` is in the catalog and no module uses it, so a missing or wrong binding fails only at app start; the same gap exists in the already open `data/.../di/`.
 - Done when: a test builds the graph on each platform with fakes for the platform pieces and fails when a binding is missing, shown failing on a deliberately broken graph; the dependency it adds is named in the task (`shared/build.gradle.kts` is protected, so the human merges that PR).
