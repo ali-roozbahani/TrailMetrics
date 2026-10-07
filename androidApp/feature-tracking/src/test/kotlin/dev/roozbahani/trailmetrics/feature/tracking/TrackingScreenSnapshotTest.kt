@@ -95,11 +95,9 @@ class TrackingScreenSnapshotTest {
     fun `a double tap on Finish with both snapshots delivered later saves one activity and signals Saved once`() {
         showReachedDestination().doubleTapFinish().waitForIdle()
 
-        assertEquals(2, fakeMap.snapshotRequests, "each tap asks the map for a snapshot")
+        assertEquals(1, fakeMap.snapshotRequests, "no second snapshot while the first is pending")
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
 
-        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
-        robot.waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
 
@@ -113,15 +111,18 @@ class TrackingScreenSnapshotTest {
     fun `a double tap on Finish whose first save is slow saves one activity`() {
         val gate = CompletableDeferred<Unit>()
         fixture.activityHistoryRepository.saveActivityGate = gate
-        showReachedDestination().doubleTapFinish().waitForIdle()
+        showReachedDestination().clickFinish().waitForIdle()
 
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
 
-        gate.complete(Unit)
-        robot.waitForIdle()
+        // The snapshot's callback released the screen's guard: a second tap during the slow save
+        // reaches the ViewModel, whose own guard keeps it from saving the session twice.
+        robot.clickFinish().waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+        gate.complete(Unit)
         robot.waitForIdle()
 
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
@@ -139,6 +140,88 @@ class TrackingScreenSnapshotTest {
         assertEquals(1, navigateBackCalls)
     }
 
+    @Test
+    fun `a double tap on Finish asks the map for one snapshot`() {
+        showReachedDestination().doubleTapFinish().waitForIdle()
+
+        assertEquals(1, fakeMap.snapshotRequests, "no second snapshot while the first is pending")
+    }
+
+    @Test
+    fun `a double tap on Finish writes one snapshot file and saves one activity once its snapshot arrives`() {
+        showReachedDestination().doubleTapFinish().waitForIdle()
+
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+
+        val file = snapshotFiles().single()
+        val record = fixture.activityHistoryRepository.savedActivities.single()
+        assertEquals(file.canonicalFile, File(assertNotNull(record.snapshotFilePath)).canonicalFile)
+        assertEquals(1, navigateBackCalls, "Saved once")
+    }
+
+    @Test
+    fun `a double tap on Finish leaves one snapshot file after every requested snapshot has arrived`() {
+        showReachedDestination().doubleTapFinish().waitForIdle()
+
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+        // The file name has millisecond resolution: move the first file aside so that a second write
+        // in the same millisecond is counted instead of overwriting it. The count does not change.
+        val first = snapshotFiles().single()
+        assertTrue(first.renameTo(File(first.parentFile, "first_${first.name}")))
+        while (fakeMap.pendingSnapshotCount > 0) {
+            composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+            robot.waitForIdle()
+        }
+
+        assertEquals(1, snapshotFiles().size, "files in filesDir: ${snapshotFiles().map { it.name }}")
+        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
+        assertEquals(1, navigateBackCalls)
+    }
+
+    @Test
+    fun `a Finish after a failed save asks for a new snapshot and saves the activity`() {
+        fixture.activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
+        showReachedDestination().clickFinish().waitForIdle()
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+        assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
+        assertEquals(0, navigateBackCalls)
+        // TrackingRoot handles the next event only once the error snackbar is gone (a short one, 4 s).
+        composeRule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)
+
+        fixture.activityHistoryRepository.saveActivityFailure = null
+        robot.clickFinish().waitForIdle()
+
+        assertEquals(2, fakeMap.snapshotRequests, "the first snapshot's callback released the guard")
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+        val record = fixture.activityHistoryRepository.savedActivities.single()
+        assertSnapshotFileUnderFilesDir(assertNotNull(record.snapshotFilePath))
+        assertEquals(1, navigateBackCalls)
+    }
+
+    @Test
+    fun `a snapshot without a bitmap finishes once and does not block a later tap`() {
+        showReachedDestination().clickFinish().waitForIdle()
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(null) }
+        robot.waitForIdle()
+
+        assertNull(fixture.activityHistoryRepository.savedActivities.single().snapshotFilePath)
+        assertEquals(1, navigateBackCalls)
+        assertEquals(emptyList(), snapshotFiles())
+
+        robot.clickFinish().waitForIdle()
+        assertEquals(2, fakeMap.snapshotRequests, "the callback without a bitmap released the guard")
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(null) }
+        robot.waitForIdle()
+        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size, "the session is saved once")
+        assertEquals(1, navigateBackCalls)
+    }
+
+    private fun snapshotFiles(): List<File> = filesDir().listFiles { file -> file.isFile }.orEmpty().toList()
+
     private fun assertSnapshotFileUnderFilesDir(path: String) {
         val file = File(path)
         assertTrue(file.isFile, "$path exists")
@@ -148,4 +231,9 @@ class TrackingScreenSnapshotTest {
     }
 
     private fun bitmap(width: Int, height: Int): Bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+    private companion object {
+        /** `SnackbarDuration.Short` without accessibility services, plus a margin. */
+        const val SNACKBAR_SHORT_MILLIS = 5_000L
+    }
 }

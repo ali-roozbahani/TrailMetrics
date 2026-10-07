@@ -102,14 +102,23 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a path change without an initialized Maps SDK neither throws nor stops tracking (for example the camera update is built only once the map is there, as `cameraPositionState.animate` already waits for it), shown by a Compose UI test that does not install the fake factory.
 - Refs: `androidApp/feature-tracking` `TrackingScreen` (`LaunchedEffect(state.currentPath)`); `TrackingScreenTest`, `fakes/FakeGoogleMap.kt` (`installFactories`).
 
-### tracking-finish-double-tap-leaves-orphan-snapshot
+### tracking-finish-unsaved-snapshot-files-not-deleted
 - Type: task
 - Area: androidApp/feature-tracking
-- Order: 120
-- Source: PR #121 review (reviewer note), 2026-10-07
-- Problem: With a real map, every tap on `TrackingScreen`'s Finish button calls `map.snapshot { }`, and every snapshot callback with a bitmap writes a new `activity_<millis>.png` into `filesDir` (`saveSnapshotToFile`) before it dispatches `TrackingAction.Finish(path)`. `TrackingViewModel.finish` accepts only the first `Finish` (`isSessionSaved`), so on a double tap the second callback still writes its PNG, but no saved activity points at it and nothing deletes it. `TrackingScreenSnapshotTest` (the double-tap test) already shows two snapshot requests, both delivered, and one saved activity; it does not count the files, so the second file is read from the code, not observed. The name has millisecond resolution, so two callbacks in the same millisecond write the same file and the second overwrites the first instead. It is a small storage leak per double tap, not a data loss: the saved activity keeps a valid snapshot.
-- Done when: a repeated Finish tap leaves at most one snapshot file for the session (for example no second snapshot is requested while one is pending, or the unreferenced file is deleted), with a test in `feature-tracking` that counts the files in `filesDir` after a double tap and both snapshot callbacks (the `TrackingScreenSnapshotTest` setup exists).
-- Refs: `androidApp/feature-tracking` `TrackingScreen` (the Finish button), `util/MapSnapshotSaver.kt` (`saveSnapshotToFile`), `TrackingScreenSnapshotTest`, `TrackingViewModel.finish`.
+- Order: 125
+- Source: PR from bugfix/tracking-finish-single-snapshot, 2026-10-07
+- Problem: `TrackingScreen`'s Finish button requests no second `map.snapshot { }` while one is pending, but the guard is released when the callback fires, before the save ends. A Finish tap after the snapshot arrived while the save is still running requests a new snapshot and writes a second `activity_<millis>.png`, which `TrackingViewModel.finish` ignores (`isSessionSaved`), so nothing references or deletes it. A save that fails also leaves its snapshot file behind, and the retry writes a new one. `TrackingScreenSnapshotTest`'s slow-save test ("a double tap on Finish whose first save is slow saves one activity") takes this path and does not count the files.
+- Done when: a Finish whose snapshot file ends up referenced by no saved activity (ignored by the ViewModel, or its save failed) leaves no file in `filesDir`, with a test that counts the files after a tap during a slow save and after a failed save followed by a successful retry.
+- Refs: `androidApp/feature-tracking` `TrackingScreen` (the Finish button), `util/MapSnapshotSaver.kt` (`saveSnapshotToFile`), `TrackingViewModel.finish`, `TrackingScreenSnapshotTest`.
+
+### tracking-events-wait-for-error-snackbar
+- Type: task
+- Area: androidApp/feature-tracking
+- Order: 130
+- Source: PR from bugfix/tracking-finish-single-snapshot, 2026-10-07
+- Problem: `TrackingRoot` collects `TrackingEvent`s in one `LaunchedEffect` and calls the suspending `snackBarHostState.showSnackbar(...)` inside the collector for `ShowError`. The next event waits until the snackbar is dismissed: after a failed save, a successful retry within the snackbar's duration saves the activity, but `Saved` (and so `onNavigateBack`) arrives only when the error snackbar times out. `TrackingScreenSnapshotTest` ("a Finish after a failed save asks for a new snapshot and saves the activity") advances the test clock past the snackbar for this reason.
+- Done when: a `Saved` (or any other event) after a `ShowError` is handled without waiting for the snackbar to be dismissed, with a Compose UI test that retries Finish while the error snackbar is shown and sees `onNavigateBack` at once.
+- Refs: `androidApp/feature-tracking` `TrackingRoot` (the events `LaunchedEffect`), `TrackingScreenSnapshotTest`.
 
 ### tracking-location-path-double-clock-read
 - Type: task

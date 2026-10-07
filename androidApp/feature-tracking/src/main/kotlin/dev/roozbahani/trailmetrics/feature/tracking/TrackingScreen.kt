@@ -236,6 +236,8 @@ fun TrackingScreen(
     val currentLocation = state.currentPath.lastOrNull()
 
     var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
+    // Set while a Finish tap waits for map.snapshot { }, so a repeated tap doesn't write a second file.
+    var isSnapshotPending by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackBarHostState) }
@@ -323,9 +325,13 @@ fun TrackingScreen(
                                     onClick = {
                                         val map = googleMapRef
                                         if (map != null) {
-                                            map.snapshot { bitmap ->
-                                                val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
-                                                onAction(TrackingAction.Finish(filePath))
+                                            if (!isSnapshotPending) {
+                                                isSnapshotPending = true
+                                                map.snapshot { bitmap ->
+                                                    isSnapshotPending = false
+                                                    val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
+                                                    onAction(TrackingAction.Finish(filePath))
+                                                }
                                             }
                                         } else {
                                             onAction(TrackingAction.Finish(null))
