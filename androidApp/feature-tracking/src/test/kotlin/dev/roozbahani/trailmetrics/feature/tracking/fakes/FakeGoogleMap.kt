@@ -35,6 +35,10 @@ class FakeGoogleMap {
     var snapshotRequests: Int = 0
         private set
 
+    /** How many `snapshot` calls are still waiting for [deliverSnapshot]. */
+    val pendingSnapshotCount: Int
+        get() = pendingSnapshots.size
+
     val map: GoogleMap = GoogleMap(
         fakeDelegate(IGoogleMapDelegate::class.java) { method, args ->
             if (method.name == "snapshot") {
