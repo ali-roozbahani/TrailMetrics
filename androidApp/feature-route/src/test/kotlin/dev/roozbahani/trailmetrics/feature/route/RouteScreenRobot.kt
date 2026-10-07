@@ -84,6 +84,14 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
         rule.onNodeWithText(string(R.string.btn_start_tracking)).performClick()
     }
 
+    /**
+     * What the panel's Start Tracking button dispatches, sent to the ViewModel: while the error
+     * snackbar is shown it may lie over the panel's bottom (see [waitForSnackbarToHide]).
+     */
+    fun startTrackingThroughViewModel() = apply {
+        viewModel.onAction(RouteAction.StartTrackingClicked)
+    }
+
     fun doubleTapStartTracking() = apply {
         doubleTap(R.string.btn_start_tracking)
     }
@@ -171,6 +179,10 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
 
     fun assertMessageShown(@StringRes message: Int) = apply {
         rule.onNodeWithText(string(message)).assertExists()
+    }
+
+    fun assertMessageNotShown(@StringRes message: Int) = apply {
+        rule.onNodeWithText(string(message)).assertDoesNotExist()
     }
 
     /** Two taps with no move in between, so the second lands before any recomposition can remove the button. */

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.END
@@ -352,6 +353,43 @@ class TrackingScreenTest {
         showScreen().waitForIdle().assertMessageShown(RouteUiError.General.stringRes)
     }
 
+    @Test
+    fun `two errors in a row are shown one after the other in order`() {
+        // The profile read is held until the session runs: the snackbar would lie over Start.
+        val profileGate = CompletableDeferred<Unit>()
+        fixture.userProfileRepository.getUserProfileGate = profileGate
+        fixture.userProfileRepository.getUserProfileFailure = IllegalStateException("db closed")
+        showStartedSession()
+        fixture.receiveUnavailable(RouteError.LocationUnavailable())
+        profileGate.complete(Unit)
+
+        robot.waitForIdle()
+            .assertMessageShown(RouteUiError.LocationUnavailable.stringRes)
+            .assertMessageNotShown(RouteUiError.General.stringRes)
+            .waitForSnackbarToHide()
+            .assertMessageNotShown(RouteUiError.LocationUnavailable.stringRes)
+            .assertMessageShown(RouteUiError.General.stringRes)
+            .waitForSnackbarToHide()
+            .assertMessageNotShown(RouteUiError.General.stringRes)
+    }
+
+    @Test
+    fun `a missing location permission while a location error is shown asks for the permission at once`() {
+        showStartedSession()
+        fixture.receiveUnavailable(RouteError.LocationUnavailable())
+        robot.waitForIdle().assertMessageShown(RouteUiError.LocationUnavailable.stringRes)
+        assertNull(lastPermissionRequest(), "no permission request yet")
+        shadowOf(composeRule.activity.application).denyPermissions(*LOCATION_PERMISSIONS)
+
+        // One more failure past the threshold: the session manager reports it at once.
+        fixture.locationRepository.emit(LocationUpdate.Unavailable(RouteError.MissingLocationPermission()))
+        robot.waitForIdle()
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertMessageShown(RouteUiError.LocationUnavailable.stringRes)
+        assertContentEquals(LOCATION_PERMISSIONS, lastRequestedPermissions())
+    }
+
     // endregion
 
     // region Finish
@@ -392,6 +430,22 @@ class TrackingScreenTest {
         robot.clickFinish().waitForIdle()
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(1, navigateBackCalls)
+    }
+
+    @Test
+    fun `a Finish retried while the error of a failed save is shown navigates back at once`() {
+        fixture.activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
+        showReachedDestination().clickFinish().waitForIdle()
+            .assertMessageShown(RouteUiError.General.stringRes)
+        assertEquals(0, navigateBackCalls)
+
+        fixture.activityHistoryRepository.saveActivityFailure = null
+        robot.clickFinish().waitForIdle()
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertMessageShown(RouteUiError.General.stringRes)
+        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size, "the retry saved the activity")
+        assertEquals(1, navigateBackCalls, "Saved is handled while the error is shown")
     }
 
     // endregion

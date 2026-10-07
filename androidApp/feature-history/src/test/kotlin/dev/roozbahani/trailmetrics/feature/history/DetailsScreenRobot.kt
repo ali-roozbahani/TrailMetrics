@@ -6,7 +6,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.hasProgressBarRangeInfo
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -95,7 +97,27 @@ class DetailsScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentAc
         rule.onNodeWithText(string(CoreStrings.msg_general_error)).assertExists()
     }
 
+    /** Exactly one error message on screen: a second one waits for the first to be dismissed. */
+    fun assertOneErrorShown() = apply {
+        rule.onAllNodesWithText(string(CoreStrings.msg_general_error)).assertCountEquals(1)
+    }
+
+    fun assertErrorNotShown() = apply {
+        rule.onNodeWithText(string(CoreStrings.msg_general_error)).assertDoesNotExist()
+    }
+
+    /** Lets the shown snackbar's short duration (4 s) and its exit pass on the test clock. */
+    fun waitForSnackbarToHide() = apply {
+        rule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)
+        rule.waitForIdle()
+    }
+
     fun waitForIdle() = apply { rule.waitForIdle() }
 
     private fun string(@StringRes id: Int): String = rule.activity.getString(id)
+
+    private companion object {
+        /** `SnackbarDuration.Short` without accessibility services, plus a margin. */
+        const val SNACKBAR_SHORT_MILLIS = 5_000L
+    }
 }
