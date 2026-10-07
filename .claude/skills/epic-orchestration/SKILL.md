@@ -10,7 +10,8 @@ section of the retired `coding_agent_workflow.md`). It rests on four rules: a hu
 plan comes first; subtasks whose `allowed_paths` don't overlap and whose `depends_on` are
 all met may run in parallel, each on its own branch and PR against the epic's integration
 branch; every standing rule applies per subtask; the human merges the epic into `main` once
-all subtasks are in and Tier 2 passes on the integrated result. The rest of this skill turns
+all subtasks are in, the automated tests pass on the integrated result and the human's final
+smoke check is done (Tier 2). The rest of this skill turns
 those rules into concrete mechanics for this repo.
 
 **The pattern has never been run here.** No epic branch exists in history. Everything
@@ -19,7 +20,7 @@ protection as of 2026-09-28. It has not been tested on a real epic. The first ep
 check each assumption and report under "Drift found" where reality differs.
 
 Everything per-PR is in **`tm-pr-workflow`** and is not repeated here: branch prefixes,
-Tier 1 gate and hook, retry budget, Tier 2 handoff, commit/PR title format, the four
+Tier 1 gate and hook, retry budget, the Tier 2 rule, commit/PR title format, the four
 required PR description headings, and boundaries. It applies to every subtask unchanged.
 This skill only states where an epic changes the base branch, the scope or the merge
 conditions.
@@ -28,7 +29,9 @@ conditions.
 
 - **Human**: approves the plan and every change to it, sets up branch protection, merges
   the epic PR into `main` (only the human), merges every subtask PR into the epic branch
-  that an agent may not merge (`tm-agent-loop`, "Merge conditions"), and does Tier 2.
+  that an agent may not merge (`tm-agent-loop`, "Merge conditions"), and does the human
+  part of Tier 2: the epic's final smoke check and any human check a PR lists with its
+  reason (`tm-pr-workflow`, "Tier 2: what automated tests cannot show").
 - **Orchestrator**: the Claude Code session the human is talking to. It drafts the plan,
   creates the epic branch and its draft PR after approval, spawns subtask agents wave by
   wave, checks that each subtask PR stayed inside its `allowed_paths`, and keeps the epic
@@ -182,7 +185,8 @@ never conflict on it.
     - <glob>
   acceptance:
     - <checkable statement>
-  tier2: <what the human checks on a device, or "none — shared only">
+  tier2: <the automated tests that cover the subtask's user-visible behavior, or the human
+    check with its reason (`tm-pr-workflow` Tier 2), or "none — <why>">
 ```
 
 ## Waves
@@ -192,7 +196,8 @@ never conflict on it.
 
 ## Epic-level Tier 2 (on the integrated branch before merge to main)
 
-- <end-to-end checks across both platforms>
+- <end-to-end behavior across both platforms and the automated test that covers it>
+- <human checks with their reasons, and the final smoke check>
 ````
 
 ### Worked example: personal records on History
@@ -245,7 +250,8 @@ average pace across saved activities.
     - The records are new HistoryState fields only; HistoryViewModel keeps its MVI
       shape (no new public method besides onAction).
     - HistoryUiModule gets the use case via Koin; ViewModel test covers both states.
-  tier2: Android emulator: empty history → no section; save two activities → values match.
+  tier2: HistoryScreenTest (Compose UI, Robolectric): empty history → no section; two saved
+    activities → values match. HistoryViewModelTest covers both states.
 
 - id: S3
   title: Show personal records on iOS History
@@ -258,7 +264,10 @@ average pace across saved activities.
   acceptance:
     - HistoryViewModel resolves the use case via a KoinHelper default-parameter init.
     - HistoryView shows the same section with the same empty-state rule as Android.
-  tier2: iOS simulator: same two checks as S2.
+  tier2: Swift unit tests of HistoryViewModel in HistoryTests: empty history → no records;
+    two saved activities → values match. Human check (no iOS UI-test target, board record
+    test-ios-ui-double-tap-and-stale-results): HistoryView hides the section with empty
+    history and shows the values of two saved activities.
 ```
 
 ## Waves
@@ -269,8 +278,12 @@ average pace across saved activities.
 
 ## Epic-level Tier 2
 
-- Same data on both platforms shows identical records and formatting.
-- Deleting the record-holding activity updates the section on both platforms.
+- The records are computed once, in `domain`: GetPersonalRecordsUseCaseTest runs on the
+  Android host and the iOS simulator.
+- Deleting the record-holding activity updates the section: a HistoryScreenTest case on
+  Android, a HistoryViewModel unit test on iOS; on iOS the View's update is a human check
+  (no iOS UI-test target, test-ios-ui-double-tap-and-stale-results).
+- Final smoke check: the same data on both platforms shows identical records and formatting.
 ````
 
 Notes on the example: S2 and S3 don't need `androidApp/app/**` or `iosApp/TrailMetrics/**`
@@ -508,8 +521,9 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
   Stop and report it as a plan defect.
 - **PR description**: the four `tm-pr-workflow` headings, plus a first line
   `Epic: <slug> · Subtask <id> · depends_on: <ids>` linking the plan and the epic PR.
-  Under Tier 2, give the subtask's `tier2` line from the plan. The human may postpone
-  device checks to the epic-level Tier 2, which is their call.
+  Under Tier 2, give the subtask's `tier2` line from the plan, with the tests' real names.
+  The human may postpone a human check it lists to the epic-level Tier 2, which is their
+  call.
 - **Title**: `type(scope): summary` as usual. Subtask PRs squash-merge into the epic
   branch, so each subtask becomes one conventional commit there.
 - **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
@@ -540,8 +554,10 @@ The orchestrator reports readiness. The human merges only when all of these hold
    Tier 2 (the plan's epic-level list), any Assumptions and Follow-ups from the subtasks,
    and a `Board:` line listing the records the final board PR added and removed. An epic
    record on the board always points to its plan under `docs/epics/`.
-5. The human has done Tier 2 **on the integrated epic branch head**, including the
-   epic-level cross-platform checks, and reviewed the full diff against `main`.
+5. The epic-level Tier 2 is done **on the integrated epic branch head**: the automated tests
+   that cover the epic's end-to-end behavior on both platforms pass there where such a test
+   can exist (condition 3), the human has done the final smoke check and every human check
+   listed with its reason, and has reviewed the full diff against `main`.
 
 **Merge method (recommendation; the human decides): "Create a merge commit"**, not
 squash. Each subtask is already one conventional commit on the epic branch (`... (#N)`).
