@@ -1,6 +1,6 @@
 ---
 name: tm-pr-workflow
-description: Use for every TrailMetrics task that will end in a commit, push or PR — creating the branch, running the Tier 1 local gate (scripts/pre-push-check.sh), the 2-attempt retry budget, commit message and PR title format, what the PR description must contain, handing Tier 2 to the human, and the standing boundaries (files not to touch as a side effect, no new dependencies, no module-boundary crossing, stating assumptions, following the task's reference pattern). Not for how to write the code itself (see tm-android, tm-ios, tm-kmp-shared, tm-testing) or for planning multi-agent epics.
+description: Use for every TrailMetrics task that will end in a commit, push or PR — creating the branch, running the Tier 1 local gate (scripts/pre-push-check.sh), the 2-attempt retry budget, commit message and PR title format, what the PR description must contain, Tier 2 (the automated test for each user-visible behavior, or a human check with its reason), and the standing boundaries (files not to touch as a side effect, no new dependencies, no module-boundary crossing, stating assumptions, following the task's reference pattern). Not for how to write the code itself (see tm-android, tm-ios, tm-kmp-shared, tm-testing) or for planning multi-agent epics.
 ---
 
 # TrailMetrics PR workflow
@@ -192,12 +192,30 @@ How it is enforced, and what that means for the order of operations:
   - CI going red after a green local gate. That shouldn't happen (see "CI vs the gate"
     below). If it does, report it instead of iterating against CI.
 
-## Tier 2: device verification (human's job)
+## Tier 2: what automated tests cannot show
 
-Running the feature on a simulator, emulator or device and checking it looks and behaves
-right is never delegated to the agent. The agent's part is to tell the human exactly what
-to check, in the PR description. For docs-, test-, CI- or skill-only changes, say plainly
-that there is nothing to check on a device (see #32, #35).
+The user-visible behavior of a change (a screen, a ViewModel state, a navigation, a
+notification text), on each platform it touches, is validated by automated tests: unit,
+integration and UI tests (`tm-testing`), not by a human on a device. The agent has no device
+and never runs the feature on one itself. A human check is listed only for one of these
+reasons:
+
+1. **No automated test can observe it.** In this repo: real GPS hardware and the platform
+   location providers (every test uses a fake `LocationRepository`); what the real Maps SDK
+   draws (Compose UI tests show the map as an empty `Box` or a shadowed `MapView`, and the
+   map's content is not asserted; iOS has no UI tests); OS-level permission dialogs, the
+   tracking notification and the iOS Live Activity (`TrackingWidget`); and a human judgement
+   of visual design against Figma.
+2. **A test seam or test target that does not exist yet.** It must be tracked by a
+   `BOARD.md` record that the PR names. Today there is no iOS UI-test target
+   (`test-ios-ui-double-tap-and-stale-results`), so an iOS-only user-visible behavior whose
+   logic no Swift unit test in the packages covers may need this.
+3. **The single final smoke check of a finished end-to-end feature**, after all its automated
+   tests passed. It is a smoke check, not the validation.
+
+For each human check the PR gives the behavior, the reason (1, 2 with the record's slug, or
+3) and the exact steps. For docs-, test-, CI- or skill-only changes, say plainly that nothing
+user-visible changes (see #32, #35).
 
 ## Commits
 
@@ -219,9 +237,10 @@ that there is nothing to check on a device (see #32, #35).
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
 - Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
   under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
-  green and Tier 2 has passed. The Tier 2 section of a PR the agent merges stays in its
-  description; the human does those checks when testing the feature (the epic-level
-  Tier 2), not before the merge.
+  green and Tier 2 has passed (every human check the PR lists is done). A human check
+  listed under Tier 2 does not block a merge the agent makes: it stays in the PR's
+  description, and the human does it when testing the feature (the epic-level Tier 2),
+  not before the merge.
 - **The PR title becomes the commit on `main`.** PRs are squash-merged as
   `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
 
@@ -244,8 +263,11 @@ Required. Use these headings, and keep all four even when one is
    - Report before and after for each module the PR touches. No repo-wide total.
    - All counts at once:
      `for d in */build/test-results/*/ androidApp/*/build/test-results/*/; do echo "$d $(cat "$d"*.xml | grep -o '<testsuite [^>]* tests="[0-9]*"' | sed 's/.* tests="//; s/"//' | awk '{s+=$1} END {print s+0}')"; done`
-4. **Tier 2**: exactly what the human should run and look at on a device, or an explicit
-   "nothing to check on a device" and why.
+4. **Tier 2**: for each user-visible behavior the change alters, the automated test that
+   covers it (by name), or a human check with its reason and steps (see "Tier 2: what
+   automated tests cannot show"); or, for a docs-, test-, CI- or skill-only change, an
+   explicit "nothing user-visible changes" and why. "Nothing to check on a device" without
+   test names is not enough for a change that alters user-visible behavior.
 
 Add these when they apply. Recent PRs use them consistently:
 
@@ -345,13 +367,15 @@ position its `Order` gives it (records in a section are sorted by `Order`).
 ## After the PR is open (human's steps, for context)
 
 1. CI runs on the PR. It should already be green because the gate mirrors it.
-2. The human does Tier 2 on a device.
+2. The human checks the Tier 2 list (CI's `pr-reviewer` checks it too, `tm-pr-review`
+   item 11): a test named for each user-visible behavior, or a valid reason for a human
+   check, and does any human check it lists.
 3. The human reviews the structure: does it follow the established pattern, respect module
    boundaries, and avoid duplicating something that should be shared?
 4. Only then does the human merge into `main`, unless the PR meets the merge conditions in
-   `tm-agent-loop`: then the agent merges it, and the human does step 2 when testing the
-   feature (the epic-level Tier 2). `tm-agent-loop` also has the after-merge cleanup and
-   how to read the CI reviewer's verdict.
+   `tm-agent-loop`: then the agent merges it, and the human does step 2's human checks
+   when testing the feature (the epic-level Tier 2). `tm-agent-loop` also has the
+   after-merge cleanup and how to read the CI reviewer's verdict.
 
 Review comments turn into new commits on the same branch, each through the gate again.
 Answer them in the PR (see #35's comment summarising its second commit) rather than

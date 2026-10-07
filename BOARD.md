@@ -292,3 +292,21 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `CLAUDE.md` ("Testing stack") says Robolectric is "used by `data` and by the Compose UI tests of `feature-history` and `feature-route`", and `README.md` says the same twice (the "Testing strategy" bullet and the Testing row of the stack table). Since that PR `feature-tracking`'s Compose UI tests (`TrackingScreenTest`, `TrackingScreenSnapshotTest`) and `MapSnapshotSaverTest` run under Robolectric too. `CLAUDE.md` is a protected path, and neither file was in that PR's `allowed_paths`.
 - Done when: both files name `feature-tracking` among the Robolectric users (or name no module list at all), in a PR the human authorizes for `CLAUDE.md`.
 - Refs: `CLAUDE.md` ("Testing stack"); `README.md` ("Testing strategy", the stack table's Testing row); `androidApp/feature-tracking/src/test`.
+
+### drift-epic-plan-tier2-device-lines
+- Type: drift
+- Area: docs
+- Order: 350
+- Source: Tier 2 automated-first PR (chore/tier2-automated-first), 2026-10-07
+- Problem: `docs/epics/mvi-presentation-migration.md` is a kept plan meant as a reference for future planning, and its `tier2:` lines for the three Android ViewModel subtasks are device checks by default ("Android emulator: plan a route ...", "Android emulator: History with 0 and 2+ activities ...", "Android emulator with a GPX/mock-location route ..."), as is its "Tier 2 on the integrated result" section. Since that PR, `tm-pr-workflow` ("Tier 2: what automated tests cannot show") and `epic-orchestration` make a `tier2:` line name the automated tests that cover the behavior, with a human check only for a stated reason, so a plan copied from this one would bring back the old default. `docs/` was outside that PR's allowed paths.
+- Done when: the human has decided whether the kept plan stays as a historical record with a note that its `tier2:` lines predate the rule, or its `tier2:` lines are rewritten in the new shape (test names, or a human check with its reason).
+- Refs: `docs/epics/mvi-presentation-migration.md` (`tier2:` of the Android ViewModel subtasks, "Tier 2 on the integrated result"); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 2: what automated tests cannot show"); `.claude/skills/epic-orchestration/SKILL.md` ("Format").
+
+### drift-agentic-dev-loop-manual-device-checklist
+- Type: drift
+- Area: docs
+- Order: 360
+- Source: Tier 2 automated-first PR (chore/tier2-automated-first), 2026-10-07
+- Problem: `docs/epics/agentic-dev-loop.md` ("Out of scope") leaves "the manual device checklist" to a later epic, and the `agentic-dev-loop` record's Done when, item (6), keeps "a short list of manual device checks" done before releases, not per PR. Since that PR, `tm-pr-workflow` ("Tier 2: what automated tests cannot show") already defines when a human check is allowed (no automated test can observe it, with the categories real GPS, Maps SDK rendering, OS permission dialogs, the tracking notification and the Live Activity, and visual design; a missing seam or test target with its board record; the final smoke check) and has a PR list such checks as they arise. The plan and the record do not point to that rule. `docs/` was outside that PR's allowed paths, and the record is not that PR's to rewrite.
+- Done when: the human has decided whether the plan's "Out of scope" line and the record's item (6) refer to `tm-pr-workflow`'s Tier 2 categories as the manual device checklist, or the checklist stays a separate release-time list, and the plan says which.
+- Refs: `docs/epics/agentic-dev-loop.md` ("Out of scope"); `BOARD.md` `agentic-dev-loop` (Done when, item 6); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 2: what automated tests cannot show").
