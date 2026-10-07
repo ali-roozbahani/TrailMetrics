@@ -520,8 +520,9 @@ S7b share `.github/CODEOWNERS` and `scripts/check-protected-paths.py`).
 - Wave 1: S1
 - Wave 2: S2, S3, S6a, S4, S5 in any order (all depend only on S1); S2 first (it adds the
   real-path table that S4, S7a and S7b extend).
-- Wave 3: S6b (needs S4 and S5 to name their files)
-- Wave 4: S7a, S7b (S7b after S7a)
+- Wave 3: S7a (needs S2, S3, S6a) and S6b (needs S4 and S5 to name their files), in any order;
+  S7a does not wait for S6b
+- Wave 4: S7b (needs S4, S5, S6b and S7a)
 
 Suggested execution order (Decision 7): the `shared/` track first, S2, S3, S6a, S7a, because the
 human wants `shared/` open soon (the iOS UI-test work on the board needs to edit `shared/`); then
@@ -546,7 +547,7 @@ before any persistence subtask starts.
 | A CODEOWNERS edit opens more than intended | the real-path table (S2) in the gate and CI; the CI reviewer classifies with the base's CODEOWNERS | Covered after S2. |
 | A path pattern meant to protect a future file never matches because the tool reads another name | S2 verifies each tool's file name in this repo | Unverified ones are reported, not assumed. |
 | Opening paths lets the agent merge persistence or `shared/` PRs after the trial | intended; the six merge conditions still hold | none |
-| A routine `KoinHelper` getter for a new iOS dependency is escalated by reviewer item 6 after S7a, so `shared/` stays slow | nothing yet; it shows on the first such PR | Item 6 escalates "any change to what Swift sees (public `Flow` or `suspend` signatures reachable from Swift, `KoinHelper`) that the policy does not sanction or `TASK` does not name", and "the policy" it points to is `tm-kmp-shared`'s "`@Throws` policy", which says nothing about getters. So an added getter escalates unless the task names it; whether `tm-kmp-shared`'s "Adding a dependency iOS needs" (step 2: add the getter) counts as sanctioning it is unclear in the text. Follow-up: the human and the reviewer's text are tuned on the first such PR (a task, not part of this epic). |
+| A routine `KoinHelper` getter for a new iOS dependency is escalated by reviewer item 6 after S7a, so `shared/` stays slow | nothing yet; it shows on the first such PR | Item 6 escalates "any change to what Swift sees (public `Flow` or `suspend` signatures reachable from Swift, `KoinHelper`) that the policy does not sanction or `TASK` does not name", and "the policy" it points to is `tm-kmp-shared`'s "`@Throws` policy", which says nothing about getters. So an added getter escalates unless the task names it; whether `tm-kmp-shared`'s "Adding a dependency iOS needs" (step 2: add the getter) counts as sanctioning it is unclear in the text. Decided by the human when the first such PR escalates, not part of this epic; if he wants item 6's text changed, that is its own task then. |
 
 ## Questions for the human and his answers
 
