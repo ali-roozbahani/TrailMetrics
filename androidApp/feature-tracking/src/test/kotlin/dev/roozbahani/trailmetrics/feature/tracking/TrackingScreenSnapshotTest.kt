@@ -95,11 +95,9 @@ class TrackingScreenSnapshotTest {
     fun `a double tap on Finish with both snapshots delivered later saves one activity and signals Saved once`() {
         showReachedDestination().doubleTapFinish().waitForIdle()
 
-        assertEquals(2, fakeMap.snapshotRequests, "each tap asks the map for a snapshot")
+        assertEquals(1, fakeMap.snapshotRequests, "no second snapshot while the first is pending")
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
 
-        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
-        robot.waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
 
@@ -113,15 +111,18 @@ class TrackingScreenSnapshotTest {
     fun `a double tap on Finish whose first save is slow saves one activity`() {
         val gate = CompletableDeferred<Unit>()
         fixture.activityHistoryRepository.saveActivityGate = gate
-        showReachedDestination().doubleTapFinish().waitForIdle()
+        showReachedDestination().clickFinish().waitForIdle()
 
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
 
-        gate.complete(Unit)
-        robot.waitForIdle()
+        // The snapshot's callback released the screen's guard: a second tap during the slow save
+        // reaches the ViewModel, whose own guard keeps it from saving the session twice.
+        robot.clickFinish().waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+        gate.complete(Unit)
         robot.waitForIdle()
 
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
