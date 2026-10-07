@@ -60,6 +60,7 @@ import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -92,7 +93,9 @@ fun DetailsRoot(
             when (event) {
                 DetailsEvent.Deleted -> onNavigateBack()
                 is DetailsEvent.ShowError -> {
-                    snackBarHostState.showSnackbar(resources.getString(event.error.stringRes))
+                    // A child of this effect, so the next event is not held until the snackbar is
+                    // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
+                    launch { snackBarHostState.showSnackbar(resources.getString(event.error.stringRes)) }
                 }
             }
         }
