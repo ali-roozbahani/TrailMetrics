@@ -6,9 +6,14 @@
 # branch whose plan allowed_paths cover the path (.claude/skills/tm-agent-loop/SKILL.md,
 # "Merge conditions", condition 6). A line with no owner makes its path not owned
 # (the later line wins, as on GitHub); only the four reference skill files may have one.
+# A pattern that matches no tracked file yet protects a file before it exists; --validate
+# accepts that only for the patterns listed in scripts/check-protected-paths.py.
 
 # Agent and repository configuration, docs that need the human's approval
 /.github/                                   @ali-roozbahani
+# Agent instructions and settings at any depth. Each unanchored line comes before the anchored
+# root line it generalises, so a file protected before keeps its line.
+.claude/                                    @ali-roozbahani
 /.claude/                                   @ali-roozbahani
 # Reference skills: not owned, so an agent may edit them; the reviewer judges the diff and
 # the rule-change signal escalates a removed or rewritten rule line. Files, not directories,
@@ -17,7 +22,12 @@
 /.claude/skills/tm-android/SKILL.md
 /.claude/skills/tm-kmp-shared/SKILL.md
 /.claude/skills/tm-testing/SKILL.md
+CLAUDE.md                                   @ali-roozbahani
 /CLAUDE.md                                  @ali-roozbahani
+CLAUDE.local.md                             @ali-roozbahani
+.mcp.json                                   @ali-roozbahani
+# The root ignore file keeps local secrets and machine config out of git.
+/.gitignore                                 @ali-roozbahani
 /docs/architecture/                         @ali-roozbahani
 /docs/epics/                                @ali-roozbahani
 
@@ -58,9 +68,16 @@ build.gradle.kts                            @ali-roozbahani
 Package.swift                               @ali-roozbahani
 Package.resolved                            @ali-roozbahani
 /iosApp/TrailMetrics.xcodeproj/             @ali-roozbahani
+# Gradle also runs Groovy build scripts and builds buildSrc/ on its own.
+*.gradle                                    @ali-roozbahani
+/buildSrc/                                  @ali-roozbahani
 
 # Lint config (Android lint has no config file; its settings live in build.gradle.kts)
+# lint.xml protects an Android lint file added in any module; SwiftLint also reads a nested
+# .swiftlint.yml.
 /config/detekt/                             @ali-roozbahani
+lint.xml                                    @ali-roozbahani
+.swiftlint.yml                              @ali-roozbahani
 /iosApp/.swiftlint.yml                      @ali-roozbahani
 
 # The Kotlin to Swift boundary

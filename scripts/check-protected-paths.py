@@ -36,7 +36,9 @@ pattern. A line with no owner makes the files it matches not owned, so they are 
 when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
 skill files) may be ownerless; any other ownerless line is an error in classification too (exit
 2), so one stray line can't unprotect a directory. --validate also rejects an ownerless line
-that a later line matches as well (the later line overrides it, so it has no effect).
+that a later line matches as well (the later line overrides it, so it has no effect), and a
+pattern that matches no tracked file, unless it is in NOT_YET_TRACKED_PATTERNS (patterns that
+protect a file before it exists).
 """
 
 import os
@@ -56,6 +58,17 @@ UNOWNED_PATTERNS = (
     "/.claude/skills/tm-android/SKILL.md",
     "/.claude/skills/tm-kmp-shared/SKILL.md",
     "/.claude/skills/tm-testing/SKILL.md",
+)
+# The only patterns that may match no tracked file: they protect a file before it exists, because
+# a tool or an agent session reads it once someone adds it (docs/epics/protected-paths-review-2.md,
+# Decision 5). --validate reports every other pattern that matches nothing. Only patterns that
+# match no tracked file today belong here.
+NOT_YET_TRACKED_PATTERNS = (
+    "CLAUDE.local.md",  # agent instructions, read by local sessions
+    ".mcp.json",        # MCP servers a session starts
+    "lint.xml",         # Android lint configuration of a module
+    "*.gradle",         # Groovy build scripts, run by Gradle
+    "/buildSrc/",       # built and put on the build classpath by Gradle
 )
 DEFAULT_BASE = "origin/main"
 USAGE = ("usage: check-protected-paths.sh [--base <ref> | --files <path>... | --validate | "
@@ -211,7 +224,8 @@ def run_validate(root):
         print(f"check-protected-paths: {error}", file=sys.stderr)
         return 2
     for rule in rules:
-        if rule.regex is not None and not any(rule.regex.match(p) for p in tracked):
+        if (rule.regex is not None and rule.pattern not in NOT_YET_TRACKED_PATTERNS
+                and not any(rule.regex.match(p) for p in tracked)):
             problems.append(f"{CODEOWNERS}:{rule.line}: '{rule.pattern}': matches no tracked file")
     for index, rule in enumerate(rules):
         if rule.owners or rule.regex is None:
@@ -351,6 +365,17 @@ E2E_CASES = [
     ("validate: matches no tracked file", GOOD_CODEOWNERS + "/missing/ @ali-roozbahani\n",
      ["--validate"], 1, None, ["CODEOWNERS:6: '/missing/': matches no tracked file",
                                "FAILED, 1 problem(s)"]),
+    # Patterns that protect a file before it exists: only those in NOT_YET_TRACKED_PATTERNS.
+    ("validate: a listed pattern may match no tracked file",
+     GOOD_CODEOWNERS + "".join(f"{p} @ali-roozbahani\n" for p in NOT_YET_TRACKED_PATTERNS),
+     ["--validate"], 0, None, [f"OK, {4 + len(NOT_YET_TRACKED_PATTERNS)} patterns"]),
+    ("validate: an unlisted pattern that matches no tracked file",
+     GOOD_CODEOWNERS + "lint.xml @ali-roozbahani\ndetekt-baseline.xml @ali-roozbahani\n",
+     ["--validate"], 1, None, ["CODEOWNERS:7: 'detekt-baseline.xml': matches no tracked file",
+                               "FAILED, 1 problem(s)"]),
+    ("validate: an anchored variant of a listed pattern is not listed",
+     GOOD_CODEOWNERS + "/lint.xml @ali-roozbahani\n", ["--validate"], 1, None,
+     ["CODEOWNERS:6: '/lint.xml': matches no tracked file", "FAILED, 1 problem(s)"]),
     ("missing CODEOWNERS", "", ["--files", "CLAUDE.md"], 2, "", ["CODEOWNERS not found"]),
     # Ownerless lines: the four reference skill files only, after the line they override.
     ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
@@ -380,6 +405,112 @@ E2E_CASES = [
      ["--validate"], 1, None, [f"CODEOWNERS:8: '{UNOWNED_PATTERNS[1]}': owner '@someone-else' is "
                                "not @ali-roozbahani", "FAILED, 1 problem(s)"]),
 ]
+
+
+# Real paths classified against the committed .github/CODEOWNERS (the file of the repository this
+# script lives in, not a fixture): (path, winning pattern, or None for unprotected). The rows are
+# the decided status of each path group of docs/epics/protected-paths-review-2.md (Decisions 1
+# and 5, "Path groups"). A CODEOWNERS edit that changes a row's status or winning pattern must
+# change the row in the same PR. Paths need not exist: classification is by name.
+PERSISTENCE = "data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/"
+REAL_PATH_CASES = [
+    # Agent and repository configuration, docs that need the human's approval
+    (".github/workflows/ci.yml", "/.github/"),
+    (".github/CODEOWNERS", "/.github/"),
+    (".claude/settings.json", "/.claude/"),
+    (".claude/agents/pr-reviewer.md", "/.claude/"),
+    (".claude/skills/tm-pr-review/SKILL.md", "/.claude/"),
+    (".claude/skills/tm-ios/extra.md", "/.claude/"),  # next to a reference skill
+    ("CLAUDE.md", "/CLAUDE.md"),
+    ("docs/architecture/x.md", "/docs/architecture/"),
+    ("docs/epics/protected-paths-review-2.md", "/docs/epics/"),
+    # Agent instructions below the root or beside it, the root .gitignore (Decision 5)
+    ("data/CLAUDE.md", "CLAUDE.md"),
+    ("androidApp/feature-route/CLAUDE.md", "CLAUDE.md"),
+    ("CLAUDE.local.md", "CLAUDE.local.md"),
+    ("androidApp/app/CLAUDE.local.md", "CLAUDE.local.md"),
+    (".mcp.json", ".mcp.json"),
+    ("iosApp/.mcp.json", ".mcp.json"),
+    ("androidApp/app/.claude/x", ".claude/"),
+    ("androidApp/app/.claude/settings.json", ".claude/"),
+    (".gitignore", "/.gitignore"),
+    # The gate and its tooling
+    ("scripts/pre-push-check.sh", "/scripts/pre-push-check.sh"),
+    ("scripts/claude-hooks/block-git-push.sh", "/scripts/claude-hooks/"),
+    ("scripts/check-protected-paths.py", "/scripts/check-protected-paths.py"),
+    # Build and dependency files
+    ("settings.gradle.kts", "/settings.gradle.kts"),
+    ("build.gradle.kts", "build.gradle.kts"),
+    ("data/build.gradle.kts", "build.gradle.kts"),
+    ("gradle.properties", "/gradle.properties"),
+    ("gradle/libs.versions.toml", "/gradle/"),
+    ("gradlew", "/gradlew"),
+    ("gradlew.bat", "/gradlew.bat"),
+    ("iosApp/Packages/History/Package.swift", "Package.swift"),
+    ("iosApp/Packages/History/Package.resolved", "Package.resolved"),
+    ("iosApp/TrailMetrics.xcodeproj/project.pbxproj", "/iosApp/TrailMetrics.xcodeproj/"),
+    # Other Gradle build scripts (Decision 5)
+    ("settings.gradle", "*.gradle"),
+    ("build.gradle", "*.gradle"),
+    ("androidApp/app/build.gradle", "*.gradle"),
+    ("buildSrc/src/main/kotlin/x.kt", "/buildSrc/"),
+    ("buildSrc/build.gradle.kts", "/buildSrc/"),
+    # Lint config, nested lint config (Decision 5)
+    ("config/detekt/detekt.yml", "/config/detekt/"),
+    ("iosApp/.swiftlint.yml", "/iosApp/.swiftlint.yml"),
+    ("iosApp/Packages/History/.swiftlint.yml", ".swiftlint.yml"),
+    ("lint.xml", "lint.xml"),
+    ("androidApp/app/lint.xml", "lint.xml"),
+    # The Kotlin to Swift boundary, protected until S7a opens it (its build files stay protected)
+    ("shared/build.gradle.kts", "/shared/"),
+    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinHelper.kt", "/shared/"),
+    ("shared/README.md", "/shared/"),
+    ("iosApp/Packages/SharedKit/Package.swift", "/iosApp/Packages/SharedKit/"),
+    ("iosApp/Packages/SharedKit/Sources/SharedKit/SharedKit.swift", "/iosApp/Packages/SharedKit/"),
+    # Persistence, protected until S7b opens it
+    (PERSISTENCE + "database/TrailMetricsDatabase.kt",
+     "/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/"),
+    ("data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/x.kt",
+     "/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/"),
+    (PERSISTENCE + "dao/ActivityDao.kt", "/" + PERSISTENCE + "dao/"),
+    (PERSISTENCE + "entity/ActivityEntity.kt", "/" + PERSISTENCE + "entity/"),
+    ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json",
+     "/data/schemas/"),
+    # Unprotected: the reference skills, product code, the ratchet-guarded floors, the board
+    (".claude/skills/tm-ios/SKILL.md", None),
+    (".claude/skills/tm-android/SKILL.md", None),
+    (".claude/skills/tm-kmp-shared/SKILL.md", None),
+    (".claude/skills/tm-testing/SKILL.md", None),
+    ("androidApp/feature-route/src/main/kotlin/x.kt", None),
+    ("domain/src/commonMain/kotlin/x.kt", None),
+    (PERSISTENCE + "mapper/x.kt", None),
+    (PERSISTENCE + "repository/x.kt", None),
+    ("iosApp/Packages/History/Sources/History/x.swift", None),
+    ("config/kover-floors.properties", None),
+    ("BOARD.md", None),
+    ("README.md", None),
+    ("androidApp/feature-route/.gitignore", None),  # only the root .gitignore is protected
+]
+
+
+def real_path_problems(script_dir):
+    """Returns (output lines, number of failed rows) for REAL_PATH_CASES."""
+    path = script_dir.parent / CODEOWNERS
+    if not path.is_file():
+        return [f"    FAIL {path} not found"], len(REAL_PATH_CASES)
+    rules, problems = parse_codeowners(path.read_text(encoding="utf-8"), str(CODEOWNERS))
+    lines = [f"    FAIL {problem}" for problem in problems]
+    failed = 0
+    for file, expected in REAL_PATH_CASES:
+        rule = matching_rule(rules, file)
+        actual = rule.pattern if rule is not None and rule.owners else None
+        ok = actual == expected and not problems
+        failed += not ok
+        want = f"protected ({expected})" if expected else "unprotected"
+        got = f"protected ({actual})" if actual else "unprotected"
+        lines.append(f"    {'ok  ' if ok else 'FAIL'} {file!r:60} expected {want}"
+                     + ("" if actual == expected else f", got {got}"))
+    return lines, failed
 
 
 def git(repo, *args):
@@ -462,6 +593,12 @@ def self_test(script_dir):
         print(f"    {'FAIL' if errors else 'ok  '} {name}: exit {result.returncode}")
         print("".join(f"         | {line}\n" for line in output.splitlines()), end="")
         print("".join(f"         SELF-TEST FAIL: {e}\n" for e in errors), end="")
+
+    print(f"--- real paths (the committed {CODEOWNERS})")
+    lines, real_failed = real_path_problems(script_dir)
+    print("\n".join(lines))
+    total += len(REAL_PATH_CASES)
+    failed += real_failed
 
     print(f"check-protected-paths self-test: {total - failed}/{total} cases passed")
     return 1 if failed else 0

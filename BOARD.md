@@ -63,6 +63,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
+### protect-nested-gitignore-files
+- Type: task
+- Area: .github, scripts
+- Order: 47
+- Source: S2 of plan `protected-paths-review-2`, 2026-10-11
+- Problem: S2 protects only the root `/.gitignore` (Decision 5, Q6). Thirteen of the fifteen nested `.gitignore` files (`git ls-files '*/.gitignore'`, for example `iosApp/.gitignore`, `androidApp/app/.gitignore`) are unprotected, and the other two (`shared/`, `iosApp/Packages/SharedKit/`) lose their directory lines in S7a, and git applies a lower `.gitignore` after the root one, so a negation line (`!<name>`) added in one of them un-ignores a file below that directory that the root file ignores. Whether any git-ignored secret or machine-config file lives below such a directory was not checked (the session does not read the ignore entries).
+- Done when: the human decides whether nested `.gitignore` files are control plane; if yes, CODEOWNERS owns `.gitignore` at any depth (or the directories that hold ignored secrets), the real-path table in `scripts/check-protected-paths.py` moves `androidApp/feature-route/.gitignore` to protected with the winning pattern, and `--validate` and `--self-test` pass, shown failing with the old table.
+- Refs: `.github/CODEOWNERS` (`/.gitignore`); `scripts/check-protected-paths.py` (`REAL_PATH_CASES`); `docs/epics/protected-paths-review-2.md` (Decision 5, Q6).
+
 ### test-koin-graph
 - Type: task
 - Area: shared

@@ -40,6 +40,10 @@ closes that gap mechanically.
    must enter); `settings.gradle.kts`, `Package.swift`, `Package.resolved`; module
    `build.gradle.kts` files; `shared/`; the persistence paths; `docs/architecture/`;
    `docs/epics/`; `config/detekt/`; `iosApp/.swiftlint.yml`; the Xcode project.
+   The protected set was reviewed again in docs/epics/protected-paths-review-2.md: it adds
+   agent instruction files and lint config at any depth, other Gradle build scripts and the root
+   `.gitignore`, plans to open `shared/` and the persistence paths (their build files stay
+   protected), and keeps the rest of this list; .github/CODEOWNERS stays the single source of truth.
 2. **Becomes unprotected (reference skills).** `.claude/skills/tm-ios/`,
    `.claude/skills/tm-android/`, `.claude/skills/tm-kmp-shared/`,
    `.claude/skills/tm-testing/`. They describe how the code is written; the process rules
