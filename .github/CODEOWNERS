@@ -26,7 +26,9 @@ CLAUDE.md                                   @ali-roozbahani
 /CLAUDE.md                                  @ali-roozbahani
 CLAUDE.local.md                             @ali-roozbahani
 .mcp.json                                   @ali-roozbahani
-# The root ignore file keeps local secrets and machine config out of git.
+# Ignore files at any depth: the root one keeps local secrets and machine config out of git,
+# and a nested one can un-ignore what the root one ignores.
+.gitignore                                  @ali-roozbahani
 /.gitignore                                 @ali-roozbahani
 /docs/architecture/                         @ali-roozbahani
 /docs/epics/                                @ali-roozbahani
@@ -80,9 +82,10 @@ lint.xml                                    @ali-roozbahani
 .swiftlint.yml                              @ali-roozbahani
 /iosApp/.swiftlint.yml                      @ali-roozbahani
 
-# The Kotlin to Swift boundary
-/shared/                                    @ali-roozbahani
-/iosApp/Packages/SharedKit/                 @ali-roozbahani
+# shared/ and iosApp/Packages/SharedKit/ are open on purpose: their sources, tests and docs are
+# product code (docs/epics/protected-paths-review-2.md, Decisions 2 and 3). Their build file and
+# Package.swift, a nested lint config or instruction file, and their .gitignore stay protected by
+# the lines above.
 
 # Persistence: the Room database, converters and builders, DAOs, entities, exported schema
 /data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/  @ali-roozbahani

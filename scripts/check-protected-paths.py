@@ -461,12 +461,18 @@ REAL_PATH_CASES = [
     ("iosApp/Packages/History/.swiftlint.yml", ".swiftlint.yml"),
     ("lint.xml", "lint.xml"),
     ("androidApp/app/lint.xml", "lint.xml"),
-    # The Kotlin to Swift boundary, protected until S7a opens it (its build files stay protected)
-    ("shared/build.gradle.kts", "/shared/"),
-    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinHelper.kt", "/shared/"),
-    ("shared/README.md", "/shared/"),
-    ("iosApp/Packages/SharedKit/Package.swift", "/iosApp/Packages/SharedKit/"),
-    ("iosApp/Packages/SharedKit/Sources/SharedKit/SharedKit.swift", "/iosApp/Packages/SharedKit/"),
+    # shared/ and SharedKit, opened by S7a: their build files, nested lint config and instruction
+    # files stay protected by their own lines (Decisions 2 and 3)
+    ("shared/build.gradle.kts", "build.gradle.kts"),
+    ("iosApp/Packages/SharedKit/Package.swift", "Package.swift"),
+    ("shared/.swiftlint.yml", ".swiftlint.yml"),
+    ("iosApp/Packages/SharedKit/.swiftlint.yml", ".swiftlint.yml"),
+    ("shared/CLAUDE.md", "CLAUDE.md"),
+    # .gitignore at any depth: a nested one can un-ignore what the root one ignores
+    ("androidApp/feature-route/.gitignore", ".gitignore"),
+    ("iosApp/.gitignore", ".gitignore"),
+    ("shared/.gitignore", ".gitignore"),
+    ("iosApp/Packages/SharedKit/.gitignore", ".gitignore"),
     # Persistence, protected until S7b opens it
     (PERSISTENCE + "database/TrailMetricsDatabase.kt",
      "/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/"),
@@ -476,7 +482,8 @@ REAL_PATH_CASES = [
     (PERSISTENCE + "entity/ActivityEntity.kt", "/" + PERSISTENCE + "entity/"),
     ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json",
      "/data/schemas/"),
-    # Unprotected: the reference skills, product code, the ratchet-guarded floors, the board
+    # Unprotected: the reference skills, product code (shared/ and SharedKit sources since S7a), the
+    # ratchet-guarded floors, the board
     (".claude/skills/tm-ios/SKILL.md", None),
     (".claude/skills/tm-android/SKILL.md", None),
     (".claude/skills/tm-kmp-shared/SKILL.md", None),
@@ -489,7 +496,16 @@ REAL_PATH_CASES = [
     ("config/kover-floors.properties", None),
     ("BOARD.md", None),
     ("README.md", None),
-    ("androidApp/feature-route/.gitignore", None),  # only the root .gitignore is protected
+    ("shared/src/commonMain/kotlin/dev/roozbahani/trailmetrics/shared/x.kt", None),
+    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/x.kt", None),
+    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinHelper.kt", None),
+    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt",
+     None),
+    ("shared/src/iosTest/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/"
+     "SwiftTestSupportTest.kt", None),
+    ("shared/README.md", None),
+    ("iosApp/Packages/SharedKit/Sources/SharedKit/x.swift", None),
+    ("iosApp/Packages/SharedKit/Sources/SharedKit/SharedKit.swift", None),
 ]
 
 

@@ -383,16 +383,20 @@ silently force-pushing.
 
 ## Where enforcement and history differ from the rules
 
-- **Branch protection enforces CI but not review.** `main` requires a PR and
-  `enforce_admins` is on, so a direct push to `main` is rejected. Both CI checks
-  (`Android — Lint, Detekt, Tests, Build` and `iOS — SwiftLint, Build`) are required with
-  `strict` on, so a PR can't merge with red CI or while it's behind `main`. The required
-  approval count is **0**: review before merge is enforced by the human, not by GitHub
-  (#30–#37 were all merged with no review). The required checks were added before #38
-  merged.
-- **The review check is not required yet.** The `Review — pr-reviewer` check
-  (`.github/workflows/pr-review.yml`) runs on PRs, but it is not a required check until S5
-  of `docs/epics/agentic-dev-loop.md`.
+- **Branch protection enforces CI and code owner review.** As reported by the human on
+  2026-10-11 (the machine token can't read the settings): `main` requires a PR and
+  `enforce_admins` is on, so a direct push to `main` is rejected. Review from code owners is
+  required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
+  the code owner's approval, and stale approvals are dismissed when new commits are pushed.
+  Branches must be up to date before merging. The required checks are
+  `Android — Lint, Detekt, Tests, Build`, `iOS — SwiftLint, Build` and
+  `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
+  "Require approvals" is off (approval count **0**), so a PR that touches no owned path
+  needs no approval. #30–#37 were all merged with no review, before code owner review was
+  required. The two CI checks were required before #38 merged.
+- **The review check is required, but green is not approval.** `Review — pr-reviewer`
+  (`.github/workflows/pr-review.yml`) is green for both `APPROVE` and `ESCALATE_TO_HUMAN`;
+  the verdict is read from its annotation (`tm-agent-loop`, section 7).
 - **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
   step of CI's `android` job).
 - **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
