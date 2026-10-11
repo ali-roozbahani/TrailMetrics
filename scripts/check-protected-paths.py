@@ -36,7 +36,9 @@ pattern. A line with no owner makes the files it matches not owned, so they are 
 when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
 skill files) may be ownerless; any other ownerless line is an error in classification too (exit
 2), so one stray line can't unprotect a directory. --validate also rejects an ownerless line
-that a later line matches as well (the later line overrides it, so it has no effect).
+that a later line matches as well (the later line overrides it, so it has no effect), and a
+pattern that matches no tracked file, unless it is in NOT_YET_TRACKED_PATTERNS (patterns that
+protect a file before it exists).
 """
 
 import os
@@ -56,6 +58,17 @@ UNOWNED_PATTERNS = (
     "/.claude/skills/tm-android/SKILL.md",
     "/.claude/skills/tm-kmp-shared/SKILL.md",
     "/.claude/skills/tm-testing/SKILL.md",
+)
+# The only patterns that may match no tracked file: they protect a file before it exists, because
+# a tool or an agent session reads it once someone adds it (docs/epics/protected-paths-review-2.md,
+# Decision 5). --validate reports every other pattern that matches nothing. Only patterns that
+# match no tracked file today belong here.
+NOT_YET_TRACKED_PATTERNS = (
+    "CLAUDE.local.md",  # agent instructions, read by local sessions
+    ".mcp.json",        # MCP servers a session starts
+    "lint.xml",         # Android lint configuration of a module
+    "*.gradle",         # Groovy build scripts, run by Gradle
+    "/buildSrc/",       # built and put on the build classpath by Gradle
 )
 DEFAULT_BASE = "origin/main"
 USAGE = ("usage: check-protected-paths.sh [--base <ref> | --files <path>... | --validate | "
@@ -211,7 +224,8 @@ def run_validate(root):
         print(f"check-protected-paths: {error}", file=sys.stderr)
         return 2
     for rule in rules:
-        if rule.regex is not None and not any(rule.regex.match(p) for p in tracked):
+        if (rule.regex is not None and rule.pattern not in NOT_YET_TRACKED_PATTERNS
+                and not any(rule.regex.match(p) for p in tracked)):
             problems.append(f"{CODEOWNERS}:{rule.line}: '{rule.pattern}': matches no tracked file")
     for index, rule in enumerate(rules):
         if rule.owners or rule.regex is None:
@@ -351,6 +365,17 @@ E2E_CASES = [
     ("validate: matches no tracked file", GOOD_CODEOWNERS + "/missing/ @ali-roozbahani\n",
      ["--validate"], 1, None, ["CODEOWNERS:6: '/missing/': matches no tracked file",
                                "FAILED, 1 problem(s)"]),
+    # Patterns that protect a file before it exists: only those in NOT_YET_TRACKED_PATTERNS.
+    ("validate: a listed pattern may match no tracked file",
+     GOOD_CODEOWNERS + "".join(f"{p} @ali-roozbahani\n" for p in NOT_YET_TRACKED_PATTERNS),
+     ["--validate"], 0, None, [f"OK, {4 + len(NOT_YET_TRACKED_PATTERNS)} patterns"]),
+    ("validate: an unlisted pattern that matches no tracked file",
+     GOOD_CODEOWNERS + "lint.xml @ali-roozbahani\ndetekt-baseline.xml @ali-roozbahani\n",
+     ["--validate"], 1, None, ["CODEOWNERS:7: 'detekt-baseline.xml': matches no tracked file",
+                               "FAILED, 1 problem(s)"]),
+    ("validate: an anchored variant of a listed pattern is not listed",
+     GOOD_CODEOWNERS + "/lint.xml @ali-roozbahani\n", ["--validate"], 1, None,
+     ["CODEOWNERS:6: '/lint.xml': matches no tracked file", "FAILED, 1 problem(s)"]),
     ("missing CODEOWNERS", "", ["--files", "CLAUDE.md"], 2, "", ["CODEOWNERS not found"]),
     # Ownerless lines: the four reference skill files only, after the line they override.
     ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
