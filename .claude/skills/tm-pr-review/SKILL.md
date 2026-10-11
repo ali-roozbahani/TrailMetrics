@@ -80,6 +80,17 @@ from memory.
    lower value or a removed entry in `config/kover-floors.properties`, or a module
    `build.gradle.kts` that stops passing its entry of that file to `minBound`).
    `ESCALATE_TO_HUMAN` unless `TASK` explicitly asks for it.
+   Test support counts as tests here: code that tests use as a fake, a test double, a wait
+   helper, a fixture or a flow double, wherever it lives. That includes test support in a main
+   source set: `shared/src/iosMain/**/testsupport/**`, the Swift fakes package
+   `iosApp/Packages/TestSupport/**` and `androidApp/core-testing/**`. Judge by purpose, not
+   only by path: a helper outside those paths that tests use is test support too. A change to
+   existing test support that makes tests pass more easily is `ESCALATE_TO_HUMAN` with the
+   reason `deleted or weakened tests`, unless `TASK` names it: a fake that stops recording or
+   returning what the real implementation would, a wait helper that returns early, a shorter
+   timeout or a swallowed failure, a flow double that drops or reorders values, a removed fake
+   method or case. Adding new test support, or changing a fake so it behaves more like the real
+   implementation, is not a finding.
 6. **`@Throws` and the SKIE boundary** (`tm-kmp-shared`, "`@Throws` policy"). Any added,
    removed or changed `@Throws`, or any change to what Swift sees (public `Flow` or
    `suspend` signatures reachable from Swift, `KoinHelper`) that the policy does not
