@@ -63,15 +63,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### protect-nested-gitignore-files
-- Type: task
-- Area: .github, scripts
-- Order: 47
-- Source: S2 of plan `protected-paths-review-2`, 2026-10-11
-- Problem: S2 protects only the root `/.gitignore` (Decision 5, Q6). Thirteen of the fifteen nested `.gitignore` files (`git ls-files '*/.gitignore'`, for example `iosApp/.gitignore`, `androidApp/app/.gitignore`) are unprotected, and the other two (`shared/`, `iosApp/Packages/SharedKit/`) lose their directory lines in S7a, and git applies a lower `.gitignore` after the root one, so a negation line (`!<name>`) added in one of them un-ignores a file below that directory that the root file ignores. Whether any git-ignored secret or machine-config file lives below such a directory was not checked (the session does not read the ignore entries).
-- Done when: the human decides whether nested `.gitignore` files are control plane; if yes, CODEOWNERS owns `.gitignore` at any depth (or the directories that hold ignored secrets), the real-path table in `scripts/check-protected-paths.py` moves `androidApp/feature-route/.gitignore` to protected with the winning pattern, and `--validate` and `--self-test` pass, shown failing with the old table.
-- Refs: `.github/CODEOWNERS` (`/.gitignore`); `scripts/check-protected-paths.py` (`REAL_PATH_CASES`); `docs/epics/protected-paths-review-2.md` (Decision 5, Q6).
-
 ### test-koin-graph
 - Type: task
 - Area: shared
@@ -265,6 +256,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
 - Done when: every suppression has an accurate reason, or is removed.
 - Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
+
+### drift-merge-conditions-two-required-checks
+- Type: drift
+- Area: .claude
+- Order: 205
+- Source: S7a of plan `protected-paths-review-2`, 2026-10-11
+- Problem: Since the human reported the branch protection of `main` on 2026-10-11 (`tm-pr-workflow`, "Where enforcement and history differ from the rules"), three checks are required: `Android — Lint, Detekt, Tests, Build`, `iOS — SwiftLint, Build` and `Review — pr-reviewer`. `tm-agent-loop`, section 8, condition 1 ("Both required checks are green on the head SHA") and `epic-orchestration`, the epic merge conditions, item 3 ("CI is green on the epic PR for both required checks") still say there are two. The conditions themselves are not weaker (condition 4 reads the reviewer's verdict), only the count is out of date.
+- Done when: both lines name the checks they mean without calling them the only two required checks, and nothing else in those skills changes.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` (section 8, condition 1); `.claude/skills/epic-orchestration/SKILL.md` (epic merge conditions, item 3); `.claude/skills/tm-pr-workflow/SKILL.md` ("Where enforcement and history differ from the rules").
 
 ### drift-pr-review-log-env-prints-pr-body
 - Type: drift
