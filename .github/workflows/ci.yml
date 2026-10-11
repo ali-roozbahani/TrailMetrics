@@ -175,9 +175,11 @@ jobs:
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
       # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
+      # shared has only iOS tests: its iosTest source set holds the Swift test
+      # support's own tests (SwiftTestSupportTest), which only a Mac can run.
       - name: Run iOS simulator tests
         if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test
+        run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test :shared:iosSimulatorArm64Test
 
       - name: Generate Secrets.xcconfig
         if: steps.changes.outputs.decision != 'light'
