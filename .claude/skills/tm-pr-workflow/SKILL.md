@@ -406,7 +406,8 @@ silently force-pushing.
   runs SwiftLint, the iOS build and the iOS simulator tests even when the gate skipped its iOS
   steps. So an `iosApp/` problem that already existed on `main` can make CI red on an
   unrelated Android-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
-  skipped; they run in the `ios` job since #34.
+  skipped; they run in the `ios` job, `domain`'s and `data`'s since #34, `shared`'s since S3 of
+  `protected-paths-review-2`.
 - **CI only runs on push for `main` and `feature/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
 - **Commit types have been used inconsistently.** The retired docs listed only
