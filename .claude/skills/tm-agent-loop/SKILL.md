@@ -251,5 +251,4 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
   command stops what follows (a failed `git revert` once let a following
   `git commit --amend` run). Run a history-changing command (`git revert`, `merge`,
   `cherry-pick`, `stash`) in its own tool call and read its output before the next command.
-  The read-only blocks the skills show (the preconditions, the review input block of
-  `tm-pr-review`) are not affected.
+  The read-only review input block of `tm-pr-review`, "Orchestrator's part", is not affected.
