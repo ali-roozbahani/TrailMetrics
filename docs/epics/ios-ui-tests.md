@@ -98,7 +98,8 @@ not verified).**
 - Map content inside `GMSMapView` is not asserted by any scenario.
 
 **F7. CI iOS job (verified, `.github/workflows/ci.yml` and `gh run view`).** Steps after
-"Classify changes", all skipped on `decision == 'light'`: SwiftLint, JDK, Gradle, "Build KMP
+"Classify changes", all skipped on `decision == 'light'`: "Select Xcode", "Install SwiftLint",
+"Run SwiftLint", JDK, Gradle, "Build KMP
 Shared Framework", "Run iOS simulator tests" (Gradle), "Generate" the secrets config with a CI
 placeholder key, "Build iOS app" (`xcodebuild build`, `generic/platform=iOS Simulator`),
 "Run iOS package tests" (concrete simulator: the last available iPhone from
@@ -304,6 +305,12 @@ scenarios do not depend on the map.
       failing delete throws, that no TrailMetricsDatabase instance is created, and stopKoin
       after each test.
     - doInitKoinIos and initKoin are unchanged (git diff shows no change outside allowed_paths).
+    - Swift-visible surface, named in the task so `tm-pr-review` item 6 can judge it: the
+      top-level function doInitKoinIosForUiTest(scenario), the enum UiTestScenario and a
+      controls class with plain non-suspend members (Int counters, releaseHeldCalls()). No
+      `suspend` function and no `Flow` is exposed to Swift, so nothing can throw into Swift
+      and no `@Throws` is needed (`tm-kmp-shared`, "`@Throws` policy"); the fakes' own
+      `@Throws` suspend members implement the existing interfaces unchanged.
   tier2: none - no user-visible change; nothing calls the seam yet
 
 - id: S2
@@ -419,6 +426,9 @@ scenarios do not depend on the map.
     - The last commit removes the record test-ios-ui-double-tap-and-stale-results
       (chore(board)) and its slug from the agentic-dev-loop record's Refs; `rg` finds the slug
       nowhere outside docs/epics/ (historical plans stay as written); check-board passes.
+    - The same commit narrows the agentic-dev-loop record's Done when item (1): the iOS
+      UI-test target, seam and CI suite are done; the iOS local-gate smoke stays listed
+      unless S8 is already merged.
   tier2: TrackingFinishTwiceUITests covers one History entry for two Finish taps
 
 - id: S8
@@ -532,8 +542,8 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
 8. **Board order (F10).** The record waits for `agentic-dev-loop`, whose item (1) waits for this
    work. Recommendation: you drop the record's `After` line when you approve this plan (a
    subtask may not do it: `tm-pr-workflow` Board rules 5 and 6 keep parallel subtasks and
-   PRs that do not resolve a record off it); S7 removes the record; S8 narrows
-   `agentic-dev-loop` item (1) to what remains, if anything. Other choice: leave the `After`
+   PRs that do not resolve a record off it); S7 removes the record and narrows
+   `agentic-dev-loop` item (1) to what remains (S8 never edits `BOARD.md`). Other choice: leave the `After`
    and treat this plan's approval as the exception, which leaves the board saying something
    the work does not follow.
 
