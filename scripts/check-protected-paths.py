@@ -477,15 +477,6 @@ REAL_PATH_CASES = [
     ("iosApp/.gitignore", ".gitignore"),
     ("shared/.gitignore", ".gitignore"),
     ("iosApp/Packages/SharedKit/.gitignore", ".gitignore"),
-    # Persistence, protected until S7b opens it
-    (PERSISTENCE + "database/TrailMetricsDatabase.kt",
-     "/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/"),
-    ("data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/x.kt",
-     "/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/"),
-    (PERSISTENCE + "dao/ActivityDao.kt", "/" + PERSISTENCE + "dao/"),
-    (PERSISTENCE + "entity/ActivityEntity.kt", "/" + PERSISTENCE + "entity/"),
-    ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json",
-     "/data/schemas/"),
     # Unprotected: the reference skills, product code (shared/ and SharedKit sources since S7a), the
     # ratchet-guarded floors, the board
     (".claude/skills/tm-ios/SKILL.md", None),
@@ -510,6 +501,12 @@ REAL_PATH_CASES = [
     ("shared/README.md", None),
     ("iosApp/Packages/SharedKit/Sources/SharedKit/x.swift", None),
     ("iosApp/Packages/SharedKit/Sources/SharedKit/SharedKit.swift", None),
+    (PERSISTENCE + "database/TrailMetricsDatabase.kt", None),
+    ("data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/x.kt", None),
+    (PERSISTENCE + "dao/ActivityDao.kt", None),
+    (PERSISTENCE + "entity/ActivityEntity.kt", None),
+    ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json",
+     None),
 ]
 
 

@@ -90,8 +90,9 @@ lint.xml                                    @ali-roozbahani
 # Package.swift, a nested lint config or instruction file, and their .gitignore stay protected by
 # the lines above.
 
-# Persistence: the Room database, converters and builders, DAOs, entities, exported schema
-/data/src/*Main/kotlin/dev/roozbahani/trailmetrics/data/local/database/  @ali-roozbahani
-/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/dao/  @ali-roozbahani
-/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/entity/  @ali-roozbahani
-/data/schemas/                              @ali-roozbahani
+# The persistence paths (the Room database, converters and builders, DAOs, entities, exported
+# schema) are open on purpose: product code (docs/epics/protected-paths-review-2.md, Decision 4).
+# What protects stored data is tested and checked, not owned: scripts/check-room-schema.sh (schema
+# files append-only, a version bump needs its schema file and migration, export freshness), the
+# migration harness with the pinned database file name, and tm-pr-review item 12. data's
+# build.gradle.kts and the gate scripts stay protected by the lines above.
