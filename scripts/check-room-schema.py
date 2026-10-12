@@ -35,11 +35,16 @@ a git repository), never a pass.
 
 --check-export-fresh runs after the build: it fails (exit 1) when `git status` lists a modified,
 deleted or untracked file under data/schemas/. Room's KSP step rewrites the current version's file
-when an entity or converter changes, and writes a new file for a new version; either way the change
-needs a version bump and a migration, or must be reverted. Room writes its build output only when
-the schema differs from the committed one, so after a change was built and then reverted a stale
-output can remain (a false red in a local build; CI starts from a clean checkout): the message
-names `./gradlew :data:clean` for it.
+when an entity changes, and writes a new file for a new version; either way the change needs a
+version bump and a migration, or must be reverted. A converter that keeps its column type does not
+change the exported schema, so neither mode sees a change of its stored form: the migration
+harness (a frozen-fixture case) and tm-pr-review item 12 catch that. Room writes its build output
+only when the schema differs from the committed one, so after a change was built and then reverted
+a stale output can remain (a false red in a local build; CI starts from a clean checkout).
+scripts/pre-push-check.sh deletes Room's schema build output before its first Gradle step, so the
+gate cannot see a stale one; for a manual `./gradlew` build the message names `./gradlew
+:data:clean`. --self-test checks that order in scripts/pre-push-check.sh next to this script,
+then runs the fixtures.
 """
 
 import json
@@ -229,8 +234,8 @@ def check(repo, base_ref, head_ref):
                             f"to {new_id[0]}; schema files are append-only: restore it")
         if new_id[1] != old_id[1]:
             problems.append(f"rule (a): {path}: identityHash changed from {old_id[1]} (base) to "
-                            f"{new_id[1]}; an entity or converter change needs a version bump, a new "
-                            "schema file and a migration, or must be reverted; restore this file")
+                            f"{new_id[1]}; an entity change needs a version bump, a new schema "
+                            "file and a migration, or must be reverted; restore this file")
         if new_id == old_id:
             report.append(f"  unchanged: {path} (version {new_id[0]}, identityHash {new_id[1]})")
 
@@ -306,14 +311,16 @@ def check_export_fresh(repo):
     lines = [line for line in status.decode("utf-8", "replace").splitlines() if line.strip()]
     if lines:
         raise Violation([f"the build changed {SCHEMAS}:"] + [f"  {line}" for line in lines] + [
-            "Room rewrote or added a schema file, so the entities or converters no longer match "
-            "the committed schema of the current version: a version bump and a migration are "
-            "missing, or the entity change must be reverted. Do not commit a rewritten existing "
-            "file (rule (a) of scripts/check-room-schema.sh fails on it).",
-            "If the entities and converters are as committed (a change was built, then reverted): "
+            "Room rewrote or added a schema file, so the entities no longer match the committed "
+            "schema of the current version: a version bump and a migration are missing, or the "
+            "entity change must be reverted. Do not commit a rewritten existing file (rule (a) of "
+            "scripts/check-room-schema.sh fails on it).",
+            "If the entities are as committed (a change was built, then reverted): "
             "Room writes its build output only when the schema differs, so a stale one from the "
-            "earlier build can remain; run `./gradlew :data:clean`, restore data/schemas/ with "
-            "`git checkout -- data/schemas` (and remove an untracked file there), and build again."])
+            "earlier build can remain. scripts/pre-push-check.sh clears it before its build, so "
+            "there a changed file was written by this build; after a manual `./gradlew` build, run "
+            "`./gradlew :data:clean`, restore data/schemas/ with `git checkout -- data/schemas` "
+            "(and remove an untracked file there), and build again."])
     return [f"schema export: fresh (the build left {SCHEMAS} unchanged)"]
 
 
@@ -403,8 +410,41 @@ def run_fixture(entry, fixture):
     return errors, result.returncode, out + err
 
 
+GATE_FULL_BLOCK = 'if [ "$DECISION" = full ]; then'
+GATE_CLEAR = 'rm -rf "$REPO_ROOT/data/build/intermediates/room/schemas"'
+
+
+def gate_clear_problems(gate_text):
+    """The gate's full block must delete Room's schema build output before its first Gradle step:
+    lint, the tests and assembleDebug all run :data:copyRoomSchemas, which would copy a stale
+    output from an earlier, reverted entity change over data/schemas/ (a false red in "room schema
+    export fresh"). Returns the problems, empty when the order is right."""
+    lines = [line.strip() for line in gate_text.splitlines()]
+    if GATE_FULL_BLOCK not in lines:
+        return [f"no line '{GATE_FULL_BLOCK}' in scripts/pre-push-check.sh"]
+    block = lines[lines.index(GATE_FULL_BLOCK) + 1:]
+    code = [line for line in block if line and not line.startswith("#")]
+    gradle = next((n for n, line in enumerate(code) if "./gradlew" in line), None)
+    if gradle is None:
+        return ["the full block of scripts/pre-push-check.sh runs no ./gradlew step"]
+    if GATE_CLEAR not in code[:gradle]:
+        return [f"the full block of scripts/pre-push-check.sh does not run `{GATE_CLEAR}` before "
+                f"its first Gradle step ({code[gradle]})"]
+    return []
+
+
 def self_test(script_dir):
     failed = total = 0
+    gate = script_dir / "pre-push-check.sh"
+    print("--- gate order (scripts/pre-push-check.sh next to this script)")
+    try:
+        errors = gate_clear_problems(gate.read_text(encoding="utf-8"))
+    except OSError as e:
+        errors = [f"cannot read {gate}: {e}"]
+    total += 1
+    failed += bool(errors)
+    print(f"    {'FAIL' if errors else 'ok  '} gate-clears-room-output-before-gradle")
+    print("".join(f"         SELF-TEST FAIL: {e}\n" for e in errors), end="")
     fixtures = script_dir / FIXTURES
     entry = script_dir / "check-room-schema.sh"
     print(f"--- fixtures ({FIXTURES}/, scripts/check-room-schema.sh in a temporary git repo)")

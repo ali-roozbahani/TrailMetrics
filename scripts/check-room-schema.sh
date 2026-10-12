@@ -11,7 +11,9 @@
 #   scripts/check-room-schema.sh [--repo <dir>] --check-export-fresh
 #                                                   fail when data/schemas/ has a modified, deleted
 #                                                   or untracked file in the working tree
-#   scripts/check-room-schema.sh --self-test        run the fixtures in
+#   scripts/check-room-schema.sh --self-test        check that scripts/pre-push-check.sh clears
+#                                                   Room's schema build output before its first
+#                                                   Gradle step, then run the fixtures in
 #                                                   scripts/check-room-schema-fixtures/
 #
 # Exit 0 when the check passes (a report on stdout), 1 for a violation (messages on stderr), 2 for

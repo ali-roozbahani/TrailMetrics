@@ -276,9 +276,12 @@ and the `Review — pr-reviewer` check are required on `main`.
      `fallbackToDestructiveMigration` variant. Exact text and path checks only; whether the
      test really proves the data survives is the reviewer's (S6b).
    - **Schema export freshness** (S4): after the build, the gate and CI's `android` job fail
-     when `data/schemas/` has a modified or untracked file. This is what catches an entity or
-     converter change at an unchanged version: Room rewrites the current version's schema
-     file, the check sees it, and rule (a) forbids committing the rewrite.
+     when `data/schemas/` has a modified or untracked file. This is what catches an entity
+     change at an unchanged version: Room rewrites the current version's schema file, the
+     check sees it, and rule (a) forbids committing the rewrite. A converter's stored-form
+     change is outside that check (a converter that keeps its column type does not change the
+     exported schema); S6b's reviewer item and S5's harness cover it. (Corrected in S6b's
+     follow-up: this bullet first said the check also catches a converter change.)
    - **Migration harness** (S5): an abstract `commonTest` suite with an Android host and an
      iOS subclass (the shape of `ActivityHistoryRepositoryImplTest`) that writes a database at
      an old version with plain SQL from that version's exported schema, inserts rows, opens it
