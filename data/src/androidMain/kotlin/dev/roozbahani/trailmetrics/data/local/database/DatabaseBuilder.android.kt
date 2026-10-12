@@ -7,6 +7,6 @@ import org.koin.mp.KoinPlatform.getKoin
 
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<TrailMetricsDatabase> {
     val context: Context = getKoin().get()
-    val dbFile = context.getDatabasePath("trailmetrics.db")
+    val dbFile = context.getDatabasePath(DATABASE_FILE_NAME)
     return Room.databaseBuilder<TrailMetricsDatabase>(context, dbFile.absolutePath)
 }
