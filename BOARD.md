@@ -210,15 +210,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a check rejects a `swiftlint:disable` comment (any rule, `:next`, `:this`, `:previous` and the block forms) that has no ` - <reason>` text, every existing suppression under `iosApp/` complies or the PR lists the ones that do not with the human's decision, and the check is shown failing on an example without a reason and passing with one (a SwiftLint custom rule on comments, or a small script, whichever the PR justifies).
 - Refs: `iosApp/.swiftlint.yml`; `tm-ios` ("SwiftLint", suppression convention); board `drift-suppress-comments`.
 
-### room-schema-freshness-stale-ksp-output
-- Type: task
-- Area: scripts, data
-- Order: 195
-- Source: S4 of `protected-paths-review-2` (branch `chore/room-schema-check`), 2026-10-12
-- Problem: Room writes its schema build output (`data/build/intermediates/room/schemas/<ksp task>/`) only when the schema differs from the committed one. When an entity change is built and then reverted, incremental KSP (`:data:kspAndroidMain`) leaves the stale output in place, and `:data:copyRoomSchemas` (part of `assembleDebug`) writes it back over `data/schemas/`. The local gate's "room schema export fresh" step then fails although the sources are as committed (reproduced on 2026-10-12; `./gradlew :data:clean` clears it, and the step's message says so). CI starts from a clean checkout with no Gradle build cache, so it is not affected.
-- Done when: the local gate cannot give this false red (for example it clears Room's schema build output, or reruns the KSP tasks, before `assembleDebug`), shown by reproducing the sequence above (change an entity field, build, revert, run the gate) with the step green, and a real entity change without a version bump still red.
-- Refs: `scripts/pre-push-check.sh` ("room schema export fresh"); `scripts/check-room-schema.py` (`check_export_fresh`); `data/build.gradle.kts` (`room3 { schemaDirectory(...) }`).
-
 ### wait-until-cancellation-spin
 - Type: task
 - Area: iosApp/TestSupport
@@ -347,11 +338,11 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human has decided whether the plan's "Out of scope" line and the record's item (6) refer to `tm-pr-workflow`'s Tier 2 categories as the manual device checklist, or the checklist stays a separate release-time list, and the plan says which.
 - Refs: `docs/epics/agentic-dev-loop.md` ("Out of scope"); `BOARD.md` `agentic-dev-loop` (Done when, item 6); `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 2: what automated tests cannot show").
 
-### drift-schema-freshness-claims-converter-changes
+### drift-ci-schema-freshness-comment-converter
 - Type: drift
-- Area: .claude, docs
-- Order: 370
-- Source: S6b of `protected-paths-review-2` (branch `chore/review-persistence`), 2026-10-12
-- Problem: `tm-kmp-shared` ("Changing the database schema (Room)", "What catches what") says the `--check-export-fresh` step of `scripts/check-room-schema.sh` fails on "an entity or converter change without a bump", and `docs/epics/protected-paths-review-2.md` (Decision 4, "Schema export freshness") says it "catches an entity or converter change at an unchanged version". `scripts/check-room-schema.py` says the same in its module docstring ("Room's KSP step rewrites the current version's file when an entity or converter changes") and its freshness failure message ("the entities or converters no longer match"). A converter change does not change Room's exported schema (the column keeps its `TEXT` affinity; only the stored text differs), so the build leaves `data/schemas/` unchanged and neither the freshness step nor rules (a) to (e) see it. Since S6b, `tm-pr-review` item 12 says so and makes the reviewer the control for a converter's stored form. The three files were outside S6b's allowed paths.
-- Done when: `tm-kmp-shared`'s "What catches what" no longer names a converter change as caught by `--check-export-fresh` (it points to the harness case and `tm-pr-review` item 12 instead), the docstring and the freshness message of `scripts/check-room-schema.py` speak of entity changes only, and the human has decided whether the plan's Decision 4 sentence gets a correction note.
-- Refs: `.claude/skills/tm-kmp-shared/SKILL.md` ("Changing the database schema (Room)"); `docs/epics/protected-paths-review-2.md` (Decision 4); `scripts/check-room-schema.py` (`check_export_fresh`); `.claude/skills/tm-pr-review/SKILL.md` (item 12).
+- Area: .github
+- Order: 380
+- Source: S4 and S6b follow-up of `protected-paths-review-2` (branch `chore/room-freshness-stale-output`), 2026-10-12
+- Problem: The comment above the step "Room schema export freshness" in `.github/workflows/ci.yml` says "Room rewrites the current version's schema file when an entity or converter changed without a version bump". A converter that keeps its column type does not change the exported schema, so the step does not see a converter change (the migration harness and `tm-pr-review` item 12 do). The same claim was corrected in `scripts/check-room-schema.py`, `scripts/pre-push-check.sh`, `tm-kmp-shared`, `tm-pr-review` and the plan of `protected-paths-review-2`; the machine token cannot push workflow files, so `ci.yml` was left as it is.
+- Done when: the next PR that changes `.github/workflows/ci.yml` makes that comment speak of entity changes only.
+- Refs: `.github/workflows/ci.yml` (step "Room schema export freshness"); `.claude/skills/tm-kmp-shared/SKILL.md` ("What catches what"); `.claude/skills/tm-pr-review/SKILL.md` (item 12).
