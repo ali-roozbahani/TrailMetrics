@@ -228,8 +228,10 @@ if [ "$DECISION" = full ]; then
     run_step "assembleDebug" ./gradlew assembleDebug --console=plain
 
     # Schema export freshness: the build must leave data/schemas/ as committed. Room's KSP step
-    # rewrites the current version's schema file when an entity or converter changed without a
-    # version bump, and adds a file for a new version. Only after the Gradle build ran.
+    # rewrites the current version's schema file when an entity changed without a version bump,
+    # and adds a file for a new version. A converter that keeps its column type does not change
+    # the exported schema, so this step does not see it (the migration harness and tm-pr-review
+    # item 12 do). Only after the Gradle build ran.
     run_step "room schema export fresh" scripts/check-room-schema.sh --check-export-fresh
 fi
 
