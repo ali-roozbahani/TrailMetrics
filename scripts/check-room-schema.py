@@ -36,7 +36,10 @@ a git repository), never a pass.
 --check-export-fresh runs after the build: it fails (exit 1) when `git status` lists a modified,
 deleted or untracked file under data/schemas/. Room's KSP step rewrites the current version's file
 when an entity or converter changes, and writes a new file for a new version; either way the change
-needs a version bump and a migration, or must be reverted.
+needs a version bump and a migration, or must be reverted. Room writes its build output only when
+the schema differs from the committed one, so after a change was built and then reverted a stale
+output can remain (a false red in a local build; CI starts from a clean checkout): the message
+names `./gradlew :data:clean` for it.
 """
 
 import json
@@ -306,7 +309,11 @@ def check_export_fresh(repo):
             "Room rewrote or added a schema file, so the entities or converters no longer match "
             "the committed schema of the current version: a version bump and a migration are "
             "missing, or the entity change must be reverted. Do not commit a rewritten existing "
-            "file (rule (a) of scripts/check-room-schema.sh fails on it)."])
+            "file (rule (a) of scripts/check-room-schema.sh fails on it).",
+            "If the entities and converters are as committed (a change was built, then reverted): "
+            "Room writes its build output only when the schema differs, so a stale one from the "
+            "earlier build can remain; run `./gradlew :data:clean`, restore data/schemas/ with "
+            "`git checkout -- data/schemas` (and remove an untracked file there), and build again."])
     return [f"schema export: fresh (the build left {SCHEMAS} unchanged)"]
 
 
