@@ -247,7 +247,7 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
   wall: don't try to get around them.
 - Merge a PR for which one of section 8's conditions is not met, or an epic PR into `main`.
-- Join git commands that depend on each other with `;`: join them with `&&`, so a failed
+- Do not join git commands that depend on each other with `;`. Join them with `&&`, so a failed
   command stops what follows (a failed `git revert` once let a following
   `git commit --amend` run). Run a history-changing command (`git revert`, `merge`,
   `cherry-pick`, `stash`) in its own tool call and read its output before the next command.
