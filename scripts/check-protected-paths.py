@@ -477,8 +477,8 @@ REAL_PATH_CASES = [
     ("iosApp/.gitignore", ".gitignore"),
     ("shared/.gitignore", ".gitignore"),
     ("iosApp/Packages/SharedKit/.gitignore", ".gitignore"),
-    # Unprotected: the reference skills, product code (shared/ and SharedKit sources since S7a), the
-    # ratchet-guarded floors, the board
+    # Unprotected: the reference skills, product code (shared/ and SharedKit sources since S7a, the
+    # persistence paths since S7b), the ratchet-guarded floors, the board
     (".claude/skills/tm-ios/SKILL.md", None),
     (".claude/skills/tm-android/SKILL.md", None),
     (".claude/skills/tm-kmp-shared/SKILL.md", None),
