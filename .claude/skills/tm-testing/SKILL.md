@@ -239,6 +239,37 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
   change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
   matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.
 
+## Migration cases (Room)
+
+The harness lives in `data/src/commonTest/.../local/database/`: `TrailMetricsMigrationTest`
+(abstract suite) and `FrozenDatabaseVersions.kt` (one `FrozenDatabaseVersion` per old version,
+plus `CURRENT_DATABASE_VERSION`). `TrailMetricsMigrationAndroidHostTest` (Robolectric, platform
+SQLite, through the internal `buildRoomDatabase`) and `TrailMetricsMigrationIosTest` (the app's
+`getRoomDatabase`, bundled driver) run it in `testAndroidHostTest` and `iosSimulatorArm64Test`.
+Each case writes a database file at an old version with plain SQL, outside Room, opens it through
+the app's builder pipeline and `appMigrations`, and reads every row back through the DAO. The
+schema change procedure around it is in `tm-kmp-shared`, "Changing the database schema (Room)".
+
+For a migration from M to N:
+- If version M has no fixture yet, add one: its `schemaStatements` are copied from
+  `data/schemas/.../M.json` (each entity's `createSql` with `${TABLE_NAME}` replaced, then the
+  `setupQueries`), its rows are `INSERT` statements in version M's stored form written as literal
+  text (never produced by the current converters), and it goes into `frozenDatabaseVersions`.
+  `FrozenDatabaseVersionsSchemaTest` (host only) fails when a fixture differs from its schema file.
+  Rows cover every column: each `ActivityType` name, null and non-null optional columns, empty and
+  non-empty coordinate lists. A fixture never changes once its version has shipped.
+- Add one case whose name contains `MIGRATION_M_N` (the schema check's rule (c) looks for that
+  text), for example `` `MIGRATION_1_2 keeps every row and gives note the default` ``. It opens the
+  fixture and asserts, with `assertEquals` on whole `ActivityEntity` lists, every field of every
+  row at N, including the value the migration gives each new or changed column, and the stored
+  `user_version` N.
+- A test that only names `MIGRATION_M_N`, or asserts a row count without the rows' fields, does
+  not satisfy the reviewer: the schema check accepts it, so the assertions are what prove the
+  rows survive.
+
+Check a new case once in the working tree: break the migration (for example add a `DELETE` of one
+row) and see the case fail on both platforms on the row assertion, then restore.
+
 ## What to test, and coverage priorities (current state: measured, uneven)
 
 The merged Kover report (see `tm-pr-workflow`, Tier 1) shows real line coverage for `domain`
