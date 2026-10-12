@@ -16,6 +16,6 @@ actual fun getDatabaseBuilder(): RoomDatabase.Builder<TrailMetricsDatabase> {
         create = false,
         error = null
     )
-    val dbFilePath = requireNotNull(documentDirectory).path + "/trailmetrics.db"
+    val dbFilePath = requireNotNull(documentDirectory).path + "/" + DATABASE_FILE_NAME
     return Room.databaseBuilder<TrailMetricsDatabase>(name = dbFilePath)
 }
