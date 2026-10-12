@@ -109,7 +109,7 @@ The heavy steps run unless
 `scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
 decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
 `assembleDebug`, then the schema export freshness check (`scripts/check-room-schema.sh
---check-export-fresh`: fails when the build left a modified or untracked file under
+--check-export-fresh`: fails when the build left a modified, deleted or untracked file under
 `data/schemas/`; also the "Room schema export freshness" step right after CI's `Build`), and the
 iOS steps below, which also need their path filter. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
