@@ -294,9 +294,7 @@ scenarios do not depend on the map.
   allowed_paths:
     - shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/uitest/**
     - shared/src/iosTest/kotlin/dev/roozbahani/trailmetrics/shared/uitest/**
-    - BOARD.md
   acceptance:
-    - If the human approved Q8: the record's After line is removed (no other board change).
     - doInitKoinIosForUiTest(scenario) starts Koin with the production modules plus the
       override module; UiTestScenario has the five scenarios of the table; a controls object
       exposes the counters and releaseHeldCalls().
@@ -327,7 +325,9 @@ scenarios do not depend on the map.
       -only-testing:TrailMetricsUITests` runs LaunchUITests (launch, the Route and History tab
       buttons exist) and passes; the PR quotes the test count and duration.
     - The lines in tm-pr-workflow (Tier 2, reasons 1 and 2) and the epic-orchestration worked
-      example that say iOS has no UI-test target are updated to what is now true.
+      example that say iOS has no UI-test target are updated to what is now true, and no
+      longer name the record test-ios-ui-double-tap-and-stale-results (so S7 can remove it
+      without touching protected skills).
   tier2: none - test target only
   protected: yes (xcodeproj, .claude) - agent pushes, Ali merges
 
@@ -417,7 +417,8 @@ scenarios do not depend on the map.
       isSessionSaved guard removed.
     - Any change to the scenario's route or walk stays in the uitest package with its test.
     - The last commit removes the record test-ios-ui-double-tap-and-stale-results
-      (chore(board)); check-board passes.
+      (chore(board)) and its slug from the agentic-dev-loop record's Refs; `rg` finds the slug
+      nowhere outside docs/epics/ (historical plans stay as written); check-board passes.
   tier2: TrackingFinishTwiceUITests covers one History entry for two Finish taps
 
 - id: S8
@@ -462,7 +463,7 @@ small; S0 comes first because three of five scenarios depend on one unverified g
 ## Waves
 
 - Wave 0: S0 (local).
-- Wave 1: S1 || S2. Disjoint: `shared/src/ios*/.../uitest/**` and `BOARD.md` vs the xcodeproj, one new test
+- Wave 1: S1 || S2. Disjoint: `shared/src/ios*/.../uitest/**` vs the xcodeproj, one new test
   file and two protected skills.
 - Wave 2: S3 || S4. Disjoint: app target, UI-test files, History Views and two reference skills
   vs `.github/workflows/ci.yml`.
@@ -529,9 +530,12 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
    invisible to users. Other choice: `feature/epic/ios-ui-tests` with a ruleset and a final epic
    merge by you.
 8. **Board order (F10).** The record waits for `agentic-dev-loop`, whose item (1) waits for this
-   work. Recommendation: S7 removes the record, and the `After` field is dropped in S1's PR
-   (the first PR of this plan); S8 narrows `agentic-dev-loop` item (1) to what remains, if
-   anything. Other choice: you edit the board yourself before S1.
+   work. Recommendation: you drop the record's `After` line when you approve this plan (a
+   subtask may not do it: `tm-pr-workflow` Board rules 5 and 6 keep parallel subtasks and
+   PRs that do not resolve a record off it); S7 removes the record; S8 narrows
+   `agentic-dev-loop` item (1) to what remains, if anything. Other choice: leave the `After`
+   and treat this plan's approval as the exception, which leaves the board saying something
+   the work does not follow.
 
 ## Done (record test-ios-ui-double-tap-and-stale-results)
 
