@@ -38,12 +38,13 @@ deleted or untracked file under data/schemas/. Room's KSP step rewrites the curr
 when an entity changes, and writes a new file for a new version; either way the change needs a
 version bump and a migration, or must be reverted. A converter that keeps its column type does not
 change the exported schema, so neither mode sees a change of its stored form: the migration
-harness (a frozen-fixture case) and tm-pr-review item 12 catch that. Room writes its build output only when
-the schema differs from the committed one, so after a change was built and then reverted a stale
-output can remain (a false red in a local build; CI starts from a clean checkout).
+harness (a frozen-fixture case) and tm-pr-review item 12 catch that. Room writes its build output
+only when the schema differs from the committed one, so after a change was built and then reverted
+a stale output can remain (a false red in a local build; CI starts from a clean checkout).
 scripts/pre-push-check.sh deletes Room's schema build output before its first Gradle step, so the
 gate cannot see a stale one; for a manual `./gradlew` build the message names `./gradlew
-:data:clean`.
+:data:clean`. --self-test checks that order in scripts/pre-push-check.sh next to this script,
+then runs the fixtures.
 """
 
 import json
@@ -409,8 +410,41 @@ def run_fixture(entry, fixture):
     return errors, result.returncode, out + err
 
 
+GATE_FULL_BLOCK = 'if [ "$DECISION" = full ]; then'
+GATE_CLEAR = 'rm -rf "$REPO_ROOT/data/build/intermediates/room/schemas"'
+
+
+def gate_clear_problems(gate_text):
+    """The gate's full block must delete Room's schema build output before its first Gradle step:
+    lint, the tests and assembleDebug all run :data:copyRoomSchemas, which would copy a stale
+    output from an earlier, reverted entity change over data/schemas/ (a false red in "room schema
+    export fresh"). Returns the problems, empty when the order is right."""
+    lines = [line.strip() for line in gate_text.splitlines()]
+    if GATE_FULL_BLOCK not in lines:
+        return [f"no line '{GATE_FULL_BLOCK}' in scripts/pre-push-check.sh"]
+    block = lines[lines.index(GATE_FULL_BLOCK) + 1:]
+    code = [line for line in block if line and not line.startswith("#")]
+    gradle = next((n for n, line in enumerate(code) if "./gradlew" in line), None)
+    if gradle is None:
+        return ["the full block of scripts/pre-push-check.sh runs no ./gradlew step"]
+    if GATE_CLEAR not in code[:gradle]:
+        return [f"the full block of scripts/pre-push-check.sh does not run `{GATE_CLEAR}` before "
+                f"its first Gradle step ({code[gradle]})"]
+    return []
+
+
 def self_test(script_dir):
     failed = total = 0
+    gate = script_dir / "pre-push-check.sh"
+    print("--- gate order (scripts/pre-push-check.sh next to this script)")
+    try:
+        errors = gate_clear_problems(gate.read_text(encoding="utf-8"))
+    except OSError as e:
+        errors = [f"cannot read {gate}: {e}"]
+    total += 1
+    failed += bool(errors)
+    print(f"    {'FAIL' if errors else 'ok  '} gate-clears-room-output-before-gradle")
+    print("".join(f"         SELF-TEST FAIL: {e}\n" for e in errors), end="")
     fixtures = script_dir / FIXTURES
     entry = script_dir / "check-room-schema.sh"
     print(f"--- fixtures ({FIXTURES}/, scripts/check-room-schema.sh in a temporary git repo)")
