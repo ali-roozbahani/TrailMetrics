@@ -158,9 +158,11 @@ version goes down (b), a bump from M to N lacks `N.json`, `MIGRATION_M_N` under
 `data/src/commonTest/.../local/database/` that names it (c), the current version has no schema
 file (d), or a main source set calls `fallbackToDestructiveMigration` (e). Its
 `--check-export-fresh` step after the build fails when the build rewrote or added a file under
-`data/schemas/`: an entity or converter change without a bump (step 2). Both are text and path
-checks; whether the rows survive is the harness's job (step 5), and whether its assertions are
-meaningful the reviewer's.
+`data/schemas/`: an entity change without a bump (step 2). A converter that keeps its column type
+does not change the exported schema, so neither check sees a change of its stored form (step 1):
+the harness case with a frozen fixture of the old form (step 5) and `tm-pr-review` item 12 catch
+it. Both are text and path checks; whether the rows survive is the harness's job (step 5), and
+whether its assertions are meaningful the reviewer's.
 
 ## Cross-platform change order
 

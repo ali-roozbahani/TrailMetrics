@@ -164,7 +164,8 @@ from memory.
       can no longer read the old form, is blocking. If the converter reads both forms, that case
       is the proof; if a migration rewrites the stored values instead, the escalation below
       applies as well. Neither check of `scripts/check-room-schema.sh` can see a converter change:
-      a converter does not change the exported schema, so only this item catches it.
+      a converter that keeps its column type does not change the exported schema, so only this
+      item and the harness catch it.
     - *Blocking even when the pieces exist.* A harness case that only names `MIGRATION_M_N`,
       asserts a row count or only some of the fields, does not insert rows at M, or uses rows
       produced by the current converters instead of literal old text; an edited frozen fixture
