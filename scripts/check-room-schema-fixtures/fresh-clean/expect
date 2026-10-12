@@ -1,0 +1,5 @@
+setup: worktree
+args: --check-export-fresh
+exit: 0
+stdout: schema export: fresh
+absent: FAILED

@@ -1,0 +1,3 @@
+exit: 1
+stderr: rule (a): data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json: database.version changed from 1 (base) to 2
+absent: room schema: ok

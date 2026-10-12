@@ -1,0 +1,5 @@
+exit: 0
+stdout: @Database version: 1 at <base>, 2 at HEAD
+stdout: step 1 -> 2: 2.json added (database.version 2), MIGRATION_1_2 defined in data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/Migrations.kt, named in data/src/commonTest/kotlin/dev/roozbahani/trailmetrics/data/local/database/MigrationTest.kt
+stdout: room schema: ok
+absent: rule (

@@ -1,0 +1,4 @@
+args:
+exit: 2
+stderr: usage: check-room-schema.sh
+absent: room schema: ok

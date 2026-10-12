@@ -1,0 +1,3 @@
+exit: 1
+stderr: rule (e): data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/di/DataModule.ios.kt, line 3: fallbackToDestructiveMigrationFrom
+absent: room schema: ok

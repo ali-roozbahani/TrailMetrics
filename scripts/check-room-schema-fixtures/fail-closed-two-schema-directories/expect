@@ -1,0 +1,4 @@
+exit: 1
+stderr: data/schemas/ at HEAD has 2 schema directories
+stderr: supports exactly one database
+absent: room schema: ok

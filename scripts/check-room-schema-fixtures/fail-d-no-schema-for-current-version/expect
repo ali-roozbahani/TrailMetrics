@@ -1,0 +1,4 @@
+exit: 1
+stderr: rule (d): the @Database version is 1 at HEAD, but data/schemas/ has no 1.json
+absent: rule (a)
+absent: room schema: ok

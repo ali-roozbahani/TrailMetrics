@@ -1,0 +1,3 @@
+exit: 1
+stderr: 1.json at HEAD is not valid JSON
+absent: room schema: ok

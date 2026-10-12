@@ -1,0 +1,5 @@
+package dev.roozbahani.trailmetrics.data.local.dao
+
+interface ActivityDao {
+    fun getEverything(): List<String>
+}

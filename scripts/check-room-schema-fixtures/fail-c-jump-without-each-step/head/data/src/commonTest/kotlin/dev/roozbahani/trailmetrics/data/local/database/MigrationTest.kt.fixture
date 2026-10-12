@@ -1,0 +1,12 @@
+package dev.roozbahani.trailmetrics.data.local.database
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class MigrationTest {
+    @Test
+    fun migrates_1_3KeepsRows() {
+        val migration = MIGRATION_1_3
+        assertEquals(3, migration.endVersion)
+    }
+}

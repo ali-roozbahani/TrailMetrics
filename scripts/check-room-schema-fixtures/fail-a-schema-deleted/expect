@@ -1,0 +1,4 @@
+exit: 1
+stderr: rule (a): data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json exists on the base and is deleted
+stderr: room schema: FAILED
+absent: room schema: ok

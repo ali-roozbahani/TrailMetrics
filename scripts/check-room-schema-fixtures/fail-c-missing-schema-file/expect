@@ -1,0 +1,4 @@
+exit: 1
+stderr: rule (c): version 1 -> 2: data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/2.json is not added
+absent: MIGRATION_1_2 is not defined
+absent: room schema: ok

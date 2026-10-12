@@ -1,0 +1,3 @@
+exit: 1
+stderr: rule (b): the @Database version goes down from 2 (base) to 1
+absent: room schema: ok
