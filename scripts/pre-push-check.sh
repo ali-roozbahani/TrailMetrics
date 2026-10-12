@@ -193,6 +193,14 @@ fi
 
 # --- Android / KMP (unless the decision is light) ---
 if [ "$DECISION" = full ]; then
+    # Clear Room's schema build output before the first Gradle step (lint, the tests and
+    # assembleDebug all run :data:copyRoomSchemas). Room writes it only when the schema differs
+    # from the committed one, so an entity change that was built and then reverted leaves a stale
+    # file that copyRoomSchemas would copy back over data/schemas/, a false red in "room schema
+    # export fresh". Without it the KSP tasks run again (about 2 seconds on a warm build) and write
+    # it only for a real difference; copyRoomSchemas finds no source and leaves data/schemas/ alone.
+    rm -rf "$REPO_ROOT/data/build/intermediates/room/schemas"
+
     run_step "detekt"        ./gradlew detekt --console=plain
     run_step "android lint"  ./gradlew lint --console=plain
     run_step "unit tests"    ./gradlew allTests test --console=plain

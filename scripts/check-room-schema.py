@@ -38,8 +38,10 @@ deleted or untracked file under data/schemas/. Room's KSP step rewrites the curr
 when an entity or converter changes, and writes a new file for a new version; either way the change
 needs a version bump and a migration, or must be reverted. Room writes its build output only when
 the schema differs from the committed one, so after a change was built and then reverted a stale
-output can remain (a false red in a local build; CI starts from a clean checkout): the message
-names `./gradlew :data:clean` for it.
+output can remain (a false red in a local build; CI starts from a clean checkout).
+scripts/pre-push-check.sh deletes Room's schema build output before its first Gradle step, so the
+gate cannot see a stale one; for a manual `./gradlew` build the message names `./gradlew
+:data:clean`.
 """
 
 import json
@@ -312,8 +314,10 @@ def check_export_fresh(repo):
             "file (rule (a) of scripts/check-room-schema.sh fails on it).",
             "If the entities and converters are as committed (a change was built, then reverted): "
             "Room writes its build output only when the schema differs, so a stale one from the "
-            "earlier build can remain; run `./gradlew :data:clean`, restore data/schemas/ with "
-            "`git checkout -- data/schemas` (and remove an untracked file there), and build again."])
+            "earlier build can remain. scripts/pre-push-check.sh clears it before its build, so "
+            "there a changed file was written by this build; after a manual `./gradlew` build, run "
+            "`./gradlew :data:clean`, restore data/schemas/ with `git checkout -- data/schemas` "
+            "(and remove an untracked file there), and build again."])
     return [f"schema export: fresh (the build left {SCHEMAS} unchanged)"]
 
 
