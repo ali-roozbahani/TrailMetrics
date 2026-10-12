@@ -1,0 +1,3 @@
+exit: 1
+stderr: rule (e): data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/DatabaseBuilder.android.kt, line 1: fallbackToDestructiveMigrationOnDowngrade
+absent: room schema: ok

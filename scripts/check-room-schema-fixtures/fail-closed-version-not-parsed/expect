@@ -1,0 +1,4 @@
+exit: 1
+stderr: cannot read the @Database version at HEAD
+stderr: version = DATABASE_VERSION
+absent: room schema: ok

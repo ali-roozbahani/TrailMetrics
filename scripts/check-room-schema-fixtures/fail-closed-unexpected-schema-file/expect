@@ -1,0 +1,3 @@
+exit: 1
+stderr: data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/notes.txt at HEAD is not a <version>.json schema file
+absent: room schema: ok

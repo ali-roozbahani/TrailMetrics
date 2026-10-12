@@ -1,0 +1,5 @@
+setup: no-repo
+args: --check-export-fresh
+exit: 2
+stderr: not a git repository
+absent: schema export: fresh

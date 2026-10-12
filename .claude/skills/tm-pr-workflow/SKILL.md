@@ -87,7 +87,9 @@ its "Rule changes from the base" script in scratch git repositories; it needs `p
 (`scripts/check-skill-rule-changes.sh --self-test`, also the "Skill rule-change self-test" step
 of CI's `android` job: the script whose base-branch copy writes the reviewers' `rule-changes`
 input, `tm-pr-review` item 10), the Kover floors self-test (`scripts/check-kover-floors.sh
---self-test`, also the "Kover floors self-test" step of CI's `android` job) and the iOS scope
+--self-test`, also the "Kover floors self-test" step of CI's `android` job), the Room schema
+self-test (`scripts/check-room-schema.sh --self-test`, also the "Room schema self-test" step of
+CI's `android` job) and the iOS scope
 self-test
 (`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
 job: it runs the gate's iOS scope block below, extracted from the committed script between its
@@ -98,11 +100,18 @@ needs `python3`, `bash` and `git` and fails without them).
 The gate also runs the Kover floors check in every classification, light included
 (`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
 floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
-on push events.
+on push events. The Room schema check runs the same way, in every classification
+(`scripts/check-room-schema.sh --base <merge-base>`: schema files under `data/schemas/` are
+append-only, a version bump needs its schema file, `MIGRATION_M_N` and a test naming it, no
+`fallbackToDestructiveMigration` in `data/src/*Main/`), also the "Room schema check" step of CI's
+`android` job, with the same base and the same skip on push events.
 The heavy steps run unless
 `scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
 decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
-`assembleDebug`, and the iOS steps below, which also need their path filter. After the tests it also generates the merged
+`assembleDebug`, then the schema export freshness check (`scripts/check-room-schema.sh
+--check-export-fresh`: fails when the build left a modified, deleted or untracked file under
+`data/schemas/`; also the "Room schema export freshness" step right after CI's `Build`), and the
+iOS steps below, which also need their path filter. After the tests it also generates the merged
 Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
 report step is best-effort and never fails the gate. The next step, `koverVerify`, is
 enforced: it fails the gate (and CI's android job) when a module drops below its minimum line

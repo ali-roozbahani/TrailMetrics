@@ -1,0 +1,4 @@
+exit: 0
+stdout: unchanged: data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json (version 1
+stdout: room schema: ok
+absent: rule (

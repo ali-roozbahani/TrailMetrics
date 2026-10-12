@@ -116,6 +116,7 @@ run_step "change classification self-test" scripts/classify-changes.sh --self-te
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
 run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --self-test
 run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
+run_step "room schema self-test" scripts/check-room-schema.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
@@ -138,6 +139,24 @@ check_kover_floors() {
     "$script" --base "$BASE_REF"
 }
 run_step "kover floors" check_kover_floors
+
+# Room schema (Decision 4 of docs/epics/protected-paths-review-2.md): exported schema files are
+# append-only, a version bump has its schema file, migration and test, no destructive fallback.
+# Compared with the merge base, in every classification, light included (no Gradle needed). Same
+# check as CI's android job, which compares with the PR's base commit. Fail closed as above.
+check_room_schema() {
+    local script="$REPO_ROOT/scripts/check-room-schema.sh"
+    if [ ! -f "$script" ] || [ ! -x "$script" ]; then
+        echo "scripts/check-room-schema.sh is missing or not executable"
+        return 1
+    fi
+    if [ "$BASE_REF" = HEAD~1 ]; then
+        echo "no merge-base with origin/main: nothing to compare the Room schema with"
+        return 1
+    fi
+    "$script" --base "$BASE_REF"
+}
+run_step "room schema" check_room_schema
 
 # Report only: how the classifier sees this branch's diff. Never adds to FAILURES.
 echo "==> protected-path classification of this branch (report only, never fails the gate)"
@@ -199,6 +218,11 @@ if [ "$DECISION" = full ]; then
     run_step "coverage verify" ./gradlew koverVerify --console=plain
 
     run_step "assembleDebug" ./gradlew assembleDebug --console=plain
+
+    # Schema export freshness: the build must leave data/schemas/ as committed. Room's KSP step
+    # rewrites the current version's schema file when an entity or converter changed without a
+    # version bump, and adds a file for a new version. Only after the Gradle build ran.
+    run_step "room schema export fresh" scripts/check-room-schema.sh --check-export-fresh
 fi
 
 # --- iOS (only when relevant files changed, and the decision is full) ---

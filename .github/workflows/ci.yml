@@ -51,6 +51,9 @@ jobs:
       - name: Kover floors self-test
         run: scripts/check-kover-floors.sh --self-test
 
+      - name: Room schema self-test
+        run: scripts/check-room-schema.sh --self-test
+
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
       # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
@@ -71,6 +74,26 @@ jobs:
             git fetch --no-tags --quiet --depth=1 origin "$PR_BASE_SHA"
           fi
           scripts/check-kover-floors.sh --base "$PR_BASE_SHA"
+
+      # Room schema (Decision 4 of docs/epics/protected-paths-review-2.md): compared with the PR's
+      # base commit, for every pull request, light ones too, as "Kover floors check" does.
+      - name: Room schema check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != pull_request ]; then
+            echo "Skipped: a '$EVENT_NAME' event has no base commit to compare the Room schema with."
+            exit 0
+          fi
+          if [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "PR_BASE_SHA is not a commit SHA"
+            exit 1
+          fi
+          if ! git cat-file -e "$PR_BASE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --quiet --depth=1 origin "$PR_BASE_SHA"
+          fi
+          scripts/check-room-schema.sh --base "$PR_BASE_SHA"
 
       - name: Set up JDK 17
         if: steps.changes.outputs.decision != 'light'
@@ -121,6 +144,12 @@ jobs:
       - name: Build
         if: steps.changes.outputs.decision != 'light'
         run: ./gradlew assembleDebug
+
+      # The build must leave data/schemas/ as committed: Room rewrites the current version's
+      # schema file when an entity or converter changed without a version bump.
+      - name: Room schema export freshness
+        if: steps.changes.outputs.decision != 'light'
+        run: scripts/check-room-schema.sh --check-export-fresh
 
   ios:
     name: iOS — SwiftLint, Build

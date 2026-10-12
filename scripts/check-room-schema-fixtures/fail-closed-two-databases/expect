@@ -1,0 +1,4 @@
+exit: 1
+stderr: 2 @Database annotations under data/src/*Main/ at HEAD
+stderr: supports exactly one database
+absent: room schema: ok

@@ -1,0 +1,4 @@
+exit: 0
+stdout: @Database version: 1 at <base>, 1 at HEAD
+stdout: room schema: ok
+absent: rule (

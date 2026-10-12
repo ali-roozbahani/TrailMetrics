@@ -1,0 +1,8 @@
+setup: worktree
+args: --check-export-fresh
+exit: 1
+stderr:  M data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json
+stderr: a version bump and a migration are missing, or the entity change must be reverted
+stderr: run `./gradlew :data:clean`, restore data/schemas/
+stderr: schema export: FAILED (1 file changed by the build)
+absent: schema export: fresh

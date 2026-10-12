@@ -438,6 +438,10 @@ REAL_PATH_CASES = [
     ("scripts/pre-push-check.sh", "/scripts/pre-push-check.sh"),
     ("scripts/claude-hooks/block-git-push.sh", "/scripts/claude-hooks/"),
     ("scripts/check-protected-paths.py", "/scripts/check-protected-paths.py"),
+    ("scripts/check-room-schema.sh", "/scripts/check-room-schema.sh"),
+    ("scripts/check-room-schema.py", "/scripts/check-room-schema.py"),
+    ("scripts/check-room-schema-fixtures/pass-main-today/expect",
+     "/scripts/check-room-schema-fixtures/"),
     # Build and dependency files
     ("settings.gradle.kts", "/settings.gradle.kts"),
     ("build.gradle.kts", "build.gradle.kts"),

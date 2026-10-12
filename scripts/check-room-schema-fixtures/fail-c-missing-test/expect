@@ -1,0 +1,4 @@
+exit: 1
+stderr: rule (c): version 1 -> 2: no test under data/src/commonTest/.../local/database/ that this diff touches contains MIGRATION_1_2
+absent: MIGRATION_1_2 is not defined
+absent: room schema: ok

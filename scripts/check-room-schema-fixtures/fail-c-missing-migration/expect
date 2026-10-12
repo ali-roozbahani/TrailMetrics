@@ -1,0 +1,4 @@
+exit: 1
+stderr: rule (c): version 1 -> 2: MIGRATION_1_2 is not defined under data/src/commonMain/.../local/database/
+absent: 2.json is not added
+absent: room schema: ok

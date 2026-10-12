@@ -210,6 +210,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a check rejects a `swiftlint:disable` comment (any rule, `:next`, `:this`, `:previous` and the block forms) that has no ` - <reason>` text, every existing suppression under `iosApp/` complies or the PR lists the ones that do not with the human's decision, and the check is shown failing on an example without a reason and passing with one (a SwiftLint custom rule on comments, or a small script, whichever the PR justifies).
 - Refs: `iosApp/.swiftlint.yml`; `tm-ios` ("SwiftLint", suppression convention); board `drift-suppress-comments`.
 
+### room-schema-freshness-stale-ksp-output
+- Type: task
+- Area: scripts, data
+- Order: 195
+- Source: S4 of `protected-paths-review-2` (branch `chore/room-schema-check`), 2026-10-12
+- Problem: Room writes its schema build output (`data/build/intermediates/room/schemas/<ksp task>/`) only when the schema differs from the committed one. When an entity change is built and then reverted, incremental KSP (`:data:kspAndroidMain`) leaves the stale output in place, and `:data:copyRoomSchemas` (part of `assembleDebug`) writes it back over `data/schemas/`. The local gate's "room schema export fresh" step then fails although the sources are as committed (reproduced on 2026-10-12; `./gradlew :data:clean` clears it, and the step's message says so). CI starts from a clean checkout with no Gradle build cache, so it is not affected.
+- Done when: the local gate cannot give this false red (for example it clears Room's schema build output, or reruns the KSP tasks, before `assembleDebug`), shown by reproducing the sequence above (change an entity field, build, revert, run the gate) with the step green, and a real entity change without a version bump still red.
+- Refs: `scripts/pre-push-check.sh` ("room schema export fresh"); `scripts/check-room-schema.py` (`check_export_fresh`); `data/build.gradle.kts` (`room3 { schemaDirectory(...) }`).
+
 ### wait-until-cancellation-spin
 - Type: task
 - Area: iosApp/TestSupport

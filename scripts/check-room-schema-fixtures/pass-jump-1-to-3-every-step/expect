@@ -1,0 +1,6 @@
+exit: 0
+stdout: @Database version: 1 at <base>, 3 at HEAD
+stdout: step 1 -> 2: 2.json added
+stdout: step 2 -> 3: 3.json added
+stdout: room schema: ok
+absent: rule (

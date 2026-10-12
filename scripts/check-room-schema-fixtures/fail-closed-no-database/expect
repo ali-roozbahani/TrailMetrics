@@ -1,0 +1,3 @@
+exit: 1
+stderr: no @Database annotation under data/src/*Main/ at HEAD
+absent: room schema: ok

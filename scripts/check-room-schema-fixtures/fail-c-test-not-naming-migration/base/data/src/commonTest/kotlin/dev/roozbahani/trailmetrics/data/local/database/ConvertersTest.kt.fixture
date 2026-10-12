@@ -1,0 +1,10 @@
+package dev.roozbahani.trailmetrics.data.local.database
+
+import kotlin.test.Test
+
+class ConvertersTest {
+    @Test
+    fun storedNamesArePinned() {
+        // must change only together with a database migration
+    }
+}

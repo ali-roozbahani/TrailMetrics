@@ -1,0 +1,6 @@
+setup: worktree
+args: --check-export-fresh
+exit: 1
+stderr: ?? data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/2.json
+stderr: schema export: FAILED
+absent: schema export: fresh

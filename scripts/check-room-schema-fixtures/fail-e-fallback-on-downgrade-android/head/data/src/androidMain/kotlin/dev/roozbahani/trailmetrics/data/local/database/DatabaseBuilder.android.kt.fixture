@@ -1,0 +1,1 @@
+fun x(b: Builder) = b.fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)

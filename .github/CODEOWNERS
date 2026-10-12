@@ -52,6 +52,9 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/check-kover-floors.sh              @ali-roozbahani
 /scripts/check-kover-floors.py              @ali-roozbahani
 /scripts/check-kover-floors-fixtures/       @ali-roozbahani
+/scripts/check-room-schema.sh               @ali-roozbahani
+/scripts/check-room-schema.py               @ali-roozbahani
+/scripts/check-room-schema-fixtures/        @ali-roozbahani
 /scripts/check-ios-scope.sh                 @ali-roozbahani
 /scripts/check-ios-scope.py                 @ali-roozbahani
 /scripts/check-ios-scope-fixtures/          @ali-roozbahani
