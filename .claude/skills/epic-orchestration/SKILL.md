@@ -265,8 +265,8 @@ average pace across saved activities.
     - HistoryViewModel resolves the use case via a KoinHelper default-parameter init.
     - HistoryView shows the same section with the same empty-state rule as Android.
   tier2: Swift unit tests of HistoryViewModel in HistoryTests: empty history → no records;
-    two saved activities → values match. Human check (no iOS UI-test target, board record
-    test-ios-ui-double-tap-and-stale-results): HistoryView hides the section with empty
+    two saved activities → values match. Human check (the iOS UI-test target has no
+    scenario for this screen yet): HistoryView hides the section with empty
     history and shows the values of two saved activities.
 ```
 
@@ -282,7 +282,7 @@ average pace across saved activities.
   Android host and the iOS simulator.
 - Deleting the record-holding activity updates the section: a HistoryScreenTest case on
   Android, a HistoryViewModel unit test on iOS; on iOS the View's update is a human check
-  (no iOS UI-test target, test-ios-ui-double-tap-and-stale-results).
+  (the iOS UI-test target has no scenario for this screen yet).
 - Final smoke check: the same data on both platforms shows identical records and formatting.
 ````
 

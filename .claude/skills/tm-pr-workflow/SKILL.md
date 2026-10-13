@@ -212,13 +212,14 @@ reasons:
 1. **No automated test can observe it.** In this repo: real GPS hardware and the platform
    location providers (every test uses a fake `LocationRepository`); what the real Maps SDK
    draws (Compose UI tests show the map as an empty `Box` or a shadowed `MapView`, and the
-   map's content is not asserted; iOS has no UI tests); OS-level permission dialogs, the
+   map's content is not asserted, on iOS either); OS-level permission dialogs, the
    tracking notification and the iOS Live Activity (`TrackingWidget`); and a human judgement
    of visual design against Figma.
 2. **A test seam or test target that does not exist yet.** It must be tracked by a
-   `BOARD.md` record that the PR names. Today there is no iOS UI-test target
-   (`test-ios-ui-double-tap-and-stale-results`), so an iOS-only user-visible behavior whose
-   logic no Swift unit test in the packages covers may need this.
+   `BOARD.md` record that the PR names. The iOS UI-test target `TrailMetricsUITests` exists
+   but has only a launch test until its scenario tests land, and the app has no launch-time
+   fake seam yet, so an iOS-only user-visible behavior whose logic no Swift unit test in the
+   packages covers may still need this.
 3. **The single final smoke check of a finished end-to-end feature**, after all its automated
    tests passed. It is a smoke check, not the validation.
 
