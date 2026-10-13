@@ -23,6 +23,13 @@
 			remoteGlobalIDString = 014C888744F3C7D6BDF760DF;
 			remoteInfo = TrackingWidgetExtension;
 		};
+		7D7714D63DA6F690180E19E7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 55D6B0F9304F206500D10092 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 55D6B100304F206500D10092;
+			remoteInfo = TrailMetrics;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -42,6 +49,7 @@
 /* Begin PBXFileReference section */
 		0D994F7CD8D42649810177B5 /* TrackingWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TrackingWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		55D6B101304F206500D10092 /* TrailMetrics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrailMetrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		01554435D77BD6B52B664EFD /* TrailMetricsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrailMetricsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -79,6 +87,11 @@
 			path = TrackingWidget;
 			sourceTree = "<group>";
 		};
+		32F7FCA4C6CB4E1864ECF391 /* TrailMetricsUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TrailMetricsUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +114,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D5087FFB2B1C168FE9394BF8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -109,6 +129,7 @@
 			children = (
 				55D6B103304F206500D10092 /* TrailMetrics */,
 				5904909EA4077D9A0D562472 /* TrackingWidget */,
+				32F7FCA4C6CB4E1864ECF391 /* TrailMetricsUITests */,
 				55D6B102304F206500D10092 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -118,6 +139,7 @@
 			children = (
 				55D6B101304F206500D10092 /* TrailMetrics.app */,
 				0D994F7CD8D42649810177B5 /* TrackingWidgetExtension.appex */,
+				01554435D77BD6B52B664EFD /* TrailMetricsUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -175,6 +197,27 @@
 			productReference = 55D6B101304F206500D10092 /* TrailMetrics.app */;
 			productType = "com.apple.product-type.application";
 		};
+		028409C380912F78ACB27316 /* TrailMetricsUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1FA999395CDEF68F5691EF29 /* Build configuration list for PBXNativeTarget "TrailMetricsUITests" */;
+			buildPhases = (
+				5122101DB30DFC7C7AC6D445 /* Sources */,
+				D5087FFB2B1C168FE9394BF8 /* Frameworks */,
+				0E270833CF0F20F490B4A505 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				67B1F400034F08F0FBE17DA2 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				32F7FCA4C6CB4E1864ECF391 /* TrailMetricsUITests */,
+			);
+			name = TrailMetricsUITests;
+			productName = TrailMetricsUITests;
+			productReference = 01554435D77BD6B52B664EFD /* TrailMetricsUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -190,6 +233,10 @@
 					};
 					55D6B100304F206500D10092 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					028409C380912F78ACB27316 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 55D6B100304F206500D10092;
 					};
 				};
 			};
@@ -216,6 +263,7 @@
 			targets = (
 				55D6B100304F206500D10092 /* TrailMetrics */,
 				014C888744F3C7D6BDF760DF /* TrackingWidgetExtension */,
+				028409C380912F78ACB27316 /* TrailMetricsUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -229,6 +277,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		55D6B0FF304F206500D10092 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0E270833CF0F20F490B4A505 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -275,6 +330,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5122101DB30DFC7C7AC6D445 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -282,6 +344,11 @@
 			isa = PBXTargetDependency;
 			target = 014C888744F3C7D6BDF760DF /* TrackingWidgetExtension */;
 			targetProxy = 4FD88AD6D7B1818992C56205 /* PBXContainerItemProxy */;
+		};
+		67B1F400034F08F0FBE17DA2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 55D6B100304F206500D10092 /* TrailMetrics */;
+			targetProxy = 7D7714D63DA6F690180E19E7 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -537,6 +604,41 @@
 			};
 			name = Release;
 		};
+		BAB8AA35CD51AC66E803349A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H4R92SZXP8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.roozbahani.TrailMetrics.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TrailMetrics;
+			};
+			name = Debug;
+		};
+		D1BA937E72AFB514BFC26C60 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H4R92SZXP8;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.roozbahani.TrailMetrics.UITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TrailMetrics;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -563,6 +665,15 @@
 			buildConfigurations = (
 				147F197056C19C923AC210E2 /* Debug */,
 				F22DE65463E9122FA4404A51 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1FA999395CDEF68F5691EF29 /* Build configuration list for PBXNativeTarget "TrailMetricsUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BAB8AA35CD51AC66E803349A /* Debug */,
+				D1BA937E72AFB514BFC26C60 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
