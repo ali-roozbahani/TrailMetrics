@@ -115,9 +115,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp, shared
 - Order: 105
 - Source: docs/epics/ios-ui-tests.md Q9 (PR #138), 2026-10-13
-- Problem: `iosApp/Packages/SharedKit/Package.swift` points its `binaryTarget` at `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework` for every build configuration, and `scripts/build-kmp-framework.sh` builds only the debug XCFramework (`:shared:assembleTrailMetricsSharedDebugXCFramework`). So a Release build of the app links the debug Kotlin framework, which contains the Swift test support (`shared/src/iosMain/.../testsupport/SwiftTestSupport.kt`) and, once the iOS UI-test plan lands, the UI-test fakes (unreachable without the DEBUG-only launch argument).
+- Problem: `iosApp/Packages/SharedKit/Package.swift` points its `binaryTarget` at `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework` for every build configuration, and `scripts/build-kmp-framework.sh` builds only the debug XCFramework (`:shared:assembleTrailMetricsSharedDebugXCFramework`). So a Release build of the app links the debug Kotlin framework, which contains the Swift test support (`shared/src/iosMain/.../testsupport/SwiftTestSupport.kt`). The iOS UI-test fakes are not in it: since the plan's rewrite of 2026-10-13 they are built only into a test-only variant of the framework (`docs/epics/ios-ui-tests.md`, D1).
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
-- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
+- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration"); record `swift-test-support-ships-in-production-framework`.
 
 ### maps-empty-api-key-crashes-route-tab
 - Type: task
@@ -136,6 +136,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `TrackingScreen`'s `LaunchedEffect(state.currentPath)` calls `CameraUpdateFactory.newLatLng` on every path change, whether or not a map exists. `CameraUpdateFactory` works only after `MapsInitializer` has filled it from Google Play services (normally when the `MapView` is created); before that it throws `NullPointerException` ("CameraUpdateFactory is not initialized"). Without a fake factory, 15 of the 26 `TrackingScreenTest` cases (map not rendered) fail with that exception. On a device where the Maps SDK cannot initialize (Google Play services missing, disabled or outdated), the first location fix after Start would therefore throw inside the effect. Found while writing the tests, not reproduced on a device.
 - Done when: a path change without an initialized Maps SDK neither throws nor stops tracking (for example the camera update is built only once the map is there, as `cameraPositionState.animate` already waits for it), shown by a Compose UI test that does not install the fake factory.
 - Refs: `androidApp/feature-tracking` `TrackingScreen` (`LaunchedEffect(state.currentPath)`); `TrackingScreenTest`, `fakes/FakeGoogleMap.kt` (`installFactories`).
+
+### detekt-skips-kmp-source-sets
+- Type: task
+- Area: build, domain, data, core, shared
+- Order: 115
+- Source: S1a spike of `docs/epics/ios-ui-tests.md` (F21), 2026-10-13
+- Problem: The S1a spike reported that `./gradlew detekt` is NO-SOURCE for `shared` and `domain` (and for the spike's `shared-uitest` module), so the gate's and CI's detekt step does not lint the KMP source sets; the root `build.gradle.kts` applies detekt to every subproject, but the default source set configuration apparently finds no sources in a KMP module. Reported by the spike, not re-run; the task's first step is to verify it (also for `data` and `core`).
+- Done when: `./gradlew detekt` lints the KMP source sets (`commonMain`, the platform and test source sets) of every KMP module, or the record shows why it cannot, and the repo is clean under it without new suppressions or config excludes.
+- Refs: root `build.gradle.kts` (detekt setup); `config/detekt/detekt.yml`; `scripts/pre-push-check.sh` (detekt step); `.github/workflows/ci.yml` (`android` job); `.claude/skills/tm-android/SKILL.md` (Detekt); `docs/epics/ios-ui-tests.md` (F21).
+
+### xcodebuild-build-needs-arm64-flags-undocumented
+- Type: task
+- Area: docs, iosApp
+- Order: 120
+- Source: S1a spike of `docs/epics/ios-ui-tests.md` (F20), 2026-10-13
+- Problem: The S1a spike reported that an `xcodebuild build` of the `TrailMetrics` scheme for `generic/platform=iOS Simulator` without `ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO` fails on clean derived data (28 errors in Tracking: the package compiles for x86_64 and the XCFramework has no x86_64 slice), also on `main` without any change. CI and the gate pass those flags, but no README or skill gives a complete command-line build command or says which flags it needs (the README's iOS section builds in the Xcode IDE). Reported by the spike, not re-run; the task's first step is to verify it.
+- Done when: every documented iOS build command works on clean derived data or states the flags it needs, and the README's and `tm-ios`'s iOS build instructions name the flags CI uses for a command-line build.
+- Refs: `README.md` ("iOS"); `.claude/skills/tm-ios/SKILL.md` ("Build integration"); `scripts/pre-push-check.sh` and `.github/workflows/ci.yml` (the `xcodebuild build` call with those flags); `docs/epics/ios-ui-tests.md` (F20).
 
 ### tracking-finish-unsaved-snapshot-files-not-deleted
 - Type: task
@@ -253,6 +271,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `scripts/skill-changes-digest.sh` (the human-run digest of skill and `CLAUDE.md` changes on `origin/main`) has no self-test, so a regression in its date validation, its first-parent commit selection or its `+`/`-` line filter would go unnoticed until the human runs it. The gate and CI files were outside S4's `allowed_paths`, so it was shown by hand only.
 - Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
 - Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
+
+### swift-test-support-ships-in-production-framework
+- Type: task
+- Area: shared, iosApp
+- Order: 210
+- Source: S1a spike of `docs/epics/ios-ui-tests.md`, 2026-10-13
+- Problem: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt` ("TEST SUPPORT ONLY") is compiled into the production `TrailMetricsShared.xcframework`, because the Swift package tests link that framework and a second Kotlin framework cannot share its types; so every app build contains it. The S1a spike reported that a test-only variant of the framework (a separate module with the same `baseName`, copied over the debug path) builds and links, and the iOS UI-test epic adopts that mechanism for its seam, so the Swift test support could move there too. Low priority. Reported by the spike, not re-run; the task's first step is to verify that the package tests can link the variant.
+- Done when: no test-only Kotlin is in the production framework (a `strings` or symbol check on the production framework in the PR), and the Swift package tests still pass in the gate and CI.
+- Refs: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `iosApp/Packages/TestSupport`; `scripts/build-kmp-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1); record `release-build-links-debug-xcframework`.
 
 ## Drift
 
