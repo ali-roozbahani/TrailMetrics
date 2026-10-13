@@ -47,8 +47,13 @@ itself); `ActivityHistoryRepository` (Room through `ActivityDao`); `UserProfileR
 (`KeyValueStorage`). The Views get their ViewModels from default-parameter `init`s resolving
 `KoinHelper()` (`RouteView` builds `RouteViewModel()`, `TrackingView` and `DetailsView` build
 theirs in `init`), so a Koin override reaches every screen without touching a View. Koin is
-4.2.2 (`koinBom`). Whether Koin 4 allows a later module to override a definition by default
-is **not verified** in this repo; S1's test proves it or S1 uses an explicit module list.
+4.2.2 (`koinBom`). **Verified** (S0 spike, 2026-10-13, Xcode 27.0): in Koin 4.2.2 a later
+module overrides a binding by default, no `allowOverride` needed. `initKoin { }` runs its
+appDeclaration BEFORE the production modules, so anything passed through it is replaced by
+the production modules (a throwaway `iosTest` case got the real `UserProfileRepositoryImpl`
+back). `initKoin()` followed by `loadKoinModules(overrideModule)` returns the fake, and an
+overridden single (and the Room database, when `ActivityHistoryRepository` is overridden) is
+never constructed.
 
 **F3. Existing Swift fakes do not fit the app (verified).** `TestSupport`
 (`FakeLocationRepository`, `FakeActivityHistoryRepository`, `FakeUserProfileRepository`) and
@@ -74,10 +79,16 @@ synchronized group plus the target, its build configurations, a target dependenc
 product reference. The project-level deployment target is iOS 26.5. The shared scheme has a
 Build pre-action (`scripts/build-kmp-framework.sh`), one BuildActionEntry (the app) and a
 `TestAction` with no Testables (`shouldAutocreateTestPlan = "YES"`). Debug defines `DEBUG`
-in `SWIFT_ACTIVE_COMPILATION_CONDITIONS`.
+in `SWIFT_ACTIVE_COMPILATION_CONDITIONS`. **Verified** (S0 spike, 2026-10-13, Xcode 27.0): the
+hand edit described in D2 (`project.pbxproj` +112 lines, shared scheme +27 lines) lists
+`TrailMetricsUITests` in `xcodebuild -list`, the CI "Build iOS app" command still succeeds,
+the build-for-testing-only entry is not part of `xcodebuild build`, `xcodebuild test
+-only-testing:TrailMetricsUITests` runs the UI-test class, and Xcode generated no other
+changes. **Not verified:** the same under Xcode 26.6, which CI uses; the first check is S2's
+own CI run.
 
-**F6. What XCUITest can reach in the Views (verified from the source; reachability at runtime
-not verified).**
+**F6. What XCUITest can reach in the Views (verified from the source; at runtime the Route
+screen and the map long press are verified in S0, the other screens not yet).**
 - Route: Generate is a `Button` whose label switches between the text "Generate Route" and a
   `ProgressView` while loading, and it is `.disabled(!canGenerateRoute)`
   (`canGenerateRoute` needs a start point, at least 3 waypoints and not loading). The top-bar
@@ -85,8 +96,16 @@ not verified).**
   and "Start Tracking") is shown only while a generated route and a start point exist.
 - Waypoints are added only by a **long press on the `GMSMapView`**
   (`RouteMapView.Coordinator.mapView(_:didLongPressAt:)`). Every Route and Tracking scenario
-  therefore needs XCUITest to long-press the map and the Maps SDK to report it. **Not
-  verified**, and the biggest risk of the plan (S0).
+  therefore needs XCUITest to long-press the map and the Maps SDK to report it. **Verified**
+  (S0 spike, 2026-10-13, Xcode 27.0, CI placeholder key): `press(forDuration:)` of 1 s or more
+  at normalized points (about y 0.4 to 0.6) on the window coordinate, on the map element or on
+  an element with identifier `route.map` adds a waypoint; after 3 presses "Generate Route"
+  becomes enabled. A 0.3 s press does not register (negative control). The map is an `Other`
+  element of class GMSMapView without an identifier. A SwiftUI `.accessibilityIdentifier` on
+  `RouteMapView` gives an element that covers the whole screen (tab bar included), so presses
+  stay inside the map area.
+- The top-bar Reset already exposes identifier `arrow.clockwise` and label "Refresh" through
+  SwiftUI's SF Symbol default (verified, S0 spike, 2026-10-13, Xcode 27.0).
 - Tracking: "Start", "Finish" are text-labelled. Finish appears only after
   `isRouteCompleted` (tracking state, last location within 25 m of the last planned point,
   progress index near the end). Finish writes a snapshot request that `TrackingMapView`
@@ -97,7 +116,12 @@ not verified).**
   `HistoryErrorMessage.general` and an "OK" button.
 - Map content inside `GMSMapView` is not asserted by any scenario.
 
-**F7. CI iOS job (verified, `.github/workflows/ci.yml` and `gh run view`).** Steps after
+**F7. CI iOS job (verified, `.github/workflows/ci.yml` and `gh run view`).** Runner image
+(S0 spike, 2026-10-13, Xcode 27.0, from the actions/runner-images documentation and the last
+full CI run's log): `macos-latest` is
+`macos-26-arm64`, version `20260907.0351.1`, default Xcode 26.6, simulator runtimes iOS 26.2,
+26.4 and 26.5; the last full CI run built with Xcode 26.6 and ran the package tests on an
+iPhone 17 iOS 26.5 simulator, so the deployment target 26.5 is met. Steps after
 "Classify changes", all skipped on `decision == 'light'`: "Select Xcode", "Install SwiftLint",
 "Run SwiftLint", JDK, Gradle, "Build KMP
 Shared Framework", "Run iOS simulator tests" (Gradle), "Generate" the secrets config with a CI
@@ -138,13 +162,16 @@ module (option a).**
   inside `#if DEBUG` and calls a new Kotlin entry `doInitKoinIosForUiTest(scenario)` instead
   of `doInitKoinIos()`; without the argument, or in a Release build, the code path is the one
   that exists today.
-- `doInitKoinIosForUiTest` (new, `shared/src/iosMain/.../uitest/`) starts Koin with the
-  production modules plus one override module that binds in-memory Kotlin fakes for
+- `doInitKoinIosForUiTest` (new, `shared/src/iosMain/.../uitest/`) calls `initKoin()` and then
+  `loadKoinModules(uiTestOverrideModule)`, never `initKoin { modules(...) }`, whose modules the
+  production modules would replace (F2, verified in S0). The override module binds in-memory
+  Kotlin fakes for
   `LocationRepository`, `TrackingServiceLauncher` (no-op), `DirectionsRepository`,
   `ActivityHistoryRepository` (a `MutableStateFlow`, so History updates live) and
   `UserProfileRepository`, scripted by an enum `UiTestScenario`. No database, HTTP client,
   `CLLocationManager` or user defaults is touched (Koin singles are lazy and nothing resolves
-  the replaced ones; **not verified**, S1 checks the database part).
+  the replaced ones; **verified** for an overridden single and the Room database, S0 spike,
+  2026-10-13, Xcode 27.0; S1's tests keep proving it for the real seam).
 - Scripting per scenario lives in the enum: start location, a fixed closed route around it
   (directions ignore the waypoints), location updates that walk that route to its end, a saved
   profile (so Start Tracking never opens the sheet), seeded history, and which calls are held
@@ -182,10 +209,12 @@ Options compared:
 `com.apple.product-type.bundle.ui-testing` target with `TEST_TARGET_NAME = TrailMetrics`, a
 synchronized root group `TrailMetricsUITests/` (so later test files need no project edit), a
 dependency on the app target, and a Testables entry plus a build-for-testing-only
-BuildActionEntry in the shared `TrailMetrics` scheme. A build-for-testing-only entry is not
-part of `xcodebuild build`, so the existing generic build and the package tests stay as they
-are (**not verified**; S2 acceptance). The PR is protected: Ali reviews and merges it in any
-case. If `xcodebuild -list` or the build rejects the hand edit within the retry budget, the
+BuildActionEntry in the shared `TrailMetrics` scheme. The new target gets
+`CreatedOnToolsVersion = 26.6`. A build-for-testing-only entry is not part of `xcodebuild
+build`, so the existing generic build and the package tests stay as they are (**verified**,
+S0 spike, 2026-10-13, Xcode 27.0, see F5; under Xcode 26.6 S2's CI run checks it). The PR is
+protected: Ali reviews and merges it in any case. If `xcodebuild -list` or the build rejects
+the hand edit within the retry budget, the
 agent stops, and Ali creates the empty target in Xcode (File > New > Target > UI Testing
 Bundle, add it to the shared scheme's Test action) and pushes it to the S2 branch; the agent
 continues from there.
@@ -199,11 +228,14 @@ CODE_SIGNING_ALLOWED=NO`. Then "Upload UI test results" with `actions/upload-art
 `if: failure() && steps.<ui>.outcome == 'failure'`, `continue-on-error: true`. On `light` both
 are skipped like every other heavy step. The CI secrets config holds only the placeholder, so
 the result bundle carries no real key; a local result bundle is never uploaded.
-Time (**not verified**, S0 measures locally, S4 on CI): one app build for a concrete simulator
-(1 to 3 min, it does not reuse the generic build's products), simulator already booted by the
+Time (**not verified** on CI; S0 measured it locally, S4 measures it on CI): one app build for
+a concrete simulator (1 to 3 min, it does not reuse the generic build's products), simulator
+already booted by the
 package tests, about 5 to 10 s per app launch and 15 to 40 s per scenario: **+3 to 6 min**,
-so a full iOS job of about 15 to 22 min against the timeout of 40. A job above 30 min is a
-stop-and-report for the human, not a reason to drop tests.
+so a full iOS job of about 15 to 22 min against the timeout of 40. The local S0 numbers
+(S0 spike, 2026-10-13, Xcode 27.0, see S0) support the low end: five scenarios take about 1.5
+to 2.5 min locally, and a runner 2 to 3 times slower lands at about 3 to 5 min. S4 measures it
+on CI. A job above 30 min is a stop-and-report for the human, not a reason to drop tests.
 The PR touches `.github/workflows/`: the machine token cannot push it, so the agent writes the
 branch and the PR body to `~/agent-workspace/pr-body-<branch-slug>.md` and Ali pushes and merges.
 
@@ -246,7 +278,8 @@ tags). Needed: `route.generateButton` (its label changes to a spinner), `route.r
 (image-only top-bar Reset), `route.map` (the long-press target), `history.activityRow`,
 `details.deleteButton` (image-only trash). Not needed: "Start Tracking", "Start", "Finish",
 "Delete", "OK", the "Error" alert title. These are product-code changes in `Route` and
-`History`; `Tracking` needs none.
+`History`; `Tracking` needs none. `route.resetButton` stays although the button already
+exposes `arrow.clockwise` (F6): the symbol name is incidental and may change with the design.
 
 ## The five scenarios
 
@@ -254,17 +287,14 @@ tags). Needed: `route.generateButton` (its label changes to a spinner), `route.r
 |---|---|---|---|---|---|
 | Failed delete shows "Error" (smoke) | one seeded activity; delete fails | History tab, tap row, tap trash, tap "Delete" | alert "Error" with the general message exists; after "OK" the Details screen is still shown; probe `deletes=0` | `history.activityRow`, `details.deleteButton` | low |
 | Delete confirmation twice | one seeded activity; deletes held | row, trash, "Delete" (held), trash, "Delete" again, release | probe `deletes=1`; History shows no row ("No Activities yet") | same | low. A literal double tap on the alert's button cannot work (the alert closes on the first tap), so "twice" means a second confirmation while the first delete is in flight, as Android's `DetailsScreenTest` does |
-| Generate twice | start location; 3 long-presses; directions held | long-press map 3x, double-tap Generate, release | wait for "Start Tracking"; probe `directions=1` | `route.map`, `route.generateButton` | map long-press (S0). The View disables Generate while loading, so the test may pass even without `RouteViewModel`'s guard; then it proves the user-visible outcome, and the guard stays proven by the unit test. The PR states which |
-| Generate then Reset | as above, directions held | long-press 3x, tap Generate, tap top-bar Reset, release | probe `directionsDone=1`, then "Start Tracking" does not exist and Generate is disabled (no waypoints) | `route.map`, `route.generateButton`, `route.resetButton` | map long-press (S0) |
-| Finish twice | route = small closed loop (at most 10 points); location updates walk it to the end; profile saved; saves held | long-press 3x, Generate, "Start Tracking", "Start", wait for "Finish", double-tap "Finish", release, History tab | probe `saves=1`; exactly one `history.activityRow` | the Route ones, `history.activityRow` | highest: map long-press (S0) and `isRouteCompleted` with location updates delivered at once (**not verified**; the walk and the loop size are tuned in S7). Snapshot of a key-less map is a blank image, which is fine |
+| Generate twice | start location; 3 long-presses; directions held | long-press map 3x, double-tap Generate, release | wait for "Start Tracking"; probe `directions=1` | `route.map`, `route.generateButton` | low for the map: the long press is verified (S0). The View disables Generate while loading, so the test may pass even without `RouteViewModel`'s guard; then it proves the user-visible outcome, and the guard stays proven by the unit test. The PR states which |
+| Generate then Reset | as above, directions held | long-press 3x, tap Generate, tap top-bar Reset, release | probe `directionsDone=1`, then "Start Tracking" does not exist and Generate is disabled (no waypoints) | `route.map`, `route.generateButton`, `route.resetButton` | low: the map long press is verified (S0) |
+| Finish twice | route = small closed loop (at most 10 points); location updates walk it to the end; profile saved; saves held | long-press 3x, Generate, "Start Tracking", "Start", wait for "Finish", double-tap "Finish", release, History tab | probe `saves=1`; exactly one `history.activityRow` | the Route ones, `history.activityRow` | highest: `isRouteCompleted` with location updates delivered at once (**not verified**; the walk and the loop size are tuned in S7). Snapshot of a key-less map is a blank image, which is fine |
 
 What XCUITest cannot see: the polyline and markers inside `GMSMapView` (not accessibility
 elements we rely on), so "no route afterwards" is proven by the panel that exists only while a
-route exists, not by the drawing. **Fallback if S0 shows the map long-press does not work:**
-the three Route/Tracking scenarios cannot reach Generate without a product seam; the options
-are a UI-test-only way to add waypoints (a `RouteView` change, Q3) or keeping those three on
-their unit tests plus a human check under reason 2 of `tm-pr-workflow` Tier 2. The two delete
-scenarios do not depend on the map.
+route exists, not by the drawing. The map long press needs no fallback: S0 showed it works
+(F6), so Q3 is not needed. The two delete scenarios do not depend on the map.
 
 ## Subtasks
 
@@ -288,6 +318,17 @@ scenarios do not depend on the map.
       only if that list is unclear.
     - If (1) or (5) fails, the agent stops; the human decides Q3 and the plan is changed.
   tier2: none (no change reaches main)
+  outcome:   # S0 spike, 2026-10-13, Xcode 27.0
+    - Done; acceptance met. (1) works with the CI placeholder key (F6); with no key the app
+      crashes before the map exists (Risks, Maps key). (2) launches with no alert and no crash
+      under the placeholder key. (3) verified (F2). (4) below. (5) verified (F7).
+    - The worktree had to be given a placeholder configuration by Ali, because the agent may
+      not create or name that file, and under Xcode 27 the app does not build without it.
+    - Local timings (Apple M4, Xcode 27.0, GoogleMaps from the local package cache, XCFramework
+      already built), each measured twice: cold build-for-testing 13.5 to 17.7 s, warm 2.1 to
+      2.6 s; launch until the first Route element 4.2 to 5.0 s; one scenario (launch, 3 long
+      presses, one assertion) 10.5 to 11.8 s; a whole `xcodebuild test` of 4 to 5 tests about
+      80 s including an incremental build.
 
 - id: S1
   title: Add the UI-test fake seam in shared (Kotlin) with its tests
@@ -308,6 +349,8 @@ scenarios do not depend on the map.
       after each test.
     - In UI-test mode the real `IosLocationRepositoryImpl` and `TrailMetricsDatabase` are
       never created (a test proves it).
+    - The override goes through `initKoin()` then `loadKoinModules(...)`; a test fails if the
+      fakes are passed through `initKoin { }` instead (the real repository would win, F2).
     - doInitKoinIos and initKoin are unchanged (git diff shows no change outside allowed_paths).
     - Swift-visible surface, named in the task so `tm-pr-review` item 6 can judge it: the
       top-level function doInitKoinIosForUiTest(scenario), the enum UiTestScenario and a
@@ -362,6 +405,8 @@ scenarios do not depend on the map.
       not contain the string `-uiTestScenario` (command and output in the PR).
     - The probe overlay shows only in UI-test mode; identifiers history.activityRow and
       details.deleteButton exist; nothing else in the Views changes.
+    - The app is built with the placeholder Maps key (the CI step that writes the placeholder
+      configuration, or the local one); with an empty key the app crashes (Risks, Maps key).
     - The failed-delete test passes locally 3 runs out of 3; with the delete fake set to
       succeed it fails (checked once in the working tree).
     - tm-testing gets an "XCUITest" section (seam, probe, D5 rules); tm-ios's composition-root
@@ -381,6 +426,8 @@ scenarios do not depend on the map.
       only when it failed.
     - The PR's CI run shows the step green and its duration; the PR states the full iOS job
       time against the 40-minute timeout.
+    - The CI step that writes the placeholder configuration runs before "Run iOS UI tests"
+      (it already does in the current job order; S4 keeps it that way).
   tier2: none - CI only
   protected: yes (.github/workflows) - agent writes branch and PR body file, Ali pushes and merges
 
@@ -407,6 +454,8 @@ scenarios do not depend on the map.
   acceptance:
     - route.map, route.generateButton, route.resetButton identifiers exist; nothing else in
       RouteView changes.
+    - Every map long press lasts at least 1 s (`press(forDuration:)`), inside the map area
+      (F6).
     - Both tests pass 3 of 3 locally. Generate then Reset fails with RouteViewModel's
       stale-result guard removed. For Generate twice the PR says whether removing the
       generationTask guard makes the test fail or whether the View's disabled state already
@@ -426,6 +475,7 @@ scenarios do not depend on the map.
   acceptance:
     - Passes 3 of 3 locally and in the PR's CI run; fails with TrackingViewModel's
       isSessionSaved guard removed.
+    - Every map long press lasts at least 1 s, inside the map area (F6).
     - Any change to the scenario's route or walk stays in the uitest package with its test.
     - The last commit removes the record test-ios-ui-double-tap-and-stale-results
       (chore(board)) and its slug from the agentic-dev-loop record's Refs; `rg` finds the slug
@@ -494,15 +544,21 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
 
 ## Risks and what could go wrong
 
-- **Map long-press not reachable** (F6): three scenarios blocked. S0 finds out before any PR.
-- **CI simulator runtime below iOS 26.5**: the app cannot be installed on the CI simulator,
-  though the generic build passes today. Not verified; S0 (5). Fix options are the human's
-  (a newer runner image or Xcode selection in the workflow).
-- **Maps key at launch:** CI has a placeholder key, so the map is blank and the SDK may log
-  an authorization error; whether it shows a blocking alert or crashes is not verified (S0).
-  With no key at all the app skips `configure`, and creating a `GMSMapView` may fail (not
-  verified). Locally the real key loads map tiles during UI tests (network use, no assertion
+- **Map long-press not reachable** (F6): closed, S0 showed the long press works (S0 spike,
+  2026-10-13, Xcode 27.0).
+- **Maps key at launch:** **verified** (S0 spike, 2026-10-13, Xcode 27.0): the CI placeholder
+  key launches the app with no alert and no crash, and the long press works. An EMPTY key
+  crashes the app at launch of the Route tab (`GMSMapView.init` raises in `GMSServices
+  checkServicePreconditions`; the app skips `configure` but `RouteMapView` still creates the
+  map; board record `maps-empty-api-key-crashes-route-tab`). So the step that writes the
+  placeholder configuration is a hard prerequisite of the UI-test step, in CI and in any local
+  worktree. Locally the real key loads map tiles during UI tests (network use, no assertion
   depends on it).
+- **Missing base configuration file:** under Xcode 27 a missing base configuration file is a
+  build error, not a warning (S0 spike, 2026-10-13, Xcode 27.0). CI is not affected: it writes
+  the file first.
+- **Local Xcode 27.0 vs CI Xcode 26.6:** the project edit is unverified under 26.6 until S2's
+  CI run.
 - **CI time:** +3 to 6 min estimated; measured in S4. If the full job nears 30 min, stop and
   report (Q4 alternative: a separate job).
 - **Flakes:** XCUITest on a shared CI simulator; the package suite already had a timing flake
@@ -515,7 +571,7 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
   XCFramework, unreachable without the DEBUG-only entry. Q1.
 - **Probe overlay hides a control:** placed top centre; S3 checks no existing test target
   element is covered on the smallest simulator in use.
-- **Unverified Koin override behavior:** S0 (3) and S1's tests.
+- **Koin override behavior:** verified in S0 (F2); S1's tests keep it proven for the real seam.
 
 ## Questions for the human and his answers
 
@@ -537,6 +593,8 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
    other choice leaves three of five scenarios unproven by UI tests.
    **Answer:** Not needed unless S0 shows the map long-press fails. If it does, the agent
    stops and reports; Ali decides then (recommendation of the plan stays: a DEBUG-only seam).
+   **Outcome:** not needed: S0 showed the long press works (F6; S0 spike, 2026-10-13,
+   Xcode 27.0).
 4. **CI placement (D3).** A step in the existing iOS job (no new required check, no
    branch-protection change). Recommendation: yes. Other choice: a separate job, which needs a
    new required status check in branch protection (your setting) and a second simulator boot.
