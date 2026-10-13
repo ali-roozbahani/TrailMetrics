@@ -1,7 +1,7 @@
 # Epic: iOS UI tests (XCUITest) for double taps, stale results and the delete error
 
 - **Slug:** ios-ui-tests
-- **Status:** draft, waiting for the human's approval. No subtask starts before it.
+- **Status:** approved by the human with the answers below when this plan is merged
 - **Source:** BOARD.md record `test-ios-ui-double-tap-and-stale-results` (Order 100), and item (1)
   of the `agentic-dev-loop` record's Done when (the iOS half of "a deterministic test seam and
   UI-test targets ... a fast smoke subset in the local gate ... the full UI suite in CI").
@@ -20,7 +20,7 @@
   markers); real GPS, permission dialogs, the Live Activity, notifications (they stay on the
   `agentic-dev-loop` manual device list); new third-party dependencies; Release-build tooling for
   the shared XCFramework.
-- **Approved by:** (open)
+- **Approved by:** Ali Roozbahani, by merging the PR that contains this text (2026-10-13)
 
 Evidence is from the files on `main` at `42dc442` and from read-only commands run on
 2026-10-12 (Xcode 27.0, Swift 6.4, one local simulator runtime: iOS 26.5). Every claim below is
@@ -274,7 +274,7 @@ scenarios do not depend on the map.
   branch: chore/ios-ui-tests-spike (local, deleted afterwards, never pushed)
   skills: [tm-ios, tm-testing]
   depends_on: []
-  allowed_paths: [any file in a throwaway linked worktree; nothing is committed to a pushed branch]
+  allowed_paths: []   # S0 is a local spike in a throwaway worktree; nothing is committed.
   acceptance:
     - A report (comment on this plan's PR or a message to the human) answering, with the
       commands used: (1) does an XCUITest long-press on the GMSMapView add a waypoint, with
@@ -283,7 +283,9 @@ scenarios do not depend on the map.
       module override an earlier binding in Koin 4.2.2; (4) local times for a concrete
       simulator build-for-testing, one launch and one scenario; (5) the simulator runtimes on
       the CI macOS image (from a CI log or `xcrun simctl list runtimes` in a run the human
-      triggers), because the app needs iOS 26.5.
+      triggers), because the app needs iOS 26.5. (5) can be answered first from the public
+      list of installed simulator runtimes of the `macos-latest` runner image; run a CI step
+      only if that list is unclear.
     - If (1) or (5) fails, the agent stops; the human decides Q3 and the plan is changed.
   tier2: none (no change reaches main)
 
@@ -304,6 +306,8 @@ scenarios do not depend on the map.
       deletes update observeActivities, that a held call completes only after release, that a
       failing delete throws, that no TrailMetricsDatabase instance is created, and stopKoin
       after each test.
+    - In UI-test mode the real `IosLocationRepositoryImpl` and `TrailMetricsDatabase` are
+      never created (a test proves it).
     - doInitKoinIos and initKoin are unchanged (git diff shows no change outside allowed_paths).
     - Swift-visible surface, named in the task so `tm-pr-review` item 6 can judge it: the
       top-level function doInitKoinIosForUiTest(scenario), the enum UiTestScenario and a
@@ -513,32 +517,42 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
   element is covered on the smallest simulator in use.
 - **Unverified Koin override behavior:** S0 (3) and S1's tests.
 
-## Questions for the human
+## Questions for the human and his answers
 
 1. **Seam (D1).** Kotlin fakes in `shared/src/iosMain/.../uitest/` shipped in the XCFramework
    like `SwiftTestSupport`, entered only through a `#if DEBUG` launch argument?
    Recommendation: yes. Other choice: a separate UI-test host target or configuration, about
    +1.5 min CI and a larger protected project diff, and still the same Kotlin binary.
+   **Answer:** Yes. Kotlin fakes in the XCFramework, entered only through the `#if DEBUG`
+   launch argument. They are not kept out of Release builds now (see Q9).
 2. **Project file (D2).** The agent hand-edits `project.pbxproj` and the scheme; you review and
    merge. Recommendation: yes, with you creating the target in Xcode only if the edit fails.
    Other choice: you create the empty target first (a few minutes of your time, one more
    hand-off).
+   **Answer:** Yes. The agent edits `project.pbxproj` and the scheme; Ali creates the empty
+   target in Xcode only if the edit fails within the retry budget.
 3. **Only if S0 shows the map long-press fails:** add a UI-test-only way to add waypoints in
    `RouteView` (product code, DEBUG only), or keep Generate twice, Generate then Reset and
    Finish twice on unit tests plus a human check. Recommendation: the DEBUG-only seam; the
    other choice leaves three of five scenarios unproven by UI tests.
+   **Answer:** Not needed unless S0 shows the map long-press fails. If it does, the agent
+   stops and reports; Ali decides then (recommendation of the plan stays: a DEBUG-only seam).
 4. **CI placement (D3).** A step in the existing iOS job (no new required check, no
    branch-protection change). Recommendation: yes. Other choice: a separate job, which needs a
    new required status check in branch protection (your setting) and a second simulator boot.
+   **Answer:** Yes. A step in the existing iOS job; no new required check.
 5. **Flake policy (D6).** No automatic retries. Recommendation: yes. Other choice:
    `-retry-tests-on-failure -test-iterations 2` would hide real races in exactly the behavior
    these tests exist to catch.
+   **Answer:** Yes. No automatic test retries.
 6. **Gate trigger (D4).** Smoke only for `IOS_UI_PATHS`. Recommendation: yes. Other choice:
    whenever the iOS steps run (simpler, about 1.5 to 3 min more on every domain or data
    change).
+   **Answer:** Yes. The smoke test runs in the local gate only for `IOS_UI_PATHS`.
 7. **No integration branch.** Recommendation: a chain of PRs on `main`; every step is green and
    invisible to users. Other choice: `feature/epic/ios-ui-tests` with a ruleset and a final epic
    merge by you.
+   **Answer:** Yes. A chain of PRs on `main`, no integration branch.
 8. **Board order (F10).** The record waits for `agentic-dev-loop`, whose item (1) waits for this
    work. Recommendation: you drop the record's `After` line when you approve this plan (a
    subtask may not do it: `tm-pr-workflow` Board rules 5 and 6 keep parallel subtasks and
@@ -546,6 +560,14 @@ S7, never in the same wave. `tm-pr-workflow/SKILL.md` in S2 and S8, different wa
    `agentic-dev-loop` item (1) to what remains (S8 never edits `BOARD.md`). Other choice: leave the `After`
    and treat this plan's approval as the exception, which leaves the board saying something
    the work does not follow.
+   **Answer:** Ali drops the record's `After: agentic-dev-loop` line; done in the PR that
+   records these answers. S7 still removes the record and narrows `agentic-dev-loop` item (1).
+9. **Release builds.** `SharedKit/Package.swift` links the DEBUG XCFramework for every build
+   configuration (F4), so a Release app already contains Kotlin debug code and the UI-test
+   fakes would be in it too, unreachable.
+   **Answer:** not fixed in this epic. A separate BOARD.md record,
+   `release-build-links-debug-xcframework`, covers a Release XCFramework before any
+   distribution build.
 
 ## Done (record test-ios-ui-double-tap-and-stale-results)
 
