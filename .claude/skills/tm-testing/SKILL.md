@@ -129,9 +129,8 @@ only through the test-only variant of the framework, which UI-test builds alone 
 counters incremented with `update`, hold calls on a `CompletableDeferred` gate and use no delay
 and no clock. Their tests are `kotlin.test` in `shared-uitest/src/iosTest`, run by
 `./gradlew :shared-uitest:iosSimulatorArm64Test` and by the gate's `allTests`; the module has no
-Kover floor (iOS targets only, which Kover can't measure). The XCUITest side (the Debug-UITest
-configuration, the Swift call site, the scenarios) comes with later subtasks of
-`docs/epics/ios-ui-tests.md`.
+Kover floor (iOS targets only, which Kover can't measure). The XCUITest side is in "XCUITest"
+below.
 
 ## Testing MVI ViewModels
 
@@ -249,6 +248,45 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
 - Find nodes by visible text and content description first; a `testTag` is a production
   change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
   matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.
+
+## XCUITest
+
+The iOS UI tests are `iosApp/TrailMetricsUITests` (XCTest, no other library); the plan and its
+decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
+
+- **Run.** Scheme `TrailMetricsUITests`: in Xcode select it and press ⌘U; from the shell, from
+  `iosApp/`, the command in `tm-ios` ("Build configurations and schemes"): `xcodebuild test
+  -scheme TrailMetricsUITests` with a concrete simulator id, `-skipMacroValidation`, the arm64
+  flags, `CODE_SIGNING_ALLOWED=NO`, piped through `../scripts/filter-xcode-log.sh`. The app needs
+  the machine's Maps key configuration; an empty key crashes the Route tab.
+- **Variant.** The scheme builds `Debug-UITest`, which links the test-only framework variant of
+  `shared-uitest` and sets `UITEST_SEAM`. Normal Debug and Release builds contain no seam.
+- **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)`
+  (`Support/`), which passes `-uiTestScenario <name>` (the Kotlin `name` of a `UiTestScenario`
+  entry). `TrailMetricsApp.init()` then calls `doInitKoinIosForUiTest(scenario:)`; without the
+  argument the app runs the normal composition root, an unknown name stops it.
+- **Probe.** In a scenario launch the app shows a top-centre overlay: text `uitest.probe`
+  (`directions=<n> directionsDone=<n> saves=<n> deletes=<n>`, the fakes' counters), buttons
+  `uitest.probe.refresh` (re-reads them) and `uitest.probe.release` (completes every held call,
+  then re-reads). The counters are read only on those taps; `UITestProbe.refreshedCounters()`
+  taps refresh and parses the text.
+- **Determinism (D5).**
+  - one `launch` per test, with its scenario; no test depends on another or on simulator state;
+  - wait with `waitForExistence(timeout: 10)`; no `sleep`, no fixed delay, in tests or fakes;
+  - for an absence, wait for a positive signal first (a probe read, a screen change), then
+    assert the element does not exist;
+  - held calls are released only through `uitest.probe.release`;
+  - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
+  - check once in the working tree that the test fails when the guarded behavior breaks.
+- **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
+  failure without a related change gets a `BOARD.md` record.
+- **Identifiers (D7).** Find elements by their text first; a View gets an
+  `accessibilityIdentifier` (`<screen>.<element>`, e.g. `details.deleteButton`) only where text
+  cannot find it (image-only buttons, rows, a label that changes).
+- **Helpers** live in `iosApp/TrailMetricsUITests/Support/`; later scenarios reuse them.
+- **Project file.** The targets use synchronized folders, so a new file needs no project change.
+  If Xcode or a run rewrites `project.pbxproj` or `Info.plist`, `git restore` them; never commit
+  that rewrite (CI's Xcode is older than the local one).
 
 ## Migration cases (Room)
 

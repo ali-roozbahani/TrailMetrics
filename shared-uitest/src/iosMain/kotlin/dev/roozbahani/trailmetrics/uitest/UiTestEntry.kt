@@ -10,10 +10,10 @@ package dev.roozbahani.trailmetrics.uitest
 // only UI-test builds link that variant (ADR-002, "Amendment"). Normal Debug and Release builds
 // link shared's own framework, which contains none of this.
 //
-// The entry is meant to be called only from a Swift call site in the app's composition root,
-// compiled only in the Debug-UITest build configuration, in place of `doInitKoinIos()`. That
-// configuration and that call site come with later subtasks of docs/epics/ios-ui-tests.md (S2,
-// S3); until they exist, nothing calls this package.
+// The entry is called only from the Swift call site in the app's composition root,
+// `TrailMetricsApp.init()`, compiled only in the Debug-UITest build configuration
+// (`#if UITEST_SEAM`), in place of `doInitKoinIos()` when a UI test passes
+// `-uiTestScenario <name>`.
 //
 // Only three declarations are visible to Swift: [doInitKoinIosForUiTest], [UiTestScenario] and
 // [UiTestControls]. Everything else in the package is internal or private. Nothing suspend and

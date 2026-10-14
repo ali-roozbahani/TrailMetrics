@@ -76,9 +76,10 @@ linked by UI-test builds alone.
   `SharedKit/Package.swift` does not change. Its stamp records which
   variant is in place, so the next normal build replaces the variant with
   the production framework again.
-- Normal Debug and Release builds never link the variant. The
-  `Debug-UITest` configuration, the UI-test scheme and the Swift call site
-  that enters the seam come with later subtasks of the epic (S2, S3).
+- Normal Debug and Release builds never link the variant. Only the
+  `Debug-UITest` configuration links it, through the `TrailMetricsUITests`
+  scheme; the Swift call site that enters the seam is in `TrailMetricsApp`,
+  under `#if UITEST_SEAM`, which only that configuration sets.
 
 ### Consequences
 - Two modules apply SKIE and define a framework named `TrailMetricsShared`;

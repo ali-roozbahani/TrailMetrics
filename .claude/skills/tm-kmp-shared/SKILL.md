@@ -126,7 +126,7 @@ After changing `domain`, `data`, `core` or `shared`, iOS needs a rebuilt XCFrame
 `scripts/build-kmp-framework.sh` does this automatically (hash of the sources of the four
 modules and `shared-uitest`, the Gradle build files, and which variant is in place: production,
 or the UI-test variant of `shared-uitest` for `--variant uitest` and for the `Debug-UITest`
-configuration, which S2 of `docs/epics/ios-ui-tests.md` adds). The shared `TrailMetrics` scheme's Build pre-action and the
+configuration, which selects the variant). The shared `TrailMetrics` scheme's Build pre-action and the
 "Build KMP Shared Framework" phase run it on every Xcode build, and so does the gate. Do not
 bypass it. Run the script yourself before `xcodebuild test` inside an iOS package (details in
 `tm-ios`).

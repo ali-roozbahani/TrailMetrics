@@ -61,6 +61,7 @@ public struct HistoryView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("history.activityRow")
                         }
                     }
                     .padding(16)

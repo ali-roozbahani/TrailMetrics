@@ -103,6 +103,10 @@ fails, so observe through a use case that turns the failure into a value on the 
 
 - `TrailMetricsApp.init()` is the only place that calls `KoinInitIosKt.doInitKoinIos()`.
   Never call it from a View's `init` (SwiftUI can re-run it, starting Koin twice and crashing).
+  In the `Debug-UITest` build only (`#if UITEST_SEAM`), a `-uiTestScenario <name>` launch
+  argument makes it call `doInitKoinIosForUiTest(scenario:)` instead (the UI-test seam of the
+  test-only framework variant; files in `iosApp/TrailMetrics/UITestSupport/`, all under the same
+  condition). See `tm-testing`, "XCUITest".
 - A new dependency needed from Swift requires a new concrete getter on `KoinHelper`
   (`shared/src/iosMain/.../KoinHelper.kt`), because `get<T>()` is inline reified and doesn't
   export. That is a `shared` change, so follow `tm-kmp-shared` for it.
@@ -175,6 +179,8 @@ fails, so observe through a use case that turns the failure into a value on the 
 - Consume events in `.task { for await event in viewModel.makeEventsStream() { handle(event) } }`
   with an exhaustive `switch` in `handle(_:)`.
 - Colors come from `DesignSystem` (`Color.trailGreen`); no ad-hoc RGB literals in features.
+- No `accessibilityIdentifier` for UI tests where text finds the element; only where it cannot
+  (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest").
 - Add a `#Preview` for new screens and reusable components. Use the ViewModel's
   default-parameter `init` to inject fakes where a live Koin graph isn't available.
 
