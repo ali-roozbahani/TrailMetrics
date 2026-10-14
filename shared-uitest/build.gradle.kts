@@ -47,5 +47,6 @@ kotlin {
 }
 
 // No Kover and no coverage floor, on purpose: the module has only iOS targets, which Kover can't
-// measure, so it does not read config/kover-floors.properties (as :shared, which has no floor
-// either).
+// measure, so it reads no floor (as :shared, which has none either). Don't name the floors file
+// in this build file: scripts/check-kover-floors.sh counts every build file whose text names it
+// as a reader that needs an entry.
