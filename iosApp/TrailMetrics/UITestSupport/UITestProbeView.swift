@@ -11,18 +11,13 @@ import SwiftUI
 
 /// The UI-test probe: a small overlay at the top centre that shows the fakes' call counters, so
 /// a test can check "one request" or "one deletion", which the UI itself cannot tell apart from
-/// two identical calls. The counters are read when the view is created and on a tap of
-/// `uitest.probe.refresh` or `uitest.probe.release`, never on a timer, so nothing depends on
-/// timing. Only the two buttons take touches; the text and the background let them through to
-/// the app underneath.
+/// two identical calls. The counters are read only on a tap of `uitest.probe.refresh` or
+/// `uitest.probe.release`, never on a timer or when SwiftUI re-creates the view, so nothing
+/// depends on timing; until the first tap the text says so. Only the two buttons take touches;
+/// the text and the background let them through to the app underneath.
 struct UITestProbeView: View {
     let controls: UiTestControls
-    @State private var counters: String
-
-    init(controls: UiTestControls) {
-        self.controls = controls
-        _counters = State(initialValue: Self.describe(controls))
-    }
+    @State private var counters = "not read yet: tap Refresh"
 
     var body: some View {
         VStack(spacing: 2) {
