@@ -1,0 +1,3 @@
+result: fail
+output: ios-arm64-simulator/Headers/TrailMetricsShared.h of the uitest variant differs from production
+output: > @interface TMSPlantedExtra : TMSBase

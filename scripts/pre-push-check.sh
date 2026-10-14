@@ -119,6 +119,7 @@ run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --sel
 run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
 run_step "room schema self-test" scripts/check-room-schema.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
+run_step "variant API check self-test" scripts/check-variant-api.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 

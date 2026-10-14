@@ -1,0 +1,2 @@
+result: fail
+output: error: API check: the uitest framework's ios-arm64-simulator has no doInitKoinIosForUiTest

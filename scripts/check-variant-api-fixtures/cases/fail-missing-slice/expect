@@ -1,0 +1,3 @@
+result: fail
+output: error: API check: ios-arm64-simulator/Headers/TrailMetricsShared.h is missing in the production or the uitest framework
+output: error: API check: expected 2 slices (ios-arm64, ios-arm64-simulator) in both frameworks
