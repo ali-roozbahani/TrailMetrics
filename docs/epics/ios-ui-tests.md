@@ -841,7 +841,10 @@ S1 and S8, different waves. `tm-ios` in S2 and S3, `tm-testing` in S1 and S3, di
   the documentation gap is board record `xcodebuild-build-needs-arm64-flags-undocumented`.
 - **Xcode IDE and Xcode 26.6 not verified** (F22): the S1a spike used only `xcodebuild` under
   Xcode 27.0. S2's and S4's CI runs are the first checks under 26.6; opening the project in the
-  IDE with the new configuration and scheme is checked by Ali when reviewing S2.
+  IDE with the new configuration and scheme is checked by Ali when reviewing S2. The first CI run
+  (PR #148) showed that Xcode 26.6 writes Swift module-qualified extension names with `.`
+  (`extension TrailMetricsShared.UiTestScenario`) and Xcode 27 with `::`; the variant API check
+  now accepts both.
 - **Map long-press not reachable** (F6): closed, S0 showed the long press works (S0 spike,
   2026-10-13, Xcode 27.0).
 - **Maps key at launch:** **verified** (S0 spike, 2026-10-13, Xcode 27.0): the CI placeholder

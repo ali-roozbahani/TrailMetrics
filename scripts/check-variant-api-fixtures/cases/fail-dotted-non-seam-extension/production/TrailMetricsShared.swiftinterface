@@ -1,0 +1,10 @@
+// swift-interface-format-version: 1.0
+import Foundation
+@_exported import TrailMetricsShared
+public enum Skie {
+  public enum KotlinxCoroutinesCore {
+  }
+}
+public func decodePolyline(encoded: Swift.String) -> [TrailMetricsShared.RoutePoint]
+public func getDatabaseBuilder() -> TrailMetricsShared.Room3_runtimeRoomDatabaseBuilder<TrailMetricsShared.TrailMetricsDatabase>
+extension TrailMetricsShared.KotlinLazyThreadSafetyMode : Swift.Sendable {}
