@@ -31,6 +31,7 @@ public struct RouteView: View {
                 mapView: $mapView
             )
             .ignoresSafeArea()
+            .accessibilityIdentifier("route.map")
 
             if viewModel.startPoint == nil {
                 ProgressView()
@@ -107,6 +108,7 @@ public struct RouteView: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityIdentifier("route.resetButton")
         }
     }
 
@@ -164,6 +166,7 @@ public struct RouteView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.trailGreen)
                 .disabled(!viewModel.canGenerateRoute)
+                .accessibilityIdentifier("route.generateButton")
             }
         }
     }
