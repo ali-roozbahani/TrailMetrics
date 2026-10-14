@@ -208,6 +208,8 @@ fails, so observe through a use case that turns the failure into a value on the 
     the XCFramework (`ProcessXCFramework`) and compiles the Swift packages *before* any of
     the app target's phases run. The pre-action output, including Gradle errors, is in the
     build log, and a failing pre-action fails the build.
+  - The shared `TrailMetricsUITests` scheme has the same Build pre-action (see "Build
+    configurations and schemes").
   - The `TrailMetrics` target's "Build KMP Shared Framework" Run Script phase (first phase,
     `alwaysOutOfDate = 1`, output `.xcode_kmp_stamp`) runs it with `--build-phase` as a
     safety net. If the pre-action didn't run, it rebuilds and then fails the build with
@@ -229,6 +231,47 @@ fails, so observe through a use case that turns the failure into a value on the 
   ("rebuilding shared framework..." / "up to date, skipping Gradle build"). Deleting the stamp
   forces the next build to run Gradle.
 - `./gradlew clean` wipes the XCFramework; the next Xcode build has to regenerate it.
+
+## Build configurations and schemes
+
+- The project has three build configurations: `Debug`, `Release` and `Debug-UITest`.
+  `Debug-UITest` is a copy of `Debug` in every configuration list (the project, `TrailMetrics`,
+  `TrackingWidgetExtension`, `TrailMetricsUITests`); the only difference is at the project level,
+  where `SWIFT_ACTIVE_COMPILATION_CONDITIONS` is `DEBUG UITEST_SEAM $(inherited)`. So the project's
+  targets see `UITEST_SEAM` and `DEBUG`; the Swift packages see `DEBUG` only. A build setting
+  added to or changed in `Debug` belongs in `Debug-UITest` too.
+- Keep `Debug` in the name of a configuration that should build like Debug: Xcode picks the
+  SwiftPM packages' debug or release build from the name (seen with `xcodebuild`: a
+  configuration named `UITest` built the packages as Release, `-O`, whole-module, no `DEBUG`).
+- Two shared schemes build the app:
+  - `TrailMetrics`, the normal scheme: Run, Test and Analyze on `Debug`, Profile and Archive on
+    `Release`, and no testables. It links the production framework. CI's "Build iOS app" step
+    and the gate build it.
+  - `TrailMetricsUITests`, the UI-test scheme: the same Build pre-action, Test and Launch on
+    `Debug-UITest`, the `TrailMetricsUITests` testables and that target's build-for-testing
+    entry. It links the test-only variant of the framework (built by `shared-uitest`, ADR-002
+    "Amendment").
+- How the variant is picked: `scripts/build-kmp-framework.sh` builds the variant when Xcode's
+  `CONFIGURATION` is `Debug-UITest` (the pre-action and the `--build-phase` safety net alike),
+  and with `--variant uitest` when it is called outside Xcode; otherwise it builds production.
+  Both go to the same debug path, which `SharedKit/Package.swift` links in every configuration.
+- Running the UI tests locally (a concrete simulator; the pre-action builds the variant):
+
+  ```bash
+  cd iosApp
+  xcodebuild test -project TrailMetrics.xcodeproj -scheme TrailMetricsUITests \
+    -destination "platform=iOS Simulator,id=<simulator id>" -skipMacroValidation \
+    ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+    2>&1 | ../scripts/filter-xcode-log.sh
+  ```
+
+  Add `-only-testing:TrailMetricsUITests/<TestClass>` for one class. Without the architecture
+  flags a build on clean derived data fails (the XCFramework has no x86_64 slice). The filter
+  hides the exported build settings, which carry the Maps key, from the log.
+- After a UI-test run the debug path holds the variant until the next normal build. That build
+  rebuilds production on its own: the stamp records the variant, so its pre-action prints
+  "KMP source or framework variant changed, rebuilding shared framework (production)..." and
+  replaces the variant before anything links it.
 
 ## Naming (Swift)
 
