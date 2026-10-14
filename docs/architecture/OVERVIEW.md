@@ -110,8 +110,8 @@ project — read this before touching any module.
   copies it over the production framework's debug path,
   so `SharedKit/Package.swift` stays as it is. The next normal run
   rebuilds and copies production back. The `Debug-UITest` configuration,
-  its scheme and the Swift call site come with later subtasks of
-  `docs/epics/ios-ui-tests.md` (S2, S3).
+  its scheme `TrailMetricsUITests` and the Swift call site (`TrailMetricsApp`,
+  under `#if UITEST_SEAM`) exist; only that configuration enters the seam.
 - The shared `TrailMetrics` scheme runs the script as a Build pre-action.
   Xcode copies the XCFramework and compiles the Swift packages before any
   Run Script phase runs, so a phase alone cannot fix a stale framework in

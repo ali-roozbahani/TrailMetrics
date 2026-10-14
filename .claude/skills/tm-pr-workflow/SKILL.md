@@ -223,10 +223,11 @@ reasons:
    tracking notification and the iOS Live Activity (`TrackingWidget`); and a human judgement
    of visual design against Figma.
 2. **A test seam or test target that does not exist yet.** It must be tracked by a
-   `BOARD.md` record that the PR names. The iOS UI-test target `TrailMetricsUITests` exists
-   but has only a launch test until its scenario tests land, and the app has no launch-time
-   fake seam yet, so an iOS-only user-visible behavior whose logic no Swift unit test in the
-   packages covers may still need this.
+   `BOARD.md` record that the PR names. The iOS UI-test target `TrailMetricsUITests` has a
+   launch test and the failed-delete test, and the app has its launch-time fake seam (the
+   `UITEST_SEAM` entry); the other scenarios land with later subtasks of
+   `docs/epics/ios-ui-tests.md`, so an iOS-only user-visible behavior whose logic no Swift unit
+   test in the packages covers and no scenario reaches may still need this.
 3. **The single final smoke check of a finished end-to-end feature**, after all its automated
    tests passed. It is a smoke check, not the validation.
 

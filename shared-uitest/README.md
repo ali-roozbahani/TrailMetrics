@@ -47,9 +47,9 @@ over `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework`, so
 `SharedKit/Package.swift` does not change. The next run without
 `--variant uitest` puts the production framework back. Normal Debug and
 Release builds never link the variant. The Xcode configuration
-`Debug-UITest`, its scheme and the Swift call site that enters the seam come
-with later subtasks of `docs/epics/ios-ui-tests.md` (S2, S3); until then
-nothing calls this module.
+`Debug-UITest` and its scheme `TrailMetricsUITests` link it, and the Swift
+call site that enters the seam is `TrailMetricsApp.init()`, under
+`#if UITEST_SEAM`, when a UI test passes `-uiTestScenario <name>`.
 
 No Kover and no coverage floor: Kover can't measure iOS-only code, so the
 build file does not read `config/kover-floors.properties` (like `shared`).
