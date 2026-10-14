@@ -89,14 +89,18 @@ of CI's `android` job: the script whose base-branch copy writes the reviewers' `
 input, `tm-pr-review` item 10), the Kover floors self-test (`scripts/check-kover-floors.sh
 --self-test`, also the "Kover floors self-test" step of CI's `android` job), the Room schema
 self-test (`scripts/check-room-schema.sh --self-test`, also the "Room schema self-test" step of
-CI's `android` job) and the iOS scope
+CI's `android` job), the iOS scope
 self-test
 (`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
 job: it runs the gate's iOS scope block below, extracted from the committed script between its
 `# >>> iOS scope: ... (begin) >>>` and `(end)` markers, in scratch git repositories, one case
 per fixture in `scripts/check-ios-scope-fixtures/`, and it also checks that every `BUILD_FILES`
 entry of `scripts/build-kmp-framework.sh`, taken from the committed file, matches the filter; it
-needs `python3`, `bash` and `git` and fails without them).
+needs `python3`, `bash` and `git` and fails without them) and the variant API check self-test
+(`scripts/check-variant-api.sh --self-test`: the check that `scripts/build-kmp-framework.sh
+--variant uitest` runs on the test-only framework variant of `shared-uitest`, run against the
+fixtures in `scripts/check-variant-api-fixtures/`; gate only, CI's step comes with S4 of
+`docs/epics/ios-ui-tests.md`).
 The gate also runs the Kover floors check in every classification, light included
 (`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
 floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
@@ -121,7 +125,8 @@ below each module's measured coverage from its own tests. `core`,
 `shared`, `androidApp/app` and `androidApp/core-ui` have no minimum on purpose: they have no tests
 of their own that Kover measures (0% own line coverage), so a floor could never fail; each one's
 `build.gradle.kts` says what the module is and gets a floor when its first test of its own runs on
-the Android host. The merged root report is not the sum of the module reports. Checked on
+the Android host. `shared-uitest` has no minimum either: it has only iOS targets, which Kover
+can't measure, so it does not apply Kover at all. The merged root report is not the sum of the module reports. Checked on
 2026-10-05 with `./gradlew koverXmlReport`, then the `LINE` counter of each report
 (`for f in build/reports/kover/report.xml */build/reports/kover/report.xml androidApp/*/build/reports/kover/report.xml; do echo "$f $(grep -o '<counter type="LINE"[^>]*/>' "$f" | tail -1)"; done`):
 the nine modules' own reports sum to 723 of 2121 lines covered, the root to 906 of 2327. All of
@@ -131,7 +136,7 @@ modules' tests. Repeat it when a module joins the root merge block or a Kover fi
 It adds `swiftlint lint --strict`, the shared
 XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
 build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
-`data/`, `core/` or `shared/` other than markdown (`*.md`), one of the root Gradle files
+`data/`, `core/`, `shared/` or `shared-uitest/` other than markdown (`*.md`), one of the root Gradle files
 `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`,
 one of the files that run the Gradle build (`gradlew`, `gradle/wrapper/gradle-wrapper.jar`,
 `gradle/wrapper/gradle-wrapper.properties`, `gradle/gradle-daemon-jvm.properties`), or
@@ -266,7 +271,8 @@ Required. Use these headings, and keep all four even when one is
    were skipped if they were. For test changes, include test counts before and after
    (from `allTests` JUnit XML, not `./gradlew test`), counted this way:
    - One count per module and test task: each KMP module per target (`domain`, `data`:
-     `testAndroidHostTest` and `iosSimulatorArm64Test`; `shared`: `iosSimulatorArm64Test`),
+     `testAndroidHostTest` and `iosSimulatorArm64Test`; `shared` and `shared-uitest`:
+     `iosSimulatorArm64Test`),
      each Android module's `testDebugUnitTest`.
    - A count is the `tests` attribute summed over the XML files in
      `<module>/build/test-results/<task>/` after the gate's `allTests test` run.

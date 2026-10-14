@@ -104,9 +104,10 @@ project — read this before touching any module.
   is the test-only variant built by `shared-uitest`
   (`./gradlew :shared-uitest:assembleTrailMetricsSharedDebugXCFramework`)
   for the iOS UI tests: the script builds it for the Xcode configuration
-  `Debug-UITest` or with `--variant uitest`, checks that its Objective-C
-  header and Swift interface are production's plus the UI-test seam's
-  declarations, and copies it over the production framework's debug path,
+  `Debug-UITest` or with `--variant uitest`, checks with
+  `scripts/check-variant-api.sh` that its Objective-C header and Swift
+  interface are production's plus the UI-test seam's declarations, and
+  copies it over the production framework's debug path,
   so `SharedKit/Package.swift` stays as it is. The next normal run
   rebuilds and copies production back. The `Debug-UITest` configuration,
   its scheme and the Swift call site come with later subtasks of

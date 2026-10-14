@@ -69,7 +69,8 @@ linked by UI-test builds alone.
   production code does.
 - `scripts/build-kmp-framework.sh` builds the variant only when asked for
   it (the `Debug-UITest` Xcode configuration, or `--variant uitest`),
-  checks that its API is production's plus the seam's declarations, and
+  checks with `scripts/check-variant-api.sh` that its API is production's
+  plus the seam's declarations, and
   copies it over the production framework's debug path
   (`shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework`), so
   `SharedKit/Package.swift` does not change. Its stamp records which
@@ -82,6 +83,6 @@ linked by UI-test builds alone.
 ### Consequences
 - Two modules apply SKIE and define a framework named `TrailMetricsShared`;
   only `shared`'s is production. A third one needs a new decision.
-- The variant's API can drift from production's (the build script's API
-  check catches it; one known difference, a swap of two `cancel` labels in
+- The variant's API can drift from production's (`scripts/check-variant-api.sh`
+  catches it; one known difference, a swap of two `cancel` labels in
   Kotlin library types, is normalised there and documented in the script).
