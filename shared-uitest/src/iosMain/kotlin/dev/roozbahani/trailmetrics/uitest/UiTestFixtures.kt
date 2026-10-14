@@ -22,6 +22,11 @@ internal object UiTestFixtures {
      * A small closed loop around [start], shaped like what `DirectionsRepositoryImpl` returns:
      * the decoded overview polyline from the start back to the start (coordinates at 1e-5
      * precision, `order` counting up from 0) and the summed leg distance.
+     *
+     * The second-to-last point is about 11 m from [start], so the walk (which stops there, see
+     * `UiTestLocationRepository`) ends inside Tracking's 25 m completion radius and nearer to a
+     * late route point than to the start: the first and last point share their coordinates, so a
+     * location equal to them would resolve to index 0 when route progress jumps there at once.
      */
     val route = Route(
         points = listOf(
@@ -32,7 +37,7 @@ internal object UiTestFixtures {
             Coordinates(52.5218, 13.40796),
             Coordinates(52.5209, 13.40796),
             Coordinates(52.52, 13.40796),
-            Coordinates(52.52, 13.40648),
+            Coordinates(52.52, 13.40517),
             Coordinates(52.52, 13.405)
         ).mapIndexed { index, coordinates -> RoutePoint(coordinates = coordinates, order = index) },
         distanceMeters = 800.0
