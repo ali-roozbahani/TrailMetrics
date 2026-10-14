@@ -61,6 +61,7 @@ domain/               → pure Kotlin: models, use cases, repository interfaces.
 data/                 → KMP: repository implementations, Room, Ktor, platform-specific location/tracking via expect/actual
 core/                 → KMP, commonMain only: AppRoute (navigation identity), RouteUiError (error classification)
 shared/               → KMP umbrella module: Koin composition root, XCFramework export for iOS
+shared-uitest/        → test-only: builds a variant of the shared XCFramework with the iOS UI-test seam (fakes); only UI-test builds link it
 
 androidApp/
   app/                 → Android composition root: NavHost, Application class, Koin wiring
@@ -157,7 +158,7 @@ The goal is that anyone reading this repository — human or automated — can t
    ```bash
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
    ```
-4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. The shared `TrailMetrics` scheme rebuilds the shared framework automatically before each build (incrementally, only when `domain`/`data`/`core`/`shared` Kotlin sources or the Gradle build files change) through `scripts/build-kmp-framework.sh` — see `LEARNINGS.md` ("Xcode skipped the KMP build phase").
+4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. The shared `TrailMetrics` scheme rebuilds the shared framework automatically before each build (incrementally, only when `domain`/`data`/`core`/`shared` Kotlin sources or the Gradle build files change) through `scripts/build-kmp-framework.sh` — see `LEARNINGS.md` ("Xcode skipped the KMP build phase"). The same script can instead put a test-only variant of the framework at the same path (`--variant uitest`; built by `shared-uitest`, the framework plus the iOS UI-test seam, see [`ADR-002`](docs/architecture/ADR-002-shared-umbrella-module.md), "Amendment"). Normal Debug and Release builds never link it: the next normal run puts the production framework back.
 5. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
 
 ---
@@ -187,7 +188,7 @@ Both Android and iOS have their own CI job (`.github/workflows/ci.yml`) running 
 - [`docs/architecture/ADR-001-no-compose-multiplatform.md`](docs/architecture/ADR-001-no-compose-multiplatform.md), [`ADR-002-shared-umbrella-module.md`](docs/architecture/ADR-002-shared-umbrella-module.md), [`ADR-003-core-ui-split.md`](docs/architecture/ADR-003-core-ui-split.md)
 - [`.claude/skills/`](.claude/skills/) — coding standards and agent workflow: `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow`, `epic-orchestration`
 - [`LEARNINGS.md`](LEARNINGS.md) — chronological log of concrete technical gotchas hit during development
-- Per-module `README.md` in `domain/`, `data/`, `core/`, `shared/`, `androidApp/core-ui/`
+- Per-module `README.md` in `domain/`, `data/`, `core/`, `shared/`, `shared-uitest/`, `androidApp/core-ui/`
 
 ---
 
