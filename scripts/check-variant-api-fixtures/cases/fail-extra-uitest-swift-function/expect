@@ -1,0 +1,3 @@
+result: fail
+output: ios-arm64/Modules/TrailMetricsShared.swiftmodule/ios-arm64.swiftinterface of the uitest variant differs from production
+output: > public func doInitKoinIosForUiTestExtra() -> Swift::Int32

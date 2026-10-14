@@ -1,0 +1,3 @@
+result: fail
+output: ios-arm64/Headers/TrailMetricsShared.h of the uitest variant differs from production
+output: > - (void)cancelCause_:(TMSKotlinCancellationException * _Nullable)cause

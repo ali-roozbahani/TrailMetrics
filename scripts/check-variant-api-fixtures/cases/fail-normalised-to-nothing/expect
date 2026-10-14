@@ -1,0 +1,2 @@
+result: fail
+output: error: API check: ios-arm64/Headers/TrailMetricsShared-Swift.h normalised to nothing

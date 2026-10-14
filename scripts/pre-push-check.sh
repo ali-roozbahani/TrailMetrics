@@ -35,9 +35,11 @@ run_step() {
 # root Gradle files that configure the shared framework's build, for the Gradle
 # wrapper and daemon JVM files that run it (gradlew, gradle/wrapper/gradle-wrapper.jar and
 # .properties, gradle/gradle-daemon-jvm.properties) and for scripts/build-kmp-framework.sh, the
-# iOS steps' own framework build. Not for gradlew.bat (Windows only, nothing here runs it) or
-# this script (CI's ios job runs in full for it). Exact paths and an exact `.md` suffix, as in
-# scripts/classify-changes.sh: `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
+# iOS steps' own framework build. Not for gradlew.bat (Windows only, nothing here runs it),
+# this script (CI's ios job runs in full for it) or scripts/check-variant-api.sh (only
+# `--variant uitest` runs it, which no iOS step here passes; its self-test runs on every gate
+# run). Exact paths and an exact `.md` suffix, as in scripts/classify-changes.sh:
+# `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
 IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/|shared-uitest/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml|gradle/wrapper/gradle-wrapper\.properties|gradle/wrapper/gradle-wrapper\.jar|gradle/gradle-daemon-jvm\.properties|gradlew|scripts/build-kmp-framework\.sh)$'
 IOS_PATHS_EXCLUDED='\.md$'
 # The list is `git diff --no-renames -z`, as in scripts/classify-changes.sh: a move lists both
@@ -119,6 +121,7 @@ run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --sel
 run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
 run_step "room schema self-test" scripts/check-room-schema.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
+run_step "variant API check self-test" scripts/check-variant-api.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 

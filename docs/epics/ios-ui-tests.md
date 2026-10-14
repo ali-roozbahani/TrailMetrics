@@ -681,6 +681,10 @@ ONLY_ACTIVE_ARCH=NO` (F20) and prints through `scripts/filter-xcode-log.sh`.
       The comment above "Room schema export freshness" speaks of entity changes only (board
       record drift-ci-schema-freshness-comment-converter; the record is removed by a later PR
       that may edit BOARD.md, since S4 cannot push and its allowed_paths have no BOARD.md).
+    - >-
+      CI's existing list of script self-test steps also runs
+      `scripts/check-variant-api.sh --self-test` (the gate already runs it; a workflow change,
+      so S4 adds it).
   tier2: none - CI only
 
 - id: S5

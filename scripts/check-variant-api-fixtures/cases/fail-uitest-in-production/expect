@@ -1,0 +1,2 @@
+result: fail
+output: error: API check: the production framework's ios-arm64/Headers/TrailMetricsShared.h contains UiTest declarations
