@@ -182,14 +182,18 @@ fails, so observe through a use case that turns the failure into a value on the 
 
 - `scripts/build-kmp-framework.sh` is the one place that decides whether the shared
   XCFramework needs Gradle. It hashes the **content** of every `*.kt`/`*.kts` under
-  `domain/src data/src core/src shared/src`, plus `settings.gradle.kts`, the root
+  `domain/src data/src core/src shared/src shared-uitest/src`, plus `settings.gradle.kts`, the root
   `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`,
-  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared/build.gradle.kts` and
+  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared|shared-uitest/build.gradle.kts` and
   `local.properties` (if present; BuildKonfig compiles its API key into the framework). It
-  compares that against `shared/build/.xcode_kmp_stamp` and runs
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash changed or the
-  XCFramework is missing. The stamp is deleted before Gradle and written only after it
-  succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
+  compares the variant and that hash against `shared/build/.xcode_kmp_stamp` and runs
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash or the variant
+  changed or the XCFramework is missing. The variant is production unless the script gets
+  `--variant uitest` or Xcode's `CONFIGURATION` is `Debug-UITest` (that configuration does not
+  exist yet; S2 of `docs/epics/ios-ui-tests.md` adds it); then it also builds the
+  test-only variant of `shared-uitest`, checks its API against production's and copies it over
+  the same debug path (ADR-002, "Amendment"). The stamp is deleted before Gradle and written
+  only after it succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
   Deliberately not hashed: `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and
   `gradle/gradle-daemon-jvm.properties`. `gradle-wrapper.properties` names the Gradle version;
   the first two only launch that version and the third only selects the JVM that runs the
@@ -270,7 +274,7 @@ fails, so observe through a use case that turns the failure into a value on the 
 
 Config: `iosApp/.swiftlint.yml`. Run it from `iosApp/` with `swiftlint lint --strict`. It
 runs in `scripts/pre-push-check.sh` (whenever a file other than markdown under `iosApp/`,
-`domain/`, `data/`, `core/` or `shared/` changed, or a root Gradle file: `build.gradle.kts`,
+`domain/`, `data/`, `core/`, `shared/` or `shared-uitest/` changed, or a root Gradle file: `build.gradle.kts`,
 `settings.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`, or a file that runs the
 Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`,
 `gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in the CI macOS job, followed by an `xcodebuild` simulator build.

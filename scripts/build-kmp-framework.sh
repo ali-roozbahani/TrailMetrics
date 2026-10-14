@@ -14,7 +14,10 @@
 #                  checks the hash. It fires when the pre-action didn't run at all.
 #   --variant      Which framework to put at the debug path. Without it: uitest when Xcode's
 #                  CONFIGURATION is Debug-UITest (pre-action and --build-phase alike), production
-#                  otherwise. The gate and CI, which run outside Xcode, pass --variant uitest.
+#                  otherwise. Callers outside Xcode pass --variant uitest when they need the
+#                  variant; today's gate and CI steps pass nothing and build production (the
+#                  UI-test steps that will pass it come with S4 and S8 of
+#                  docs/epics/ios-ui-tests.md).
 #
 # Variants (ADR-002, "Amendment"):
 #   production  :shared's framework, what every normal Debug and Release build links.
