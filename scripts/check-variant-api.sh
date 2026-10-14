@@ -31,7 +31,9 @@
 #     an Objective-C `@interface` block of one of those classes (not a category on it), a
 #     top-level Swift declaration or extension of one of those names, and those names on the
 #     `@class` forward declaration line. Any other declaration fails, whether or not its name
-#     contains UiTest.
+#     contains UiTest. An extension's name is compared without its module qualifier, in either
+#     form the Swift interface writes it: `TrailMetricsShared::` (Xcode 27, Swift 6.4) or
+#     `TrailMetricsShared.` (Xcode 26.6, CI). No other module's qualifier is stripped.
 #   - Blank lines are dropped (the left-out declarations leave theirs behind).
 # Anything else that differs fails. Production must contain no UiTest name at all.
 
@@ -100,7 +102,7 @@ normalise_api() {
         if ($0 ~ /^[^ }]/) {
           name = ""
           if (match($0, /^extension [A-Za-z0-9_:.]+/)) {
-            name = substr($0, 11, RLENGTH - 10); sub(/^TrailMetricsShared::/, "", name)
+            name = substr($0, 11, RLENGTH - 10); sub(/^TrailMetricsShared(::|\.)/, "", name)
           } else if (match($0, /(^| )(func|enum|class|struct|protocol|typealias|var|let) [A-Za-z0-9_]+/)) {
             name = substr($0, RSTART, RLENGTH); sub(/^.* /, "", name)
           }
