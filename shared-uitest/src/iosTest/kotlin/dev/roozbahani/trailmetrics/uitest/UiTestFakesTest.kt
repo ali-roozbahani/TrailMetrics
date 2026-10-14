@@ -2,6 +2,8 @@ package dev.roozbahani.trailmetrics.uitest
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
+import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -150,7 +152,7 @@ class UiTestFakesTest {
     }
 
     @Test
-    fun `FinishTwice walks the route point by point to its last point and stays open`() = runTest {
+    fun `FinishTwice walks the route point by point to its second-to-last point and stays open`() = runTest {
         val launch = launchUiTest(UiTestScenario.FinishTwice)
         val points = UiTestFixtures.route.points
         val updates = mutableListOf<LocationUpdate>()
@@ -158,9 +160,24 @@ class UiTestFakesTest {
         val collector = backgroundScope.launch { launch.location.observeLocationUpdates().toList(updates) }
         testScheduler.runCurrent()
 
-        assertEquals(points.map { it.coordinates }, updates.map { assertIs<LocationUpdate.Success>(it).coordinates })
-        assertEquals(points.last().coordinates, assertIs<LocationUpdate.Success>(updates.last()).coordinates)
+        assertEquals(
+            points.dropLast(1).map { it.coordinates },
+            updates.map { assertIs<LocationUpdate.Success>(it).coordinates }
+        )
         assertTrue(collector.isActive, "the location flow completed")
+    }
+
+    @Test
+    fun `the end of the walk completes the route when route progress jumps there at once`() {
+        val planned = UiTestFixtures.route.points.map { it.coordinates }
+        val walkEnd = planned[planned.size - 2]
+
+        // TrackingView's rule: progress from index 0 with a window of 10, then at least
+        // size - 3 and within 25 m of the last planned point.
+        val progress = calculateRouteProgress(planned, walkEnd, previousIndex = 0, searchWindow = 10)
+
+        assertTrue(progress.lastIndex >= planned.size - 3, "lastIndex ${progress.lastIndex}")
+        assertTrue(walkEnd.distanceTo(planned.last()) <= 25.0, "walk end is too far from the route's end")
     }
 
     @Test

@@ -33,7 +33,7 @@ enum class UiTestScenario(
 
     /**
      * Empty history; every `saveActivity` is held until release. Location updates walk the route:
-     * one update per route point, in order, ending at its last point.
+     * one update per route point, in order, ending at the second-to-last point (see [UiTestFixtures.route]).
      */
     FinishTwice(seedsHistory = false, heldCall = UiTestHeldCall.Save, failsDelete = false, walksRoute = true)
 }

@@ -20,14 +20,15 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Reports [UiTestFixtures.start] as the current location. The update stream stays open like a
- * real GPS stream; when [walksRoute], it first emits one update per route point, in order.
+ * real GPS stream; when [walksRoute], it first emits one update per route point, in order, up to the second-to-last
+ * one (the last point has the start's coordinates, which route progress cannot tell from index 0).
  */
 internal class UiTestLocationRepository(private val walksRoute: Boolean) : LocationRepository {
     override suspend fun getCurrentLocation(): Result<Coordinates> = Result.success(UiTestFixtures.start)
 
     override fun observeLocationUpdates(): Flow<LocationUpdate> = flow {
         if (walksRoute) {
-            UiTestFixtures.route.points.forEach { point ->
+            UiTestFixtures.route.points.dropLast(1).forEach { point ->
                 emit(
                     LocationUpdate.Success(
                         coordinates = point.coordinates,
