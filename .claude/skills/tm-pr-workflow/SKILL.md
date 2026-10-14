@@ -142,6 +142,8 @@ one of the files that run the Gradle build (`gradlew`, `gradle/wrapper/gradle-wr
 `gradle/wrapper/gradle-wrapper.properties`, `gradle/gradle-daemon-jvm.properties`), or
 `scripts/build-kmp-framework.sh`. Not `gradlew.bat`, `scripts/pre-push-check.sh` itself or
 `scripts/classify-changes.sh`; CI's `ios` job runs in full for those (they are not `light`).
+Not `scripts/check-variant-api.sh` either: only `scripts/build-kmp-framework.sh --variant uitest`
+runs it, which no iOS step of the gate passes, and its self-test runs on every gate run.
 The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
 quoted or split. Fail-safe: when the gate cannot read the branch's exact list (no merge-base
 with `origin/main`, or `git diff` fails), the iOS steps count as required and a warning prints
