@@ -1,0 +1,22 @@
+// swift-interface-format-version: 1.0
+import Foundation
+@_exported import TrailMetricsShared
+public enum Skie {
+  public enum KotlinxCoroutinesCore {
+  }
+}
+@frozen public enum UiTestScenario : Swift.Hashable, Swift.CaseIterable, Swift._ObjectiveCBridgeable {
+  case failedDelete
+  public typealias _ObjectiveCType = TrailMetricsShared.__UiTestScenario
+}
+extension TrailMetricsShared.UiTestScenario {
+  public func toKotlinEnum() -> TrailMetricsShared.__UiTestScenario
+}
+extension TrailMetricsShared.__UiTestScenario {
+  public func toSwiftEnum() -> TrailMetricsShared.UiTestScenario
+}
+public func getDatabaseBuilder() -> TrailMetricsShared.Room3_runtimeRoomDatabaseBuilder<TrailMetricsShared.TrailMetricsDatabase>
+public func decodePolyline(encoded: Swift.String) -> [TrailMetricsShared.RoutePoint]
+public func doInitKoinIosForUiTest(scenario: TrailMetricsShared.UiTestScenario) -> TrailMetricsShared.UiTestControls
+extension TrailMetricsShared.KotlinLazyThreadSafetyMode : Swift.Sendable {}
+extension TrailMetricsShared.UiTestScenario : Swift.Sendable {}
