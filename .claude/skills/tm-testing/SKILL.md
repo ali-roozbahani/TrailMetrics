@@ -122,6 +122,17 @@ transitions instead of stubbing return values. Once MockK is added, it's fine fo
 collaborators that are tedious to fake, but a fake stays preferred for anything with real
 behavior worth exercising.
 
+The iOS UI tests' fakes are Kotlin and live in `shared-uitest` (package
+`dev.roozbahani.trailmetrics.uitest`, `src/iosMain`), not in `TestSupport`: the app reaches them
+only through the test-only variant of the framework, which UI-test builds alone link (ADR-002,
+"Amendment"). They are hand-written like every other fake, count calls in `MutableStateFlow<Int>`
+counters incremented with `update`, hold calls on a `CompletableDeferred` gate and use no delay
+and no clock. Their tests are `kotlin.test` in `shared-uitest/src/iosTest`, run by
+`./gradlew :shared-uitest:iosSimulatorArm64Test` and by the gate's `allTests`; the module has no
+Kover floor (iOS targets only, which Kover can't measure). The XCUITest side (the Debug-UITest
+configuration, the Swift call site, the scenarios) comes with later subtasks of
+`docs/epics/ios-ui-tests.md`.
+
 ## Testing MVI ViewModels
 
 Write the test against `onAction()` and the resulting `state`/`event` stream — never
