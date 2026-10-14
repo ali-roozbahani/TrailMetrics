@@ -238,6 +238,10 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
 - A protected-path change the task did not call for.
 - CI red after a green gate.
 - Anything that would need a force-push, an amend, a cancelled run or reading a credential.
+  A run cancelled because a newer push superseded its SHA is not that case: the checks of the
+  CURRENT head SHA count, and an older SHA's cancelled run is expected. Closing and reopening a
+  PR (to re-trigger the reviewer) starts a new CI run for the same SHA and cancels one still in
+  progress: read the current head SHA's checks after it, not the earlier run.
 - A merge condition that is "no" (section 8).
 
 ## Never
