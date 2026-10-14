@@ -447,7 +447,7 @@ exposes `arrow.clockwise` (F6): the symbol name is incidental and may change wit
 | Failed delete shows "Error" (smoke) | one seeded activity; delete fails | History tab, tap row, tap trash, tap "Delete" | alert "Error" with the general message exists; after "OK" the Details screen is still shown; probe `deletes=0` | `history.activityRow`, `details.deleteButton` | low: the seeded row is shown through the variant (F16) |
 | Delete confirmation twice | one seeded activity; deletes held | row, trash, "Delete" (held), trash, "Delete" again, release | probe `deletes=1`; History shows no row ("No Activities yet") | same | low. A literal double tap on the alert's button cannot work (the alert closes on the first tap), so "twice" means a second confirmation while the first delete is in flight, as Android's `DetailsScreenTest` does |
 | Generate twice | start location; 3 long-presses; directions held | long-press map 3x, double-tap Generate, release | wait for "Start Tracking"; probe `directions=1` | `route.map`, `route.generateButton` | low for the map: the long press is verified (S0). The View disables Generate while loading, so the test may pass even without `RouteViewModel`'s guard; then it proves the user-visible outcome, and the guard stays proven by the unit test. The PR states which |
-| Generate then Reset | as above, directions held | long-press 3x, tap Generate, tap top-bar Reset, release | probe `directionsDone=1`, then "Start Tracking" does not exist and Generate is disabled (no waypoints) | `route.map`, `route.generateButton`, `route.resetButton` | low: the map long press is verified (S0) |
+| Generate then Reset | as above, directions held | long-press 3x, tap Generate, tap top-bar Reset, release | after Reset the Generate button shows its text again and is disabled; after the release the probe shows `directions=1`, "Start Tracking" does not exist and Generate is still disabled | `route.map`, `route.generateButton`, `route.resetButton` | low: the map long press is verified (S0); a cancelled held call is cancelled in Kotlin through SKIE and never counts as completed, so no late result is observable; the stale-result guard stays proven by the unit tests |
 | Finish twice | route = small closed loop (at most 10 points); location updates walk it to the end; profile saved; saves held | long-press 3x, Generate, "Start Tracking", "Start", wait for "Finish", double-tap "Finish", release, History tab | probe `saves=1`; exactly one `history.activityRow` | the Route ones, `history.activityRow` | highest: `isRouteCompleted` with location updates delivered at once (**not verified**; the walk and the loop size are tuned in S7). Snapshot of a key-less map is a blank image, which is fine |
 
 What XCUITest cannot see: the polyline and markers inside `GMSMapView` (not accessibility
@@ -718,8 +718,8 @@ ONLY_ACTIVE_ARCH=NO` (F20) and prints through `scripts/filter-xcode-log.sh`.
       Every map long press lasts at least 1 s (`press(forDuration:)`), inside the map area
       (F6).
     - >-
-      Both tests pass 3 of 3 locally. Generate then Reset fails with RouteViewModel's
-      stale-result guard removed. For Generate twice the PR says whether removing the
+      Both tests pass 3 of 3 locally. Generate then Reset fails with `generationTask?.cancel()`
+      removed from `cancelGeneration()`. For Generate twice the PR says whether removing the
       generationTask guard makes the test fail or whether the View's disabled state already
       prevents the second request.
   tier2: RouteGenerateTwiceUITests, RouteGenerateThenResetUITests
