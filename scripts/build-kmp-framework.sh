@@ -107,11 +107,15 @@ CURRENT_HASH="$(shasum < "$INPUT_LIST.sums" | awk '{print $1}')"
 # else. Compared per slice: the Objective-C headers and every Swift interface of the framework.
 # Each file is normalised, then compared as a sorted list of lines (the variant orders some
 # declarations differently):
-#   - SKIE's per-build counters (`Skie_Suspend__12__...`, `Skie__TypeDef__3__...`) become `__N__`.
+#   - SKIE's per-build counters, only in the names `Skie_Suspend__<n>__...` and
+#     `Skie__TypeDef__<n>__...`, become `__N__`.
 #   - The `cancel` label swap (docs/epics/ios-ui-tests.md, F12): the variant gives the Swift
 #     labels `cancel(cause:)` and `cancel(cause_:)` of Ktor's ByteReadChannel/ByteWriteChannel
 #     (a Throwable) and coroutines' Job (a CancellationException) the other way round. Another
-#     `export(...)` order did not remove it, so exactly these method lines lose their label.
+#     `export(...)` order did not remove it, so exactly these method lines lose their label:
+#     the `cancelCause` line with a Throwable in the protocols TMSKtor_ioByteReadChannel and
+#     TMSKtor_ioByteWriteChannel, and the one with a CancellationException in
+#     TMSKotlinx_coroutines_coreJob. Every other `cancel` keeps its label.
 #   - Variant only: the declarations whose own name contains UiTest (the Objective-C classes
 #     TMSUiTest*, which hold the top-level functions too, and in the Swift interface SKIE's
 #     UiTestScenario enum, its extensions and doInitKoinIosForUiTest) are left out, and their
@@ -120,13 +124,17 @@ CURRENT_HASH="$(shasum < "$INPUT_LIST.sums" | awk '{print $1}')"
 # Anything else that differs fails the build. Production must contain no UiTest name at all.
 normalise_api() {
   sed -E \
-    -e 's/__[0-9]+__/__N__/g' \
-    -e 's/^- \(void\)cancelCause_?:\((TMSKotlinThrowable|TMSKotlinCancellationException) \* _Nullable\)cause __attribute__\(\(swift_name\("cancel\(cause_?:\)"\)\)\);$/- (void)cancelCause<label>:(\1 * _Nullable)cause __attribute__((swift_name("cancel(cause<label>:)")));/' \
+    -e 's/(Skie_Suspend|Skie__TypeDef)__[0-9]+__/\1__N__/g' \
     "$1" \
   | awk -v kind="$2" '
       function flush(   i) { for (i = 1; i <= n; i++) print buf[i]; n = 0 }
       kind == "h" {
         if (inblock) {
+          if (cancel_type != "" && $0 ~ /^- \(void\)cancelCause_?:\(TMSKotlin[A-Za-z]+ \* _Nullable\)cause __attribute__\(\(swift_name\("cancel\(cause_?:\)"\)\)\);$/ &&
+              index($0, "(" cancel_type " * _Nullable)") > 0) {
+            sub(/cancelCause_?:/, "cancelCause<label>:")
+            sub(/cancel\(cause_?:\)/, "cancel(cause<label>:)")
+          }
           buf[++n] = $0
           if ($0 == "@end") { if (!drop) flush(); n = 0; inblock = 0 }
           next
@@ -134,6 +142,9 @@ normalise_api() {
         if ($0 ~ /^@class /) { gsub(/ TMSUiTest[A-Za-z0-9_]*,/, ""); gsub(/, TMSUiTest[A-Za-z0-9_]*;/, ";") }
         if ($0 ~ /^@(interface|protocol) / && $0 !~ /;$/) {
           buf[++n] = $0; inblock = 1; drop = ($0 ~ /^@(interface|protocol) TMS[A-Za-z0-9_]*UiTest/)
+          cancel_type = ""
+          if ($0 ~ /^@protocol TMSKtor_io(ByteReadChannel|ByteWriteChannel)( |$)/) cancel_type = "TMSKotlinThrowable"
+          if ($0 ~ /^@protocol TMSKotlinx_coroutines_coreJob( |$)/) cancel_type = "TMSKotlinCancellationException"
           next
         }
         if ($0 == "") { flush(); print; next }
