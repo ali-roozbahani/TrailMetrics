@@ -142,6 +142,7 @@ private struct DetailsContent: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityIdentifier("details.deleteButton")
         }
     }
 }
