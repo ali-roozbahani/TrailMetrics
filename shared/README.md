@@ -1,8 +1,16 @@
 # shared
 
 KMP umbrella module. This is the **only** module responsible for
-cross-platform dependency-injection composition and for exporting Kotlin
-code to iOS. Targets: `android`, `iosArm64`, `iosSimulatorArm64`.
+cross-platform dependency-injection composition and for exporting
+production Kotlin API to iOS. Targets: `android`, `iosArm64`,
+`iosSimulatorArm64`.
+
+`shared` stays the only module that exports production API to iOS;
+`shared-uitest` builds only a test-only variant of the same framework,
+linked by UI-test builds alone (`docs/architecture/ADR-002-shared-umbrella-module.md`,
+"Amendment"). That variant is `shared`'s framework plus the iOS UI-test
+seam; `shared` never depends on `shared-uitest`, and nothing UI-test related
+belongs here.
 
 ## What lives here
 
@@ -34,6 +42,8 @@ code to iOS. Targets: `android`, `iosArm64`, `iosSimulatorArm64`.
   and `core` so their public API is visible from Swift. SKIE
   (`co.touchlab.skie`) is applied here (and only here) to make Kotlin
   `Flow`/suspend functions usable from Swift as `AsyncSequence`/`async`.
+  The only other module that applies SKIE and defines a framework is the
+  test-only `shared-uitest` (see above).
 
 ## What does NOT belong here
 
@@ -68,3 +78,8 @@ hide their symbols from the generated Swift interface.
   Framework" phase run (see `.claude/skills/tm-ios` → "Build integration");
   when working from the command line, run that script (or
   `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework`) manually.
+  `scripts/build-kmp-framework.sh --variant uitest` puts the test-only
+  variant at this module's debug path
+  (`shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework`) instead;
+  the next run without it puts this module's framework back. Normal Debug
+  and Release builds never link the variant.

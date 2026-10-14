@@ -14,7 +14,10 @@ description: Use when changing or adding code in TrailMetrics `domain`, `data`, 
 - `core` (commonMain only): `AppRoute`, `RouteError`/`RouteUiError`. Never a UI framework
   import. Compose belongs in `androidApp/core-ui`, never here (the Compose compiler plugin
   also compiles for iOS targets if applied in a commonMain module).
-- `shared`: the only module allowed to `export()` Kotlin to iOS. Owns `initKoin()`.
+- `shared`: owns `initKoin()`. `shared` stays the only module that exports production API to
+  iOS; `shared-uitest` builds only a test-only variant of the same framework, linked by UI-test
+  builds alone (ADR-002, "Amendment"). `shared-uitest` holds the iOS UI-test seam and nothing
+  else, and no production module depends on it.
 - If a task seems to need a forbidden import, stop and report. Do not work around it.
 
 ## Existing error model — use it, don't replace it
@@ -120,8 +123,10 @@ Call this out explicitly in the PR description if you touch event-emitting code.
 ## Build integration
 
 After changing `domain`, `data`, `core` or `shared`, iOS needs a rebuilt XCFramework.
-`scripts/build-kmp-framework.sh` does this automatically (hash of the four modules' sources
-and the Gradle build files). The shared `TrailMetrics` scheme's Build pre-action and the
+`scripts/build-kmp-framework.sh` does this automatically (hash of the sources of the four
+modules and `shared-uitest`, the Gradle build files, and which variant is in place: production,
+or the UI-test variant of `shared-uitest` for `--variant uitest` and for the `Debug-UITest`
+configuration, which S2 of `docs/epics/ios-ui-tests.md` adds). The shared `TrailMetrics` scheme's Build pre-action and the
 "Build KMP Shared Framework" phase run it on every Xcode build, and so does the gate. Do not
 bypass it. Run the script yourself before `xcodebuild test` inside an iOS package (details in
 `tm-ios`).

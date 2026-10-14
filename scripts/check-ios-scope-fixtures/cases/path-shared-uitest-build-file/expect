@@ -1,0 +1,4 @@
+# the build file of the test-only framework variant, also a BUILD_FILES entry
+touches: true
+warning: none
+files: shared-uitest/build.gradle.kts

@@ -36,9 +36,52 @@ Use a dedicated `shared` umbrella module (option b).
 ## Consequences
 - `shared` depends on `domain`, `data`, and `core` as `api(...)` (required
   for Kotlin/Native's `export()` to expose their symbols to Swift).
-- `shared` is the only module allowed to apply SKIE and to define
-  `binaries.framework { ... }` — no other module exports anything to iOS
-  directly.
+- `shared` is the only module that exports production API to iOS: no
+  other module applies SKIE or defines `binaries.framework { ... }` for
+  production. One exception, for UI tests only (see "Amendment"):
+  `shared-uitest` builds a test-only variant of the same framework.
 - iOS's `SharedKit` Swift Package wraps `TrailMetricsShared.xcframework`
   once, so every iOS feature package depends on `SharedKit`, never the
   XCFramework directly (see `docs/architecture/OVERVIEW.md`).
+
+## Amendment (2026-10-14): a test-only variant of the framework
+
+### Context
+The iOS UI tests (`docs/epics/ios-ui-tests.md`) need in-memory Kotlin fakes
+for location, directions, history storage and the user profile, entered
+through a Koin override at launch. A second Kotlin framework next to
+`TrailMetricsShared` could not share its types, and putting the fakes into
+`shared` would ship test code in every build of the production framework,
+Release included.
+
+### Decision
+`shared` stays the only module that exports production API to iOS;
+`shared-uitest` builds only a test-only variant of the same framework,
+linked by UI-test builds alone.
+
+- `shared-uitest` depends on `shared` with `api(...)`, applies SKIE and
+  defines one DEBUG-only static framework with the same `baseName`
+  (`TrailMetricsShared`), exporting `shared`, `domain`, `data` and `core`
+  like `shared` does, plus its own UI-test seam (package
+  `dev.roozbahani.trailmetrics.uitest`). It is the same Swift module, with
+  production's API plus the seam.
+- `shared` does not change and never depends on `shared-uitest`; no
+  production code does.
+- `scripts/build-kmp-framework.sh` builds the variant only when asked for
+  it (the `Debug-UITest` Xcode configuration, or `--variant uitest`),
+  checks that its API is production's plus the seam's declarations, and
+  copies it over the production framework's debug path
+  (`shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework`), so
+  `SharedKit/Package.swift` does not change. Its stamp records which
+  variant is in place, so the next normal build replaces the variant with
+  the production framework again.
+- Normal Debug and Release builds never link the variant. The
+  `Debug-UITest` configuration, the UI-test scheme and the Swift call site
+  that enters the seam come with later subtasks of the epic (S2, S3).
+
+### Consequences
+- Two modules apply SKIE and define a framework named `TrailMetricsShared`;
+  only `shared`'s is production. A third one needs a new decision.
+- The variant's API can drift from production's (the build script's API
+  check catches it; one known difference, a swap of two `cancel` labels in
+  Kotlin library types, is normalised there and documented in the script).

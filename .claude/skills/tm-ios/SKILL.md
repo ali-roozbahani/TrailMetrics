@@ -182,14 +182,16 @@ fails, so observe through a use case that turns the failure into a value on the 
 
 - `scripts/build-kmp-framework.sh` is the one place that decides whether the shared
   XCFramework needs Gradle. It hashes the **content** of every `*.kt`/`*.kts` under
-  `domain/src data/src core/src shared/src`, plus `settings.gradle.kts`, the root
+  `domain/src data/src core/src shared/src shared-uitest/src`, plus `settings.gradle.kts`, the root
   `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`,
-  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared/build.gradle.kts` and
+  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared|shared-uitest/build.gradle.kts` and
   `local.properties` (if present; BuildKonfig compiles its API key into the framework). It
-  compares that against `shared/build/.xcode_kmp_stamp` and runs
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash changed or the
-  XCFramework is missing. The stamp is deleted before Gradle and written only after it
-  succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
+  compares the variant and that hash against `shared/build/.xcode_kmp_stamp` and runs
+  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash or the variant
+  changed or the XCFramework is missing. With `--variant uitest` it also builds the test-only
+  variant of `shared-uitest`, checks its API against production's and copies it over the same
+  debug path (ADR-002, "Amendment"). The stamp is deleted before Gradle and written only after
+  it succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
   Deliberately not hashed: `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and
   `gradle/gradle-daemon-jvm.properties`. `gradle-wrapper.properties` names the Gradle version;
   the first two only launch that version and the third only selects the JVM that runs the

@@ -224,7 +224,8 @@ Full rules live in `tm-kmp-shared`; load it before touching `domain`/`data`/`cor
 The Android-relevant parts:
 - Nothing in `domain` imports `android.*`, `androidx.*` or Compose. Nothing in `core`'s
   `commonMain` imports any UI framework. Compose goes in `androidApp/core-ui`, never `core`.
-- `shared` is the only module that `export()`s Kotlin to iOS.
+- `shared` is the only module that exports production API to iOS (`shared-uitest` builds only a
+  test-only variant of the same framework, linked by UI-test builds alone; ADR-002).
 - Feature modules stay off `:data`/`:shared` and off each other (see Architecture).
 - If a task seems to need crossing one of these, stop and report it. Don't work around it.
 

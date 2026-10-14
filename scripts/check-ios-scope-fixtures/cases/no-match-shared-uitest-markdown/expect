@@ -1,0 +1,4 @@
+# markdown under shared-uitest/ is excluded like under shared/
+touches: false
+warning: none
+files: shared-uitest/README.md
