@@ -162,19 +162,24 @@ jobs:
         if: steps.changes.outputs.decision != 'light'
         run: scripts/check-room-schema.sh --check-export-fresh
 
-  ios:
-    name: iOS — SwiftLint, Build
-    runs-on: macos-latest
-    timeout-minutes: 40
+  # The iOS work is split into parallel jobs behind one aggregator, `ios`, which keeps the required
+  # check name "iOS — SwiftLint, Build". ios-build-ui then ios-ui is the critical path; ios-main
+  # (SwiftLint, simulator tests, app build, package tests) runs next to it.
+  ios-plan:
+    name: iOS — plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      decision: ${{ steps.changes.outputs.decision }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Decides whether the heavy steps below run: "light" only when every changed file of a
-      # pull request is on the non-source allowlist in scripts/classify-changes.sh; pushes and
-      # any error give "full". continue-on-error: if this step fails, the output is unset and
-      # every heavy step runs.
+      # Decides whether the macOS jobs run: "light" only when every changed file of a pull
+      # request is on the non-source allowlist in scripts/classify-changes.sh; pushes and any
+      # error give "full". continue-on-error: if this step fails, the output is unset and
+      # every macOS job runs (and the aggregator accepts no skipped result for it).
       - name: Classify changes
         id: changes
         continue-on-error: true
@@ -183,33 +188,161 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: scripts/classify-changes.sh --github
 
+  # Builds the UI-test products once and hands them to ios-ui as one archive: the UI tests need
+  # nothing else of the old job. The test-only framework variant is built by
+  # scripts/build-kmp-framework.sh --variant uitest, which builds production too for its API
+  # check, so no separate production framework step is needed here.
+  ios-build-ui:
+    name: iOS — build UI-test products
+    needs: ios-plan
+    if: needs.ios-plan.outputs.decision != 'light'
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Select Xcode
-        if: steps.changes.outputs.decision != 'light'
         run: sudo xcode-select -switch /Applications/Xcode.app
 
-      - name: Install SwiftLint
-        if: steps.changes.outputs.decision != 'light'
-        run: brew install swiftlint
-
-      - name: Run SwiftLint
-        if: steps.changes.outputs.decision != 'light'
-        run: |
-          cd iosApp
-          swiftlint lint --strict
-
       - name: Set up JDK 17
-        if: steps.changes.outputs.decision != 'light'
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        if: steps.changes.outputs.decision != 'light'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Secrets.xcconfig
+        run: |
+          cat <<EOF > iosApp/TrailMetrics/Secrets.xcconfig
+          GMS_API_KEY = CI_PLACEHOLDER_KEY
+          INFOPLIST_KEY_GMSApiKey = \$(GMS_API_KEY)
+          EOF
+
+      - name: Build UI-test framework variant
+        run: scripts/build-kmp-framework.sh --variant uitest
+
+      # Scheme TrailMetricsUITests (Debug-UITest from its test action) and the build settings
+      # of the former "Run iOS UI tests" step, with a generic simulator destination and
+      # -testProductsPath instead of running the tests.
+      - name: Build UI-test products
+        run: |
+          mkdir -p "$RUNNER_TEMP/ui-products"
+          cd iosApp
+          xcodebuild build-for-testing \
+            -project TrailMetrics.xcodeproj \
+            -scheme TrailMetricsUITests \
+            -destination "generic/platform=iOS Simulator" \
+            -testProductsPath "$RUNNER_TEMP/ui-products/TrailMetricsUITests.xctestproducts" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 \
+            EXCLUDED_ARCHS=x86_64 \
+            ONLY_ACTIVE_ARCH=NO
+
+      # actions/upload-artifact zips and does not keep executable bits or symlinks, so the
+      # products travel as one tar.gz.
+      - name: Pack UI-test products
+        run: |
+          mkdir -p "$RUNNER_TEMP/ui-handoff"
+          tar -czf "$RUNNER_TEMP/ui-handoff/ui-products.tar.gz" -C "$RUNNER_TEMP/ui-products" .
+          ls -l "$RUNNER_TEMP/ui-handoff/ui-products.tar.gz"
+
+      - name: Upload UI-test products
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ui-test-products
+          path: ${{ runner.temp }}/ui-handoff
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  # No checkout: everything the tests need is in the products archive. Same simulator selection
+  # as the package tests of ios-main. No retries (D6 of docs/epics/ios-ui-tests.md). The result
+  # bundle goes to $RUNNER_TEMP, which the runner empties for every job.
+  ios-ui:
+    name: iOS — run UI tests
+    needs: [ios-plan, ios-build-ui]
+    if: needs.ios-plan.outputs.decision != 'light'
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: Download UI-test products
+        uses: actions/download-artifact@v8
+        with:
+          name: ios-ui-test-products
+          path: ${{ runner.temp }}/downloaded-ui-products
+
+      - name: Unpack UI-test products
+        run: |
+          mkdir -p "$RUNNER_TEMP/unpacked-ui-products"
+          tar -xzf "$RUNNER_TEMP/downloaded-ui-products/ui-products.tar.gz" -C "$RUNNER_TEMP/unpacked-ui-products"
+
+      - name: Run iOS UI tests
+        id: ui_tests
+        run: |
+          SIM_ID="$(xcrun simctl list devices available iPhone \
+            | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | tail -1)"
+          if [ -z "$SIM_ID" ]; then
+            echo "No available iPhone simulator"
+            exit 1
+          fi
+          xcodebuild test-without-building \
+            -testProductsPath "$RUNNER_TEMP/unpacked-ui-products/TrailMetricsUITests.xctestproducts" \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            -resultBundlePath "$RUNNER_TEMP/TrailMetricsUITests.xcresult" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload UI test results
+        if: failure() && steps.ui_tests.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ui-test-results-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/TrailMetricsUITests.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+  ios-main:
+    name: iOS — SwiftLint, app build, package tests
+    needs: ios-plan
+    if: needs.ios-plan.outputs.decision != 'light'
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: |
+          cd iosApp
+          swiftlint lint --strict
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build KMP Shared Framework
-        if: steps.changes.outputs.decision != 'light'
         run: scripts/build-kmp-framework.sh
 
       # iOS simulator tests can't run on the ubuntu android job. data's
@@ -219,11 +352,9 @@ jobs:
       # support's own tests (SwiftTestSupportTest), which only a Mac can run.
       # shared-uitest, the test-only framework variant, has only iOS tests too: those of its UI-test fakes.
       - name: Run iOS simulator tests
-        if: steps.changes.outputs.decision != 'light'
         run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test :shared:iosSimulatorArm64Test :shared-uitest:iosSimulatorArm64Test
 
       - name: Generate Secrets.xcconfig
-        if: steps.changes.outputs.decision != 'light'
         run: |
           cat <<EOF > iosApp/TrailMetrics/Secrets.xcconfig
           GMS_API_KEY = CI_PLACEHOLDER_KEY
@@ -231,7 +362,6 @@ jobs:
           EOF
 
       - name: Build iOS app
-        if: steps.changes.outputs.decision != 'light'
         run: |
           cd iosApp
           xcodebuild build \
@@ -247,7 +377,6 @@ jobs:
       # Every iosApp/Packages/<Name>/ with a Tests/ directory; others are skipped.
       # `xcodebuild test` needs a concrete simulator, not generic/platform=iOS Simulator.
       - name: Run iOS package tests
-        if: steps.changes.outputs.decision != 'light'
         run: |
           SIM_ID="$(xcrun simctl list devices available iPhone \
             | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | tail -1)"
@@ -271,40 +400,44 @@ jobs:
           done
           exit $status
 
-      # The XCUITest scenarios of docs/epics/ios-ui-tests.md, on the package tests' simulator (the
-      # same selection, repeated). Runs last because it leaves the test-only framework variant at
-      # the debug path; the step above that writes the placeholder configuration (the Maps key the
-      # app needs at launch) must stay before it. No retries (D6). The result bundle goes to $RUNNER_TEMP,
-      # which the runner empties for every job, so it never exists before xcodebuild writes it.
-      - name: Run iOS UI tests
-        id: ui_tests
-        if: steps.changes.outputs.decision != 'light'
-        run: |
-          SIM_ID="$(xcrun simctl list devices available iPhone \
-            | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | tail -1)"
-          if [ -z "$SIM_ID" ]; then
-            echo "No available iPhone simulator"
-            exit 1
-          fi
-          scripts/build-kmp-framework.sh --variant uitest
-          cd iosApp
-          xcodebuild test \
-            -project TrailMetrics.xcodeproj \
-            -scheme TrailMetricsUITests \
-            -destination "platform=iOS Simulator,id=$SIM_ID" \
-            -resultBundlePath "$RUNNER_TEMP/TrailMetricsUITests.xcresult" \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO \
-            ARCHS=arm64 \
-            EXCLUDED_ARCHS=x86_64 \
-            ONLY_ACTIVE_ARCH=NO
+  # The required check "iOS — SwiftLint, Build". if: always() so that it reports when a job it
+  # needs failed, was cancelled or timed out. It is green only when every needed job succeeded,
+  # or, for the macOS jobs, was skipped while the decision is "light". An unset decision (a
+  # failed classifier or plan job) is never "light".
+  ios:
+    name: iOS — SwiftLint, Build
+    if: always()
+    needs: [ios-plan, ios-build-ui, ios-ui, ios-main]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-      - name: Upload UI test results
-        if: failure() && steps.ui_tests.outcome == 'failure'
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: ios-ui-test-results-attempt-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/TrailMetricsUITests.xcresult
-          if-no-files-found: warn
-          retention-days: 7
+    steps:
+      - name: Check results
+        env:
+          DECISION: ${{ needs.ios-plan.outputs.decision }}
+          RESULTS: >-
+            ios-plan=${{ needs.ios-plan.result }}
+            ios-build-ui=${{ needs.ios-build-ui.result }}
+            ios-ui=${{ needs.ios-ui.result }}
+            ios-main=${{ needs.ios-main.result }}
+        run: |
+          echo "plan decision: ${DECISION:-<empty>}"
+          verdict=PASS
+          for pair in $RESULTS; do
+            id="${pair%%=*}"
+            res="${pair#*=}"
+            echo "needs.$id.result = $res"
+            case "$res" in
+              success) ;;
+              skipped)
+                if [ "$DECISION" != light ]; then
+                  echo "::error::$id was skipped while the decision is '${DECISION:-<empty>}'"
+                  verdict=FAIL
+                fi ;;
+              *)
+                echo "::error::$id result is $res"
+                verdict=FAIL ;;
+            esac
+          done
+          echo "verdict=$verdict"
+          [ "$verdict" = PASS ]
