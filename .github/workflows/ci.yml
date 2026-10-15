@@ -246,6 +246,11 @@ jobs:
 
       # Every iosApp/Packages/<Name>/ with a Tests/ directory; others are skipped.
       # `xcodebuild test` needs a concrete simulator, not generic/platform=iOS Simulator.
+      # xcodebuild boots the simulator itself and shuts it down again after each package, so the
+      # boot is paid three times. It is booted here once (`bootstatus -b` boots it if needed and
+      # waits) and every package uses it. The packages also share one DerivedData under
+      # $RUNNER_TEMP, separate from the app build's, so the Maps SDK is fetched and built once;
+      # the local packages (SharedKit, DesignSystem, TestSupport) are still compiled per package.
       - name: Run iOS package tests
         if: steps.changes.outputs.decision != 'light'
         run: |
@@ -255,6 +260,8 @@ jobs:
             echo "No available iPhone simulator"
             exit 1
           fi
+          xcrun simctl bootstatus "$SIM_ID" -b
+          DERIVED_DATA="$RUNNER_TEMP/package-tests-derived-data"
           status=0
           for pkg in iosApp/Packages/*/; do
             name="$(basename "$pkg")"
@@ -266,6 +273,7 @@ jobs:
             (cd "$pkg" && xcodebuild test \
               -scheme "$name" \
               -destination "platform=iOS Simulator,id=$SIM_ID" \
+              -derivedDataPath "$DERIVED_DATA" \
               -skipMacroValidation \
               CODE_SIGNING_ALLOWED=NO) || status=1
           done
