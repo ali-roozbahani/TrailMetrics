@@ -137,6 +137,24 @@ if [ "$VARIANT" = uitest ]; then
 else
   ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
 fi
+# The framework at the debug path has the slices the mode requires: both when full, only the
+# simulator one when simulator-only. Before the stamp, so a mismatch leaves no stamp behind.
+SLICES_FOUND=""
+for slice in ios-arm64 ios-arm64-simulator; do
+  if [ -d "$XCFRAMEWORK/$slice" ]; then
+    SLICES_FOUND="$SLICES_FOUND $slice"
+  fi
+done
+if [ "$MODE" = full ]; then
+  SLICES_REQUIRED=" ios-arm64 ios-arm64-simulator"
+else
+  SLICES_REQUIRED=" ios-arm64-simulator"
+fi
+if [ "$SLICES_FOUND" != "$SLICES_REQUIRED" ]; then
+  echo "error: mode $MODE requires the slices${SLICES_REQUIRED} in $XCFRAMEWORK," \
+    "found:${SLICES_FOUND:- none}"
+  exit 1
+fi
 echo "$STAMP_VALUE" > "$STAMP_FILE"
 
 if [ "$BUILD_PHASE" = true ]; then

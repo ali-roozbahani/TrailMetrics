@@ -1,0 +1,2 @@
+result: fail
+output: error: API check: expected 2 slices (ios-arm64, ios-arm64-simulator) in both frameworks, or only ios-arm64-simulator in both; found production: ios-arm64-simulator, uitest variant: ios-arm64

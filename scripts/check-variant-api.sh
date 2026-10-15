@@ -15,6 +15,9 @@
 # Exit 0 when the API matches, 1 when it does not (messages on stdout), 2 for a usage error.
 # POSIX sh, sed and awk only, like scripts/build-kmp-framework.sh, which held this check before.
 #
+# Both frameworks have the same slices, and exactly one of two sets: ios-arm64 and
+# ios-arm64-simulator, or ios-arm64-simulator alone (a simulator-only build).
+#
 # Compared per slice: the Objective-C headers and every Swift interface of the framework. Each file
 # is normalised, then compared as a sorted list of lines (the variant orders some declarations
 # differently):
@@ -164,22 +167,42 @@ check_variant_api() {
       status=1
     fi
   done
-  variant_slices=0
-  for variant_framework in "$variant"/*/TrailMetricsShared.framework; do
-    [ ! -d "$variant_framework" ] || variant_slices=$((variant_slices + 1))
+  # The slice sets: exactly both slices, or exactly ios-arm64-simulator (a simulator-only build,
+  # see scripts/build-kmp-framework.sh), the same in both frameworks. The loop above already
+  # reported a slice missing in the variant; this rejects any other set, in either framework.
+  production_set=""
+  for framework in "$production"/*/TrailMetricsShared.framework; do
+    [ ! -d "$framework" ] || production_set="$production_set $(basename "$(dirname "$framework")")"
   done
-  # Both slices, or one and the same slice in both (a simulator-only build, see
-  # scripts/build-kmp-framework.sh): the loop above already failed a slice missing in the variant.
-  if [ "$slices" -lt 1 ] || [ "$slices" -gt 2 ] || [ "$variant_slices" -ne "$slices" ]; then
+  variant_set=""
+  for framework in "$variant"/*/TrailMetricsShared.framework; do
+    [ ! -d "$framework" ] || variant_set="$variant_set $(basename "$(dirname "$framework")")"
+  done
+  # Sorted, so the glob order (which puts -simulator first) does not matter.
+  # The unquoted echo trims the result.
+  production_set="$(printf '%s\n' $production_set | LC_ALL=C sort | tr '\n' ' ')"
+  production_set="$(echo $production_set)"
+  variant_set="$(printf '%s\n' $variant_set | LC_ALL=C sort | tr '\n' ' ')"
+  variant_set="$(echo $variant_set)"
+  case "$production_set" in
+    "ios-arm64 ios-arm64-simulator"|"ios-arm64-simulator") valid=true ;;
+    *) valid=false ;;
+  esac
+  if [ "$valid" != true ] || [ "$variant_set" != "$production_set" ]; then
     echo "error: API check: expected 2 slices (ios-arm64, ios-arm64-simulator) in both frameworks," \
-      "or one and the same slice in both when built simulator-only"
+      "or only ios-arm64-simulator in both; found production: ${production_set:-none}," \
+      "uitest variant: ${variant_set:-none}"
     status=1
   fi
   if [ "$status" -ne 0 ]; then
     return 1
   fi
+  case "$slices" in
+    1) slice_count="1 slice" ;;
+    *) slice_count="$slices slices" ;;
+  esac
   echo "API check: the uitest variant has production's API plus the seam's declarations only" \
-    "($slices slices)."
+    "($slice_count)."
 }
 
 # Each directory in scripts/check-variant-api-fixtures/cases/ is one case. The self-test builds a

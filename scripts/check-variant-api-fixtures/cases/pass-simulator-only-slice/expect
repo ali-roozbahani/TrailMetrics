@@ -1,0 +1,2 @@
+result: pass
+output: API check: the uitest variant has production's API plus the seam's declarations only (1 slice).
