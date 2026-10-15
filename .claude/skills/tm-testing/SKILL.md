@@ -266,10 +266,13 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   entry). `TrailMetricsApp.init()` then calls `doInitKoinIosForUiTest(scenario:)`; without the
   argument the app runs the normal composition root, an unknown name stops it.
 - **Probe.** In a scenario launch the app shows a top-centre overlay: text `uitest.probe`
-  (`directions=<n> directionsDone=<n> saves=<n> deletes=<n>`, the fakes' counters), buttons
-  `uitest.probe.refresh` (re-reads them) and `uitest.probe.release` (completes every held call,
-  then re-reads). The counters are read only on those taps; `UITestProbe.refreshedCounters()`
-  taps refresh and parses the text.
+  (`refreshes=<n> directions=<n> directionsDone=<n> saves=<n> deletes=<n>`: the refresh
+  generation and the fakes' counters), buttons `uitest.probe.refresh` (re-reads the counters and
+  increments the generation) and `uitest.probe.release` (completes every held call, leaves the
+  text alone). The counters are read only on a refresh tap. `UITestProbe.refreshedCounters()`
+  reads the generation, taps refresh and returns the text only once its generation is higher, so
+  a read is never older than its tap (it may time out, never return a stale value; a second tap
+  after 10 s covers a lost one); `releasedCounters()` taps release, then does the same.
 - **Determinism (D5).**
   - one `launch` per test, with its scenario; no test depends on another or on simulator state;
   - wait with `waitForExistence(timeout: 10)`; no `sleep`, no fixed delay, in tests or fakes;
