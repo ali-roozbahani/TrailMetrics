@@ -166,6 +166,10 @@ jobs:
     name: iOS — SwiftLint, Build
     runs-on: macos-latest
     timeout-minutes: 40
+    # This job only builds for and tests on the simulator: the KMP framework needs no device
+    # slice (read by scripts/build-kmp-framework.sh and the build files of shared, shared-uitest).
+    env:
+      TRAILMETRICS_IOS_SIMULATOR_ONLY: '1'
 
     steps:
       - name: Checkout

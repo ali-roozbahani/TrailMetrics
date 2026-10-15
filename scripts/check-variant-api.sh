@@ -168,8 +168,11 @@ check_variant_api() {
   for variant_framework in "$variant"/*/TrailMetricsShared.framework; do
     [ ! -d "$variant_framework" ] || variant_slices=$((variant_slices + 1))
   done
-  if [ "$slices" -ne 2 ] || [ "$variant_slices" -ne 2 ]; then
-    echo "error: API check: expected 2 slices (ios-arm64, ios-arm64-simulator) in both frameworks"
+  # Both slices, or one and the same slice in both (a simulator-only build, see
+  # scripts/build-kmp-framework.sh): the loop above already failed a slice missing in the variant.
+  if [ "$slices" -lt 1 ] || [ "$slices" -gt 2 ] || [ "$variant_slices" -ne "$slices" ]; then
+    echo "error: API check: expected 2 slices (ios-arm64, ios-arm64-simulator) in both frameworks," \
+      "or one and the same slice in both when built simulator-only"
     status=1
   fi
   if [ "$status" -ne 0 ]; then

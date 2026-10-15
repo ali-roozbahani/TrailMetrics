@@ -15,9 +15,15 @@
 #   --variant      Which framework to put at the debug path. Without it: uitest when Xcode's
 #                  CONFIGURATION is Debug-UITest (pre-action and --build-phase alike), production
 #                  otherwise. Callers outside Xcode pass --variant uitest when they need the
-#                  variant; today's gate and CI steps pass nothing and build production (the
-#                  UI-test steps that will pass it come with S4 and S8 of
-#                  docs/epics/ios-ui-tests.md).
+#                  variant; CI's UI-test step passes --variant uitest (S4 of
+#                  docs/epics/ios-ui-tests.md), the gate's own smoke is still to come (S8), and
+#                  every other gate and CI step passes nothing and builds production.
+#
+# Environment:
+#   TRAILMETRICS_IOS_SIMULATOR_ONLY=1  Build only the iosSimulatorArm64 slice, in :shared and in
+#                  :shared-uitest (both build files read the variable). Set by the iOS job of
+#                  .github/workflows/ci.yml, which never uses the device slice. Unset or any other
+#                  value builds both slices, as local builds, the gate, Xcode and Release builds do.
 #
 # Variants (ADR-002, "Amendment"):
 #   production  :shared's framework, what every normal Debug and Release build links.
@@ -25,8 +31,9 @@
 #               same API plus the UI-test seam (package dev.roozbahani.trailmetrics.uitest). It
 #               is copied over the production framework's debug path, so SharedKit/Package.swift
 #               stays as it is, and only after its API passed scripts/check-variant-api.sh.
-# The stamp records the variant next to the input hash, so switching from one variant to the
-# other always rebuilds and copies, and a normal build never links a variant left behind.
+# The stamp records the variant and the mode (full, or simulator-only) next to the input hash, so
+# switching from one variant or mode to the other always rebuilds and copies, and a normal build
+# never links a variant or a simulator-only framework left behind.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -101,13 +108,20 @@ sort -o "$INPUT_LIST" "$INPUT_LIST"
 tr '\n' '\0' < "$INPUT_LIST" | xargs -0 shasum > "$INPUT_LIST.sums"
 CURRENT_HASH="$(shasum < "$INPUT_LIST.sums" | awk '{print $1}')"
 
-STAMP_VALUE="$VARIANT $CURRENT_HASH"
+# Read by the build files of shared and shared-uitest too (see the header).
+if [ "${TRAILMETRICS_IOS_SIMULATOR_ONLY:-}" = 1 ]; then
+  MODE=simulator-only
+else
+  MODE=full
+fi
+
+STAMP_VALUE="$VARIANT $MODE $CURRENT_HASH"
 if [ -f "$STAMP_FILE" ] && [ -d "$XCFRAMEWORK" ] && [ "$(cat "$STAMP_FILE")" = "$STAMP_VALUE" ]; then
-  echo "KMP shared framework ($VARIANT) is up to date, skipping Gradle build."
+  echo "KMP shared framework ($VARIANT, $MODE) is up to date, skipping Gradle build."
   exit 0
 fi
 
-echo "KMP source or framework variant changed, rebuilding shared framework ($VARIANT)..."
+echo "KMP source, framework variant or mode changed, rebuilding shared framework ($VARIANT, $MODE)..."
 # Drop the stamp first and write it only after Gradle, the API check and the copy succeed
 # (set -e), so a failed or interrupted build can never leave a stamp that matches a stale or
 # partial framework. The framework at the debug path goes too, so Gradle always writes

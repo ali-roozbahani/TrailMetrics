@@ -22,8 +22,11 @@ kotlin {
     val xcframeworkName = "TrailMetricsShared"
     val xcf = XCFrameworkConfig(project, xcframeworkName)
 
-    listOf(
-        iosArm64(),
+    // CI's iOS job only uses the simulator slice (see scripts/build-kmp-framework.sh).
+    val simulatorOnly =
+        providers.environmentVariable("TRAILMETRICS_IOS_SIMULATOR_ONLY").getOrElse("") == "1"
+    listOfNotNull(
+        if (simulatorOnly) null else iosArm64(),
         iosSimulatorArm64()
     ).forEach { target ->
         target.binaries.framework {
