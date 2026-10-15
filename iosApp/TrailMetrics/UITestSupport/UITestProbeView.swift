@@ -11,13 +11,16 @@ import SwiftUI
 
 /// The UI-test probe: a small overlay at the top centre that shows the fakes' call counters, so
 /// a test can check "one request" or "one deletion", which the UI itself cannot tell apart from
-/// two identical calls. The counters are read only on a tap of `uitest.probe.refresh` or
-/// `uitest.probe.release`, never on a timer or when SwiftUI re-creates the view, so nothing
-/// depends on timing; until the first tap the text says so. Only the two buttons take touches;
-/// the text and the background let them through to the app underneath.
+/// two identical calls. The counters are read only on a tap of `uitest.probe.refresh`, never on
+/// a timer or when SwiftUI re-creates the view, so nothing depends on timing; until the first tap
+/// the text says so. Every refresh increments `refreshes`, which is the first pair of the text, so
+/// a test can tell a text written by its own tap from an older one. `uitest.probe.release` only
+/// completes the held calls and leaves the text alone. Only the two buttons take touches; the
+/// text and the background let them through to the app underneath.
 struct UITestProbeView: View {
     let controls: UiTestControls
     @State private var counters = "not read yet: tap Refresh"
+    @State private var refreshCount = 0
 
     var body: some View {
         VStack(spacing: 2) {
@@ -29,12 +32,12 @@ struct UITestProbeView: View {
                 .accessibilityIdentifier("uitest.probe")
             HStack(spacing: 8) {
                 Button("Refresh") {
-                    counters = Self.describe(controls)
+                    refreshCount += 1
+                    counters = Self.describe(controls, refreshes: refreshCount)
                 }
                 .accessibilityIdentifier("uitest.probe.refresh")
                 Button("Release") {
                     controls.releaseHeldCalls()
-                    counters = Self.describe(controls)
                 }
                 .accessibilityIdentifier("uitest.probe.release")
             }
@@ -48,8 +51,8 @@ struct UITestProbeView: View {
         }
     }
 
-    private static func describe(_ controls: UiTestControls) -> String {
-        "directions=\(controls.directionsRequestCount) directionsDone=\(controls.directionsCompletedCount) "
+    private static func describe(_ controls: UiTestControls, refreshes: Int) -> String {
+        "refreshes=\(refreshes) directions=\(controls.directionsRequestCount) directionsDone=\(controls.directionsCompletedCount) "
             + "saves=\(controls.saveCount) deletes=\(controls.deleteCount)"
     }
 }
