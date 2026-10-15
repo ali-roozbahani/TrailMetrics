@@ -52,7 +52,8 @@ struct UITestProbeView: View {
     }
 
     private static func describe(_ controls: UiTestControls, refreshes: Int) -> String {
-        "refreshes=\(refreshes) directions=\(controls.directionsRequestCount) directionsDone=\(controls.directionsCompletedCount) "
+        "refreshes=\(refreshes) directions=\(controls.directionsRequestCount) "
+            + "directionsDone=\(controls.directionsCompletedCount) "
             + "saves=\(controls.saveCount) deletes=\(controls.deleteCount)"
     }
 }
