@@ -208,9 +208,58 @@ jobs:
         if: steps.changes.outputs.decision != 'light'
         uses: gradle/actions/setup-gradle@v4
 
+      # The framework build is a pure function of the KMP inputs, so its state is cached by the
+      # input hash that scripts/build-kmp-framework.sh itself stamps (--print-hash: the one
+      # definition of the inputs), the runner OS/arch and the selected Xcode's build number.
+      # The cached state is the Gradle build output of the KMP modules (the framework, the klibs
+      # and Gradle's own execution history), so the steps after the framework build find their
+      # tasks up to date exactly as after a build. It is staged as one tar in $RUNNER_TEMP by
+      # "Build KMP Shared Framework" right after the production framework is built: the job-end
+      # save of the cache action then never sees the test-only variant the UI-test step leaves
+      # at the debug path. A restore never decides anything: the script's own stamp check still
+      # does, so a state that does not match is rebuilt, never reused.
+      - name: Compute KMP framework cache key
+        id: kmp_cache_key
+        if: steps.changes.outputs.decision != 'light'
+        run: |
+          XCODE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :ProductBuildVersion' "$(xcode-select -p)/../version.plist")"
+          KMP_HASH="$(scripts/build-kmp-framework.sh --print-hash)"
+          echo "key=kmp-framework-v1-${RUNNER_OS}-${RUNNER_ARCH}-xcode${XCODE_BUILD}-${KMP_HASH}" >> "$GITHUB_OUTPUT"
+          echo "Cache key: kmp-framework-v1-${RUNNER_OS}-${RUNNER_ARCH}-xcode${XCODE_BUILD}-${KMP_HASH}"
+
+      - name: Restore KMP framework cache
+        id: kmp_cache
+        if: steps.changes.outputs.decision != 'light'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/kmp-framework-cache
+          key: ${{ steps.kmp_cache_key.outputs.key }}
+
       - name: Build KMP Shared Framework
         if: steps.changes.outputs.decision != 'light'
-        run: scripts/build-kmp-framework.sh
+        env:
+          KMP_CACHE_HIT: ${{ steps.kmp_cache.outputs.cache-hit }}
+        run: |
+          CACHE_DIR="$RUNNER_TEMP/kmp-framework-cache"
+          STATE_DIRS=(shared/build shared-uitest/build domain/build data/build core/build .gradle)
+          if [ "$KMP_CACHE_HIT" = "true" ] && [ -f "$CACHE_DIR/state.tar" ]; then
+            echo "KMP framework cache hit: restoring the build state."
+            tar -xf "$CACHE_DIR/state.tar" || { echo "Restore failed, building from scratch."; rm -rf "${STATE_DIRS[@]}"; }
+          else
+            echo "KMP framework cache miss: building."
+          fi
+          scripts/build-kmp-framework.sh
+          if [ "$KMP_CACHE_HIT" != "true" ]; then
+            PRESENT=()
+            for d in "${STATE_DIRS[@]}"; do if [ -d "$d" ]; then PRESENT+=("$d"); fi; done
+            mkdir -p "$CACHE_DIR"
+            if tar -cf "$CACHE_DIR/state.tmp" "${PRESENT[@]}"; then
+              mv "$CACHE_DIR/state.tmp" "$CACHE_DIR/state.tar"
+            else
+              echo "Staging the cache state failed, nothing will be saved."
+              rm -f "$CACHE_DIR/state.tmp"
+            fi
+          fi
 
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses

@@ -6,12 +6,17 @@
 # all call this script.
 #
 # Usage: scripts/build-kmp-framework.sh [--build-phase] [--variant production|uitest]
+#        scripts/build-kmp-framework.sh --print-hash
 #   --build-phase  Called from inside the Xcode build. By then Xcode has already copied the
 #                  XCFramework and compiled the Swift packages against it, so a rebuild here is
 #                  too late for this build: rebuild, then fail with an error asking for another
 #                  build instead of linking the stale copy. Normally the scheme pre-action has
 #                  already built it (a failing pre-action fails the build) and this mode only
 #                  checks the hash. It fires when the pre-action didn't run at all.
+#   --print-hash   Print the input hash the stamp is made of (nothing else on stdout), build nothing,
+#                  write nothing, and exit. CI keys its framework cache by it, so the file list
+#                  below stays the one definition of what the framework depends on. Not combinable
+#                  with the other options.
 #   --variant      Which framework to put at the debug path. Without it: uitest when Xcode's
 #                  CONFIGURATION is Debug-UITest (pre-action and --build-phase alike), production
 #                  otherwise. Callers outside Xcode pass --variant uitest when they need the
@@ -32,12 +37,18 @@ cd "$(dirname "$0")/.."
 
 usage() {
   echo "error: $1" >&2
-  echo "usage: scripts/build-kmp-framework.sh [--build-phase] [--variant production|uitest]" >&2
+  echo "usage: scripts/build-kmp-framework.sh [--build-phase] [--variant production|uitest] | --print-hash" >&2
   exit 2
 }
 
 BUILD_PHASE=false
 VARIANT=""
+PRINT_HASH=false
+if [ $# -ge 1 ] && [ "$1" = "--print-hash" ]; then
+  [ $# -eq 1 ] || usage "--print-hash takes no other argument"
+  PRINT_HASH=true
+  set --
+fi
 while [ $# -gt 0 ]; do
   case "$1" in
     --build-phase)
@@ -100,6 +111,11 @@ done
 sort -o "$INPUT_LIST" "$INPUT_LIST"
 tr '\n' '\0' < "$INPUT_LIST" | xargs -0 shasum > "$INPUT_LIST.sums"
 CURRENT_HASH="$(shasum < "$INPUT_LIST.sums" | awk '{print $1}')"
+
+if [ "$PRINT_HASH" = true ]; then
+  echo "$CURRENT_HASH"
+  exit 0
+fi
 
 STAMP_VALUE="$VARIANT $CURRENT_HASH"
 if [ -f "$STAMP_FILE" ] && [ -d "$XCFRAMEWORK" ] && [ "$(cat "$STAMP_FILE")" = "$STAMP_VALUE" ]; then
