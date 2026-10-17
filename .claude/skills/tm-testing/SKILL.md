@@ -281,6 +281,8 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   - held calls are released only through `uitest.probe.release`;
   - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
   - check once in the working tree that the test fails when the guarded behavior breaks.
+- **Shards.** CI runs the UI tests in one `ios-ui` job; plan a shard step when they exceed about
+  10 tests (cap 3).
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
   failure without a related change gets a `BOARD.md` record.
 - **Identifiers (D7).** Find elements by their text first; a View gets an
