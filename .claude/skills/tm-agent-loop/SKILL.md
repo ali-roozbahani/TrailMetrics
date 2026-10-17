@@ -171,6 +171,10 @@ git diff --name-only "$(git merge-base "origin/<epic branch>" "$SHA")" "$SHA"
 scripts/check-protected-paths.sh --base "$(git merge-base "origin/<epic branch>" "$SHA")"
 ```
 
+An older SHA's red `iOS — SwiftLint, Build` whose log shows `needs.*.result = cancelled` is a
+superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
+a failure; only the current head SHA's checks count.
+
 The base is the merge-base with the branch the PR targets: `origin/main` for a PR against
 `main`, the epic branch for a subtask PR. Run the protected-path check with the PR branch
 checked out at `$SHA`. If every condition holds, the merge command is:
