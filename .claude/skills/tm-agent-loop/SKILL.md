@@ -158,6 +158,10 @@ hold:
 6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
    replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
 
+An older SHA's red `iOS — SwiftLint, Build` whose log shows `needs.*.result = cancelled` is a
+superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
+a failure; only the current head SHA's checks count.
+
 ```bash
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
   --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — SwiftLint, Build") | [.name, .status, .conclusion] | @tsv'

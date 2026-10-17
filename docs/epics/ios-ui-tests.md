@@ -320,8 +320,9 @@ fakes into the production XCFramework and guarded the Swift call site with `#if 
   variant cannot drift apart silently.
 - **Probe.** In UI-test mode only, the app shows a small overlay (top centre, clear of the
   existing corner buttons) with a text element `uitest.probe` (for example
-  `directions=1 directionsDone=1 saves=1 deletes=1`), a button `uitest.probe.refresh` that
-  re-reads the counters, and a button `uitest.probe.release` that completes every held call.
+  `refreshes=1 directions=1 directionsDone=1 saves=1 deletes=1`), a button
+  `uitest.probe.refresh` that re-reads the counters and increments the refresh generation, and a
+  button `uitest.probe.release` that completes every held call.
   "One directions request" and "one deletion" are counters (UI evidence cannot tell one call
   from two identical ones); "one History entry" is checked both by the History row count and by
   the save counter.
@@ -372,6 +373,11 @@ Options compared:
 
 **D3 (updated 2026-10-13). CI: two additions to the existing iOS job, no new required check
 (Q4).**
+
+*2026-10-17: since #159 the UI tests build in `ios-build-ui` and run in `ios-ui`, behind the
+`ios` aggregator that carries the required check `iOS — SwiftLint, Build`. The text below is the
+decision as made.*
+
 - `:shared-uitest:iosSimulatorArm64Test` joins the Gradle "Run iOS simulator tests" step.
 - After "Run iOS package tests", a last step "Run iOS UI tests"
   (`if: steps.changes.outputs.decision != 'light'`): `scripts/build-kmp-framework.sh --variant
@@ -419,6 +425,7 @@ Ali merges; the agent can push it (no workflow file).
 - UI-test mode turns off UIKit animations (`UIView.setAnimationsEnabled(false)`).
 - Held calls are released only by `uitest.probe.release`; nothing depends on timing between
   two taps except the double tap itself, which is the behavior under test.
+- A probe read must be proven fresh: it returns only after the refresh generation rises (#156).
 - `continueAfterFailure = false`; SwiftLint `--strict` applies to test code (no force unwraps).
 - Each scenario PR checks once, in the working tree, that its test fails when the ViewModel
   guard is removed (as `tm-testing` asks for the Compose double-tap tests), and says in the PR
