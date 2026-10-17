@@ -141,7 +141,8 @@ build and the iOS package tests when the branch's diff touches a file under `ios
 one of the files that run the Gradle build (`gradlew`, `gradle/wrapper/gradle-wrapper.jar`,
 `gradle/wrapper/gradle-wrapper.properties`, `gradle/gradle-daemon-jvm.properties`), or
 `scripts/build-kmp-framework.sh`. Not `gradlew.bat`, `scripts/pre-push-check.sh` itself or
-`scripts/classify-changes.sh`; CI's `ios` job runs in full for those (they are not `light`).
+`scripts/classify-changes.sh`; CI's macOS iOS jobs (`ios-build-ui`, `ios-ui`, `ios-main`) run in
+full for those (they are not `light`).
 Not `scripts/check-variant-api.sh` either: only `scripts/build-kmp-framework.sh --variant uitest`
 runs it, which no iOS step of the gate passes, and its self-test runs on every gate run.
 The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
@@ -408,8 +409,8 @@ silently force-pushing.
   required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
   the code owner's approval, and stale approvals are dismissed when new commits are pushed.
   Branches must be up to date before merging. The required checks are
-  `Android — Lint, Detekt, Tests, Build`, `iOS — SwiftLint, Build` and
-  `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
+  `Android — Lint, Detekt, Tests, Build`, `iOS — SwiftLint, Build` (the `ios` aggregator job)
+  and `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
   "Require approvals" is off (approval count **0**), so a PR that touches no owned path
   needs no approval. #30–#37 were all merged with no review, before code owner review was
   required. The two CI checks were required before #38 merged.
@@ -425,13 +426,16 @@ silently force-pushing.
   only gates pushes made from a Claude Code session. A push from a terminal skips it.
 - **CI doesn't mirror the gate exactly.** CI's heavy steps run unless
   `scripts/classify-changes.sh` decides `light` (non-source changes only; pushes always run
-  everything). Unlike the gate, CI's `ios` job has no iOS path filter: on a non-`light` PR it
-  runs SwiftLint, the iOS build and the iOS simulator tests even when the gate skipped its iOS
-  steps. So an `iosApp/` problem that already existed on `main` can make CI red on an
+  everything). Unlike the gate, CI's iOS jobs have no iOS path filter: on a non-`light` PR
+  `ios-main` runs SwiftLint, the iOS build and the iOS simulator tests, and `ios-build-ui` and
+  `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. So an
+  `iosApp/` problem that already existed on `main` can make CI red on an
   unrelated Android-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
-  skipped; they run in the `ios` job, `domain`'s and `data`'s since #34, `shared`'s since S3 of
-  `protected-paths-review-2`.
-- **CI only runs on push for `main` and `feature/**`.** `ci.yml`'s push trigger doesn't
+  skipped; they run in `ios-main`, `domain`'s and `data`'s since #34, `shared`'s since S3 of
+  `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
+  name: it runs no build step and is green only when `ios-plan`, `ios-build-ui`, `ios-ui` and
+  `ios-main` passed, or the three macOS jobs were skipped on a `light` decision.
+- **CI only runs on push for `main` and `feature/epic/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
 - **Commit types have been used inconsistently.** The retired docs listed only
   `feat`/`fix`/`refactor`/`build`/`docs`/`test`. `chore` is the most-used type since #30,
