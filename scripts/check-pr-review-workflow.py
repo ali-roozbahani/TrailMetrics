@@ -41,6 +41,8 @@ Nothing here prints a raw log line: log lines appear only after a `log> ` prefix
 workflow command in a report can never be processed by the runner that runs this test.
 """
 
+import contextlib
+import errno
 import hashlib
 import json
 import os
@@ -49,6 +51,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 RULE_STEP = "Rule changes from the base"
@@ -478,7 +481,7 @@ def _parse_command(line):
 def run_scenario(fixture, extracted, bash):
     api_key, calls, expect = load_scenario(fixture)
     name = fixture.name
-    with tempfile.TemporaryDirectory(prefix="tm-pr-review-") as tmp:
+    with scratch_dir("tm-pr-review-") as tmp:
         tmp = Path(tmp)
         runner_temp = tmp / "runner"
         work = runner_temp / "review"
@@ -622,6 +625,68 @@ def run_extractor_fixture(fixture):
     return [], f"failed as intended: {got}"
 
 
+def remove_scratch(path, rmtree=shutil.rmtree, sleep=time.sleep, attempts=5):
+    """Removes a scratch directory. Only `Directory not empty` (ENOTEMPTY) is retried, after 0.2
+    seconds: something may still be writing into it (CI failed this way twice; the writer is
+    unknown). Any other error is raised at once. When every attempt fails, the error names the
+    path and what is left under it (at most 50 relative paths), so a CI log shows it."""
+    for attempt in range(attempts):
+        if attempt:
+            sleep(0.2)
+        try:
+            rmtree(path)
+            return
+        except OSError as error:
+            if error.errno != errno.ENOTEMPTY:
+                raise
+            last = error
+    left = []
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        left += [os.path.relpath(os.path.join(root, name), path) for name in dirs + sorted(files)]
+        if len(left) > 50:
+            break
+    shown = ", ".join(left[:50]) + (", ..." if len(left) > 50 else "")
+    raise OSError(errno.ENOTEMPTY, f"cannot remove {path} after {attempts} attempts ({last}); "
+                  f"still present: {shown or 'nothing'}")
+
+
+@contextlib.contextmanager
+def scratch_dir(prefix):
+    path = tempfile.mkdtemp(prefix=prefix)
+    try:
+        yield path
+    finally:
+        remove_scratch(path)
+
+
+def check_remove_scratch():
+    """remove_scratch retries ENOTEMPTY and then gives up loudly, with an injected rmtree."""
+    calls = []
+
+    def flaky(path):
+        calls.append(path)
+        if len(calls) <= 2:
+            raise OSError(errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY))
+    sleeps = []
+    try:
+        remove_scratch("/scratch/x", rmtree=flaky, sleep=sleeps.append)
+    except OSError as error:
+        return [f"two ENOTEMPTY then success: raised {error!r}"]
+    if len(calls) != 3 or len(sleeps) != 2:
+        return [f"{len(calls)} rmtree calls and {len(sleeps)} sleeps, expected 3 and 2"]
+
+    def always(path):
+        raise OSError(errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY))
+    try:
+        remove_scratch("/scratch/x", rmtree=always, sleep=lambda _: None)
+    except OSError as error:
+        if error.errno != errno.ENOTEMPTY or "/scratch/x" not in str(error):
+            return [f"error does not name the path: {error!r}"]
+        return []
+    return ["ENOTEMPTY on every attempt: returned, expected an OSError"]
+
+
 # --- The rule-changes step, in a scratch repository. The base branch's commit A holds a skill
 # and, per case, the rule-change script; main moves on to B (so the merge base A is not the
 # base SHA); the PR head branches from A, edits the skill and may change the script.
@@ -635,7 +700,8 @@ TAMPERED_SCRIPT = "#!/usr/bin/env bash\necho none\n"
 
 def _git(repo, *args):
     return subprocess.run(["git", "-C", str(repo), "-c", "user.name=self-test",
-                           "-c", "user.email=self-test@example.invalid", "-c", "commit.gpgsign=false"]
+                           "-c", "user.email=self-test@example.invalid", "-c", "commit.gpgsign=false",
+                           "-c", "gc.auto=0", "-c", "maintenance.auto=false"]
                           + list(args), check=True, capture_output=True, text=True).stdout.strip()
 
 
@@ -686,7 +752,7 @@ def load_rule_case(fixture):
 def run_rule_fixture(fixture, extracted, bash, script_dir):
     case, expect = load_rule_case(fixture)
     real = {rel: (script_dir / Path(rel).name).read_text(encoding="utf-8") for rel in RULE_SCRIPTS}
-    with tempfile.TemporaryDirectory(prefix="tm-pr-review-rules-") as tmp:
+    with scratch_dir("tm-pr-review-rules-") as tmp:
         tmp = Path(tmp)
         repo = tmp / "workspace"
         repo.mkdir()
@@ -829,6 +895,9 @@ def self_test(script_dir, workflow):
         except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as e:
             errors, desc, log_lines = [f"fixture error: {e}"], "", []
         failed += _report(f"rule-changes/{fixture.name}", errors, desc, log_lines)
+    print("--- scratch cleanup (injected rmtree and sleep)")
+    total += 1
+    failed += _report("remove_scratch", check_remove_scratch(), "retries ENOTEMPTY, then raises")
     print(f"check-pr-review-workflow self-test: {total - failed}/{total} fixtures passed")
     return 1 if failed or total == 0 else 0
 
