@@ -134,7 +134,7 @@ etc.) are documented in the Skills under `.claude/skills/` (`tm-kmp-shared`,
 `tm-android`, `tm-ios`, `tm-testing`) and are **enforced by tooling, not
 just convention**:
 - Android/Kotlin: Detekt (`config/detekt/detekt.yml`), run in CI (`ci.yml`).
-- iOS/Swift: SwiftLint (`iosApp/.swiftlint.yml`), run in CI (`ci.yml`, iOS job).
+- iOS/Swift: SwiftLint (`iosApp/.swiftlint.yml`), run in CI (`ci.yml`, `ios-main` job).
 
 Any coding agent (human or AI) working on this project must read the Skill
 for every layer or platform it touches, plus `tm-pr-workflow`, before
