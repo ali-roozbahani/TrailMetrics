@@ -241,9 +241,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: scripts
 - Order: 197
 - Source: fix of the skill rule-change self-test cleanup PR, 2026-10-06
-- Problem: `check-kover-floors.py`, `check-protected-paths.py`, `check-pr-review-workflow.py` and `classify-changes.sh` build scratch git repositories and commit in them without `gc.auto=0` and `maintenance.auto=false`, and remove them with a bare `tempfile.TemporaryDirectory` or `rm -rf`; `check-ios-scope.py` has `gc.auto=0` but not `maintenance.auto=false`. The same "Directory not empty" failure that once stopped the skill rule-change self-test in CI could hit any of them.
+- Problem: `check-kover-floors.py`, `check-protected-paths.py` and `classify-changes.sh` build scratch git repositories and commit in them without `gc.auto=0` and `maintenance.auto=false`, and remove them with a bare `tempfile.TemporaryDirectory` or `rm -rf`; `check-ios-scope.py` has `gc.auto=0` but not `maintenance.auto=false`. The same "Directory not empty" failure that once stopped the skill rule-change self-test in CI could hit any of them.
 - Done when: each gets the same git flags and the same resilient cleanup as `check-skill-rule-changes.py` (or one shared approach the human agrees), with its self-test still passing.
-- Refs: `scripts/check-kover-floors.py`; `scripts/check-protected-paths.py`; `scripts/check-pr-review-workflow.py`; `scripts/classify-changes.sh`; `scripts/check-ios-scope.py`; `scripts/check-skill-rule-changes.py` (`remove_scratch`).
+- Refs: `scripts/check-kover-floors.py`; `scripts/check-protected-paths.py`; `scripts/classify-changes.sh`; `scripts/check-ios-scope.py`; `scripts/check-skill-rule-changes.py` (`remove_scratch`).
 
 ### tracking-finish-without-profile-silent
 - Type: task
@@ -271,6 +271,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt` ("TEST SUPPORT ONLY") is compiled into the production `TrailMetricsShared.xcframework`, because the Swift package tests link that framework and a second Kotlin framework cannot share its types; so every app build contains it. The S1a spike reported that a test-only variant of the framework (a separate module with the same `baseName`, copied over the debug path) builds and links, and the iOS UI-test epic adopts that mechanism for its seam, so the Swift test support could move there too. Low priority. Reported by the spike, not re-run; the task's first step is to verify that the package tests can link the variant.
 - Done when: no test-only Kotlin is in the production framework (a `strings` or symbol check on the production framework in the PR), and the Swift package tests still pass in the gate and CI.
 - Refs: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `iosApp/Packages/TestSupport`; `scripts/build-kmp-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1); record `release-build-links-debug-xcframework`.
+
+### ios-ui-route-generate-twice-failed-on-main
+- Type: task
+- Area: iosApp/TrailMetricsUITests
+- Order: 220
+- Source: CI run 39049148407 (main, push, head 46a3636, the merge of #161), 2026-10-17
+- Problem: `iOS — run UI tests` failed (exit 65) in `RouteGenerateTwiceUITests.test_generateTwice_requestsDirectionsOnce` with "Generate button not enabled after 3 waypoints" (the 10 s wait for `isEnabled` timed out in `XCUIApplication+RouteMap.swift`). The test took about 160 s and the step about 802 s; the other five tests passed. #161 changed only comments in `scripts/classify-changes.sh` and `scripts/pre-push-check.sh` and one fixture `expect` line, none an input of the iOS jobs. The cause is unknown. A slow runner or map is a hypothesis that the timings support but do not prove: the first suite started 5 min after `xcodebuild` started (2 to 4 min in the other five runs), the `route.map` existence check took about 77 s, and each map press took 6 to 10 s. Since the split into `ios-ui`, 6 executions ran their tests and 1 failed; 3 of their 36 test executions took over 100 s (143 s `deleteConfirmedTwice`, 135 s `resetWhileGenerating`, and this 160 s one). Before the split the same step ran 23 times in the single iOS job; one of those failed after 72 s (2026-10-14, not investigated). The failure screenshot of the result bundle was not inspected.
+- Done when: the failure is explained, or it has recurred often enough that a human decides what to change.
+- Refs: CI run 39049148407; `RouteGenerateTwiceUITests.test_generateTwice_requestsDirectionsOnce`; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`; `docs/epics/ios-ui-tests.md` (D6); `.claude/skills/tm-testing/SKILL.md` ("Flakes (D6)").
 
 ## Drift
 
