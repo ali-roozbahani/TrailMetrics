@@ -99,8 +99,8 @@ entry of `scripts/build-kmp-framework.sh`, taken from the committed file, matche
 needs `python3`, `bash` and `git` and fails without them) and the variant API check self-test
 (`scripts/check-variant-api.sh --self-test`: the check that `scripts/build-kmp-framework.sh
 --variant uitest` runs on the test-only framework variant of `shared-uitest`, run against the
-fixtures in `scripts/check-variant-api-fixtures/`; gate only, CI's step comes with S4 of
-`docs/epics/ios-ui-tests.md`).
+fixtures in `scripts/check-variant-api-fixtures/`; gate, and the step "Variant API check
+self-test" of CI's `android` job).
 The gate also runs the Kover floors check in every classification, light included
 (`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
 floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
