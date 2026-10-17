@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Change classification: does a diff need the full CI and gate run, or only the board and
-# protected-path checks? This script is the one place that decides it. CI's android and ios
-# jobs call it with --github, scripts/pre-push-check.sh with --base.
+# protected-path checks? This script is the one place that decides it. CI's android and
+# ios-plan jobs call it with --github, scripts/pre-push-check.sh with --base.
 #
 #   scripts/classify-changes.sh --base <ref>       files of `git diff --no-renames <ref> HEAD`
 #   scripts/classify-changes.sh --files <path>...  classify the given paths instead
