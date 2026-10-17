@@ -158,6 +158,10 @@ hold:
 6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
    replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
 
+An older SHA's red `iOS — SwiftLint, Build` whose log shows `needs.*.result = cancelled` is a
+superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
+a failure; only the current head SHA's checks count.
+
 ```bash
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
   --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — SwiftLint, Build") | [.name, .status, .conclusion] | @tsv'
@@ -170,10 +174,6 @@ scripts/check-protected-paths.sh --base "$(git merge-base origin/main "$SHA")"
 git diff --name-only "$(git merge-base "origin/<epic branch>" "$SHA")" "$SHA"
 scripts/check-protected-paths.sh --base "$(git merge-base "origin/<epic branch>" "$SHA")"
 ```
-
-An older SHA's red `iOS — SwiftLint, Build` whose log shows `needs.*.result = cancelled` is a
-superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
-a failure; only the current head SHA's checks count.
 
 The base is the merge-base with the branch the PR targets: `origin/main` for a PR against
 `main`, the epic branch for a subtask PR. Run the protected-path check with the PR branch

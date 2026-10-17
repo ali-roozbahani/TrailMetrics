@@ -373,9 +373,11 @@ Options compared:
 
 **D3 (updated 2026-10-13). CI: two additions to the existing iOS job, no new required check
 (Q4).**
+
 *2026-10-17: since #159 the UI tests build in `ios-build-ui` and run in `ios-ui`, behind the
 `ios` aggregator that carries the required check `iOS — SwiftLint, Build`. The text below is the
 decision as made.*
+
 - `:shared-uitest:iosSimulatorArm64Test` joins the Gradle "Run iOS simulator tests" step.
 - After "Run iOS package tests", a last step "Run iOS UI tests"
   (`if: steps.changes.outputs.decision != 'light'`): `scripts/build-kmp-framework.sh --variant
