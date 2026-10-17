@@ -705,6 +705,28 @@ def _git(repo, *args):
                           + list(args), check=True, capture_output=True, text=True).stdout.strip()
 
 
+def init_scratch_repo(repo):
+    """`git init` plus the two options as repository config, so that every git process that runs in
+    the repository sees them, also the ones the scripts under test start (the `-c` flags of `_git`
+    reach only its own calls)."""
+    _git(repo, "init", "-q")
+    _git(repo, "config", "gc.auto", "0")
+    _git(repo, "config", "maintenance.auto", "false")
+
+
+def check_scratch_repo_config():
+    """A fresh scratch repository reports both options through `git config --get`, not `-c`."""
+    errors = []
+    with scratch_dir("tm-pr-review-config-") as tmp:
+        init_scratch_repo(Path(tmp))
+        for key, want in (("gc.auto", "0"), ("maintenance.auto", "false")):
+            got = subprocess.run(["git", "-C", tmp, "config", "--get", key],
+                                 capture_output=True, text=True).stdout.strip()
+            if got != want:
+                errors.append(f"{key} is {got!r} in a fresh scratch repository, expected {want!r}")
+    return errors
+
+
 def _write(repo, rel, text, mode=0o644):
     path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -756,7 +778,7 @@ def run_rule_fixture(fixture, extracted, bash, script_dir):
         tmp = Path(tmp)
         repo = tmp / "workspace"
         repo.mkdir()
-        _git(repo, "init", "-q")
+        init_scratch_repo(repo)
         _write(repo, RULE_SKILL, RULE_SKILL_TEXT)
         _write(repo, "README.md", "readme\n")
         if case["base-script"] in ("real", "sh-only"):
@@ -898,6 +920,9 @@ def self_test(script_dir, workflow):
     print("--- scratch cleanup (injected rmtree and sleep)")
     total += 1
     failed += _report("remove_scratch", check_remove_scratch(), "retries ENOTEMPTY, then raises")
+    total += 1
+    failed += _report("scratch repository config", check_scratch_repo_config(),
+                      "gc.auto=0, maintenance.auto=false")
     print(f"check-pr-review-workflow self-test: {total - failed}/{total} fixtures passed")
     return 1 if failed or total == 0 else 0
 
