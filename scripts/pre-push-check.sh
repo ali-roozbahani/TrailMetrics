@@ -36,7 +36,7 @@ run_step() {
 # wrapper and daemon JVM files that run it (gradlew, gradle/wrapper/gradle-wrapper.jar and
 # .properties, gradle/gradle-daemon-jvm.properties) and for scripts/build-kmp-framework.sh, the
 # iOS steps' own framework build. Not for gradlew.bat (Windows only, nothing here runs it),
-# this script (CI's ios job runs in full for it) or scripts/check-variant-api.sh (only
+# this script (CI's macOS iOS jobs run in full for it) or scripts/check-variant-api.sh (only
 # `--variant uitest` runs it, which no iOS step here passes; its self-test runs on every gate
 # run). Exact paths and an exact `.md` suffix, as in scripts/classify-changes.sh:
 # `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
