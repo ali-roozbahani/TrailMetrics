@@ -98,6 +98,11 @@ fails, so observe through a use case that turns the failure into a value on the 
   take completion closures (`TrackingViewModel.onFinishClicked(snapshotFilePath:onSaved:)`,
   `DetailsViewModel.onDeleteConfirmed(onDeleted:)`). For new code, prefer a `UiEvent` case,
   but don't rewrite existing closures unless the task asks for it.
+- Known limitation, deliberately not fixed: `TrackingViewModel.onStopClicked` cancels and nils
+  `stateObservationTask` and `locationIssuesObservationTask`, which only `init` starts, so an
+  instance does not observe again after Stop. A user cannot hit it: the in-app Stop (controls
+  row and exit alert) calls `dismiss()` right after, the Live Activity Stop emits `.dismissed`,
+  and reaching the destination swaps the controls row for `finishCard`.
 
 ## Koin / KoinHelper
 
@@ -231,6 +236,19 @@ fails, so observe through a use case that turns the failure into a value on the 
 - `xcodebuild test` inside a package directory (`iosApp/Packages/<Name>`) uses the package's
   own scheme. It runs neither the pre-action nor the phase, so run the script first
   (the gate does).
+- Building the app from the command line (the command is CI's `ios-main` "Build iOS app"
+  step; the gate runs the same one):
+
+  ```bash
+  cd iosApp
+  xcodebuild build -project TrailMetrics.xcodeproj -scheme TrailMetrics \
+    -destination "generic/platform=iOS Simulator" -skipMacroValidation \
+    ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
+  ```
+
+  Without the architecture flags a build on clean derived data fails (the XCFramework has no
+  x86_64 slice). The gate also pipes the output through `scripts/filter-xcode-log.sh`, which
+  hides the exported build settings, which carry the Maps key, from the log.
 - Never disable, reorder or bypass the pre-action or the phase, and keep the shell logic in
   the script, not inline in the scheme or the project file.
 - Unexpected "missing/stale symbol from `TrailMetricsShared`": look in the build log for the
