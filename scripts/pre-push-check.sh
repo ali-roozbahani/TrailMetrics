@@ -329,23 +329,44 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     # Hard limit of IOS_SMOKE_LIMIT seconds for the whole step (variant build, app build, test).
     # macOS has no `timeout`, so a small perl wrapper runs the step in its own process group and
     # kills the group (xcodebuild, Gradle, the simulator's test runner) when the alarm fires; exit
-    # code 124 then means the limit was hit. xcodebuild's own per-test allowance (90 s) comes
+    # code 124 then means the limit was hit. Ctrl-C (INT), TERM and HUP reach only the gate's own
+    # group, so the wrapper catches them and kills the step's group the same way (exit 130, 143,
+    # 129); signals are blocked until the child's pid is known. xcodebuild's own per-test allowance (90 s) comes
     # first when only the test hangs and names the test in the log.
     IOS_SMOKE_LIMIT=180
     IOS_SMOKE_TEST='TrailMetricsUITests/DetailsFailedDeleteUITests/test_failedDelete_showsErrorAndKeepsDetails'
     ios_smoke_ui_test() {
         local started=$SECONDS status
         perl -e '
+            use POSIX qw(sigprocmask SIG_BLOCK SIG_UNBLOCK SIGINT SIGTERM SIGHUP SIGALRM);
             my $limit = shift;
-            my $pid = fork();
-            die "fork failed: $!" unless defined $pid;
-            if (!$pid) { setpgrp(0, 0); exec @ARGV; exit 127; }
-            $SIG{ALRM} = sub {
-                kill "TERM", -$pid; sleep 3; kill "KILL", -$pid; waitpid($pid, 0); exit 124;
+            my $pid = 0;
+            my $stop = sub {
+                $SIG{$_} = "IGNORE" for qw(INT TERM HUP ALRM);
+                if ($pid) { kill "TERM", -$pid; sleep 3; kill "KILL", -$pid; waitpid($pid, 0); }
+                exit shift;
             };
+            $SIG{ALRM} = sub { $stop->(124) };
+            $SIG{INT} = sub { $stop->(130) };
+            $SIG{TERM} = sub { $stop->(143) };
+            $SIG{HUP} = sub { $stop->(129) };
+            my $signals = POSIX::SigSet->new(SIGINT, SIGTERM, SIGHUP, SIGALRM);
+            sigprocmask(SIG_BLOCK, $signals);
+            $pid = fork();
+            die "fork failed: $!" unless defined $pid;
+            if (!$pid) {
+                $SIG{$_} = "DEFAULT" for qw(INT TERM HUP ALRM);
+                sigprocmask(SIG_UNBLOCK, $signals);
+                setpgrp(0, 0);
+                exec @ARGV;
+                exit 127;
+            }
             alarm $limit;
+            sigprocmask(SIG_UNBLOCK, $signals);
             waitpid($pid, 0);
-            exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+            my $status = $?;
+            $pid = 0;
+            exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
         ' "$IOS_SMOKE_LIMIT" bash -c '
             set -o pipefail
             filter="$PWD/scripts/filter-xcode-log.sh"
