@@ -19,7 +19,7 @@ final class RouteGenerateThenResetUITests: XCTestCase {
     @MainActor
     func test_resetWhileGenerating_leavesACleanScreen() throws {
         let app = XCUIApplication.launched(scenario: "GenerateThenReset")
-        app.addRouteWaypoints(count: 3)
+        try app.addRouteWaypoints(count: 3)
 
         let generateButton = app.buttons["route.generateButton"]
         generateButton.tap()
