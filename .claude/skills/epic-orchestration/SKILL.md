@@ -354,7 +354,7 @@ it. Suggested ruleset (same checks, integration id 15368 = GitHub Actions, as on
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           { "context": "Android — Lint, Detekt, Tests, Build", "integration_id": 15368 },
-          { "context": "iOS — SwiftLint, Build", "integration_id": 15368 } ] } },
+          { "context": "iOS — all stages", "integration_id": 15368 } ] } },
     { "type": "non_fast_forward" }
   ]
 }
