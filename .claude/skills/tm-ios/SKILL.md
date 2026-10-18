@@ -248,7 +248,7 @@ fails, so observe through a use case that turns the failure into a value on the 
 
   Without the architecture flags a build on clean derived data fails (the XCFramework has no
   x86_64 slice). The gate also pipes the output through `scripts/filter-xcode-log.sh`, which
-  hides the exported build settings, which carry the Maps key, from the log.
+  hides the exported build settings (they include the Maps key) from the log.
 - Never disable, reorder or bypass the pre-action or the phase, and keep the shell logic in
   the script, not inline in the scheme or the project file.
 - Unexpected "missing/stale symbol from `TrailMetricsShared`": look in the build log for the
