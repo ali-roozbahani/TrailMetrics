@@ -31,7 +31,7 @@ What it does, per run:
      runs as the gate runs it (`set -uo pipefail`, bash from PATH) in a separate bash process
      whose working directory is the repository root, and prints its variables to a file
      outside the repository.
-  4. Checks TOUCHES_IOS_OR_SHARED, BASE_REF (the merge-base, or HEAD~1 with the merge-base
+  4. Checks TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI, BASE_REF (the merge-base, or HEAD~1 with the merge-base
      warning when there is none), the "not exact" warning and its reason (with the fail-safe
      line, or neither), the final CHANGED_FILES, an empty stderr and exit 0.
   5. Runs every BUILD_FILES entry through the block with scope_of_paths() (one case per entry,
@@ -45,6 +45,8 @@ Fixture format, fixtures/cases/<name>/:
            modified, deleted or renamed. No changes: the branch commit is empty.
   expect   lines `key: value`; `#` starts a comment line.
              touches: true|false
+             ui:      (optional, missing = false) true|false: TOUCHES_IOS_UI, whether the
+                      gate's smoke UI test runs for this diff
              warning: none | <the exact reason>; {BASE} is the base the block must use and
                       {GIT_DIFF_ERROR} the first stderr line of that `git diff`, run here
              files:   one line per expected CHANGED_FILES entry, in git's order, or the single
@@ -87,6 +89,7 @@ GIT_CONFIG = ("-c", "user.name=ios-scope-self-test", "-c", "user.email=self-test
 # Printed after the block, NUL-separated, to $IOS_SCOPE_SELFTEST_OUT.
 REPORT = ('printf \'%s\\0\' "${TOUCHES_IOS_OR_SHARED-<unset>}" "${BASE_REF-<unset>}" '
           '"${CHANGED_FILES-<unset>}" "${IOS_PATHS-<unset>}" "${IOS_PATHS_EXCLUDED-<unset>}" '
+          '"${TOUCHES_IOS_UI-<unset>}" "${IOS_UI_PATHS-<unset>}" '
           '>"$IOS_SCOPE_SELFTEST_OUT"\n')
 
 
@@ -267,9 +270,9 @@ def run_block(block, bash, repo, env, tmp, setup=""):
     variables = None
     if out.exists():
         fields = out.read_bytes().decode("utf-8", "replace").split("\0")
-        if len(fields) == 6:
+        if len(fields) == 8:
             variables = dict(zip(("touches", "base_ref", "changed_files", "ios_paths",
-                                  "ios_paths_excluded"), fields[:5]))
+                                  "ios_paths_excluded", "ui", "ios_ui_paths"), fields[:7]))
     return (result.returncode, result.stdout.decode("utf-8", "replace"),
             result.stderr.decode("utf-8", "replace"), variables)
 
@@ -307,7 +310,7 @@ def load_case(fixture):
             if (op, len(paths)) not in (("A", 1), ("M", 1), ("D", 1), ("R", 2)):
                 raise FixtureError(f"changes line {n}: '{line}' is not A, M, D <path> or R <old> <new>")
             changes.append((op, *paths))
-    case = {"touches": None, "warning": None, "files": None, "setup": ""}
+    case = {"touches": None, "ui": "false", "warning": None, "files": None, "setup": ""}
     for n, line in enumerate((fixture / "expect").read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip() or line.startswith("#"):
             continue
@@ -322,6 +325,8 @@ def load_case(fixture):
             case[key] = value
     if case["touches"] not in ("true", "false"):
         raise FixtureError("expect needs `touches: true` or `touches: false`")
+    if case["ui"] not in ("true", "false"):
+        raise FixtureError("expect `ui:` must be `true` or `false`")
     if case["warning"] is None or case["files"] is None:
         raise FixtureError("expect needs a `warning:` and at least one `files:` line")
     if case["setup"] and case["setup"] not in SETUPS:
@@ -345,6 +350,8 @@ def run_case(fixture, block, bash):
     errors = []
     if got["touches"] != case["touches"]:
         errors.append(f"TOUCHES_IOS_OR_SHARED expected {case['touches']}, got {got['touches']}")
+    if got["ui"] != case["ui"]:
+        errors.append(f"TOUCHES_IOS_UI expected {case['ui']}, got {got['ui']}")
     if got["base_ref"] != base:
         errors.append(f"BASE_REF expected {base}, got {got['base_ref']}")
     want_mb_line = base == "HEAD~1"
@@ -368,7 +375,7 @@ def run_case(fixture, block, bash):
         errors.append(f"CHANGED_FILES expected {want_files!r}, got {got['changed_files']!r}")
     if stderr:
         errors.append(f"stderr expected empty, got {stderr.strip()!r}")
-    desc = (f"touches={got['touches']}, warning: {got_warning}, "
+    desc = (f"touches={got['touches']}, ui={got['ui']}, warning: {got_warning}, "
             f"{len(case['files'])} file(s)" + (f", setup {case['setup']}" if case["setup"] else ""))
     return errors, desc, output
 
@@ -481,9 +488,11 @@ def self_test(script_dir, script, build_script):
             print(f"check-ios-scope: FAILED, cannot build a scratch repository: {e}")
             return 1
         _, _, _, probe = run_block(block, bash, repo, env, tmp)
-    probe = probe or {"ios_paths": "<block failed>", "ios_paths_excluded": "<block failed>"}
+    probe = probe or {"ios_paths": "<block failed>", "ios_paths_excluded": "<block failed>",
+                      "ios_ui_paths": "<block failed>"}
     print(f"--- iOS scope block extracted from {shown} (lines {first}-{last}): "
-          f"IOS_PATHS={probe['ios_paths']} IOS_PATHS_EXCLUDED={probe['ios_paths_excluded']}; "
+          f"IOS_PATHS={probe['ios_paths']} IOS_PATHS_EXCLUDED={probe['ios_paths_excluded']} "
+          f"IOS_UI_PATHS={probe['ios_ui_paths']}; "
           f"{len(build_files)} BUILD_FILES entries from {shown_build} (line {build_files_line}); "
           f"run with {bash} (bash {bash_version}), {git_version}")
 

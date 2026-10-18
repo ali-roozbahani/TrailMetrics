@@ -1,0 +1,5 @@
+# a domain-only change runs the iOS steps but not the smoke UI test
+touches: true
+ui: false
+warning: none
+files: domain/src/commonMain/kotlin/Z.kt

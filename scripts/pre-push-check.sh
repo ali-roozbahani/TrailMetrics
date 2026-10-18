@@ -28,7 +28,7 @@ run_step() {
     fi
 }
 
-# >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (begin) >>>
+# >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI (begin) >>>
 # --- Decide scope: did this branch touch iOS, shared/domain/data/core or the framework's build? ---
 # The iOS steps run for a changed file under iosApp/, domain/, data/, core/, shared/ or
 # shared-uitest/ (the test-only variant of the framework, ADR-002) that is not markdown, for the
@@ -37,11 +37,17 @@ run_step() {
 # .properties, gradle/gradle-daemon-jvm.properties) and for scripts/build-kmp-framework.sh, the
 # iOS steps' own framework build. Not for gradlew.bat (Windows only, nothing here runs it),
 # this script (CI's macOS iOS jobs run in full for it) or scripts/check-variant-api.sh (only
-# `--variant uitest` runs it, which no iOS step here passes; its self-test runs on every gate
-# run). Exact paths and an exact `.md` suffix, as in scripts/classify-changes.sh:
+# `--variant uitest` runs it; deliberately NOT part of the UI scope below, and its self-test
+# runs in every gate run). Exact paths and an exact `.md` suffix, as in scripts/classify-changes.sh:
 # `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
 IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/|shared-uitest/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml|gradle/wrapper/gradle-wrapper\.properties|gradle/wrapper/gradle-wrapper\.jar|gradle/gradle-daemon-jvm\.properties|gradlew|scripts/build-kmp-framework\.sh)$'
 IOS_PATHS_EXCLUDED='\.md$'
+# TOUCHES_IOS_UI (the smoke UI test step) is a narrower question: did the branch touch what the
+# UI tests drive or are built from (the app target, the UI-test target, a package's Sources/, the
+# shared framework's commonMain and iosMain, the test-only variant)? Same exclusion of markdown.
+# Not domain/, data/ or core/ on their own, and not scripts/check-variant-api.sh, which is
+# deliberately outside this scope (its self-test runs in every gate run).
+IOS_UI_PATHS='^(iosApp/TrailMetrics/|iosApp/TrailMetricsUITests/|iosApp/Packages/[^/]+/Sources/|shared/src/(commonMain|iosMain)/|shared-uitest/)'
 # The list is `git diff --no-renames -z`, as in scripts/classify-changes.sh: a move lists both
 # its paths, and no path is quoted (non-ASCII) or split (a newline in a name). Each path is
 # matched as one string with bash's =~, never line by line. Fail-safe: when the branch's list
@@ -62,6 +68,7 @@ if [ -z "$BASE_REF" ]; then
 fi
 CHANGED_FILES=""
 TOUCHES_IOS_OR_SHARED=false
+TOUCHES_IOS_UI=false
 if [ -z "$IOS_SCOPE_TMP" ]; then
     IOS_SCOPE_PROBLEM="${IOS_SCOPE_PROBLEM:+$IOS_SCOPE_PROBLEM; }mktemp failed, so no file list"
 elif ! git diff --no-ext-diff --no-renames --name-only -z --end-of-options "$BASE_REF" HEAD \
@@ -74,15 +81,19 @@ else
         if [[ "$IOS_SCOPE_PATH" =~ $IOS_PATHS ]] && [[ ! "$IOS_SCOPE_PATH" =~ $IOS_PATHS_EXCLUDED ]]; then
             TOUCHES_IOS_OR_SHARED=true
         fi
+        if [[ "$IOS_SCOPE_PATH" =~ $IOS_UI_PATHS ]] && [[ ! "$IOS_SCOPE_PATH" =~ $IOS_PATHS_EXCLUDED ]]; then
+            TOUCHES_IOS_UI=true
+        fi
     done <"$IOS_SCOPE_TMP/list"
 fi
 [ -n "$IOS_SCOPE_TMP" ] && rm -rf "$IOS_SCOPE_TMP"
 if [ -n "$IOS_SCOPE_PROBLEM" ]; then
     TOUCHES_IOS_OR_SHARED=true
+    TOUCHES_IOS_UI=true
     echo "Warning: the changed-file list for the iOS scope is not exact: $IOS_SCOPE_PROBLEM"
     echo "         iOS/shared checks required: true (fail-safe)"
 fi
-# <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (end) <<<
+# <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI (end) <<<
 
 # --- Decide scope: may the heavy steps be skipped? ---
 # scripts/classify-changes.sh decides it, the same script as CI. "light" (every changed file is
@@ -108,6 +119,7 @@ fi
 echo "Changed files since $BASE_REF:"
 echo "$CHANGED_FILES" | sed 's/^/  /'
 echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
+echo "iOS UI smoke test required: $TOUCHES_IOS_UI"
 echo
 
 run_step "board check" scripts/check-board.sh
@@ -305,6 +317,97 @@ if [ "$RUN_IOS_STEPS" = true ]; then
         done
         exit $status
     '
+
+    # The smoke UI test: one XCUITest (DetailsFailedDeleteUITests, the failed-delete scenario of
+    # docs/epics/ios-ui-tests.md D4), only when the branch touches the UI scope
+    # (TOUCHES_IOS_UI). CI builds the variant once in `ios-build-ui` and runs all UI tests in
+    # `ios-ui`. Last in the iOS part: `--variant uitest` leaves the test-only framework at the debug
+    # path, and a normal build after it rebuilds the production one. Same simulator selection and
+    # the same flags as CI; the output goes through scripts/filter-xcode-log.sh (the local
+    # secrets config holds a real Maps key). No retries: red is red (D6).
+    #
+    # Hard limit of IOS_SMOKE_LIMIT seconds for the whole step (variant build, app build, test).
+    # macOS has no `timeout`, so a small perl wrapper runs the step in its own process group and
+    # kills the group (xcodebuild, Gradle, the simulator's test runner) when the alarm fires; exit
+    # code 124 then means the limit was hit. Ctrl-C (INT), TERM and HUP reach only the gate's own
+    # group, so the wrapper catches them and kills the step's group the same way (exit 130, 143,
+    # 129); signals are blocked until the child's pid is known. xcodebuild's own per-test allowance (90 s) comes
+    # first when only the test hangs and names the test in the log.
+    IOS_SMOKE_LIMIT=180
+    IOS_SMOKE_TEST='TrailMetricsUITests/DetailsFailedDeleteUITests/test_failedDelete_showsErrorAndKeepsDetails'
+    ios_smoke_ui_test() {
+        local started=$SECONDS status
+        perl -e '
+            use POSIX qw(sigprocmask SIG_BLOCK SIG_UNBLOCK SIGINT SIGTERM SIGHUP SIGALRM);
+            my $limit = shift;
+            my $pid = 0;
+            my $stop = sub {
+                $SIG{$_} = "IGNORE" for qw(INT TERM HUP ALRM);
+                if ($pid) { kill "TERM", -$pid; sleep 3; kill "KILL", -$pid; waitpid($pid, 0); }
+                exit shift;
+            };
+            $SIG{ALRM} = sub { $stop->(124) };
+            $SIG{INT} = sub { $stop->(130) };
+            $SIG{TERM} = sub { $stop->(143) };
+            $SIG{HUP} = sub { $stop->(129) };
+            my $signals = POSIX::SigSet->new(SIGINT, SIGTERM, SIGHUP, SIGALRM);
+            sigprocmask(SIG_BLOCK, $signals);
+            $pid = fork();
+            die "fork failed: $!" unless defined $pid;
+            if (!$pid) {
+                $SIG{$_} = "DEFAULT" for qw(INT TERM HUP ALRM);
+                sigprocmask(SIG_UNBLOCK, $signals);
+                setpgrp(0, 0);
+                exec @ARGV;
+                exit 127;
+            }
+            alarm $limit;
+            sigprocmask(SIG_UNBLOCK, $signals);
+            waitpid($pid, 0);
+            my $status = $?;
+            $pid = 0;
+            exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
+        ' "$IOS_SMOKE_LIMIT" bash -c '
+            set -o pipefail
+            filter="$PWD/scripts/filter-xcode-log.sh"
+            if [ ! -f "$filter" ] || [ ! -x "$filter" ]; then
+                echo "scripts/filter-xcode-log.sh is missing or not executable: xcodebuild not run"
+                exit 1
+            fi
+            SIM_ID="$(xcrun simctl list devices available iPhone \
+                | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}" | tail -1)"
+            if [ -z "$SIM_ID" ]; then
+                echo "No available iPhone simulator (see LEARNINGS.md: xcodebuild -downloadPlatform iOS)"
+                exit 1
+            fi
+            scripts/build-kmp-framework.sh --variant uitest || exit 1
+            cd iosApp
+            xcodebuild test \
+                -project TrailMetrics.xcodeproj \
+                -scheme TrailMetricsUITests \
+                -destination "platform=iOS Simulator,id=$SIM_ID" \
+                -only-testing:"$1" \
+                -test-timeouts-enabled YES \
+                -maximum-test-execution-time-allowance 90 \
+                -skipMacroValidation \
+                CODE_SIGNING_ALLOWED=NO \
+                ARCHS=arm64 \
+                EXCLUDED_ARCHS=x86_64 \
+                ONLY_ACTIVE_ARCH=NO 2>&1 | "$filter"
+        ' _ "$IOS_SMOKE_TEST"
+        status=$?
+        if [ $status -eq 124 ]; then
+            echo "iOS smoke UI test: timeout, the step was killed at the limit of ${IOS_SMOKE_LIMIT} s"
+        fi
+        echo "iOS smoke UI test: $((SECONDS - started)) s (limit ${IOS_SMOKE_LIMIT} s)"
+        return $status
+    }
+    if [ "$TOUCHES_IOS_UI" = true ]; then
+        run_step "iOS smoke UI test" ios_smoke_ui_test
+    else
+        echo "==> iOS smoke UI test"
+        echo "    skipped: no changed file in the UI scope (app, UI tests, package Sources, shared commonMain/iosMain, shared-uitest)"
+    fi
 fi
 
 # --- Review verdict (soft: reports only) ---
