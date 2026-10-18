@@ -313,9 +313,11 @@ one of them.
 
 ### Protection
 
-`main` today (checked 2026-09-28): PR required, required status checks
-`Android — Lint, Detekt, Tests, Build` and `iOS — SwiftLint, Build` with **strict**
-(up-to-date) on, 0 approvals, `enforce_admins` on, no force pushes, no deletions.
+`main` today (as reported by the human on 2026-10-11): PR required, required status checks
+`Android — Lint, Detekt, Tests, Build`, `iOS — all stages` and `Review — pr-reviewer` with
+**strict** (up-to-date) on, 0 approvals, `enforce_admins` on, no force pushes, no deletions.
+`pr-review.yml` has no branch filter, so `Review — pr-reviewer` runs for pull requests into
+epic integration branches too.
 
 **Recommendation: give epic branches the same protection as `main`, via one
 repository ruleset that targets the pattern.** Don't set up classic protection per
@@ -336,7 +338,8 @@ branch. The reasons:
   PR stuck waiting for a check that never runs.
 
 The human sets this up **once**, before the first epic. The orchestrator must not run
-it. Suggested ruleset (same checks, integration id 15368 = GitHub Actions, as on `main`):
+it. Suggested ruleset (same three checks, integration id 15368 = GitHub Actions, as on
+`main`):
 
 ```json
 {
@@ -354,14 +357,15 @@ it. Suggested ruleset (same checks, integration id 15368 = GitHub Actions, as on
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           { "context": "Android — Lint, Detekt, Tests, Build", "integration_id": 15368 },
-          { "context": "iOS — all stages", "integration_id": 15368 } ] } },
+          { "context": "iOS — all stages", "integration_id": 15368 },
+          { "context": "Review — pr-reviewer", "integration_id": 15368 } ] } },
     { "type": "non_fast_forward" }
   ]
 }
 ```
 
 `do_not_enforce_on_create: true` is explicit because GitHub defaults it to `false`, which
-rejects creating the branch unless its base commit already has both checks green.
+rejects creating the branch unless its base commit already has all three checks green.
 
 Apply it with `gh api -X POST repos/ali-roozbahani/TrailMetrics/rulesets --input <file>`,
 or through Settings → Rules. There are no bypass actors, which matches `enforce_admins` on
@@ -541,7 +545,7 @@ The orchestrator reports readiness. The human merges only when all of these hold
    plan change the human approved. None is still open.
 2. The epic branch includes the latest `main` (strict protection on `main` enforces this;
    sync as in Lifecycle step 4).
-3. CI is green on the epic PR for both required checks, on its current head.
+3. CI is green on the epic PR for every required check, on its current head.
 4. **The final board PR is merged into the epic branch, and only then** has the
    orchestrator marked the epic PR ready for review (`gh pr ready <n>`). The final board
    PR is the one board-only PR allowed (`tm-pr-workflow` → Board, rule 5). The
