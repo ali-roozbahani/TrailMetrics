@@ -254,15 +254,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
 - Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
 
-### ci-trial-ubuntu-26-04
-- Type: task
-- Area: .github
-- Order: 205
-- Source: GitHub changelog 2026-09-17 and chat 2026-10-18
-- Problem: `ubuntu-latest` becomes Ubuntu 26.04 between 2026-10-19 and 2026-11-19. Since the change `chore(ci): pin the ubuntu jobs to ubuntu-24.04 before ubuntu-latest moves to 26.04` the Ubuntu jobs (`android`, `ios-plan` and `ios` in `ci.yml`, `review` in `pr-review.yml`) are pinned to 24.04, which GitHub will retire later. The tools these jobs use from the image (python3, git, jq, the Android SDK, Node/npm) are not pinned by the workflows.
-- Done when: before 2026-11-19 a branch runs those jobs on `ubuntu-26.04` and either the pin moves to 26.04, or the failures are listed and the pin stays with a date for the next look.
-- Refs: `.github/workflows/ci.yml`; `.github/workflows/pr-review.yml`.
-
 ### swift-test-support-ships-in-production-framework
 - Type: task
 - Area: shared, iosApp
