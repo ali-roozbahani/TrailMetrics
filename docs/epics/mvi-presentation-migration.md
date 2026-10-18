@@ -17,6 +17,11 @@
   dependencies (no MockK, no Turbine, see Assumptions); gate, hook, CI, lint config.
 - **Approved by:** Ali Roozbahani on 2026-09-29
 
+> **Note, 2026-10-18.** The `tier2:` lines below and the section "Tier 2 on the integrated
+> result" predate the automated-first Tier 2 rule of `tm-pr-workflow`. The plan is kept as
+> history; for the current rule read `tm-pr-workflow` ("Tier 2: what automated tests cannot
+> show").
+
 ## Epic or single task?
 
 Checked against epic-orchestration's three conditions, all of which must hold:

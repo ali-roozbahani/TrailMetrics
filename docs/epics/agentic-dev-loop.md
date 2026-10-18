@@ -16,7 +16,9 @@
   agree. Protected paths and epics are always merged by the human.
 - **Out of scope:** the test seam, UI test targets and the manual device checklist (they
   become their own epic with their own plan after S6); any app code; GitHub Apps; renaming
-  the two existing required CI checks.
+  the two existing required CI checks. The "manual device checklist" is the Tier 2
+  categories of `tm-pr-workflow` ("Tier 2: what automated tests cannot show"), not a
+  separate list.
 - **Approved by:** Ali Roozbahani on 2026-10-02
 
 ## Decisions
