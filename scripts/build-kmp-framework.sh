@@ -1,9 +1,10 @@
 #!/bin/sh
 # Builds the debug TrailMetricsShared.xcframework that iosApp/Packages/SharedKit links, but only
 # when one of its inputs changed since the last successful build, or the other variant is in
-# place. The single entry point for that framework outside CI: the TrailMetrics scheme's Build
-# pre-action, the app target's "Build KMP Shared Framework" phase and scripts/pre-push-check.sh
-# all call this script.
+# place. The single entry point for building that framework, in Xcode, locally and in CI: the
+# TrailMetrics scheme's Build pre-action, the app target's "Build KMP Shared Framework" phase and
+# scripts/pre-push-check.sh call this script, and so do the CI jobs ios-main (production variant)
+# and ios-build-ui (--variant uitest).
 #
 # Usage: scripts/build-kmp-framework.sh [--build-phase] [--variant production|uitest]
 #   --build-phase  Called from inside the Xcode build. By then Xcode has already copied the
