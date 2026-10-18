@@ -322,8 +322,15 @@ fakes into the production XCFramework and guarded the Swift call site with `#if 
   existing corner buttons) with a text element `uitest.probe` (for example
   `refreshes=1 directions=1 directionsDone=1 saves=1 deletes=1 waypoints=3`; `waypoints` is the
   Route map's waypoint count, -1 if the map is not found), a button
-  `uitest.probe.refresh` that re-reads the counters and increments the refresh generation, and a
-  button `uitest.probe.release` that completes every held call.
+  `uitest.probe.refresh` that re-reads the counters and increments the refresh generation, a
+  button `uitest.probe.release` that completes every held call, and a button
+  `uitest.probe.addWaypoint` that adds the next of five fixed Route waypoints and returns at once.
+  This is the waypoint seam: the app finds the Route `GMSMapView`, turns a normalized point of it
+  into a coordinate with the map's projection and calls the map delegate's public
+  `mapView(_:didLongPressAt:)`, so the Route coordinator and everything after it run as for a real
+  press and only the Maps SDK's gesture recognition is skipped. The button leaves the text, the
+  refresh generation and the counters alone (the text keeps its six pairs); a test reads the
+  result with a refresh.
   "One directions request" and "one deletion" are counters (UI evidence cannot tell one call
   from two identical ones); "one History entry" is checked both by the History row count and by
   the save counter.
