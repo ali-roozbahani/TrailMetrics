@@ -166,7 +166,7 @@ jobs:
   # check name "iOS — SwiftLint, Build". ios-build-ui then ios-ui is the critical path; ios-main
   # (SwiftLint, simulator tests, app build, package tests) runs next to it.
   ios-plan:
-    name: iOS — plan
+    name: iOS 1 — plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -193,7 +193,7 @@ jobs:
   # scripts/build-kmp-framework.sh --variant uitest, which builds production too for its API
   # check, so no separate production framework step is needed here.
   ios-build-ui:
-    name: iOS — build UI-test products
+    name: iOS 2a — build UI-test app
     needs: ios-plan
     if: needs.ios-plan.outputs.decision != 'light'
     runs-on: macos-latest
@@ -264,7 +264,7 @@ jobs:
   # as the package tests of ios-main. No retries (D6 of docs/epics/ios-ui-tests.md). The result
   # bundle goes to $RUNNER_TEMP, which the runner empties for every job.
   ios-ui:
-    name: iOS — run UI tests
+    name: iOS 3 — run UI tests (after 2a)
     needs: [ios-plan, ios-build-ui]
     if: needs.ios-plan.outputs.decision != 'light'
     runs-on: macos-latest
@@ -312,7 +312,7 @@ jobs:
           retention-days: 7
 
   ios-main:
-    name: iOS — SwiftLint, app build, package tests
+    name: iOS 2b — lint, app build, package tests
     needs: ios-plan
     if: needs.ios-plan.outputs.decision != 'light'
     runs-on: macos-latest
