@@ -400,7 +400,7 @@ jobs:
           done
           exit $status
 
-  # The required check "iOS — SwiftLint, Build". if: always() so that it reports when a job it
+  # The required check "iOS — all stages". if: always() so that it reports when a job it
   # needs failed, was cancelled or timed out. It is green only when every needed job succeeded,
   # or, for the macOS jobs, was skipped while the decision is "light". An unset decision (a
   # failed classifier or plan job) is never "light".
