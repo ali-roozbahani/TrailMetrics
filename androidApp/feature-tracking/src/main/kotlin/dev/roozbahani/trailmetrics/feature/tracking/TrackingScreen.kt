@@ -143,6 +143,8 @@ fun TrackingRoot(
         }
     }
 
+    // `context` is hoisted above (val context = LocalContext.current) and only used inside the effect, so the
+    // lint rule against reading resources from LocalContext.current inside it does not apply.
     @Suppress("LocalContextGetResourceValueCall")
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->

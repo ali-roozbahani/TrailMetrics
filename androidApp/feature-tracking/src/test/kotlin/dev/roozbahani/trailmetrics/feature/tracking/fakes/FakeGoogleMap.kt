@@ -96,6 +96,8 @@ class ShadowMapView : ShadowViewGroup() { // A shadow extends the shadow of its 
         callback.onMapReady(checkNotNull(FakeGoogleMap.current) { "FakeGoogleMap.current is not set" }.map)
     }
 
+    // Robolectric matches a shadow method to the real MapView.onCreate(Bundle), so the parameter stays
+    // although the shadow ignores it.
     @Implementation
     fun onCreate(@Suppress("UNUSED_PARAMETER") savedInstanceState: Bundle?) = Unit
 

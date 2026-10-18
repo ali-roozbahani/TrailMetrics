@@ -120,6 +120,8 @@ fun RouteRoot(
         }
     }
 
+    // `context` is hoisted above (val context = LocalContext.current) and only used inside the effect, so the
+    // lint rule against reading resources from LocalContext.current inside it does not apply.
     @Suppress("LocalContextGetResourceValueCall")
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -459,6 +461,7 @@ private fun iconFor(type: ActivityType): ImageVector = when (type) {
     ActivityType.Walking -> Icons.AutoMirrored.Filled.DirectionsWalk
 }
 
+// Detekt counts private @Preview functions as unused; they are only used by the IDE preview.
 @Suppress("UnusedPrivateMember")
 @Preview(showBackground = true)
 @Composable
