@@ -1,0 +1,5 @@
+# a shared-uitest/ file (the test-only variant) runs the smoke UI test
+touches: true
+ui: true
+warning: none
+files: shared-uitest/src/iosMain/kotlin/Seam.kt

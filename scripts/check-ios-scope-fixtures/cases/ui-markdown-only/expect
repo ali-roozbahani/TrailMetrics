@@ -1,0 +1,5 @@
+# markdown under a UI path runs neither the iOS steps nor the smoke UI test
+touches: false
+ui: false
+warning: none
+files: iosApp/Packages/History/Sources/History/README.md

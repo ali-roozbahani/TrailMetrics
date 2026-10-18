@@ -28,7 +28,7 @@ run_step() {
     fi
 }
 
-# >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (begin) >>>
+# >>> iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI (begin) >>>
 # --- Decide scope: did this branch touch iOS, shared/domain/data/core or the framework's build? ---
 # The iOS steps run for a changed file under iosApp/, domain/, data/, core/, shared/ or
 # shared-uitest/ (the test-only variant of the framework, ADR-002) that is not markdown, for the
@@ -42,6 +42,12 @@ run_step() {
 # `data/README.md.kt` counts, `androidApp/app/build.gradle.kts` does not.
 IOS_PATHS='^(iosApp/|domain/|data/|core/|shared/|shared-uitest/)|^(build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradle/libs\.versions\.toml|gradle/wrapper/gradle-wrapper\.properties|gradle/wrapper/gradle-wrapper\.jar|gradle/gradle-daemon-jvm\.properties|gradlew|scripts/build-kmp-framework\.sh)$'
 IOS_PATHS_EXCLUDED='\.md$'
+# TOUCHES_IOS_UI (the smoke UI test step) is a narrower question: did the branch touch what the
+# UI tests drive or are built from (the app target, the UI-test target, a package's Sources/, the
+# shared framework's commonMain and iosMain, the test-only variant)? Same exclusion of markdown.
+# Not domain/, data/ or core/ on their own, and not scripts/check-variant-api.sh, which is
+# deliberately outside this scope (its self-test runs in every gate run).
+IOS_UI_PATHS='^(iosApp/TrailMetrics/|iosApp/TrailMetricsUITests/|iosApp/Packages/[^/]+/Sources/|shared/src/(commonMain|iosMain)/|shared-uitest/)'
 # The list is `git diff --no-renames -z`, as in scripts/classify-changes.sh: a move lists both
 # its paths, and no path is quoted (non-ASCII) or split (a newline in a name). Each path is
 # matched as one string with bash's =~, never line by line. Fail-safe: when the branch's list
@@ -62,6 +68,7 @@ if [ -z "$BASE_REF" ]; then
 fi
 CHANGED_FILES=""
 TOUCHES_IOS_OR_SHARED=false
+TOUCHES_IOS_UI=false
 if [ -z "$IOS_SCOPE_TMP" ]; then
     IOS_SCOPE_PROBLEM="${IOS_SCOPE_PROBLEM:+$IOS_SCOPE_PROBLEM; }mktemp failed, so no file list"
 elif ! git diff --no-ext-diff --no-renames --name-only -z --end-of-options "$BASE_REF" HEAD \
@@ -74,15 +81,19 @@ else
         if [[ "$IOS_SCOPE_PATH" =~ $IOS_PATHS ]] && [[ ! "$IOS_SCOPE_PATH" =~ $IOS_PATHS_EXCLUDED ]]; then
             TOUCHES_IOS_OR_SHARED=true
         fi
+        if [[ "$IOS_SCOPE_PATH" =~ $IOS_UI_PATHS ]] && [[ ! "$IOS_SCOPE_PATH" =~ $IOS_PATHS_EXCLUDED ]]; then
+            TOUCHES_IOS_UI=true
+        fi
     done <"$IOS_SCOPE_TMP/list"
 fi
 [ -n "$IOS_SCOPE_TMP" ] && rm -rf "$IOS_SCOPE_TMP"
 if [ -n "$IOS_SCOPE_PROBLEM" ]; then
     TOUCHES_IOS_OR_SHARED=true
+    TOUCHES_IOS_UI=true
     echo "Warning: the changed-file list for the iOS scope is not exact: $IOS_SCOPE_PROBLEM"
     echo "         iOS/shared checks required: true (fail-safe)"
 fi
-# <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED (end) <<<
+# <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI (end) <<<
 
 # --- Decide scope: may the heavy steps be skipped? ---
 # scripts/classify-changes.sh decides it, the same script as CI. "light" (every changed file is
@@ -108,6 +119,7 @@ fi
 echo "Changed files since $BASE_REF:"
 echo "$CHANGED_FILES" | sed 's/^/  /'
 echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
+echo "iOS UI smoke test required: $TOUCHES_IOS_UI"
 echo
 
 run_step "board check" scripts/check-board.sh

@@ -1,0 +1,5 @@
+# a file of the app target runs the smoke UI test
+touches: true
+ui: true
+warning: none
+files: iosApp/TrailMetrics/TrailMetricsApp.swift

@@ -1,0 +1,5 @@
+# a package Tests/ file only runs the iOS steps but not the smoke UI test
+touches: true
+ui: false
+warning: none
+files: iosApp/Packages/History/Tests/HistoryTests/HistoryViewModelTests.swift

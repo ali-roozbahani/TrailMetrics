@@ -1,0 +1,5 @@
+# a package Sources file runs the smoke UI test
+touches: true
+ui: true
+warning: none
+files: iosApp/Packages/History/Sources/History/HistoryView.swift
