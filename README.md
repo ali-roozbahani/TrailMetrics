@@ -119,7 +119,7 @@ The goal is that anyone reading this repository — human or automated — can t
 | Live tracking UI | Android foreground service notification, iOS ActivityKit Live Activity (Lock Screen + Dynamic Island) |
 | Testing | `kotlin.test` + hand-written fakes + Ktor `MockEngine` (shared), JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` + hand-written fakes + Robolectric (Android-only: the tests that need the Android framework; each module's `build.gradle.kts` says which modules use it) |
 | Static analysis | Detekt (`config/detekt/detekt.yml`), SwiftLint (`iosApp/.swiftlint.yml`), Android Lint |
-| CI/CD | GitHub Actions — separate Android (`ubuntu-24.04`) and iOS (`macos-latest`) jobs on every PR and push to `main` |
+| CI/CD | GitHub Actions — separate Android (`ubuntu-26.04`) and iOS (`macos-latest`) jobs on every PR and push to `main` |
 | Build | Gradle Version Catalog (`libs.versions.toml`), Swift Package Manager (iOS local packages) |
 
 ---
