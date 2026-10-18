@@ -412,7 +412,7 @@ silently force-pushing.
 ## Where enforcement and history differ from the rules
 
 - **Branch protection enforces CI and code owner review.** As reported by the human on
-  2026-10-11 (the machine token can't read the settings): `main` requires a PR and
+  2026-10-18 (the machine token can't read the settings): `main` requires a PR and
   `enforce_admins` is on, so a direct push to `main` is rejected. Review from code owners is
   required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
   the code owner's approval, and stale approvals are dismissed when new commits are pushed.
