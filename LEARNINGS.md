@@ -585,6 +585,8 @@ the stamp if one of them ever does change the framework).
   development inside Xcode.app, but isn't guaranteed to behave identically
   when `xcodebuild` is invoked directly from a CI shell in a fresh
   checkout with no prior Gradle daemon state.
+  2026-10-18: CI runs `scripts/build-kmp-framework.sh` since the change
+  "chore(ci): build the shared framework with scripts/build-kmp-framework.sh".
 
 ---
 

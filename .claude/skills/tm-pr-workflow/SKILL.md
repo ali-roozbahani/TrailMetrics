@@ -445,6 +445,14 @@ silently force-pushing.
   `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
   name: it runs no build step and is green only when `ios-plan`, `ios-build-ui`, `ios-ui` and
   `ios-main` passed, or the three macOS jobs were skipped on a `light` decision.
+- **CI's `xcodebuild` steps don't scrub the environment or filter the log; the gate does.**
+  The gate removes secret-looking variables (`scripts/scrub-env.sh`) and filters the
+  `export` dump out of the `xcodebuild` output (`scripts/filter-xcode-log.sh`). CI's
+  `xcodebuild` steps do neither. Decided 2026-10-18 to leave CI as it is: the iOS jobs hold
+  no secret (`ci.yml` references no `secrets.`, and the generated configuration file
+  contains a placeholder key only), and GitHub masks real secrets in logs. If a secret is
+  ever given to an iOS job, scrubbing and filtering become required first, with
+  `set -o pipefail` in the step, because the default macOS `run:` shell has no pipefail.
 - **CI only runs on push for `main` and `feature/epic/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
 - **Commit types have been used inconsistently.** The retired docs listed only
