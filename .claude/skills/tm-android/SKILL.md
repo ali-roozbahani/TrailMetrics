@@ -266,6 +266,5 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
-- The existing `@Suppress("UnusedPrivateMember")` and
-  `@Suppress("LocalContextGetResourceValueCall")` in `RouteScreen.kt`/`TrackingScreen.kt`
-  carry no reason comment. New suppressions need one.
+- Every suppression carries a reason comment on its own line directly above the annotation.
+  New suppressions need one too.

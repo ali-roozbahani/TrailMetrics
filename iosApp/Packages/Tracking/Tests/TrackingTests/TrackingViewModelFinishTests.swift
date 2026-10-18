@@ -67,8 +67,8 @@ final class TrackingViewModelFinishTests: TrackingTestCase {
         viewModel.onFinishClicked(snapshotFilePath: "first") { onSavedCallCount += 1 }
         await waitUntil { onSavedCallCount == 1 }
 
-        // Stop cancelled the ViewModel's state observation (board record
-        // document-ios-start-after-stop-limitation), so wait on the session manager's
+        // Stop cancelled the ViewModel's state observation (the known limitation in tm-ios,
+        // "ViewModel shape"), so wait on the session manager's
         // second location collection instead; Stop reads the manager's state directly.
         viewModel.onStartClicked()
         await waitUntil { subject.locationRepository.observeCallCount == 2 }

@@ -164,6 +164,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a non-2xx Directions response returns `RouteError.DirectionsApiError` whose cause names the HTTP status, and that pinned test is changed to assert it.
 - Refs: `data` `di/NetworkModule.kt`, `common/SafeApiCall.kt`, `DirectionsRepositoryImpl.getClosedRoute`; `DirectionsRepositoryImplTest`.
 
+### location-current-swallows-cancellation
+- Type: task
+- Area: data
+- Order: 155
+- Source: audit of the comment-drift PR, 2026-10-18
+- Problem: `AndroidLocationRepositoryImpl.getCurrentLocation` awaits the location client in `suspendCancellableCoroutine` inside a `try` whose last `catch` is `Exception`. Cancelling the caller makes that call throw `CancellationException`, which the `catch` turns into `Result.failure(RouteError.LocationUnavailable(ex))`, so the function returns a result instead of letting the cancellation propagate. `observeLocationUpdates` rethrows `CancellationException` before its `Exception` catch, and so does `safeApiCall`. No test cancels a caller of `getCurrentLocation`.
+- Done when: `getCurrentLocation` rethrows `CancellationException` before its `Exception` catch, and a test shows that cancelling the caller propagates the cancellation instead of returning a `Result`.
+- Refs: `AndroidLocationRepositoryImpl.getCurrentLocation`; `AndroidLocationRepositoryImpl.observeLocationUpdates`; `data` `common/SafeApiCall.kt` (`safeApiCall`).
+
 ### polyline-decoder-invalid-characters
 - Type: task
 - Area: data
@@ -207,7 +216,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: agentic-dev-loop run 18 review (PR #104), 2026-10-05
 - Problem: the repo's convention is `// swiftlint:disable:next <rule> - <reason>`, but a disable comment with no reason, or with an empty one (` - ` and nothing after it), still passes `--strict` (seen with SwiftLint 0.65.1 on a fixture: exit 0, 0 violations); only review notices.
 - Done when: a check rejects a `swiftlint:disable` comment (any rule, `:next`, `:this`, `:previous` and the block forms) that has no ` - <reason>` text, every existing suppression under `iosApp/` complies or the PR lists the ones that do not with the human's decision, and the check is shown failing on an example without a reason and passing with one (a SwiftLint custom rule on comments, or a small script, whichever the PR justifies).
-- Refs: `iosApp/.swiftlint.yml`; `tm-ios` ("SwiftLint", suppression convention); board `drift-suppress-comments`.
+- Refs: `iosApp/.swiftlint.yml`; `tm-ios` ("SwiftLint", suppression convention).
 
 ### wait-until-cancellation-spin
 - Type: task
@@ -264,40 +273,3 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Refs: CI runs 39049148407 and 39074545852; `RouteGenerateTwiceUITests.test_generateTwice_requestsDirectionsOnce`; `RouteGenerateThenResetUITests.test_resetWhileGenerating_leavesACleanScreen`; CI run 39137921296; `RouteMapLongPressUITests.test_longPress_addsAWaypoint`; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`; `docs/epics/ios-ui-tests.md` (D6); `.claude/skills/tm-testing/SKILL.md` ("Flakes (D6)").
 
 ## Drift
-
-### drift-suppress-comments
-- Type: drift
-- Area: androidApp, data
-- Order: 200
-- Source: chat 2026-10-01
-- Problem: Several suppressions have no reason next to them: `@Suppress("LocalContextGetResourceValueCall")` on the events `LaunchedEffect` in `TrackingScreen` and `RouteScreen`; `@Suppress("UnusedPrivateMember")` on `RouteScreen`'s `ActivityTypeSelectorPreview` (its siblings have the preview comment); `@Suppress("TooGenericExceptionCaught")` on `safeApiCall` and twice in `AndroidLocationRepositoryImpl`. Every iOS `swiftlint:disable` has a reason. Whether any existing reason is stale was not checked.
-- Done when: every suppression has an accurate reason, or is removed.
-- Refs: `TrackingScreen`, `RouteScreen` (feature-tracking, feature-route); `data` `safeApiCall`, `AndroidLocationRepositoryImpl`.
-
-### drift-pr-review-log-env-prints-pr-body
-- Type: drift
-- Area: .github
-- Order: 230
-- Source: agentic-dev-loop run 8 (PR #94), 2026-10-04
-- Problem: the comment above the step "Build review inputs" in `.github/workflows/pr-review.yml` says "Nothing here prints PR or model text to the log, where it could act as a workflow command". The runner prints each step's `env:` block at the top of the step's log, and that step's `env:` carries `PR_BODY` (the PR description) and `HEAD_REF` (the author's branch name), so the PR description appears in that step's log. On PR #94 (run 37166301311) the body contained lines starting with `::error title=Review — pr-reviewer::`, and the check run still had only the titled `warning` and the untitled runner notice, so the runner did not process them as commands.
-- Done when: the human has chosen between (a) correcting the comment to the real property (header lines are not processed as commands, shown by that run) and (b) not passing PR text through `env:` at all (for example reading it from the event payload with `jq`), and the choice is implemented and shown.
-- Refs: `.github/workflows/pr-review.yml` (step "Build review inputs" and the comment above it); PR #94 review run 37166301311 (job "Review — pr-reviewer").
-
-### drift-kmp-framework-script-header-outside-ci
-- Type: drift
-- Area: scripts
-- Order: 240
-- Source: agentic-dev-loop run 13 (PR #99 or the number this PR gets), 2026-10-05
-- Problem: the header comment of `scripts/build-kmp-framework.sh` calls the script "The single entry point for that framework outside CI" and names only the scheme pre-action, the app target's build phase and `scripts/pre-push-check.sh` as callers. Since this PR, CI's `ios-main` job runs the script in its "Build KMP Shared Framework" step, so "outside CI" is stale. The file is a protected path, and a change to it matches the gate's iOS filter, so that change makes the gate's iOS steps required locally.
-- Done when: the comment names CI's `ios-main` job (production) and `ios-build-ui` job (`--variant uitest`) as callers and no longer says "outside CI", in a PR that the human authorizes for this protected file.
-- Refs: `scripts/build-kmp-framework.sh` (header comment); `.github/workflows/ci.yml` (`ios-main` job, step "Build KMP Shared Framework"; `ios-build-ui` job, step "Build UI-test framework variant").
-
-### drift-kover-comments-name-removed-board-slugs
-- Type: drift
-- Area: androidApp/feature-history, androidApp/feature-tracking
-- Order: 330
-- Source: protected drift cleanup PR (chore/protected-drift-cleanup), 2026-10-06
-- Problem: the comment above the `kover` block in `androidApp/feature-history/build.gradle.kts` says the floor is a little below the module's measured line coverage "(79.15%, measured after test-feature-history-compose-ui)", and the one in `androidApp/feature-tracking/build.gradle.kts` "(30.02%, measured on main after test-feature-tracking)". Both name a board slug that is gone from `BOARD.md` and a measured figure that goes stale with the next test; the floor itself is each module's entry in `config/kover-floors.properties`. `androidApp/feature-route/build.gradle.kts` no longer names a figure. Both build files are protected paths outside this PR's scope.
-- Done when: both comments stop naming a measured figure and a board slug, as `androidApp/feature-route/build.gradle.kts` does, keeping their sentence about how `config/kover-floors.properties` is read.
-- Refs: `androidApp/feature-history/build.gradle.kts`, `androidApp/feature-tracking/build.gradle.kts` (comment above the `kover` block); `androidApp/feature-route/build.gradle.kts`; `config/kover-floors.properties`.
-
