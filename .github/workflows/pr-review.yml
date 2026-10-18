@@ -47,7 +47,9 @@ jobs:
           "$RUNNER_TEMP/claude-cli/node_modules/.bin/claude" --version
 
       # PR text only ever arrives through env and files, never through ${{ }} in a script.
-      # Nothing here prints PR or model text to the log, where it could act as a workflow command.
+      # The script itself prints nothing from PR_BODY or HEAD_REF; it writes them to files. The runner
+      # does print the env: header of a step into the log, PR_BODY and HEAD_REF included. Those
+      # printed lines were not run as workflow commands on PR #94 (observed, not a documented guarantee).
       - name: Build review inputs
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
