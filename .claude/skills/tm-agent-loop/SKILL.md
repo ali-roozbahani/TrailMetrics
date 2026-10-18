@@ -149,7 +149,7 @@ approval count is 0, before and after a code owner approves.
 Once the checks are done, check each one, in order, for the PR's current head SHA. All must
 hold:
 
-1. Both required checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`
+1. The required CI checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`
    and `iOS — all stages` (names exactly).
 2. The PR head is a branch of this repository (`isCrossRepository` is `false`).
 3. The author is `peter-christofer-bot`.
