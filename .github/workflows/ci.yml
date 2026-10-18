@@ -163,8 +163,8 @@ jobs:
         run: scripts/check-room-schema.sh --check-export-fresh
 
   # The iOS work is split into parallel jobs behind one aggregator, `ios`, which keeps the required
-  # check name "iOS — SwiftLint, Build". ios-build-ui then ios-ui is the critical path; ios-main
-  # (SwiftLint, simulator tests, app build, package tests) runs next to it.
+  # check name "iOS — all stages". The iOS wall time is the longer of two chains: ios-main alone
+  # (SwiftLint, simulator tests, app build, package tests), or ios-build-ui then ios-ui.
   ios-plan:
     name: iOS 1 — plan
     runs-on: ubuntu-latest
@@ -405,7 +405,7 @@ jobs:
   # or, for the macOS jobs, was skipped while the decision is "light". An unset decision (a
   # failed classifier or plan job) is never "light".
   ios:
-    name: iOS — SwiftLint, Build
+    name: iOS — all stages
     if: always()
     needs: [ios-plan, ios-build-ui, ios-ui, ios-main]
     runs-on: ubuntu-latest
