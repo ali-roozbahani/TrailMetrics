@@ -24,11 +24,13 @@ env:
   DISABLE_AUTOUPDATER: '1'
 
 jobs:
+  # Pinned: ubuntu-latest moves to 26.04 between 2026-10-19 and 2026-11-19 (GitHub changelog,
+  # 2026-09-17); move the pin only after a trial.
   review:
     name: Review — pr-reviewer
     # Fork PRs get no secrets, so they are skipped rather than failed.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:

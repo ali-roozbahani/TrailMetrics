@@ -15,9 +15,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Pinned: ubuntu-latest moves to 26.04 between 2026-10-19 and 2026-11-19 (GitHub changelog,
+  # 2026-09-17); move the pin only after a trial. This applies to every Ubuntu job below.
   android:
     name: Android — Lint, Detekt, Tests, Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
@@ -167,7 +169,7 @@ jobs:
   # (SwiftLint, simulator tests, app build, package tests), or ios-build-ui then ios-ui.
   ios-plan:
     name: iOS 1 — plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       decision: ${{ steps.changes.outputs.decision }}
@@ -408,7 +410,7 @@ jobs:
     name: iOS — all stages
     if: always()
     needs: [ios-plan, ios-build-ui, ios-ui, ios-main]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
