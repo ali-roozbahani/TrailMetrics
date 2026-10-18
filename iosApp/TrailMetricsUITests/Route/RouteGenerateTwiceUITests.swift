@@ -17,7 +17,7 @@ final class RouteGenerateTwiceUITests: XCTestCase {
     @MainActor
     func test_generateTwice_requestsDirectionsOnce() throws {
         let app = XCUIApplication.launched(scenario: "GenerateTwice")
-        app.addRouteWaypoints(count: 3)
+        try app.addRouteWaypoints(count: 3)
 
         let generateButton = app.buttons["route.generateButton"]
         generateButton.doubleTap()

@@ -23,7 +23,7 @@ final class TrackingFinishTwiceUITests: XCTestCase {
     @MainActor
     func test_finishTwice_savesOneActivity() throws {
         let app = XCUIApplication.launched(scenario: "FinishTwice")
-        app.addRouteWaypoints(count: 3)
+        try app.addRouteWaypoints(count: 3)
         app.buttons["route.generateButton"].tap()
 
         let startTracking = app.buttons["Start Tracking"]
