@@ -150,7 +150,7 @@ Once the checks are done, check each one, in order, for the PR's current head SH
 hold:
 
 1. Both required checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`
-   and `iOS — SwiftLint, Build` (names exactly).
+   and `iOS — all stages` (names exactly).
 2. The PR head is a branch of this repository (`isCrossRepository` is `false`).
 3. The author is `peter-christofer-bot`.
 4. The CI annotation says `APPROVE` for that head SHA (section 7).
@@ -158,13 +158,13 @@ hold:
 6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
    replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
 
-An older SHA's red `iOS — SwiftLint, Build` whose log shows `needs.*.result = cancelled` is a
+An older SHA's red `iOS — all stages` whose log shows `needs.*.result = cancelled` is a
 superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
 a failure; only the current head SHA's checks count.
 
 ```bash
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
-  --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — SwiftLint, Build") | [.name, .status, .conclusion] | @tsv'
+  --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — all stages") | [.name, .status, .conclusion] | @tsv'
 gh pr view "$N" --json isCrossRepository,author,headRefOid,baseRefName,state
 cat "$(git rev-parse --path-format=absolute --git-path .review-verdict)"   # "<SHA> APPROVE"
 git fetch origin

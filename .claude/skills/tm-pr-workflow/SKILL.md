@@ -417,7 +417,7 @@ silently force-pushing.
   required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
   the code owner's approval, and stale approvals are dismissed when new commits are pushed.
   Branches must be up to date before merging. The required checks are
-  `Android — Lint, Detekt, Tests, Build`, `iOS — SwiftLint, Build` (the `ios` aggregator job)
+  `Android — Lint, Detekt, Tests, Build`, `iOS — all stages` (the `ios` aggregator job)
   and `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
   "Require approvals" is off (approval count **0**), so a PR that touches no owned path
   needs no approval. #30–#37 were all merged with no review, before code owner review was

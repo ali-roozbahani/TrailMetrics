@@ -320,7 +320,8 @@ fakes into the production XCFramework and guarded the Swift call site with `#if 
   variant cannot drift apart silently.
 - **Probe.** In UI-test mode only, the app shows a small overlay (top centre, clear of the
   existing corner buttons) with a text element `uitest.probe` (for example
-  `refreshes=1 directions=1 directionsDone=1 saves=1 deletes=1`), a button
+  `refreshes=1 directions=1 directionsDone=1 saves=1 deletes=1 waypoints=3`; `waypoints` is the
+  Route map's waypoint count, -1 if the map is not found), a button
   `uitest.probe.refresh` that re-reads the counters and increments the refresh generation, and a
   button `uitest.probe.release` that completes every held call.
   "One directions request" and "one deletion" are counters (UI evidence cannot tell one call
