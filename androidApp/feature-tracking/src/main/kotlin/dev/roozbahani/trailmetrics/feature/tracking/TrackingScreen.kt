@@ -143,8 +143,8 @@ fun TrackingRoot(
         }
     }
 
-    // `context` is hoisted above (val context = LocalContext.current) and only used inside the effect, so the
-    // lint rule against reading resources from LocalContext.current inside it does not apply.
+    // Lint flags Context.getString on LocalContext.current because a value read in composition goes stale when the
+    // Configuration changes. Here it is read once per event, when the snackbar is shown, and not kept in state.
     @Suppress("LocalContextGetResourceValueCall")
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
