@@ -16,8 +16,10 @@ import SwiftUI
 /// re-creates the view, so nothing depends on timing; until the first tap the text says so. Every
 /// refresh increments `refreshes`, which is the first pair of the text, so a test can tell a text
 /// written by its own tap from an older one. `uitest.probe.release` only completes the held calls
-/// and leaves the text alone. Only the two buttons take touches; the text and the background let
-/// them through to the app underneath.
+/// and leaves the text alone. `uitest.probe.addWaypoint` adds the next Route waypoint through
+/// `UITestWaypointSeam` and returns at once; it leaves the text, the generation and the counters
+/// alone, so a test reads its result with a refresh. Only the three buttons take touches; the text
+/// and the background let them through to the app underneath.
 struct UITestProbeView: View {
     let controls: UiTestControls
     @State private var counters = "not read yet: tap Refresh"
@@ -41,6 +43,10 @@ struct UITestProbeView: View {
                     controls.releaseHeldCalls()
                 }
                 .accessibilityIdentifier("uitest.probe.release")
+                Button("Add waypoint") {
+                    UITestWaypointSeam.addNext()
+                }
+                .accessibilityIdentifier("uitest.probe.addWaypoint")
             }
             .font(.system(size: 10))
         }

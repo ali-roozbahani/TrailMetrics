@@ -269,8 +269,12 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   (`refreshes=<n> directions=<n> directionsDone=<n> saves=<n> deletes=<n> waypoints=<n>`: the
   refresh generation, the fakes' counters and the Route map's waypoint count, read by reflection
   from the map's delegate in `UITestWaypointCount`, -1 if not found), buttons `uitest.probe.refresh`
-  (re-reads the counters and increments the generation) and `uitest.probe.release` (completes every
-  held call, leaves the text alone). The counters are read only on a refresh tap.
+  (re-reads the counters and increments the generation), `uitest.probe.release` (completes every
+  held call, leaves the text alone) and `uitest.probe.addWaypoint` (adds the next of five fixed
+  Route waypoints and returns at once; `UITestWaypointSeam` calls the map delegate's public
+  `didLongPressAt` with a coordinate from the map's projection, so the coordinator and view model
+  run as for a press and only the SDK's gesture recognition is skipped; the text stays as it is,
+  a refresh reads the result). The counters are read only on a refresh tap.
   `UITestProbe.refreshedCounters()` reads the generation, taps refresh and returns the text only
   once its generation is higher, so a read is never older than its tap (it may time out, never
   return a stale value; a second tap after 10 s covers a lost one); `releasedCounters()` taps
