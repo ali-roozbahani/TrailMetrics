@@ -5,16 +5,18 @@
 
 import XCTest
 
-/// The refresh generation and the four counters the app's probe overlay shows in UI-test mode, as
-/// `refreshes=<n> directions=<n> directionsDone=<n> saves=<n> deletes=<n>`.
+/// The refresh generation, the four counters and the Route map's waypoint count (-1: not found)
+/// the app's probe overlay shows in UI-test mode, as
+/// `refreshes=<n> directions=<n> directionsDone=<n> saves=<n> deletes=<n> waypoints=<n>`.
 struct ProbeCounters {
     let refreshes: Int
     let directions: Int
     let directionsDone: Int
     let saves: Int
     let deletes: Int
+    let waypoints: Int
 
-    /// Nil unless `label` has exactly the probe's five `key=<n>` pairs.
+    /// Nil unless `label` has exactly the probe's six `key=<n>` pairs.
     init?(label: String) {
         var values: [String: Int] = [:]
         for pair in label.split(separator: " ") {
@@ -22,17 +24,19 @@ struct ProbeCounters {
             guard parts.count == 2, let value = Int(parts[1]) else { return nil }
             values[String(parts[0])] = value
         }
-        guard values.count == 5,
+        guard values.count == 6,
               let refreshes = values["refreshes"],
               let directions = values["directions"],
               let directionsDone = values["directionsDone"],
               let saves = values["saves"],
-              let deletes = values["deletes"] else { return nil }
+              let deletes = values["deletes"],
+              let waypoints = values["waypoints"] else { return nil }
         self.refreshes = refreshes
         self.directions = directions
         self.directionsDone = directionsDone
         self.saves = saves
         self.deletes = deletes
+        self.waypoints = waypoints
     }
 }
 

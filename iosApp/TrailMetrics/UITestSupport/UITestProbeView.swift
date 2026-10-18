@@ -9,14 +9,15 @@ import SwiftUI
 
 // UI-TEST SUPPORT ONLY. Compiled only in the Debug-UITest build configuration (UITEST_SEAM).
 
-/// The UI-test probe: a small overlay at the top centre that shows the fakes' call counters, so
-/// a test can check "one request" or "one deletion", which the UI itself cannot tell apart from
-/// two identical calls. The counters are read only on a tap of `uitest.probe.refresh`, never on
-/// a timer or when SwiftUI re-creates the view, so nothing depends on timing; until the first tap
-/// the text says so. Every refresh increments `refreshes`, which is the first pair of the text, so
-/// a test can tell a text written by its own tap from an older one. `uitest.probe.release` only
-/// completes the held calls and leaves the text alone. Only the two buttons take touches; the
-/// text and the background let them through to the app underneath.
+/// The UI-test probe: a small overlay at the top centre that shows the fakes' call counters and
+/// the Route map's waypoint count, so a test can check "one request" or "one deletion", which the
+/// UI itself cannot tell apart from two identical calls, or how many waypoints a map press added.
+/// The counters are read only on a tap of `uitest.probe.refresh`, never on a timer or when SwiftUI
+/// re-creates the view, so nothing depends on timing; until the first tap the text says so. Every
+/// refresh increments `refreshes`, which is the first pair of the text, so a test can tell a text
+/// written by its own tap from an older one. `uitest.probe.release` only completes the held calls
+/// and leaves the text alone. Only the two buttons take touches; the text and the background let
+/// them through to the app underneath.
 struct UITestProbeView: View {
     let controls: UiTestControls
     @State private var counters = "not read yet: tap Refresh"
@@ -54,7 +55,8 @@ struct UITestProbeView: View {
     private static func describe(_ controls: UiTestControls, refreshes: Int) -> String {
         "refreshes=\(refreshes) directions=\(controls.directionsRequestCount) "
             + "directionsDone=\(controls.directionsCompletedCount) "
-            + "saves=\(controls.saveCount) deletes=\(controls.deleteCount)"
+            + "saves=\(controls.saveCount) deletes=\(controls.deleteCount) "
+            + "waypoints=\(UITestWaypointCount.current())"
     }
 }
 #endif
