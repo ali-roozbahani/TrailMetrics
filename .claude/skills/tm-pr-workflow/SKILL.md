@@ -151,8 +151,8 @@ When the diff also touches the UI scope (`IOS_UI_PATHS`: `iosApp/TrailMetrics/`,
 iOS part ends with one smoke UI test: the gate builds the `uitest` framework variant and runs
 `DetailsFailedDeleteUITests` through the `TrailMetricsUITests` scheme, with a hard limit of 180 s
 for the whole step. Its output shows that test's result and `iOS smoke UI test: <n> s`, or says
-"timeout"; when the iOS steps run without a UI-scope file it prints `skipped`. The variant stays at the debug path, and the next
-normal build rebuilds production.
+"timeout"; when the iOS steps run without a UI-scope file it prints `skipped`. The variant stays at
+the debug path, and the next normal build rebuilds production.
 The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
 quoted or split. Fail-safe: when the gate cannot read the branch's exact list (no merge-base
 with `origin/main`, or `git diff` fails), the iOS steps count as required and a warning prints
@@ -438,9 +438,8 @@ silently force-pushing.
   `ios-main` runs SwiftLint, the iOS build and the iOS simulator tests, and `ios-build-ui` and
   `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. For a diff in the
   UI scope the gate builds the `uitest` variant and runs ONE smoke UI test
-  (`DetailsFailedDeleteUITests`); CI builds the variant once in `ios-build-ui` and runs ALL UI
-  tests in `ios-ui`. So an
-  `iosApp/` problem that already existed on `main` can make CI red on an
+  (`DetailsFailedDeleteUITests`); CI builds the variant once in `ios-build-ui` and runs ALL UI tests
+  in `ios-ui`. So an `iosApp/` problem that already existed on `main` can make CI red on an
   unrelated Android-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
   skipped; they run in `ios-main`, `domain`'s and `data`'s since #34, `shared`'s since S3 of
   `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
