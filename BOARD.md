@@ -137,15 +137,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `./gradlew detekt` lints the KMP source sets (`commonMain`, the platform and test source sets) of every KMP module, or the record shows why it cannot, and the repo is clean under it without new suppressions or config excludes.
 - Refs: root `build.gradle.kts` (detekt setup); `config/detekt/detekt.yml`; `scripts/pre-push-check.sh` (detekt step); `.github/workflows/ci.yml` (`android` job); `.claude/skills/tm-android/SKILL.md` (Detekt); `docs/epics/ios-ui-tests.md` (F21).
 
-### xcodebuild-build-needs-arm64-flags-undocumented
-- Type: task
-- Area: docs, iosApp
-- Order: 120
-- Source: S1a spike of `docs/epics/ios-ui-tests.md` (F20), 2026-10-13
-- Problem: The S1a spike reported that an `xcodebuild build` of the `TrailMetrics` scheme for `generic/platform=iOS Simulator` without `ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO` fails on clean derived data (28 errors in Tracking: the package compiles for x86_64 and the XCFramework has no x86_64 slice), also on `main` without any change. CI and the gate pass those flags, but no README or skill gives a complete command-line build command or says which flags it needs (the README's iOS section builds in the Xcode IDE). Reported by the spike, not re-run; the task's first step is to verify it.
-- Done when: every documented iOS build command works on clean derived data or states the flags it needs, and the README's and `tm-ios`'s iOS build instructions name the flags CI uses for a command-line build.
-- Refs: `README.md` ("iOS"); `.claude/skills/tm-ios/SKILL.md` ("Build integration"); `scripts/pre-push-check.sh` and `.github/workflows/ci.yml` (the `xcodebuild build` call with those flags); `docs/epics/ios-ui-tests.md` (F20).
-
 ### tracking-finish-unsaved-snapshot-files-not-deleted
 - Type: task
 - Area: androidApp/feature-tracking

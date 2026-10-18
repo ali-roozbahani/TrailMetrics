@@ -259,7 +259,7 @@ positive control).
 `ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO` an `xcodebuild build` on clean derived
 data fails (28 errors in Tracking: the XCFramework has no x86_64 slice), also without any change
 from this epic. CI and the gate pass those flags. No document in the repo gives a complete
-`xcodebuild build` command (board record `xcodebuild-build-needs-arm64-flags-undocumented`).
+`xcodebuild build` command (since 2026-10-18 `tm-ios`, "Build integration", does).
 
 **F21. detekt does not lint KMP sources (S1a spike; to be verified in the board task).**
 `./gradlew detekt` is NO-SOURCE for `shared` and `domain` today (and for `shared-uitest` in the
@@ -853,7 +853,7 @@ S1 and S8, different waves. `tm-ios` in S2 and S3, `tm-testing` in S1 and S3, di
   packages as Release. S2 keeps `Debug-UITest` and checks the package flags.
 - **Architecture flags** (F20): `xcodebuild` without `ARCHS=arm64 EXCLUDED_ARCHS=x86_64
   ONLY_ACTIVE_ARCH=NO` fails on clean derived data. Every command of this epic passes them;
-  the documentation gap is board record `xcodebuild-build-needs-arm64-flags-undocumented`.
+  the documentation gap was closed on 2026-10-18 in `tm-ios`, "Build integration".
 - **Xcode IDE and Xcode 26.6 not verified** (F22): the S1a spike used only `xcodebuild` under
   Xcode 27.0. S2's and S4's CI runs are the first checks under 26.6; opening the project in the
   IDE with the new configuration and scheme is checked by Ali when reviewing S2. The first CI run
