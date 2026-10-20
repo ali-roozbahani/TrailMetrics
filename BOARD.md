@@ -101,15 +101,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: launching the app with an empty Maps key does not crash, and the Route tab shows a plain message instead of the map (the wording and whether other tabs stay usable are agreed with the human before implementation), shown by a test that launches without a key (a UI test once the iOS UI-test target exists, otherwise a unit/snapshot test of the decision "key present or not").
 - Refs: `iosApp/TrailMetrics/TrailMetricsApp.swift`; `iosApp/Packages/Route/Sources/Route/RouteMapView.swift` (`makeUIView`); `RouteMapConfiguration`; `docs/epics/ios-ui-tests.md` (risks).
 
-### detekt-skips-kmp-source-sets
-- Type: task
-- Area: build, domain, data, core, shared
-- Order: 115
-- Source: S1a spike of `docs/epics/ios-ui-tests.md` (F21), 2026-10-13
-- Problem: `./gradlew detekt` now lints every source set of the KMP modules (`domain`, `data`, `core`, `shared`, `shared-uitest`) except `data`'s `androidHostTest`. That one is left out of the root `build.gradle.kts` `source` on purpose: detekt's default `FunctionNaming` excludes name the other test source sets (`commonTest`, `iosTest`, ...) but not `androidHostTest`, so its 8 backtick test names fail the rule, and the Done when forbids a new config exclude or suppression. Renaming them to camelCase would break the backtick-sentence convention of `tm-testing`.
-- Done when: the human decides how `androidHostTest` is linted (add `**/androidHostTest/**` to the `FunctionNaming` excludes of `config/detekt/detekt.yml`, or rename the tests); then `source` in the root `build.gradle.kts` no longer excludes `androidHostTest`, `./gradlew detekt` is clean, and the `tm-android` "Detekt" section no longer names the gap.
-- Refs: root `build.gradle.kts` (detekt `source`); `config/detekt/detekt.yml`; `data/src/androidHostTest`; `.claude/skills/tm-android/SKILL.md` (Detekt); `.claude/skills/tm-testing/SKILL.md`.
-
 ### classify-changes-self-test-failed-once
 - Type: task
 - Area: scripts
