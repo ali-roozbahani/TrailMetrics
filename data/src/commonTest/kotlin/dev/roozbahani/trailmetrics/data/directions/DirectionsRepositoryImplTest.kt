@@ -200,15 +200,30 @@ class DirectionsRepositoryImplTest {
     }
 
     @Test
-    fun `HTTP error status with a valid OK body currently returns a successful route`() = runTest {
+    fun `HTTP error status with a valid OK body returns DirectionsApiError naming the status`() = runTest {
         val body = DirectionsResponseFixtures.response(
             routes = listOf(DirectionsResponseFixtures.route(PolylineFixtures.REFERENCE, legDistances = listOf(1200, 800)))
         )
         val repository = repository { respondJson(body, status = HttpStatusCode.ServiceUnavailable) }
 
-        val route = repository.getClosedRoute(start, waypoints).getOrThrow()
+        val cause = apiErrorCause(repository.getClosedRoute(start, waypoints))
 
-        assertEquals(2000.0, route.distanceMeters)
+        assertEquals("HTTP 503 Service Unavailable", cause.message)
+    }
+
+    @Test
+    fun `HTTP 500 with a non-JSON body returns DirectionsApiError naming the status`() = runTest {
+        val repository = repository {
+            respond(
+                content = "<html><body>Internal Server Error</body></html>",
+                status = HttpStatusCode.InternalServerError,
+                headers = headersOf(HttpHeaders.ContentType, "text/html"),
+            )
+        }
+
+        val cause = apiErrorCause(repository.getClosedRoute(start, waypoints))
+
+        assertEquals("HTTP 500 Internal Server Error", cause.message)
     }
 
     private fun repository(handler: MockRequestHandler) =
