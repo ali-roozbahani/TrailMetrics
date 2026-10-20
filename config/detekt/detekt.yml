@@ -56,3 +56,5 @@ naming:
   FunctionNaming:
     active: true
     ignoreAnnotated: ['Composable']
+    # detekt's default excludes, plus androidHostTest, a test source set name the default list does not know
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']

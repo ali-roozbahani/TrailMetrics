@@ -78,11 +78,9 @@ subprojects {
 
         // The plain `detekt` task only reads src/main/{java,kotlin}, which a KMP module does not
         // have (it ran as NO-SOURCE). Point it at every source set directory instead; detekt
-        // itself keeps only the *.kt and *.kts files. androidHostTest is left out for now:
-        // detekt's default FunctionNaming excludes cover the other test source sets but not
-        // this one, so its backtick test names fail (BOARD.md: detekt-skips-kmp-source-sets).
+        // itself keeps only the *.kt and *.kts files.
         configure<DetektExtension> {
-            source.setFrom(fileTree("src") { exclude("androidHostTest/**") })
+            source.setFrom(files("src"))
         }
     }
 }
