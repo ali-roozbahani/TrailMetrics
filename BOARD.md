@@ -273,3 +273,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Refs: `RouteGenerateThenResetUITests` and the other Route tests; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`.
 
 ## Drift
+
+### data-kover-comment-stale-figure
+- Type: drift
+- Area: data
+- Order: 230
+- Source: PR for location-current-swallows-cancellation
+- Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
+- Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
+- Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
