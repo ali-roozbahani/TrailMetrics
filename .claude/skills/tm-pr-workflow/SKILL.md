@@ -425,6 +425,9 @@ silently force-pushing.
 - **The review check is required, but green is not approval.** `Review — pr-reviewer`
   (`.github/workflows/pr-review.yml`) is green for both `APPROVE` and `ESCALATE_TO_HUMAN`;
   the verdict is read from its annotation (`tm-agent-loop`, section 7).
+  The annotation holds only the verdict; the report is the workflow artifact `pr-review-report`
+  of that run (kept 7 days), which the agent downloads with `gh run download` after `CHANGES`
+  or blocking findings (`tm-agent-loop`, section 7).
 - **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
   step of CI's `android` job).
 - **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
