@@ -288,7 +288,10 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
   - check once in the working tree that the test fails when the guarded behavior breaks.
 - **Shards.** CI runs the UI tests in one `ios-ui` job; plan a shard step when they exceed about
-  10 tests (cap 3).
+  10 tests (cap 3). The "Run iOS UI tests" step boots the simulator and waits for it
+  (`simctl bootstatus -b`) before `xcodebuild`, and prefixes every `xcodebuild` output line with a
+  UTC time, plus `[ui-timing]` lines for boot ready and `xcodebuild` start: a launch timeout in a
+  red run is placed with those times (runner start, test start, app launch).
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
   failure without a related change gets a `BOARD.md` record.
 - **Identifiers (D7).** Find elements by their text first; a View gets an
