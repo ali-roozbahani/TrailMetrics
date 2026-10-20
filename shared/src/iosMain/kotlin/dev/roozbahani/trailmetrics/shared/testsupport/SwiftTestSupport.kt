@@ -38,7 +38,7 @@ class SwiftTestFlow<T>(values: List<T>) : Flow<T> by values.asFlow()
  */
 class SwiftFailingTestFlow<T>(values: List<T>) : Flow<T> by flow({
     emitAll(values.asFlow())
-    throw IllegalStateException("SwiftFailingTestFlow failure")
+    error("SwiftFailingTestFlow failure")
 })
 
 /**

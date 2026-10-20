@@ -42,7 +42,7 @@ class ObserveActivitiesUseCaseTest {
     fun `invoke turns an upstream exception into one Failed and then completes`() = runTest {
         activityHistoryRepository.activitiesFlow = flow {
             emit(listOf(record(1)))
-            throw IllegalStateException("database closed")
+            error("database closed")
         }
 
         val updates = useCase().toList()

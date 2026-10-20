@@ -261,10 +261,10 @@ data fails (28 errors in Tracking: the XCFramework has no x86_64 slice), also wi
 from this epic. CI and the gate pass those flags. No document in the repo gives a complete
 `xcodebuild build` command (since 2026-10-18 `tm-ios`, "Build integration", does).
 
-**F21. detekt does not lint KMP sources (S1a spike; to be verified in the board task).**
-`./gradlew detekt` is NO-SOURCE for `shared` and `domain` today (and for `shared-uitest` in the
-spike), so the gate's detekt does not lint KMP sources. True before this epic (board record
-`detekt-skips-kmp-source-sets`).
+**F21. detekt did not lint KMP sources (S1a spike; verified and fixed since).**
+`./gradlew detekt` was NO-SOURCE for `shared` and `domain` (and for `shared-uitest` in the
+spike), so the gate's detekt did not lint KMP sources. True before this epic; the root
+`build.gradle.kts` now points detekt at every source set of the KMP modules.
 
 **F22. Not verified by the S1a spike:** CI's Xcode 26.6; a real device build; build and test
 times on CI; the Xcode IDE (only `xcodebuild` was used); whether another `export` order avoids
@@ -885,8 +885,8 @@ S1 and S8, different waves. `tm-ios` in S2 and S3, `tm-testing` in S1 and S3, di
   this epic. The UI-test seam no longer reaches normal Debug or Release builds (F19), but
   `SwiftTestSupport.kt` still does (board records `swift-test-support-ships-in-production-framework`
   and `release-build-links-debug-xcframework`).
-- **detekt does not lint KMP sources** (F21): neither `shared-uitest` nor the existing KMP
-  modules are linted by the gate's detekt today; board record `detekt-skips-kmp-source-sets`.
+- **detekt did not lint KMP sources** (F21): fixed; the gate's detekt now lints `shared-uitest`
+  and the existing KMP modules.
 - **Probe overlay hides a control:** placed top centre; S3 checks no existing test target
   element is covered on the smallest simulator in use.
 - **Koin override behavior:** verified in S0 (F2); S1's tests keep it proven for the real seam.

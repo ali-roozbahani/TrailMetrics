@@ -158,7 +158,7 @@ class TrackingSessionManagerTest {
     }
 
     @Test
-    fun `stop finishes the session and stops the service once and cancels location observation`() = runTest(testScheduler) {
+    fun `stop finishes the session and stops the service once and cancels observation`() = runTest(testScheduler) {
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
         clock.setElapsedRealtimeValues(0L)
@@ -320,7 +320,9 @@ class TrackingSessionManagerTest {
     }
 
     private suspend fun emitFix(updates: MutableSharedFlow<LocationUpdate>, coordinates: Coordinates) {
-        updates.emit(LocationUpdate.Success(coordinates = coordinates, speedMetersPerSecond = null, accuracyMeters = null))
+        updates.emit(
+            LocationUpdate.Success(coordinates = coordinates, speedMetersPerSecond = null, accuracyMeters = null),
+        )
         testScheduler.advanceUntilIdle()
     }
 

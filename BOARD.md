@@ -101,14 +101,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: launching the app with an empty Maps key does not crash, and the Route tab shows a plain message instead of the map (the wording and whether other tabs stay usable are agreed with the human before implementation), shown by a test that launches without a key (a UI test once the iOS UI-test target exists, otherwise a unit/snapshot test of the decision "key present or not").
 - Refs: `iosApp/TrailMetrics/TrailMetricsApp.swift`; `iosApp/Packages/Route/Sources/Route/RouteMapView.swift` (`makeUIView`); `RouteMapConfiguration`; `docs/epics/ios-ui-tests.md` (risks).
 
-### detekt-skips-kmp-source-sets
+### classify-changes-self-test-failed-once
 - Type: task
-- Area: build, domain, data, core, shared
-- Order: 115
-- Source: S1a spike of `docs/epics/ios-ui-tests.md` (F21), 2026-10-13
-- Problem: The S1a spike reported that `./gradlew detekt` is NO-SOURCE for `shared` and `domain` (and for the spike's `shared-uitest` module), so the gate's and CI's detekt step does not lint the KMP source sets; the root `build.gradle.kts` applies detekt to every subproject, but the default source set configuration apparently finds no sources in a KMP module. Reported by the spike, not re-run; the task's first step is to verify it (also for `data` and `core`).
-- Done when: `./gradlew detekt` lints the KMP source sets (`commonMain`, the platform and test source sets) of every KMP module, or the record shows why it cannot, and the repo is clean under it without new suppressions or config excludes.
-- Refs: root `build.gradle.kts` (detekt setup); `config/detekt/detekt.yml`; `scripts/pre-push-check.sh` (detekt step); `.github/workflows/ci.yml` (`android` job); `.claude/skills/tm-android/SKILL.md` (Detekt); `docs/epics/ios-ui-tests.md` (F21).
+- Area: scripts
+- Order: 118
+- Source: PR for detekt-skips-kmp-source-sets
+- Problem: `scripts/classify-changes.sh --self-test` failed once in a local gate run ("change classification self-test": 22 of 23 fixtures passed, the `usage-error` fixture reported "missing: usage error") before any commit of that branch was pushed. The next gate run passed, it passed on a clean `main`, and 30 consecutive reruns on the branch's clean tree did not reproduce it. The cause is unknown.
+- Done when: the cause is found and fixed in the self-test or its fixtures (for example, the fixture depending on the timing or the stderr of the usage message), or a longer run under load shows it cannot recur and the record is deleted with that evidence in the PR.
+- Refs: `scripts/classify-changes.sh` (`--self-test`, the `usage-error` fixture); `scripts/pre-push-check.sh` (change classification self-test step).
 
 ### tracking-finish-unsaved-snapshot-files-not-deleted
 - Type: task
@@ -255,3 +255,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
 - Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
 - Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
+
+### agent-loop-workflow-push-sentence-stale
+- Type: drift
+- Area: .claude
+- Order: 235
+- Source: PR for detekt-skips-kmp-source-sets
+- Problem: `tm-agent-loop` section 5 says an agent can't push a diff that touches `.github/workflows/` because the machine token has no `workflow` scope (Decision 1). Three merged PRs that changed workflow files disagree: the PRs "chore(ci): move the ubuntu jobs to ubuntu-26.04 after a trial" and "chore(ci): boot the simulator before the UI tests and timestamp the log" were opened by the machine account with commits by it, and an agent session reported the push went through for the second one; "chore(ci): publish the pr-reviewer report as a workflow artifact" has a commit by the machine account but a PR opened and pushed by the human after an agent stopped at that sentence. Read-only `gh` calls cannot show who pushed a branch or with which credential. Reading A: the sentence is stale or the token gained the scope. Reading B: the sentence is right and the human pushed those branches too.
+- Done when: the human confirms or corrects the sentence (and Decision 1 in the epic plan), and section 5 says what an agent does with a workflow diff.
+- Refs: `.claude/skills/tm-agent-loop/SKILL.md` (section 5); `docs/epics/agentic-dev-loop.md` (Decision 1).

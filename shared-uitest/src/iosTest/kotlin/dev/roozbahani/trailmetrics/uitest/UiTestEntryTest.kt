@@ -39,7 +39,11 @@ class UiTestEntryTest {
             assertIs<UiTestUserProfileRepository>(helper.userProfileRepository(), "$scenario: profile")
             assertEquals(UiTestFixtures.profile, helper.userProfileRepository().getUserProfile(), "$scenario")
             assertEquals(UiTestFixtures.start, helper.getCurrentLocationUseCase().invoke(), "$scenario: location")
-            assertEquals(UiTestFixtures.route, helper.generateClosedRouteUseCase().invoke(threeWaypointDraft()), "$scenario")
+            assertEquals(
+                UiTestFixtures.route,
+                helper.generateClosedRouteUseCase().invoke(threeWaypointDraft()),
+                "$scenario",
+            )
             assertEquals(1, controls.directionsRequestCount, "$scenario: directions requests")
             assertEquals(1, controls.directionsCompletedCount, "$scenario: directions completed")
 
@@ -137,7 +141,8 @@ class UiTestEntryTest {
     }
 
     private companion object {
-        const val ACTIVITY_HISTORY_REPOSITORY = "dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository"
+        const val ACTIVITY_HISTORY_REPOSITORY =
+            "dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository"
 
         // By name: shared-uitest's test classpath doesn't have Room or Ktor, so their class literals
         // can't be used here. Each name must match a registered definition, so a rename fails.

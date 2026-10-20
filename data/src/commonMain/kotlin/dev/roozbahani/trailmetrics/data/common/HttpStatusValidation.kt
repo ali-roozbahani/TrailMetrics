@@ -11,7 +11,7 @@ fun HttpClientConfig<*>.failOnNonSuccessStatus() {
     HttpResponseValidator {
         validateResponse { response ->
             if (!response.status.isSuccess()) {
-                throw IllegalStateException("HTTP ${response.status.value} ${response.status.description}")
+                error("HTTP ${response.status.value} ${response.status.description}")
             }
         }
     }

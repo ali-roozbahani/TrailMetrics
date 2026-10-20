@@ -23,5 +23,5 @@ internal fun buildRoomDatabase(
     builder
         .setDriver(driver)
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(*appMigrations.toTypedArray())
+        .apply { appMigrations.forEach { addMigrations(it) } }
         .build()

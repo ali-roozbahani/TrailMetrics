@@ -25,11 +25,17 @@ class DirectionsRepositoryImplTest {
 
     @Test
     fun `valid polyline is decoded into the route points`() = runTest {
-        val repository = repositoryRespondingWith(polyline = PolylineFixtures.REFERENCE, legDistances = listOf(1200, 800))
+        val repository = repositoryRespondingWith(
+            polyline = PolylineFixtures.REFERENCE,
+            legDistances = listOf(1200, 800),
+        )
 
         val route = repository.getClosedRoute(start, waypoints).getOrThrow()
 
-        assertEquals(PolylineFixtures.REFERENCE_POINTS, route.points.map { it.coordinates.latitude to it.coordinates.longitude })
+        assertEquals(
+            PolylineFixtures.REFERENCE_POINTS,
+            route.points.map { it.coordinates.latitude to it.coordinates.longitude },
+        )
         assertEquals(2000.0, route.distanceMeters)
     }
 
@@ -116,7 +122,10 @@ class DirectionsRepositoryImplTest {
 
         val route = repository.getClosedRoute(start, waypoints).getOrThrow()
 
-        assertEquals(PolylineFixtures.REFERENCE_POINTS, route.points.map { it.coordinates.latitude to it.coordinates.longitude })
+        assertEquals(
+            PolylineFixtures.REFERENCE_POINTS,
+            route.points.map { it.coordinates.latitude to it.coordinates.longitude },
+        )
         assertEquals(2000.0, route.distanceMeters)
     }
 
@@ -202,7 +211,9 @@ class DirectionsRepositoryImplTest {
     @Test
     fun `HTTP error status with a valid OK body returns DirectionsApiError naming the status`() = runTest {
         val body = DirectionsResponseFixtures.response(
-            routes = listOf(DirectionsResponseFixtures.route(PolylineFixtures.REFERENCE, legDistances = listOf(1200, 800)))
+            routes = listOf(
+                DirectionsResponseFixtures.route(PolylineFixtures.REFERENCE, legDistances = listOf(1200, 800)),
+            )
         )
         val repository = repository { respondJson(body, status = HttpStatusCode.ServiceUnavailable) }
 
@@ -229,14 +240,21 @@ class DirectionsRepositoryImplTest {
     private fun repository(handler: MockRequestHandler) =
         DirectionsRepositoryImpl(httpClient = mockHttpClient(handler), apiKey = API_KEY)
 
-    private fun repositoryRespondingWith(polyline: String, legDistances: List<Int> = listOf(1000)): DirectionsRepositoryImpl {
-        val body = DirectionsResponseFixtures.response(routes = listOf(DirectionsResponseFixtures.route(polyline, legDistances)))
+    private fun repositoryRespondingWith(
+        polyline: String,
+        legDistances: List<Int> = listOf(1000),
+    ): DirectionsRepositoryImpl {
+        val body = DirectionsResponseFixtures.response(
+            routes = listOf(DirectionsResponseFixtures.route(polyline, legDistances)),
+        )
         return repository { respondJson(body) }
     }
 
     private suspend fun captureRequest(waypoints: List<Coordinates>): HttpRequestData {
         var captured: HttpRequestData? = null
-        val body = DirectionsResponseFixtures.response(routes = listOf(DirectionsResponseFixtures.route(PolylineFixtures.REFERENCE)))
+        val body = DirectionsResponseFixtures.response(
+            routes = listOf(DirectionsResponseFixtures.route(PolylineFixtures.REFERENCE)),
+        )
         val repository = repository { request ->
             captured = request
             respondJson(body)

@@ -19,15 +19,16 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}): KoinApplication {
     return startKoin {
         appDeclaration()
         modules(
-            commonModule,
-            commonTrackingModule,
-            databaseModule,
-            networkModule,
-            useCaseModule,
-            userProfileModule,
-            activityHistoryModule,
-            directionsModule,
-            *platformModules.toTypedArray()
+            listOf(
+                commonModule,
+                commonTrackingModule,
+                databaseModule,
+                networkModule,
+                useCaseModule,
+                userProfileModule,
+                activityHistoryModule,
+                directionsModule,
+            ) + platformModules,
         )
     }
 }

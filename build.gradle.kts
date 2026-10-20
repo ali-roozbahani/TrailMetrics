@@ -75,5 +75,12 @@ subprojects {
                 allWarningsAsErrors.set(true)
             }
         }
+
+        // The plain `detekt` task only reads src/main/{java,kotlin}, which a KMP module does not
+        // have (it ran as NO-SOURCE). Point it at every source set directory instead; detekt
+        // itself keeps only the *.kt and *.kts files.
+        configure<DetektExtension> {
+            source.setFrom(files("src"))
+        }
     }
 }
