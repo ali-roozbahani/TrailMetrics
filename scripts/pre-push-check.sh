@@ -134,6 +134,7 @@ run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
 run_step "room schema self-test" scripts/check-room-schema.sh --self-test
 run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
 run_step "variant API check self-test" scripts/check-variant-api.sh --self-test
+run_step "production framework check self-test" scripts/check-production-framework.sh --self-test
 run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 
@@ -263,6 +264,10 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     # tests below never link a stale XCFramework, whichever Xcode scheme is picked up.
     run_step "KMP XCFramework" scripts/build-kmp-framework.sh
 
+    # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework
+    # that was just built; the same check runs in CI's ios-main job.
+    run_step "production framework check" scripts/check-production-framework.sh
+
     # Both xcodebuild steps print their output (stderr too) through scripts/filter-xcode-log.sh,
     # which drops Xcode's dumps of the build settings it passes to script phases (`export NAME\=value`
     # lines, a Maps key among them). pipefail keeps xcodebuild's failure. Fail closed: without an
@@ -286,7 +291,14 @@ if [ "$RUN_IOS_STEPS" = true ]; then
             CODE_SIGNING_ALLOWED=NO 2>&1 | "$filter"
     '
 
-    # Runs after "iOS build": the packages link the XCFramework that build produces.
+    # The Swift package tests use the Kotlin test support (SwiftTestFlow and the rest), which only
+    # the test-only variant of the framework holds (:shared-uitest, ADR-002 "Amendment"). So the
+    # variant is built here, the way CI's ios-main job builds it, and the packages link it. The
+    # normal build after it rebuilds production (the stamp records the variant).
+    run_step "KMP XCFramework (test-only variant)" scripts/build-kmp-framework.sh --variant uitest
+
+    # Runs after "iOS build" and the variant build: the packages link the XCFramework at the debug
+    # path, which holds the test-only variant now.
     # Every iosApp/Packages/<Name>/ with a Tests/ directory is tested; others are skipped.
     run_step "iOS package tests" bash -c '
         set -uo pipefail

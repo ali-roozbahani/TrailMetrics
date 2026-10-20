@@ -3,10 +3,11 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkConfig
 
 // The test-only variant of TrailMetricsShared.xcframework (ADR-002, "Amendment"): the same Swift
 // module as :shared's framework, with the same API plus the UI-test seam of the package
-// dev.roozbahani.trailmetrics.uitest. Only UI-test builds link it: scripts/build-kmp-framework.sh
-// builds it for the Debug-UITest configuration or with --variant uitest, through
-// `./gradlew :shared-uitest:assembleTrailMetricsSharedDebugXCFramework`, and copies it over the
-// debug path of :shared's framework. Production code never depends on this module.
+// dev.roozbahani.trailmetrics.uitest, and the Kotlin test support of the Swift package tests
+// (package ...uitest.testsupport). Only UI-test builds and the Swift package tests link it:
+// scripts/build-kmp-framework.sh builds it for the Debug-UITest configuration or with
+// --variant uitest, through `./gradlew :shared-uitest:assembleTrailMetricsSharedDebugXCFramework`,
+// and copies it over the debug path of :shared's framework. Production code never depends on this module.
 plugins {
     alias(libs.plugins.jetbrains.kotlin.multiplatform)
     alias(libs.plugins.skie)
