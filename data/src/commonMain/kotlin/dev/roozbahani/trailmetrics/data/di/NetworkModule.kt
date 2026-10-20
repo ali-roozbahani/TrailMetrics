@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.data.di
 
+import dev.roozbahani.trailmetrics.data.common.failOnNonSuccessStatus
 import dev.roozbahani.trailmetrics.data.common.httpClientEngine
 import dev.roozbahani.trailmetrics.data.common.platformDefaultHeaders
 import io.ktor.client.HttpClient
@@ -21,6 +22,8 @@ val networkModule = module {
                     }
                 )
             }
+
+            failOnNonSuccessStatus()
 
             defaultRequest {
                 platformDefaultHeaders().forEach { (key, value) -> header(key, value) }
