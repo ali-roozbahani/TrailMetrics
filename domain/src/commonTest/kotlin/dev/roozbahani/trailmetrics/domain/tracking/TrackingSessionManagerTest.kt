@@ -158,7 +158,7 @@ class TrackingSessionManagerTest {
     }
 
     @Test
-    fun `stop finishes the session, stops the service once and cancels observation`() = runTest(testScheduler) {
+    fun `stop finishes the session and stops the service once and cancels observation`() = runTest(testScheduler) {
         val updates = MutableSharedFlow<LocationUpdate>()
         locationRepository.setUpdatesFlow(updates)
         clock.setElapsedRealtimeValues(0L)
