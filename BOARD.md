@@ -119,15 +119,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: launching the app with an empty Maps key does not crash, and the Route tab shows a plain message instead of the map (the wording and whether other tabs stay usable are agreed with the human before implementation), shown by a test that launches without a key (a UI test once the iOS UI-test target exists, otherwise a unit/snapshot test of the decision "key present or not").
 - Refs: `iosApp/TrailMetrics/TrailMetricsApp.swift`; `iosApp/Packages/Route/Sources/Route/RouteMapView.swift` (`makeUIView`); `RouteMapConfiguration`; `docs/epics/ios-ui-tests.md` (risks).
 
-### tracking-camera-update-without-maps-initialized
-- Type: task
-- Area: androidApp/feature-tracking
-- Order: 112
-- Source: Tracking screen Compose UI tests PR, 2026-10-07
-- Problem: `TrackingScreen`'s `LaunchedEffect(state.currentPath)` calls `CameraUpdateFactory.newLatLng` on every path change, whether or not a map exists. `CameraUpdateFactory` works only after `MapsInitializer` has filled it from Google Play services (normally when the `MapView` is created); before that it throws `NullPointerException` ("CameraUpdateFactory is not initialized"). Without a fake factory, 15 of the 26 `TrackingScreenTest` cases (map not rendered) fail with that exception. On a device where the Maps SDK cannot initialize (Google Play services missing, disabled or outdated), the first location fix after Start would therefore throw inside the effect. Found while writing the tests, not reproduced on a device.
-- Done when: a path change without an initialized Maps SDK neither throws nor stops tracking (for example the camera update is built only once the map is there, as `cameraPositionState.animate` already waits for it), shown by a Compose UI test that does not install the fake factory.
-- Refs: `androidApp/feature-tracking` `TrackingScreen` (`LaunchedEffect(state.currentPath)`); `TrackingScreenTest`, `fakes/FakeGoogleMap.kt` (`installFactories`).
-
 ### detekt-skips-kmp-source-sets
 - Type: task
 - Area: build, domain, data, core, shared
