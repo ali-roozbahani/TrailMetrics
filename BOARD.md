@@ -155,15 +155,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a non-2xx Directions response returns `RouteError.DirectionsApiError` whose cause names the HTTP status, and that pinned test is changed to assert it.
 - Refs: `data` `di/NetworkModule.kt`, `common/SafeApiCall.kt`, `DirectionsRepositoryImpl.getClosedRoute`; `DirectionsRepositoryImplTest`.
 
-### location-current-swallows-cancellation
-- Type: task
-- Area: data
-- Order: 155
-- Source: audit of the comment-drift PR, 2026-10-18
-- Problem: `AndroidLocationRepositoryImpl.getCurrentLocation` awaits the location client in `suspendCancellableCoroutine` inside a `try` whose last `catch` is `Exception`. Cancelling the caller makes that call throw `CancellationException`, which the `catch` turns into `Result.failure(RouteError.LocationUnavailable(ex))`, so the function returns a result instead of letting the cancellation propagate. `observeLocationUpdates` rethrows `CancellationException` before its `Exception` catch, and so does `safeApiCall`. No test cancels a caller of `getCurrentLocation`.
-- Done when: `getCurrentLocation` rethrows `CancellationException` before its `Exception` catch, and a test shows that cancelling the caller propagates the cancellation instead of returning a `Result`.
-- Refs: `AndroidLocationRepositoryImpl.getCurrentLocation`; `AndroidLocationRepositoryImpl.observeLocationUpdates`; `data` `common/SafeApiCall.kt` (`safeApiCall`).
-
 ### polyline-decoder-invalid-characters
 - Type: task
 - Area: data
@@ -273,3 +264,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Refs: `RouteGenerateThenResetUITests` and the other Route tests; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`.
 
 ## Drift
+
+### data-kover-comment-stale-figure
+- Type: drift
+- Area: data
+- Order: 230
+- Source: PR for location-current-swallows-cancellation
+- Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
+- Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
+- Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.

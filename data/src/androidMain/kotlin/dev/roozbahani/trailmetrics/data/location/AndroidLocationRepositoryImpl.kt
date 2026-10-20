@@ -28,8 +28,8 @@ class AndroidLocationRepositoryImpl(
 ) : LocationRepository {
 
 
-    // SecurityException maps to MissingLocationPermission; any other exception from the location client
-    // becomes LocationUnavailable in the Result.
+    // SecurityException maps to MissingLocationPermission and CancellationException is rethrown; any other
+    // exception from the location client becomes LocationUnavailable in the Result.
     @Suppress("TooGenericExceptionCaught")
     @RequiresPermission(
         anyOf = [
@@ -64,6 +64,8 @@ class AndroidLocationRepositoryImpl(
 
         } catch (_: SecurityException) {
             Result.failure(RouteError.MissingLocationPermission())
+        } catch (ex: CancellationException) {
+            throw ex
         } catch (ex: Exception) {
             Result.failure(RouteError.LocationUnavailable(ex))
         }
