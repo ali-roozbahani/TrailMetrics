@@ -242,9 +242,9 @@ Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
   and composes with `LocalInspectionMode` false. Every delegate call returns a default except
   `snapshot`, whose callback the test delivers with `deliverSnapshot(...)`. The map's content
   is still not asserted, and the camera and bitmap-descriptor factories are fakes installed by
-  `FakeGoogleMap.installFactories()` (`TrackingScreenTest` installs them under
-  `LocalInspectionMode` too, because `TrackingScreen` builds a camera update even with no map
-  shown).
+  `FakeGoogleMap.installFactories()`. They are static, so a test that renders no map and must see
+  an uninitialized Maps SDK (`TrackingScreenTest`) calls `FakeGoogleMap.uninstallFactories()` first;
+  `TrackingScreen` builds its camera update only once the map exists.
 - Find nodes by visible text and content description first; a `testTag` is a production
   change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
   matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.

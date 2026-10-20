@@ -230,7 +230,12 @@ fun TrackingScreen(
         )
     }
 
-    LaunchedEffect(state.currentPath) {
+    var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
+
+    // CameraUpdateFactory throws until the Maps SDK is initialized, which a map existing proves, so the
+    // update is built only once googleMapRef is set (and again for the latest path when it is).
+    LaunchedEffect(state.currentPath, googleMapRef) {
+        if (googleMapRef == null) return@LaunchedEffect
         state.currentPath.lastOrNull()?.let { coordinates ->
             cameraPositionState.animate(
                 CameraUpdateFactory.newLatLng(LatLng(coordinates.latitude, coordinates.longitude))
@@ -240,7 +245,6 @@ fun TrackingScreen(
 
     val currentLocation = state.currentPath.lastOrNull()
 
-    var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
     // Set while a Finish tap waits for map.snapshot { }, so a repeated tap doesn't write a second file.
     var isSnapshotPending by remember { mutableStateOf(false) }
 

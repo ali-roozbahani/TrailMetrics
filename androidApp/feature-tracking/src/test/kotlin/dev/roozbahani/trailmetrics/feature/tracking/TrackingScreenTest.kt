@@ -56,7 +56,8 @@ class TrackingScreenTest {
 
     @Before
     fun setUp() {
-        FakeGoogleMap.installFactories()
+        // The map is not rendered here, so no Maps SDK is initialized, as when Google Play services is missing.
+        FakeGoogleMap.uninstallFactories()
         fixture.setUp()
     }
 
@@ -164,6 +165,16 @@ class TrackingScreenTest {
             .assertCompletedCard()
             .assertMetricsNotShown()
         assertIs<TrackingState.Finished>(trackingState())
+    }
+
+    @Test
+    fun `a location fix without an initialized Maps SDK keeps the session tracking`() {
+        showStartedSession()
+
+        fixture.receiveLocation(NEXT, millisAfterStart = 30_000L)
+
+        robot.waitForIdle().assertTrackingControls()
+        assertIs<TrackingState.Tracking>(trackingState())
     }
 
     @Test

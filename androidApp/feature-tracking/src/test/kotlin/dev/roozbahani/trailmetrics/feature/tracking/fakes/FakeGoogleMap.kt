@@ -69,8 +69,8 @@ class FakeGoogleMap {
 
         /**
          * Installs fake factories behind [CameraUpdateFactory] and [BitmapDescriptorFactory], which
-         * `MapsInitializer` would otherwise fill from Google Play services. `TrackingScreen` builds a
-         * camera update whenever the path changes, even when no map is shown.
+         * `MapsInitializer` would otherwise fill from Google Play services. Needed by a test that
+         * renders the map; the factories are static, so [uninstallFactories] undoes it.
          */
         fun installFactories() {
             CameraUpdateFactory.zza(fakeDelegate(ICameraUpdateFactoryDelegate::class.java) { _, _ -> null })
@@ -79,6 +79,20 @@ class FakeGoogleMap {
                 it.name == "zza" && it.parameterTypes.size == 1 && it.parameterTypes[0].isInterface
             }
             setter.invoke(null, fakeDelegate(setter.parameterTypes[0]) { _, _ -> null })
+        }
+
+        /**
+         * Puts both factories back to uninitialized, as on a device whose Maps SDK did not initialize:
+         * [CameraUpdateFactory] then throws `NullPointerException` on use. The factories are static, so a
+         * test that must not see an earlier test's fakes calls this first.
+         */
+        fun uninstallFactories() {
+            // The setters reject null, so clear the private static field `zza` each factory keeps its delegate in.
+            listOf(CameraUpdateFactory::class.java, BitmapDescriptorFactory::class.java).forEach { factory ->
+                factory.getDeclaredField("zza")
+                    .apply { isAccessible = true }
+                    .set(null, null)
+            }
         }
     }
 }
