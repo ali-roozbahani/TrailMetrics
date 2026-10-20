@@ -34,6 +34,39 @@ fi
 HOOK_CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)"
 REPO_ROOT="$(git -C "${HOOK_CWD:-$PWD}" rev-parse --show-toplevel 2>/dev/null \
     || { cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd; })"
+
+# Pushes must authenticate with the machine token through `gh` only (tm-agent-loop section 5,
+# Decision 1 of the agentic-dev-loop plan). git asks credential helpers in config order
+# (system, global, local), and an empty value resets the list so far, so the keychain helper
+# of the system config would otherwise answer first with the human's login. Compute the
+# effective list the way git does and block unless it is exactly the gh helper. Only helper
+# names from the config are read and printed, never a credential or an environment value.
+GH_HELPER='!gh auth git-credential'
+HELPERS=()
+while IFS= read -r helper || [ -n "$helper" ]; do
+    if [ -z "$helper" ]; then
+        HELPERS=()
+    else
+        HELPERS+=("$helper")
+    fi
+done < <(git -C "$REPO_ROOT" config --get-all credential.helper 2>/dev/null || true)
+
+if [ "${#HELPERS[@]}" -ne 1 ] || [ "${HELPERS[0]}" != "$GH_HELPER" ]; then
+    {
+        echo "Blocked: git could use a credential other than the machine token for this push."
+        echo "The effective credential.helper list must be exactly one entry: $GH_HELPER"
+        echo "Effective list (${#HELPERS[@]} entries):"
+        for helper in "${HELPERS[@]+"${HELPERS[@]}"}"; do
+            echo "  $helper"
+        done
+        echo "Fix, in this checkout: remove the local helper entries, then reset the inherited list and add gh:"
+        echo "  git config --local --unset-all credential.helper"
+        echo "  git config --local --add credential.helper ''"
+        echo "  git config --local --add credential.helper '$GH_HELPER'"
+    } >&2
+    exit 2
+fi
+
 GATE_SCRIPT="$REPO_ROOT/scripts/pre-push-check.sh"
 # Same resolution as pre-push-check.sh: .git/ in the main checkout,
 # .git/worktrees/<name>/ in a linked worktree. Exit 2 on failure: exit 1 wouldn't block.

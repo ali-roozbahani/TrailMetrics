@@ -28,7 +28,8 @@
    The GitHub Action reviewer uses the workflow's built-in token, and the human is the code
    owner. Because the machine token has no `workflow` scope, GitHub refuses its push of a
    change under `.github/workflows/`: any subtask that changes such a file is pushed by the
-   human (the agent builds and verifies it locally, then hands over).
+   human (the agent builds and verifies it locally, then hands over). This holds because a push
+   authenticates through the `gh` credential helper only, which the push hook enforces.
 2. **Layers before a merge.** (a) A fresh-context reviewer subagent reviews locally before
    the push; (b) the full local gate runs the full test suite of every platform the diff
    touches; (c) push and PR; (d) CI re-runs the same tests on a clean machine and a GitHub
