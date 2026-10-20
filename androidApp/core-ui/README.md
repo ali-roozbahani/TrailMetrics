@@ -17,6 +17,8 @@ breaking the iOS build. See `docs/architecture/ADR-003-core-ui-split.md`.
   Composables shared across two or more feature modules. A Composable used
   by only one feature stays in that feature module — it only moves here
   once a second feature needs it.
+- **`designsystem/component/ErrorSnackbarHost.kt`**: the error snackbar of Route and Tracking, placed at
+  the top so it does not cover their bottom controls.
 - **`map/`**: Google Maps Compose components — `TrailGoogleMap`,
   `RoutePolyline`, `CurrentLocationMarker`, `StartFinishMarker`. These wrap
   `com.google.maps.android.compose`, which has no iOS equivalent (iOS map

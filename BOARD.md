@@ -83,24 +83,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
-### android-route-error-snackbar-covers-generate
-- Type: task
-- Area: androidApp/feature-route
-- Order: 95
-- Source: Route screen Compose UI tests PR, 2026-10-06
-- Problem: On the Route screen, `RouteScreen`'s `SnackbarHost` (the `Scaffold`'s) lies over the Generate button at the bottom of the content: in `RouteScreenTest` (411x891 dp) the snackbar of a failed directions call spans the bottom of the screen across the button, and a tap on Generate while it shows does not reach the button (the directions fake gets no second request). After a failed Generate the user can retry only once the snackbar's short duration (4 s) has passed. Found by the Compose UI test, not checked on a device.
-- Done when: after a failed directions call, Generate can be tapped while the error snackbar is shown (for example the snackbar placed so it does not cover the bottom controls), with a `RouteScreenTest` case that taps Generate while the snackbar is still on screen and gets a second request; `RouteScreenRobot.waitForSnackbarToHide` is then no longer needed by the failure test.
-- Refs: `androidApp/feature-route` `RouteScreen` (`Scaffold` `snackbarHost`, the bottom `Column` with the Generate button); `RouteScreenTest` (`a failed directions call shows the error and Generate can be tapped again`), `RouteScreenRobot.waitForSnackbarToHide`.
-
-### android-error-snackbar-covers-start-buttons
-- Type: task
-- Area: androidApp/feature-tracking, androidApp/feature-route
-- Order: 97
-- Source: PR from bugfix/screen-events-not-blocked-by-snackbar, 2026-10-07
-- Problem: The error snackbar takes the taps meant for a start button below it, as `android-route-error-snackbar-covers-generate` describes for Generate. On the Tracking screen, `TrackingScreen`'s `SnackbarHost` lies over Start: in `TrackingScreenTest` (411x891 dp), with the error of a failed profile read shown, a tap on Start does not start the session, so the user can start only once the snackbar's short duration (4 s) has passed. On the Route screen the same happens to the panel's Start Tracking button: a tap on it while the error of a failed profile read is shown does not reach the ViewModel. Found by the Compose UI tests, not checked on a device.
-- Done when: Start (Tracking) and Start Tracking (Route) can be tapped while an error snackbar is shown, with a Compose UI test per screen that taps the button while the snackbar is on screen and sees the session start (Tracking) or tracking start (Route); `RouteScreenRobot.startTrackingThroughViewModel` is then no longer needed by the tests that use it.
-- Refs: `androidApp/feature-tracking` `TrackingScreen` (`Scaffold` `snackbarHost`, the Start button); `androidApp/feature-route` `RouteScreen` (`Scaffold` `snackbarHost`, the Start Tracking panel); `TrackingScreenTest` (`two errors in a row are shown one after the other in order`, which holds the profile read for this reason), `RouteScreenRobot.startTrackingThroughViewModel`.
-
 ### release-build-links-debug-xcframework
 - Type: task
 - Area: iosApp, shared
@@ -259,8 +241,8 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp/TrailMetricsUITests
 - Order: 225
 - Source: board record ios-ui-route-generate-twice-failed-on-main and chat 2026-10-18
-- Problem: The "use your location?" system alert appears once per UI-test execution and is dismissed by the default interruption handler. Its origin was not found, because UI-test mode replaces the location repository by a fake. The Route tests depend on the permission state left by an earlier test: the tests run alphabetically and the alert appears only in the first Route test.
-- Done when: the origin of the alert is found, and the Route tests no longer depend on which test ran first (permission state set at launch, or the alert handled explicitly in each test), shown by running one Route test alone.
+- Problem: The "use your location?" system alert has so far been seen only in CI logs or result bundles, not locally. A local look found no origin: the production `IosLocationRepositoryImpl` is ruled out (the UI-test module overrides all five bindings that would create it, and `UiTestEntryTest` asserts it is never created in UI-test mode), no Swift file requests location, and on a fresh local simulator (iPhone 17, iOS 26.5, privacy reset, app uninstalled) the alert did not appear in `RouteGenerateTwiceUITests` alone or in the three Route classes run in order; a temporary interruption monitor never fired. The Route tests may still depend on the permission state an earlier test left.
+- Done when: the alert is captured on CI (an interruption monitor in the Route tests that records its label, or a failing run's result bundle), and the Route tests no longer depend on which ran first, either by `XCUIApplication.resetAuthorizationStatus(for: .location)` before launch or by handling the alert explicitly in each Route test. If CI's simulator itself needs a reset step, that touches the protected CI workflow and the human decides.
 - Refs: `RouteGenerateThenResetUITests` and the other Route tests; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`.
 
 ## Drift

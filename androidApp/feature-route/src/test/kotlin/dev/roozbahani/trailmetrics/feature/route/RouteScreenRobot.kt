@@ -84,14 +84,6 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
         rule.onNodeWithText(string(R.string.btn_start_tracking)).performClick()
     }
 
-    /**
-     * What the panel's Start Tracking button dispatches, sent to the ViewModel: while the error
-     * snackbar is shown it may lie over the panel's bottom (see [waitForSnackbarToHide]).
-     */
-    fun startTrackingThroughViewModel() = apply {
-        viewModel.onAction(RouteAction.StartTrackingClicked)
-    }
-
     fun doubleTapStartTracking() = apply {
         doubleTap(R.string.btn_start_tracking)
     }
@@ -114,8 +106,8 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
     }
 
     /**
-     * The snackbar lies over the Generate button and takes its taps while shown, so a test that taps
-     * Generate after an error first lets the snackbar's short duration pass on the test clock.
+     * Lets the shown snackbar's short duration (4 s) and its exit pass on the test clock, so the
+     * next queued message shows.
      */
     fun waitForSnackbarToHide() = apply {
         rule.mainClock.advanceTimeBy(SNACKBAR_SHORT_MILLIS)

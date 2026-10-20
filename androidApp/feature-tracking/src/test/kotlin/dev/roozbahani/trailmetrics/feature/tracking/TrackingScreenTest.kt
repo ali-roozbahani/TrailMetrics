@@ -365,8 +365,23 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `Start can be tapped while the error of a failed profile read is shown`() {
+        fixture.userProfileRepository.getUserProfileFailure = IllegalStateException("db closed")
+        showScreen().also { grantLocationPermission() }
+            .waitForIdle()
+            .assertMessageShown(RouteUiError.General.stringRes)
+            .clickStart()
+            .assertTrackingControls()
+
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertMessageShown(RouteUiError.General.stringRes)
+        assertIs<TrackingState.Tracking>(trackingState())
+        assertEquals(1, fixture.trackingServiceLauncher.startCalls)
+    }
+
+    @Test
     fun `two errors in a row are shown one after the other in order`() {
-        // The profile read is held until the session runs: the snackbar would lie over Start.
+        // The profile read is held until the session runs, so its error is queued behind the location one.
         val profileGate = CompletableDeferred<Unit>()
         fixture.userProfileRepository.getUserProfileGate = profileGate
         fixture.userProfileRepository.getUserProfileFailure = IllegalStateException("db closed")
