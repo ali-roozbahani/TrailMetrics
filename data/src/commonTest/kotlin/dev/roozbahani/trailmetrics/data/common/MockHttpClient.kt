@@ -20,8 +20,9 @@ val networkJson = Json {
 }
 
 // Mirrors networkModule's HttpClient: ContentNegotiation with networkJson and failOnNonSuccessStatus
-// (the same function networkModule calls), so a non-2xx response fails the call. Its defaultRequest platform headers are left out: the
-// Android actual resolves a Context through Koin, and no repository logic depends on them.
+// (the same function networkModule calls), so a non-2xx response fails the call. Its defaultRequest
+// platform headers are left out: the Android actual resolves a Context through Koin, and no
+// repository logic depends on them.
 fun mockHttpClient(handler: MockRequestHandler): HttpClient =
     HttpClient(MockEngine(handler)) {
         install(ContentNegotiation) {
