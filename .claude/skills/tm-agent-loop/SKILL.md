@@ -82,7 +82,10 @@ PR with `gh pr create --base main --body-file <file>` (`tm-pr-workflow`, "Tier 1
 PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
 
 If the diff touches `.github/workflows/`, you can't push it (the machine token has no
-`workflow` scope, Decision 1). Stop after the gate, write the PR description to
+`workflow` scope, Decision 1). This holds in practice because a push authenticates through the
+`gh` credential helper only: the push hook blocks any `git push` unless the checkout's effective
+`credential.helper` list is exactly `!gh auth git-credential`, so no keychain login can answer
+first. Stop after the gate, write the PR description to
 `~/agent-workspace/pr-body-<branch-slug>.md` and hand over to the human.
 
 ## 6. After the PR is open
