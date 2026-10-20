@@ -25,7 +25,7 @@
 //    cancellation as fatal and the test process dies.
 //  - Kotlin calls those members off the main thread, so a fake guards what it records with
 //    a lock and exposes it through read-only accessors.
-//  - Kotlin coroutine values come from shared's test support (shared/.../testsupport):
+//  - Kotlin coroutine values come from the test support of shared-uitest (shared-uitest/.../testsupport):
 //      * a `Flow` return value: `SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<T>(values:)))`.
 //        It emits the given values in order and then completes, so
 //        `await viewModel.observe()` returns once everything has been delivered. Don't

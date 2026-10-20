@@ -48,7 +48,12 @@
 #   UiTestControls           Objective-C: TMSUiTestControls
 #   UiTestEntryKt            Objective-C: TMSUiTestEntryKt, the file class of
 #                            doInitKoinIosForUiTest
-SEAM_NAMES="doInitKoinIosForUiTest UiTestScenario __UiTestScenario TMSUiTestScenario TMSUiTestControls TMSUiTestEntryKt"
+#   SwiftTestFlow, SwiftFailingTestFlow, SwiftTestScope, SwiftTestResult
+#                            the Kotlin test support of the Swift package tests (package
+#                            ...uitest.testsupport); Objective-C: the TMS-prefixed classes. The two
+#                            flows are generic (`TMSSwiftTestFlow<T>`): a name is looked up
+#                            without its type parameters.
+SEAM_NAMES="doInitKoinIosForUiTest UiTestScenario __UiTestScenario TMSUiTestScenario TMSUiTestControls TMSUiTestEntryKt SwiftTestFlow SwiftFailingTestFlow SwiftTestScope SwiftTestResult TMSSwiftTestFlow TMSSwiftFailingTestFlow TMSSwiftTestScope TMSSwiftTestResult"
 
 set -eu
 API_DIR=""
@@ -82,11 +87,11 @@ normalise_api() {
         }
         if ($0 ~ /^@class .*;$/) {
           k = split(substr($0, 8, length($0) - 8), names, ", "); line = ""
-          for (i = 1; i <= k; i++) if (!(names[i] in seam)) line = line (line == "" ? "" : ", ") names[i]
+          for (i = 1; i <= k; i++) { base = names[i]; sub(/<.*/, "", base); if (!(base in seam)) line = line (line == "" ? "" : ", ") names[i] }
           $0 = "@class " line ";"
         }
         if ($0 ~ /^@(interface|protocol) / && $0 !~ /;$/) {
-          buf[++n] = $0; inblock = 1; drop = (($2 in seam) && $0 !~ /^@interface [A-Za-z0-9_]+ \(/)
+          buf[++n] = $0; inblock = 1; base = $2; sub(/<.*/, "", base); drop = ((base in seam) && $0 !~ /^@interface [A-Za-z0-9_]+ \(/)
           cancel_type = ""
           if ($0 ~ /^@protocol TMSKtor_io(ByteReadChannel|ByteWriteChannel)( |$)/) cancel_type = "TMSKotlinThrowable"
           if ($0 ~ /^@protocol TMSKotlinx_coroutines_coreJob( |$)/) cancel_type = "TMSKotlinCancellationException"

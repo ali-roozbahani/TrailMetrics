@@ -16,8 +16,11 @@ description: Use when changing or adding code in TrailMetrics `domain`, `data`, 
   also compiles for iOS targets if applied in a commonMain module).
 - `shared`: owns `initKoin()`. `shared` stays the only module that exports production API to
   iOS; `shared-uitest` builds only a test-only variant of the same framework, linked by UI-test
-  builds alone (ADR-002, "Amendment"). `shared-uitest` holds the iOS UI-test seam and nothing
-  else, and no production module depends on it.
+  builds and by the Swift package tests alone (ADR-002, "Amendment"). `shared-uitest` holds the
+  iOS UI-test seam and the Kotlin test support of the Swift package tests (`SwiftTestFlow` and the
+  rest, package `...uitest.testsupport`) and nothing else, and no production module depends on
+  it. Test-only Kotlin never goes into `shared`: `scripts/check-production-framework.sh` fails
+  the gate and CI when the production framework contains it.
 - If a task seems to need a forbidden import, stop and report. Do not work around it.
 
 ## Existing error model — use it, don't replace it
@@ -128,8 +131,8 @@ modules and `shared-uitest`, the Gradle build files, and which variant is in pla
 or the UI-test variant of `shared-uitest` for `--variant uitest` and for the `Debug-UITest`
 configuration, which selects the variant). The shared `TrailMetrics` scheme's Build pre-action and the
 "Build KMP Shared Framework" phase run it on every Xcode build, and so does the gate. Do not
-bypass it. Run the script yourself before `xcodebuild test` inside an iOS package (details in
-`tm-ios`).
+bypass it. Run the script yourself with `--variant uitest` before `xcodebuild test` inside an
+iOS package: the package tests link the test-only variant (details in `tm-ios`).
 
 ## Changing the database schema (Room)
 

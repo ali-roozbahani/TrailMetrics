@@ -50,20 +50,12 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.koin.android)
         }
-        iosMain.dependencies {
-            // For testsupport/SwiftTestSupport.kt. domain/data use coroutines as
-            // implementation, so it isn't on shared's compile classpath otherwise.
-            implementation(libs.kotlinx.coroutines.core)
-        }
-        iosTest.dependencies {
-            implementation(libs.kotlinx.coroutines.test)
-        }
     }
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here,
 // on purpose. This module is the umbrella and Koin composition root (`initKoin`, platform modules,
-// the iOS `KoinHelper` and XCFramework export); its only test is in iosTest, which Kover can't
-// measure, so its own line coverage is 0% (0/17 lines, measured 2026-10-05). A floor of 0 could
-// never fail. Add one, set the way domain's is, when the first test of its own runs on the Android
+// the iOS `KoinHelper` and XCFramework export); it has no test of its own (the Swift test
+// support's tests are in :shared-uitest), so its own line coverage is 0% (0/17 lines, measured
+// 2026-10-05). A floor of 0 could never fail. Add one, set the way domain's is, when the first test of its own runs on the Android
 // host (commonTest or the Android host test).

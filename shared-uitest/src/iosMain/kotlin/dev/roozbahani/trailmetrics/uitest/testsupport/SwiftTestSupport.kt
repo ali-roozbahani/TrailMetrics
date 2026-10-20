@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.shared.testsupport
+package dev.roozbahani.trailmetrics.uitest.testsupport
 
 // TEST SUPPORT ONLY. These types exist so Swift unit tests (iosApp/Packages/*/Tests) can
 // build real Kotlin coroutine values for their fakes. Production code, Kotlin or Swift,
@@ -11,8 +11,9 @@ package dev.roozbahani.trailmetrics.shared.testsupport
 // Likewise, a `suspend fun ...: Result<T>` implemented in Swift must hand Kotlin a boxed
 // kotlin.Result, which isn't exported, so a Swift fake can't build one. Returning the
 // plain value crashes with "ClassCastException: ... cannot be cast to kotlin.Result".
-// These live in iosMain because only Swift needs them; they ship in the XCFramework
-// because a second Kotlin framework can't share types with this one.
+// They live in :shared-uitest, so only the test-only variant of the XCFramework holds them, never
+// the production one (scripts/check-production-framework.sh). A second Kotlin framework can't
+// share types with the first, so the Swift package tests link that variant.
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

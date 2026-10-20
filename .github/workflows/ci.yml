@@ -361,12 +361,15 @@ jobs:
       - name: Build KMP Shared Framework
         run: scripts/build-kmp-framework.sh
 
+      # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework.
+      - name: Production framework check
+        run: scripts/check-production-framework.sh
+
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
       # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
-      # shared has only iOS tests: its iosTest source set holds the Swift test
-      # support's own tests (SwiftTestSupportTest), which only a Mac can run.
-      # shared-uitest, the test-only framework variant, has only iOS tests too: those of its UI-test fakes.
+      # shared-uitest, the test-only framework variant, has only iOS tests: those of its UI-test fakes
+      # and of the Swift test support (SwiftTestSupportTest), which only a Mac can run.
       - name: Run iOS simulator tests
         run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test :shared:iosSimulatorArm64Test :shared-uitest:iosSimulatorArm64Test
 
@@ -389,6 +392,11 @@ jobs:
             EXCLUDED_ARCHS=x86_64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO
+
+      # The package tests use the Kotlin test support (SwiftTestFlow and the rest), which only the
+      # test-only variant of the framework holds. Built after "Build iOS app", which links production.
+      - name: Build test-only framework variant
+        run: scripts/build-kmp-framework.sh --variant uitest
 
       # Every iosApp/Packages/<Name>/ with a Tests/ directory; others are skipped.
       # `xcodebuild test` needs a concrete simulator, not generic/platform=iOS Simulator.

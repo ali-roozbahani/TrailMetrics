@@ -30,13 +30,6 @@ belongs here.
   because Koin's `get<T>()` is an inline reified function and cannot be
   exported to Objective-C/Swift — add a new getter here whenever a new iOS
   feature needs to resolve a dependency from Koin.
-- **`testsupport/SwiftTestSupport.kt`** (`iosMain`): **test-only**. `SwiftTestFlow<T>`
-  (a cold `Flow` over fixed values) and `SwiftTestScope` (a cancellable `CoroutineScope`
-  with production's context), plus `SwiftTestResult` (boxed `kotlin.Result` values for
-  fakes of `suspend fun ...: Result<T>` members), used by Swift fakes in
-  `iosApp/Packages/*/Tests`. Swift can't build any of these itself: a Swift-implemented
-  `Flow` violates Kotlin's flow invariant on its first emission, and `kotlin.Result`
-  isn't exported. Never use them from production code.
 - **XCFramework export config**: the `binaries.framework { ... }` block that
   produces `TrailMetricsShared.xcframework`, `export()`-ing `domain`, `data`,
   and `core` so their public API is visible from Swift. SKIE

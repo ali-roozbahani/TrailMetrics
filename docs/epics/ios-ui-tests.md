@@ -82,9 +82,11 @@ product is linked only from `.testTarget`s, never from a Sources target. Their s
 into the framework because the Swift package tests link that framework and a second Kotlin
 framework cannot share its types. `SharedKit/Package.swift` points at the **debug** XCFramework
 for every build configuration, so a Release app links it too. This is a pre-existing issue,
-separate from this epic: the UI-test fakes do not join it (D1, F19), and moving
-`SwiftTestSupport.kt` out is out of scope (board record
-`swift-test-support-ships-in-production-framework`).
+separate from this epic: the UI-test fakes do not join it (D1, F19). It was fixed afterwards:
+`SwiftTestSupport.kt` now lives in `shared-uitest` (`.../uitest/testsupport/`), the Swift package
+tests link the test-only variant (the gate and CI's `ios-main` build it before them), and
+`scripts/check-production-framework.sh` fails the gate and CI when the production framework
+contains it.
 
 **F5. Xcode project (verified).** `xcodebuild -list`: targets `TrailMetrics` and
 `TrackingWidgetExtension`; configurations Debug and Release; schemes include the shared
@@ -882,9 +884,8 @@ S1 and S8, different waves. `tm-ios` in S2 and S3, `tm-testing` in S1 and S3, di
   `currentPath` changes so route progress jumps; S7 tunes the loop length to the progress
   search window (10) and checks 3 of 3.
 - **Kotlin test support in the production framework** (F4): pre-existing and separate from
-  this epic. The UI-test seam no longer reaches normal Debug or Release builds (F19), but
-  `SwiftTestSupport.kt` still does (board records `swift-test-support-ships-in-production-framework`
-  and `release-build-links-debug-xcframework`).
+  this epic; fixed since, it lives in `shared-uitest` now. A Release app still links the debug
+  XCFramework (board record `release-build-links-debug-xcframework`).
 - **detekt did not lint KMP sources** (F21): fixed; the gate's detekt now lints `shared-uitest`
   and the existing KMP modules.
 - **Probe overlay hides a control:** placed top centre; S3 checks no existing test target

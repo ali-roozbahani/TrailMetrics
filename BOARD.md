@@ -90,7 +90,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: docs/epics/ios-ui-tests.md Q9 (PR #138), 2026-10-13
 - Problem: `iosApp/Packages/SharedKit/Package.swift` points its `binaryTarget` at `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework` for every build configuration, and `scripts/build-kmp-framework.sh` builds only the debug XCFramework (`:shared:assembleTrailMetricsSharedDebugXCFramework`). So a Release build of the app links the debug Kotlin framework, which contains the Swift test support (`shared/src/iosMain/.../testsupport/SwiftTestSupport.kt`). The iOS UI-test fakes are not in it: since the plan's rewrite of 2026-10-13 they are built only into a test-only variant of the framework (`docs/epics/ios-ui-tests.md`, D1).
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
-- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration"); record `swift-test-support-ships-in-production-framework`.
+- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
 
 ### maps-empty-api-key-crashes-route-tab
 - Type: task
@@ -209,15 +209,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
 - Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
 
-### swift-test-support-ships-in-production-framework
-- Type: task
-- Area: shared, iosApp
-- Order: 210
-- Source: S1a spike of `docs/epics/ios-ui-tests.md`, 2026-10-13
-- Problem: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt` ("TEST SUPPORT ONLY") is compiled into the production `TrailMetricsShared.xcframework`, because the Swift package tests link that framework and a second Kotlin framework cannot share its types; so every app build contains it. The S1a spike reported that a test-only variant of the framework (a separate module with the same `baseName`, copied over the debug path) builds and links, and the iOS UI-test epic adopts that mechanism for its seam, so the Swift test support could move there too. Low priority. Reported by the spike, not re-run; the task's first step is to verify that the package tests can link the variant.
-- Done when: no test-only Kotlin is in the production framework (a `strings` or symbol check on the production framework in the PR), and the Swift package tests still pass in the gate and CI.
-- Refs: `shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt`; `iosApp/Packages/TestSupport`; `scripts/build-kmp-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1); record `release-build-links-debug-xcframework`.
-
 ### ios-ui-route-generate-twice-failed-on-main
 - Type: task
 - Area: iosApp/TrailMetricsUITests
@@ -255,3 +246,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
 - Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
 - Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
+
+### test-support-paths-stale-after-move
+- Type: drift
+- Area: .claude, scripts, CLAUDE.md
+- Order: 240
+- Source: PR for swift-test-support-ships-in-production-framework
+- Problem: The Swift test support moved from `shared/src/iosMain/**/testsupport/` to `shared-uitest/src/iosMain/**/uitest/testsupport/`. Three protected places still describe the old location: `tm-pr-review` item 5 lists `shared/src/iosMain/**/testsupport/**` as a test-support path (the reviewer judges by purpose as well, but the path is wrong now); the fixture list of `scripts/check-protected-paths.py` still names `shared/src/iosMain/.../shared/testsupport/SwiftTestSupport.kt` and `shared/src/iosTest/.../shared/testsupport/SwiftTestSupportTest.kt` (both only expect "unprotected", so they still pass); `CLAUDE.md` says `shared-uitest` is "the iOS UI-test seam" only, while it also holds the Swift test support. None was in the task's authorization.
+- Done when: `tm-pr-review` item 5 names `shared-uitest/src/**/testsupport/**` (and keeps the other paths), the fixtures name the current paths or are dropped, and the `CLAUDE.md` map line says what `shared-uitest` holds, in a PR that may touch the protected paths.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 5); `scripts/check-protected-paths.py`; `CLAUDE.md` (Map).

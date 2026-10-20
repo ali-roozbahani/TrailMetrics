@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.shared.testsupport
+package dev.roozbahani.trailmetrics.uitest.testsupport
 
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.toList

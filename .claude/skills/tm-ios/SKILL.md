@@ -226,16 +226,27 @@ fails, so observe through a use case that turns the failure into a value on the 
     safety net. If the pre-action didn't run, it rebuilds and then fails the build with
     "build again" rather than link the stale copy. Don't declare the XCFramework as a phase
     output: Xcode reports "Cycle inside TrailMetrics".
-  - `scripts/pre-push-check.sh` runs it before the iOS build and package tests.
+  - `scripts/pre-push-check.sh` runs it before the iOS build, then
+    `scripts/check-production-framework.sh` on the production framework, and runs it with
+    `--variant uitest` right before the package tests (see below).
   - CI's `ios-main` job runs it in its "Build KMP Shared Framework" step, before the iOS
-    simulator tests and the `xcodebuild` build; `ios-build-ui` runs
-    `scripts/build-kmp-framework.sh --variant uitest`.
+    simulator tests and the `xcodebuild` build, runs `scripts/check-production-framework.sh`
+    after it, and builds the variant in the step "Build test-only framework variant" before
+    "Run iOS package tests"; `ios-build-ui` runs `scripts/build-kmp-framework.sh --variant uitest`.
+- The Swift package tests link the **test-only variant**, not production: the Kotlin test
+  support they need (`SwiftTestFlow`, `SwiftFailingTestFlow`, `SwiftTestScope`, `SwiftTestResult`,
+  package `dev.roozbahani.trailmetrics.uitest.testsupport`) is in `shared-uitest`. The production
+  framework contains none of it; `scripts/check-production-framework.sh` (gate and `ios-main`)
+  fails when any of those names, or the `testsupport` package name, is in its binary. The
+  variant's API check (`scripts/check-variant-api.sh`) lists these four classes with the UI-test
+  seam as the only names allowed in the variant alone.
 - A per-user `xcuserdata/.../TrailMetrics.xcscheme` with the same name shadows the shared
   scheme and has no pre-action. If every Kotlin change ends in the "build again" error,
   delete the per-user copy.
 - `xcodebuild test` inside a package directory (`iosApp/Packages/<Name>`) uses the package's
-  own scheme. It runs neither the pre-action nor the phase, so run the script first
-  (the gate does).
+  own scheme. It runs neither the pre-action nor the phase, so run
+  `scripts/build-kmp-framework.sh --variant uitest` first (the gate does): the package tests
+  need the test-only variant. A normal build afterwards rebuilds production.
 - Building the app from the command line (the command is CI's `ios-main` "Build iOS app"
   step; the gate runs the same one):
 
