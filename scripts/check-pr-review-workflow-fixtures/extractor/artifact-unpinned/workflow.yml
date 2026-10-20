@@ -1,0 +1,44 @@
+name: PR review
+on:
+  pull_request:
+    types: [ opened, synchronize ]
+permissions:
+  contents: read
+env:
+  REVIEW_MODEL: model-x
+  REVIEW_MAX_TURNS: '40'
+jobs:
+  review:
+    name: Review — pr-reviewer
+    runs-on: ubuntu-latest
+    steps:
+      # The steps under test.
+      - name: Rule changes from the base
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          echo rule
+      - name: Run pr-reviewer
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo run
+      - name: "Map verdict"
+        if: ${{ !cancelled() }}
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |-
+          echo map
+      - name: Stage review report
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/review-report"
+          cp "$RUNNER_TEMP/review/report.md" "$RUNNER_TEMP/review-report/report.md"
+      - name: Upload review report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-review-report
+          path: ${{ runner.temp }}/review-report/
+          retention-days: 7

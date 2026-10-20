@@ -19,6 +19,11 @@ What it does, per run:
      harness does not emulate (`shell:`, `defaults:`, `working-directory:`,
      `continue-on-error:`, an `if:` other than none, success(), always() or !cancelled()).
      The cases in fixtures/extractor/ show each of these failing.
+     It also fails when the report artifact is wrong: 'Stage review report' and 'Upload review
+     report' missing, twice or not after 'Map verdict'; not `if: always()`; the upload not an
+     actions/upload-artifact pinned by commit SHA, not named pr-review-report, not 7 days, or
+     with another path than the staging directory; the staging script naming other files of
+     the review directory; permissions other than contents: read.
   2. Runs every scenario in fixtures/scenarios/ in its own scratch directory: a stub
      `claude` at $RUNNER_TEMP/claude-cli/node_modules/.bin/claude answers each call as the
      scenario's `stub` file says and logs a hash of its stdin, its arguments and its working
@@ -57,6 +62,14 @@ from pathlib import Path
 RULE_STEP = "Rule changes from the base"
 RUN_STEP = "Run pr-reviewer"
 MAP_STEP = "Map verdict"
+STAGE_STEP = "Stage review report"
+UPLOAD_STEP = "Upload review report"
+ARTIFACT_NAME = "pr-review-report"
+ARTIFACT_PATH = "${{ runner.temp }}/review-report/"
+ARTIFACT_RETENTION_DAYS = "7"
+UPLOAD_USES_RE = re.compile(r"^actions/upload-artifact@[0-9a-f]{40}$")
+# Files of the review directory that must never be copied into the artifact.
+STAGE_FORBIDDEN = ("/input", "message", "claude-", ".err", "base", "tree")
 REQUIRED_ENV = ("REVIEW_MODEL", "REVIEW_MAX_TURNS")
 TITLE = "Review — pr-reviewer"
 HEAD_SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -279,6 +292,52 @@ def _if_mode(step, name):
                        "(only none, success(), always() or !cancelled())")
 
 
+def _check_artifact_steps(doc, jobs, job_id, map_index):
+    """The report artifact: 'Stage review report' then 'Upload review report', both after
+    'Map verdict' in its job, both `if: always()`, the upload pinned by commit SHA, named
+    pr-review-report, 7 days of retention, from the staging directory only; permissions stay
+    contents: read; the staging script copies report files only."""
+    if doc.get("permissions") != {"contents": "read"}:
+        raise ExtractError("permissions: must be exactly contents: read")
+    steps = jobs[job_id].get("steps")
+    hits = {}
+    for name in (STAGE_STEP, UPLOAD_STEP):
+        hits[name] = [(i, st) for i, st in enumerate(steps)
+                      if isinstance(st, dict) and st.get("name") == name]
+        if not hits[name]:
+            raise ExtractError(f"step '{name}' not found (the report artifact)")
+        if len(hits[name]) > 1:
+            raise ExtractError(f"step '{name}' appears {len(hits[name])} times")
+    (stage_index, stage), = hits[STAGE_STEP]
+    (upload_index, upload), = hits[UPLOAD_STEP]
+    if not map_index < stage_index < upload_index:
+        raise ExtractError(f"steps '{STAGE_STEP}' and '{UPLOAD_STEP}' must come after "
+                           f"'{MAP_STEP}', in that order")
+    for name, step in ((STAGE_STEP, stage), (UPLOAD_STEP, upload)):
+        if _if_mode(step, name) != "always" or step.get("if", "").strip() != "always()":
+            raise ExtractError(f"step '{name}': if: must be always()")
+    script = stage.get("run")
+    if not isinstance(script, str) or "review-report" not in script or "report.md" not in script:
+        raise ExtractError(f"step '{STAGE_STEP}': it must copy report.md into review-report")
+    for word in STAGE_FORBIDDEN:
+        if word in script:
+            raise ExtractError(f"step '{STAGE_STEP}': its script mentions '{word}', the "
+                               "artifact holds only the report text")
+    if not UPLOAD_USES_RE.match(str(upload.get("uses", ""))):
+        raise ExtractError(f"step '{UPLOAD_STEP}': uses: must be actions/upload-artifact "
+                           "pinned by a 40-character commit SHA")
+    with_ = upload.get("with")
+    if not isinstance(with_, dict):
+        raise ExtractError(f"step '{UPLOAD_STEP}': with: is missing")
+    if with_.get("name") != ARTIFACT_NAME:
+        raise ExtractError(f"step '{UPLOAD_STEP}': name: must be {ARTIFACT_NAME}")
+    if with_.get("path") != ARTIFACT_PATH:
+        raise ExtractError(f"step '{UPLOAD_STEP}': path: must be {ARTIFACT_PATH} only")
+    if with_.get("retention-days") != ARTIFACT_RETENTION_DAYS:
+        raise ExtractError(f"step '{UPLOAD_STEP}': retention-days: must be "
+                           f"{ARTIFACT_RETENTION_DAYS}")
+
+
 def extract(path):
     try:
         text = Path(path).read_text(encoding="utf-8")
@@ -348,6 +407,7 @@ def extract(path):
                                    "scratch value in the harness")
             step_env[key] = None if "${{" in value else value
         steps[name] = {"script": script, "env": step_env, "if": _if_mode(step, name)}
+    _check_artifact_steps(doc, jobs, map_job, map_index)
     return {"env": env, "steps": steps}
 
 
