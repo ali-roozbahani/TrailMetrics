@@ -236,6 +236,11 @@ Config: `config/detekt/detekt.yml`, applied to every subproject by the root
 with `./gradlew detekt`. It is part of the local pre-push gate
 (`scripts/pre-push-check.sh`) and CI.
 
+KMP modules (`domain`, `data`, `core`, `shared`, `shared-uitest`) have no `src/main`, which
+is all the plain `detekt` task reads, so the root build points it at every `src/*` source set
+(it was NO-SOURCE there before). `data`'s `androidHostTest` is the one exception, see the
+`detekt-skips-kmp-source-sets` board record.
+
 - Forbidden: `println`/`print` (`ForbiddenMethodCall`, use a logger) and any
   `kotlinx.coroutines.GlobalScope` import (`ForbiddenImport`, use `viewModelScope` or an
   injected scoped `CoroutineScope`).

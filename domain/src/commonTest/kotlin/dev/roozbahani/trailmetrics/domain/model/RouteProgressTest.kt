@@ -25,9 +25,15 @@ class RouteProgressTest {
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
         val expectedTraveled = listOf(point1)
-        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        assertTrue(
+            result.traveledSegment.size == expectedTraveled.size &&
+                result.traveledSegment.containsAll(expectedTraveled),
+        )
         val expectedRemaining = listOf(point1, point2, point3)
-        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
+        assertTrue(
+            result.remainingSegment.size == expectedRemaining.size &&
+                result.remainingSegment.containsAll(expectedRemaining),
+        )
     }
 
     @Test
@@ -37,9 +43,15 @@ class RouteProgressTest {
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
         val expectedTraveled = listOf(point1, point2, point3)
-        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        assertTrue(
+            result.traveledSegment.size == expectedTraveled.size &&
+                result.traveledSegment.containsAll(expectedTraveled),
+        )
         val expectedRemaining = listOf(point3)
-        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
+        assertTrue(
+            result.remainingSegment.size == expectedRemaining.size &&
+                result.remainingSegment.containsAll(expectedRemaining),
+        )
     }
 
     @Test
@@ -49,9 +61,15 @@ class RouteProgressTest {
         val result = calculateRouteProgress(plannedRoute, currentLocation)
 
         val expectedTraveled = listOf(point1, point2)
-        assertTrue(result.traveledSegment.size == expectedTraveled.size && result.traveledSegment.containsAll(expectedTraveled))
+        assertTrue(
+            result.traveledSegment.size == expectedTraveled.size &&
+                result.traveledSegment.containsAll(expectedTraveled),
+        )
         val expectedRemaining = listOf(point2, point3)
-        assertTrue(result.remainingSegment.size == expectedRemaining.size && result.remainingSegment.containsAll(expectedRemaining))
+        assertTrue(
+            result.remainingSegment.size == expectedRemaining.size &&
+                result.remainingSegment.containsAll(expectedRemaining),
+        )
     }
 
     @Test

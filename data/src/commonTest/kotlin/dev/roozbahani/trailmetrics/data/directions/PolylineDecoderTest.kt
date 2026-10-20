@@ -11,7 +11,10 @@ class PolylineDecoderTest {
     fun `reference polyline decodes to its three points in order`() {
         val points = decodePolyline(PolylineFixtures.REFERENCE)
 
-        assertEquals(PolylineFixtures.REFERENCE_POINTS, points.map { it.coordinates.latitude to it.coordinates.longitude })
+        assertEquals(
+            PolylineFixtures.REFERENCE_POINTS,
+            points.map { it.coordinates.latitude to it.coordinates.longitude },
+        )
         assertEquals(listOf(0, 1, 2), points.map { it.order })
     }
 
@@ -28,7 +31,7 @@ class PolylineDecoderTest {
     }
 
     @Test
-    fun `polyline whose final character has the continuation bit set throws IllegalArgumentException naming the index`() {
+    fun `polyline ending on a continuation bit throws IllegalArgumentException naming the index`() {
         val error = assertFailsWith<IllegalArgumentException> { decodePolyline(PolylineFixtures.UNTERMINATED) }
 
         assertTrue(error.message.orEmpty().contains("index ${PolylineFixtures.UNTERMINATED.length}"), error.message)

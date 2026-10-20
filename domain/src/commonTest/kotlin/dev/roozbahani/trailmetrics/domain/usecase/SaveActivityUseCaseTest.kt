@@ -15,7 +15,8 @@ import kotlin.test.assertNull
 class SaveActivityUseCaseTest {
 
     private val activityHistoryRepository = FakeActivityHistoryRepository()
-    private val calorieCalculator = CalorieCalculator() // real instance: pure, deterministic, already covered by CalorieCalculatorTest
+    // real instance: pure, deterministic, already covered by CalorieCalculatorTest
+    private val calorieCalculator = CalorieCalculator()
     private val clock = FakeClock()
     private lateinit var useCase: SaveActivityUseCase
 

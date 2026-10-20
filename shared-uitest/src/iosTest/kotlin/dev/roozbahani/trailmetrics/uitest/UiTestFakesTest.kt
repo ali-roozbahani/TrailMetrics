@@ -95,7 +95,10 @@ class UiTestFakesTest {
 
         assertFailsWith<Exception> { launch.history.deleteActivity(UiTestFixtures.SEEDED_ACTIVITY_ID) }
 
-        assertEquals(listOf(UiTestFixtures.seededActivity), launch.history.observeActivities().take(1).toList().single())
+        assertEquals(
+            listOf(UiTestFixtures.seededActivity),
+            launch.history.observeActivities().take(1).toList().single(),
+        )
         assertEquals(UiTestFixtures.seededActivity, launch.history.getActivity(UiTestFixtures.SEEDED_ACTIVITY_ID))
         assertEquals(0, launch.controls.deleteCount)
     }
