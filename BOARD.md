@@ -110,6 +110,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human decides how `androidHostTest` is linted (add `**/androidHostTest/**` to the `FunctionNaming` excludes of `config/detekt/detekt.yml`, or rename the tests); then `source` in the root `build.gradle.kts` no longer excludes `androidHostTest`, `./gradlew detekt` is clean, and the `tm-android` "Detekt" section no longer names the gap.
 - Refs: root `build.gradle.kts` (detekt `source`); `config/detekt/detekt.yml`; `data/src/androidHostTest`; `.claude/skills/tm-android/SKILL.md` (Detekt); `.claude/skills/tm-testing/SKILL.md`.
 
+### classify-changes-self-test-failed-once
+- Type: task
+- Area: scripts
+- Order: 118
+- Source: PR for detekt-skips-kmp-source-sets
+- Problem: `scripts/classify-changes.sh --self-test` failed once in a local gate run ("change classification self-test": 22 of 23 fixtures passed, the `usage-error` fixture reported "missing: usage error") before any commit of that branch was pushed. The next gate run passed, it passed on a clean `main`, and 30 consecutive reruns on the branch's clean tree did not reproduce it. The cause is unknown; the gate was running other heavy work at the time.
+- Done when: the cause is found and fixed in the self-test or its fixtures (for example, the fixture depending on the timing or the stderr of the usage message), or a longer run under load shows it cannot recur and the record is deleted with that evidence in the PR.
+- Refs: `scripts/classify-changes.sh` (`--self-test`, the `usage-error` fixture); `scripts/pre-push-check.sh` (change classification self-test step).
+
 ### tracking-finish-unsaved-snapshot-files-not-deleted
 - Type: task
 - Area: androidApp/feature-tracking
