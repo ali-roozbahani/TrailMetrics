@@ -39,7 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +65,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import dev.roozbahani.trailmetrics.core.designsystem.component.ErrorSnackbarHost
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
@@ -196,7 +196,6 @@ fun RouteScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) },
         bottomBar = bottomBar
     ) { innerPadding ->
         Box(
@@ -323,6 +322,11 @@ fun RouteScreen(
                     }
                 }
             }
+
+            ErrorSnackbarHost(
+                hostState = snackBarHostState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

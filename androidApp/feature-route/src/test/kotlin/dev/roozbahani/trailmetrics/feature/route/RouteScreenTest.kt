@@ -236,7 +236,7 @@ class RouteScreenTest {
     }
 
     @Test
-    fun `a failed directions call shows the error and Generate can be tapped again`() {
+    fun `a failed directions call shows the error and Generate can be tapped again while it is shown`() {
         val error = RouteError.DirectionsApiError(IllegalStateException("quota exceeded"))
         directionsRepository.closedRouteResult = Result.failure(error)
 
@@ -247,7 +247,8 @@ class RouteScreenTest {
             .assertGenerateEnabled()
 
         directionsRepository.closedRouteResult = Result.success(GENERATED_ROUTE)
-        robot.waitForSnackbarToHide()
+        // The test clock has not passed the snackbar's duration: the error is still shown.
+        robot.assertMessageShown(error.toUiError().stringRes)
             .clickGenerate()
             .assertPanelShown()
         assertEquals(2, directionsRepository.requests.size)
@@ -353,7 +354,7 @@ class RouteScreenTest {
         assertEquals(emptyList(), startTrackingCalls)
 
         userProfileRepository.getUserProfileFailure = null
-        robot.startTrackingThroughViewModel().waitForIdle()
+        robot.clickStartTracking().waitForIdle()
 
         // The test clock has not passed the snackbar's duration: the error is still shown.
         robot.assertMessageShown(RouteUiError.General.stringRes)
@@ -370,7 +371,7 @@ class RouteScreenTest {
             .assertProfileSheetNotShown()
 
         userProfileRepository.getUserProfileFailure = null
-        robot.startTrackingThroughViewModel().waitForIdle()
+        robot.clickStartTracking().waitForIdle()
 
         robot.assertMessageShown(RouteUiError.General.stringRes)
             .assertProfileSheetShown()

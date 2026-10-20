@@ -43,7 +43,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +68,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.roozbahani.trailmetrics.core.designsystem.component.ErrorSnackbarHost
 import dev.roozbahani.trailmetrics.core.designsystem.component.MetricCell
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.error.stringRes
@@ -248,9 +248,7 @@ fun TrackingScreen(
     // Set while a Finish tap waits for map.snapshot { }, so a repeated tap doesn't write a second file.
     var isSnapshotPending by remember { mutableStateOf(false) }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackBarHostState) }
-    ) { innerPadding ->
+    Scaffold { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -424,6 +422,11 @@ fun TrackingScreen(
                     }
                 }
             }
+
+            ErrorSnackbarHost(
+                hostState = snackBarHostState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
