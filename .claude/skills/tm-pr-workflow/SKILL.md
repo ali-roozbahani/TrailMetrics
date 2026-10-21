@@ -100,7 +100,12 @@ needs `python3`, `bash` and `git` and fails without them) and the variant API ch
 (`scripts/check-variant-api.sh --self-test`: the check that `scripts/build-kmp-framework.sh
 --variant uitest` runs on the test-only framework variant of `shared-uitest`, run against the
 fixtures in `scripts/check-variant-api-fixtures/`; gate, and the step "Variant API check
-self-test" of CI's `android` job).
+self-test" of CI's `android` job) and the localized strings rules self-test
+(`scripts/check-localized-strings.sh --self-test`: the fixtures in
+`scripts/check-localized-strings-fixtures/` against the SwiftLint rules
+`localized_text_without_bundle` and `literal_text_in_view_initializer`; it runs with the iOS
+steps; gate only, the rules themselves run in CI via swiftlint: `swiftlint lint --strict` in
+`ios-main`, and `iosApp/.swiftlint.yml` is protected).
 The gate also runs the Kover floors check in every classification, light included
 (`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
 floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
