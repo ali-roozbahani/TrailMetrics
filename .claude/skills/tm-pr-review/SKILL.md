@@ -82,7 +82,7 @@ from memory.
    `ESCALATE_TO_HUMAN` unless `TASK` explicitly asks for it.
    Test support counts as tests here: code that tests use as a fake, a test double, a wait
    helper, a fixture or a flow double, wherever it lives. That includes test support in a main
-   source set: `shared/src/iosMain/**/testsupport/**`, the Swift fakes package
+   source set: `shared-uitest/src/**/testsupport/**`, the Swift fakes package
    `iosApp/Packages/TestSupport/**` and `androidApp/core-testing/**`. Judge by purpose, not
    only by path: a helper outside those paths that tests use is test support too. A change to
    existing test support that makes tests pass more easily is `ESCALATE_TO_HUMAN` with the
