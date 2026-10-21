@@ -14,7 +14,7 @@ exists", the rules here win for "what new code should look like".
 
 - One local Swift Package per feature under `iosApp/Packages/<Feature>/` (`History`,
   `Route`, `Tracking`), mirroring `androidApp/feature-*`. Copy an existing `Package.swift`
-  (`swift-tools-version: 5.9`, `platforms: [.iOS(.v17)]`, one library product, one target)
+  (`swift-tools-version: 5.9`, `defaultLocalization: "en"`, `platforms: [.iOS(.v17)]`, one library product, one target with `resources: [.process("Localizable.xcstrings")]`)
   rather than hand-rolling one.
 - Every feature package depends on `SharedKit`, never on `TrailMetricsShared.xcframework`
   directly. `SharedKit` is just `@_exported import TrailMetricsShared`, so Swift files
@@ -188,6 +188,60 @@ fails, so observe through a use case that turns the failure into a value on the 
   (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest").
 - Add a `#Preview` for new screens and reusable components. Use the ViewModel's
   default-parameter `init` to inject fakes where a live Koin graph isn't available.
+
+## Strings
+
+No user-visible text is a hardcoded string. Every text the user reads (labels, button titles,
+navigation and tab titles, alerts, empty and error states, accessibility labels and hints, map
+marker titles) comes from a String Catalog, `Localizable.xcstrings`, next to the sources of the
+package that shows it (`iosApp/Packages/<Feature>/Sources/<Feature>/`), of the app target
+(`iosApp/TrailMetrics/`) or of the widget extension (`iosApp/TrackingWidget/`). Language: English
+only for now (`defaultLocalization: "en"`); adding one means adding its column to the catalogs,
+no code change.
+
+- **Bundle.** Inside an SPM package SwiftUI looks in the main bundle unless told otherwise, so a
+  literal without the package bundle is silently not localized. Only `Text` takes `bundle:`;
+  every other view takes its text as a `Text`:
+
+  ```swift
+  Text("Generate Route", bundle: .module)
+  Button { save() } label: { Text("Save", bundle: .module) }
+  Label { Text("Reset", bundle: .module) } icon: { Image(systemName: "arrow.clockwise") }
+  TextField(text: $weightInput) { Text("Weight (kg)", bundle: .module) }
+  .navigationTitle(Text("User Profile", bundle: .module))
+  .alert(Text("Error", bundle: .module), isPresented: $isShown) { ... }
+  ```
+
+  In the app and widget targets the bundle is the main one: `bundle: .main`.
+- **Outside a View** (ViewModel, error and formatter texts, `GMSMarker.title`) a `String` shown
+  with `Text(string)` is verbatim and never localized, so make the string with
+  `String(localized: "key", bundle: .module)`. Use a computed property, not a `static let`, so it
+  follows the language at the time it is read. A child view that shows a label takes a `Text`
+  (`HistoryMetricCell(label: Text("metric_distance", bundle: .module), ...)`), not a `String`.
+  The Live Activity's `activityType` stays an English identifier that the widget localizes with
+  its own catalog (`Text(LocalizedStringKey(activityType), bundle: .main)`).
+- **Keys.** The English text is the key (`Text("Generate Route", ...)`). A text used in several
+  places of a package, or one that is formatted, gets a descriptive snake_case key
+  (`delete_activity_title`, `general_error_message`) whose English value is in the catalog.
+  Interpolated texts use format arguments in the key, never `+`. A new key is added to the
+  catalog in the same change, with an `en` string unit.
+- **Not user-visible text, leave as is:** `accessibilityIdentifier`, log messages, `systemName:`
+  symbols, URL schemes and notification names, test code and fakes, `UITestSupport`, previews'
+  sample data.
+- **Enforced** by two SwiftLint custom rules in `iosApp/.swiftlint.yml` (see "SwiftLint"):
+  `localized_text_without_bundle` (a `Text("literal")` without `bundle:`) and
+  `literal_text_in_view_initializer` (a string literal as the first argument of `Button`, `Label`,
+  `TextField`, `.navigationTitle`, `.alert`, `.accessibilityLabel` and similar). Both cover
+  production sources of the packages, the app target and the widget only. They cannot see a
+  `String` that is shown later (`Text(message)`), so review checks that those strings are made
+  with `String(localized:bundle:)` (`tm-pr-review`). Self-test of the rules:
+  `scripts/check-localized-strings.sh --self-test` (in the gate's iOS steps).
+- A package's tests resolve one of its keys through `Bundle.module` with
+  `LocalizationAssertions.assertResolves` (TestSupport); copy `HistoryTests/LocalizationTests.swift`
+  for a new package (it needs `@testable import`).
+- Known limits, not fixed here: the texts that `MetricsFormatter` (Kotlin) returns, with their
+  unit words, and the widget's own number formatting are hardcoded (board:
+  `shared-metrics-formatter-user-visible-strings`, `ios-hardcoded-number-formatting`).
 
 ## Build integration (XCFramework pre-action + Run Script)
 
@@ -371,6 +425,10 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   from Swift", never drop an error). SwiftLint does not check that a reason is there or true:
   review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
   'optional_try' rule" and turns the rule off, without failing `--strict`.
+- Custom rules `localized_text_without_bundle` and `literal_text_in_view_initializer` (error):
+  see "Strings". They match source text with `included`/`excluded` path regexes, so a new
+  production source folder outside `Packages/*/Sources`, the files directly in `iosApp/TrailMetrics/`
+  and `iosApp/TrackingWidget/` needs its path added to both rules.
 - Don't add `// swiftlint:disable` comments and don't edit `.swiftlint.yml` to make a
   violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. A suppression
   needs explicit human approval and a stated reason. Every existing one has the form

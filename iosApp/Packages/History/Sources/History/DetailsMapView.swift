@@ -57,7 +57,7 @@ struct DetailsMapView: UIViewRepresentable {
 
         if let startCoordinate = boundsPoints.first {
             let marker = GMSMarker(position: startCoordinate.locationCoordinate)
-            marker.title = "Start / Finish"
+            marker.title = String(localized: "Start / Finish", bundle: .module)
             marker.icon = GMSMarker.markerImage(with: UIColor(Color.trailGreen))
             marker.map = mapView
         }

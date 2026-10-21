@@ -22,11 +22,11 @@ struct StartTrackingPanel: View {
 
             HStack(spacing: 12) {
                 Button(action: onResetClicked) {
-                    Label("Reset", systemImage: "arrow.clockwise")
+                    Label { Text("Reset", bundle: .module) } icon: { Image(systemName: "arrow.clockwise") }
                 }
                 .buttonStyle(.bordered)
                 .tint(.trailGreen)
-                Button("Start Tracking", action: onStartTrackingClicked)
+                Button(action: onStartTrackingClicked) { Text("Start Tracking", bundle: .module) }
                     .buttonStyle(.borderedProminent)
                     .tint(.trailGreen)
             }
@@ -78,9 +78,9 @@ private struct ActivityTypeControl: View {
 private extension ActivityType {
     var displayName: String {
         switch self {
-        case .running: return "Running"
-        case .cycling: return "Cycling"
-        case .walking: return "Walking"
+        case .running: return String(localized: "Running", bundle: .module)
+        case .cycling: return String(localized: "Cycling", bundle: .module)
+        case .walking: return String(localized: "Walking", bundle: .module)
         }
     }
 

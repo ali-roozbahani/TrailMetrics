@@ -210,7 +210,7 @@ public class TrackingViewModel: ObservableObject {
         isSessionSaved = false
         startedAtEpochMillis = clock.nowMillis()
         trackingSessionManager.start(startPoint: startPoint)
-        liveActivityController?.start(activityType: activityTypeDisplayName)
+        liveActivityController?.start(activityType: liveActivityTypeKey)
     }
 
     public func onPauseClicked() {
@@ -286,7 +286,9 @@ public class TrackingViewModel: ObservableObject {
 
     // MARK: - Live Activity
 
-    private var activityTypeDisplayName: String {
+    // Not shown from here: the Live Activity attribute carries this English name as a stable key,
+    // and the widget extension localizes it with its own catalog (TrackingLiveActivity.swift).
+    private var liveActivityTypeKey: String {
         switch activityType {
         case .running: return "Running"
         case .cycling: return "Cycling"

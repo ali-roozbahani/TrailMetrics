@@ -49,6 +49,29 @@ custom_rules:
     message: "`try?` drops the error. Handle it with do/catch, or, if dropping it is deliberate, add `// swiftlint:disable:next optional_try - <why the error can be dropped here>` above this line"
     severity: error
 
+# `tm-ios` ("Strings"): every user-visible text goes through a String Catalog of its package (or of
+# the app / widget target). Inside an SPM package SwiftUI looks in the main bundle unless told
+# otherwise, so a literal without `bundle:` is silently not localized. Only `Text` has a `bundle:`
+# parameter; the other views take their text as a `Text` (`Button { } label: { Text("x", bundle: .module) }`,
+# `Label { Text(...) } icon: { Image(...) }`, `.navigationTitle(Text(...))`, `.alert(Text(...), ...)`).
+# Scope: production sources of the packages, the app target and the widget extension. Not matched:
+# `Text(verbatim:)`, `Text(someString)`, strings outside views (use `String(localized:bundle:)`: by review).
+# Self-test: scripts/check-localized-strings.sh --self-test
+  localized_text_without_bundle:
+    name: "Localized Text Without Bundle"
+    regex: '\bText\(\s*"(?:[^"\\]|\\.)*"(?!\s*,\s*bundle:)'
+    included: '(^|/)(Packages/[^/]+/Sources/|TrailMetrics/[^/]+\.swift$|TrackingWidget/[^/]+\.swift$)'
+    excluded: 'Packages/TestSupport/'
+    message: "A `Text` with a string literal needs a bundle: `Text(\"key\", bundle: .module)` in a package, `bundle: .main` in the app and widget targets (tm-ios, Strings)"
+    severity: error
+  literal_text_in_view_initializer:
+    name: "Literal Text In View Initializer"
+    regex: '(?:\b(?:Label|Button|TextField|SecureField|Toggle|Link|Section|Picker|NavigationLink|Menu)|\.(?:navigationTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|accessibilityValue|help|badge))\(\s*"'
+    included: '(^|/)(Packages/[^/]+/Sources/|TrailMetrics/[^/]+\.swift$|TrackingWidget/[^/]+\.swift$)'
+    excluded: 'Packages/TestSupport/'
+    message: "This initializer or modifier takes a string literal that is looked up in the main bundle, not the package's. Pass a `Text` with a bundle instead: `Button { } label: { Text(\"key\", bundle: .module) }`, `.alert(Text(\"key\", bundle: .module), ...)` (tm-ios, Strings)"
+    severity: error
+
 excluded:
   - Packages/*/.build/**
   - Packages/*/.swiftpm/**

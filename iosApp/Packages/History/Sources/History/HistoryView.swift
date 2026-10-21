@@ -27,14 +27,14 @@ public struct HistoryView: View {
             content
         }
         .alert(
-            "Error",
+            Text("error_alert_title", bundle: .module),
             isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
                 set: { isPresented in if !isPresented { viewModel.onErrorDismissed() } }
             ),
             presenting: viewModel.errorMessage
         ) { _ in
-            Button("OK") { viewModel.onErrorDismissed() }
+            Button { viewModel.onErrorDismissed() } label: { Text("ok_button", bundle: .module) }
         } message: { message in
             Text(message)
         }
@@ -45,7 +45,7 @@ public struct HistoryView: View {
             if viewModel.isLoading {
                 ProgressView()
             } else if viewModel.isEmpty {
-                Text("No Activities yet")
+                Text("No Activities yet", bundle: .module)
                     .font(.body)
                     .foregroundStyle(.secondary)
             } else {
@@ -72,21 +72,23 @@ public struct HistoryView: View {
             await viewModel.observe()
         }
         .alert(
-            "Delete this activity?",
+            Text("delete_activity_title", bundle: .module),
             isPresented: Binding(
                 get: { activityPendingDelete != nil },
                 set: { isPresented in if !isPresented { activityPendingDelete = nil } }
             )
         ) {
-            Button("Delete", role: .destructive) {
+            Button(role: .destructive) {
                 if let activity = activityPendingDelete {
                     viewModel.onDeleteActivity(activity)
                 }
                 activityPendingDelete = nil
+            } label: {
+                Text("delete_button", bundle: .module)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {} label: { Text("cancel_button", bundle: .module) }
         } message: {
-            Text("This will permanently delete the activity and its route data. This cannot be undone.")
+            Text("delete_activity_message", bundle: .module)
         }
     }
 }
@@ -123,17 +125,17 @@ private struct ActivityRow: View {
 
             HStack(spacing: 8) {
                 HistoryMetricCell(
-                    label: "Distance",
+                    label: Text("metric_distance", bundle: .module),
                     value: formatDistance(meters: activity.distanceMeters),
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 )
                 HistoryMetricCell(
-                    label: "Duration",
+                    label: Text("metric_duration", bundle: .module),
                     value: formatElapsedTime(millis: activity.durationMillis),
                     systemImage: "timer"
                 )
                 HistoryMetricCell(
-                    label: "Calories",
+                    label: Text("metric_calories", bundle: .module),
                     value: formatCalories(calories: activity.calories),
                     systemImage: "flame"
                 )
@@ -223,9 +225,9 @@ extension ActivityType {
 
     var displayName: String {
         switch self {
-        case .running: return "Running"
-        case .cycling: return "Cycling"
-        case .walking: return "Walking"
+        case .running: return String(localized: "Running", bundle: .module)
+        case .cycling: return String(localized: "Cycling", bundle: .module)
+        case .walking: return String(localized: "Walking", bundle: .module)
         }
     }
 }

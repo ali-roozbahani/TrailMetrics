@@ -75,23 +75,25 @@ public struct TrackingView: View {
                 }
             }
         }
-        .alert("Stop tracking?", isPresented: $showExitConfirmation) {
-            Button("Stop & Exit", role: .destructive) {
+        .alert(Text("Stop tracking?", bundle: .module), isPresented: $showExitConfirmation) {
+            Button(role: .destructive) {
                 viewModel.onStopClicked()
                 dismiss()
+            } label: {
+                Text("Stop & Exit", bundle: .module)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {} label: { Text("Cancel", bundle: .module) }
         } message: {
-            Text("Tracking is still in progress. Leaving now will stop and discard this activity.")
+            Text("Tracking is still in progress. Leaving now will stop and discard this activity.", bundle: .module)
         }
         .alert(
-            "Error",
+            Text("Error", bundle: .module),
             isPresented: Binding(get: { errorMessage != nil }, set: { isPresented in
                 if !isPresented { errorMessage = nil }
             }),
             presenting: errorMessage
         ) { _ in
-            Button("OK") { errorMessage = nil }
+            Button { errorMessage = nil } label: { Text("OK", bundle: .module) }
         } message: { message in
             Text(message)
         }
@@ -150,7 +152,7 @@ public struct TrackingView: View {
                 Button {
                     viewModel.onStartClicked()
                 } label: {
-                    Label("Start", systemImage: "play.fill")
+                    Label { Text("Start", bundle: .module) } icon: { Image(systemName: "play.fill") }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.trailGreen)
@@ -159,7 +161,7 @@ public struct TrackingView: View {
                 Button {
                     viewModel.onPauseClicked()
                 } label: {
-                    Label("Pause", systemImage: "pause.fill")
+                    Label { Text("Pause", bundle: .module) } icon: { Image(systemName: "pause.fill") }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.trailAmber)
@@ -168,7 +170,7 @@ public struct TrackingView: View {
                 Button {
                     viewModel.onResumeClicked()
                 } label: {
-                    Label("Resume", systemImage: "play.fill")
+                    Label { Text("Resume", bundle: .module) } icon: { Image(systemName: "play.fill") }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.trailGreen)
@@ -178,7 +180,7 @@ public struct TrackingView: View {
                     viewModel.onStopClicked()
                     dismiss()
                 } label: {
-                    Label("Stop", systemImage: "stop.fill")
+                    Label { Text("Stop", bundle: .module) } icon: { Image(systemName: "stop.fill") }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.trailRed)
@@ -188,12 +190,12 @@ public struct TrackingView: View {
 
     private var finishCard: some View {
         VStack(spacing: 12) {
-            Text("Route completed!")
+            Text("Route completed!", bundle: .module)
                 .font(.title3.weight(.semibold))
             Button {
                 finishTracking()
             } label: {
-                Label("Finish", systemImage: "checkmark")
+                Label { Text("Finish", bundle: .module) } icon: { Image(systemName: "checkmark") }
             }
             .buttonStyle(.borderedProminent)
             .tint(.trailGreen)

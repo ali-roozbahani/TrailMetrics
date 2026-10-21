@@ -14,24 +14,24 @@ struct MetricsDisplay: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 TrackingMetricCell(
-                    label: "Distance",
+                    label: Text("Distance", bundle: .module),
                     value: formatDistance(meters: metrics.distanceMeters),
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 )
                 TrackingMetricCell(
-                    label: "Time",
+                    label: Text("Time", bundle: .module),
                     value: formatElapsedTime(millis: metrics.elapsedMillis),
                     systemImage: "timer"
                 )
             }
             HStack(spacing: 8) {
                 TrackingMetricCell(
-                    label: "Speed",
+                    label: Text("Speed", bundle: .module),
                     value: formatSpeed(metersPerSecond: metrics.currentSpeedMetersPerSecond),
                     systemImage: "speedometer"
                 )
                 TrackingMetricCell(
-                    label: "Calories",
+                    label: Text("Calories", bundle: .module),
                     value: formatCalories(calories: calories.map { KotlinDouble(double: $0) }),
                     systemImage: "flame"
                 )
@@ -43,7 +43,7 @@ struct MetricsDisplay: View {
 }
 
 private struct TrackingMetricCell: View {
-    let label: String
+    let label: Text
     let value: String
     let systemImage: String
 
@@ -51,7 +51,7 @@ private struct TrackingMetricCell: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
-                Text(label)
+                label
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

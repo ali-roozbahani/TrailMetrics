@@ -3,17 +3,18 @@
 //  Route
 //
 
+import Foundation
 import SharedKit
 
 extension RouteUiError {
     var message: String {
         switch onEnum(of: self) {
         case .general:
-            return "Something went wrong. Please try again."
+            return String(localized: "general_error_message", bundle: .module)
         case .locationUnavailable:
-            return "Unable to determine your current location."
+            return String(localized: "Unable to determine your current location.", bundle: .module)
         case .missingLocationPermission:
-            return "Location permission is required to plan a route."
+            return String(localized: "Location permission is required to plan a route.", bundle: .module)
         }
     }
 }

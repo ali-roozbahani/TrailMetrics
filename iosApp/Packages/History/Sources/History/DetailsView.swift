@@ -24,14 +24,14 @@ public struct DetailsView: View {
             content
         }
         .alert(
-            "Error",
+            Text("error_alert_title", bundle: .module),
             isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
                 set: { isPresented in if !isPresented { viewModel.onErrorDismissed() } }
             ),
             presenting: viewModel.errorMessage
         ) { _ in
-            Button("OK") { viewModel.onErrorDismissed() }
+            Button { viewModel.onErrorDismissed() } label: { Text("ok_button", bundle: .module) }
         } message: { message in
             Text(message)
         }
@@ -48,7 +48,7 @@ public struct DetailsView: View {
                     onDeleteClicked: { showDeleteConfirmation = true }
                 )
             } else {
-                Text("Activity Not Found")
+                Text("Activity Not Found", bundle: .module)
                     .font(.body)
                     .foregroundStyle(.secondary)
             }
@@ -57,15 +57,17 @@ public struct DetailsView: View {
         // floating on the map (matching Android's DetailsScreen and this app's own
         // Route topBar), not nav-bar chrome that would push the map down.
         .toolbar(.hidden, for: .navigationBar)
-        .alert("Delete this activity?", isPresented: $showDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
+        .alert(Text("delete_activity_title", bundle: .module), isPresented: $showDeleteConfirmation) {
+            Button(role: .destructive) {
                 viewModel.onDeleteConfirmed {
                     dismiss()
                 }
+            } label: {
+                Text("delete_button", bundle: .module)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(role: .cancel) {} label: { Text("cancel_button", bundle: .module) }
         } message: {
-            Text("This will permanently delete the activity and its route data. This cannot be undone.")
+            Text("delete_activity_message", bundle: .module)
         }
     }
 }
@@ -91,24 +93,24 @@ private struct DetailsContent: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     HistoryMetricCell(
-                        label: "Distance",
+                        label: Text("metric_distance", bundle: .module),
                         value: formatDistance(meters: activity.distanceMeters),
                         systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                     )
                     HistoryMetricCell(
-                        label: "Duration",
+                        label: Text("metric_duration", bundle: .module),
                         value: formatElapsedTime(millis: activity.durationMillis),
                         systemImage: "timer"
                     )
                 }
                 HStack(spacing: 8) {
                     HistoryMetricCell(
-                        label: "Avg. Speed",
+                        label: Text("Avg. Speed", bundle: .module),
                         value: formatSpeed(metersPerSecond: activity.averageSpeedMetersPerSecond),
                         systemImage: "speedometer"
                     )
                     HistoryMetricCell(
-                        label: "Calories",
+                        label: Text("metric_calories", bundle: .module),
                         value: formatCalories(calories: activity.calories),
                         systemImage: "flame"
                     )

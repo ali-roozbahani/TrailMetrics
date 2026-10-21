@@ -18,21 +18,23 @@ struct UserProfileSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Weight (kg)", text: $weightInput)
+                TextField(text: $weightInput) { Text("Weight (kg)", bundle: .module) }
                     .keyboardType(.decimalPad)
             }
-            .navigationTitle("User Profile")
+            .navigationTitle(Text("User Profile", bundle: .module))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button {
                         if let weightKg {
                             onSave(weightKg)
                         }
+                    } label: {
+                        Text("Save", bundle: .module)
                     }
                     .disabled(!isValid)
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onDismiss)
+                    Button(action: onDismiss) { Text("Cancel", bundle: .module) }
                 }
             }
         }

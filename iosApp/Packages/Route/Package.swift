@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Route",
+    defaultLocalization: "en",
     platforms: [.iOS(.v17)],
     products: [
         .library(name: "Route", targets: ["Route"])
@@ -20,7 +21,8 @@ let package = Package(
                 "DesignSystem",
                 "SharedKit",
                 .product(name: "GoogleMaps", package: "ios-maps-sdk")
-            ]
+            ],
+            resources: [.process("Localizable.xcstrings")]
         ),
         .testTarget(
             name: "RouteTests",

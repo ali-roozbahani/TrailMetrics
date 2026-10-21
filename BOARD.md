@@ -227,6 +227,25 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the alert is captured on CI (an interruption monitor in the Route tests that records its label, or a failing run's result bundle), and the Route tests no longer depend on which ran first, either by `XCUIApplication.resetAuthorizationStatus(for: .location)` before launch or by handling the alert explicitly in each Route test. If CI's simulator itself needs a reset step, that touches the protected CI workflow and the human decides.
 - Refs: `RouteGenerateThenResetUITests` and the other Route tests; `iosApp/TrailMetricsUITests/Route/XCUIApplication+RouteMap.swift`.
 
+### shared-metrics-formatter-user-visible-strings
+- Type: task
+- Area: shared, iosApp
+- Order: 226
+- Source: PR for ios-localizable-strings
+- Problem: `domain/.../util/MetricsFormatter.kt` (`formatDistance`, `formatSpeed`, `formatCalories`) returns finished user-visible texts with the unit words and the "no value" placeholder inside the Kotlin string ("1.50 km", "-- km/h", "-- kcal"). iOS shows them verbatim (`Text(value)` in `HistoryMetricCell`, `TrackingMetricCell`), so they cannot come from a String Catalog and a translation of the unit words is impossible on iOS. Android uses the same functions. Left alone in the localization PR because the fix needs a design decision: return the number and unit as values and let each platform format them, or pass localized unit labels in.
+- Done when: the decision is made (an ADR or a plan if it changes the shared API), and iOS and Android both show these values from their own localizable resources; the iOS catalogs carry the unit and placeholder texts.
+- Refs: `domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/util/MetricsFormatter.kt`; `iosApp/Packages/*/Sources` (`formatDistance` callers); `ios-hardcoded-number-formatting`.
+
+### ios-hardcoded-number-formatting
+- Type: task
+- Area: iosApp, shared
+- Order: 227
+- After: shared-metrics-formatter-user-visible-strings
+- Source: PR for ios-localizable-strings
+- Problem: Number and unit formatting is hardcoded and ignores the user's locale: the Live Activity (`TrackingWidget/TrackingLiveActivity.swift`) re-implements the shared formatter in Swift with `String(format: "%.2f km")`, `"%.1f km/h"`, `"\(Int(meters)) m"`, `"-- km/h"` and a fixed `%02d:%02d`; the Kotlin `formatFixed` always writes a `.` as the decimal separator. A comma-decimal locale, or miles for a user who expects them, gets the English-US shape. Dates are not affected: `ActivityRow.dateFormatter` uses `DateFormatter` with `.medium`, which follows the locale. Found, not fixed, in the localization PR (formatting is a separate topic).
+- Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
+- Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`, `formatElapsed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -237,3 +256,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
 - Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
 - Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
+
+### gate-localized-strings-selftest-not-documented-or-in-ci
+- Type: drift
+- Area: .claude, .github
+- Order: 231
+- Source: PR for ios-localizable-strings
+- Problem: The gate's iOS steps now run `scripts/check-localized-strings.sh --self-test` (the fixtures of the two SwiftLint rules `localized_text_without_bundle` and `literal_text_in_view_initializer`), but the gate description in `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1: the local gate") does not list it, and CI's `ios-main` job runs the rules (inside `swiftlint lint --strict`) but not the self-test. Both files are protected paths the localization task was not authorized to edit.
+- Done when: `tm-pr-workflow` lists the step, and `.github/workflows/ci.yml` runs the self-test after "Run SwiftLint" in `ios-main` (or the decision to keep it gate-only is written down), in a PR that may touch the protected paths.
+- Refs: `scripts/pre-push-check.sh` ("localized strings rules self-test"); `.github/workflows/ci.yml` (`ios-main`, "Run SwiftLint"); `.claude/skills/tm-pr-workflow/SKILL.md`.
