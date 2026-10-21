@@ -11,7 +11,7 @@ Compose Multiplatform is a deliberate non-goal (docs/architecture/ADR-001).
 - `data`    repository implementations, Room, Ktor, expect/actual platform services
 - `core`    commonMain only: `AppRoute`, `RouteError`/`RouteUiError` (no UI framework)
 - `shared`  umbrella: Koin composition root (`initKoin`), XCFramework export, `KoinHelper`
-- `shared-uitest`  test-only variant of the framework: the iOS UI-test seam; no production code depends on it
+- `shared-uitest`  test-only variant of the framework: the iOS UI-test seam and the Swift test support; no production code depends on it
 - `androidApp/{app,feature-*,core-ui}`  Compose UI, Android-only Koin modules
 - `iosApp/{TrailMetrics.xcodeproj,Packages/*}`  SwiftUI, one SPM package per feature
 

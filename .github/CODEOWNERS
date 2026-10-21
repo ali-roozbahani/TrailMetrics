@@ -60,6 +60,7 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/check-ios-scope-fixtures/          @ali-roozbahani
 /scripts/check-variant-api.sh               @ali-roozbahani
 /scripts/check-variant-api-fixtures/        @ali-roozbahani
+/scripts/check-production-framework.sh      @ali-roozbahani
 /scripts/build-kmp-framework.sh             @ali-roozbahani
 /scripts/scrub-env.sh                       @ali-roozbahani
 /scripts/filter-xcode-log.sh                @ali-roozbahani

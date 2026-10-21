@@ -494,9 +494,9 @@ REAL_PATH_CASES = [
     ("shared/src/commonMain/kotlin/dev/roozbahani/trailmetrics/shared/x.kt", None),
     ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/x.kt", None),
     ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/di/KoinHelper.kt", None),
-    ("shared/src/iosMain/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/SwiftTestSupport.kt",
-     None),
-    ("shared/src/iosTest/kotlin/dev/roozbahani/trailmetrics/shared/testsupport/"
+    ("shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/"
+     "SwiftTestSupport.kt", None),
+    ("shared-uitest/src/iosTest/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/"
      "SwiftTestSupportTest.kt", None),
     ("shared/README.md", None),
     ("iosApp/Packages/SharedKit/Sources/SharedKit/x.swift", None),
