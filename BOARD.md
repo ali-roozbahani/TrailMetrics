@@ -92,15 +92,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
 - Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/SwiftTestSupport.kt`; `scripts/check-production-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
 
-### maps-empty-api-key-crashes-route-tab
-- Type: task
-- Area: iosApp/Route
-- Order: 108
-- Source: docs/epics/ios-ui-tests.md S0 spike, 2026-10-13
-- Problem: `TrailMetricsApp.init()` configures the Maps SDK only when the key read from the app's Info.plist is not empty, but `RouteMapView.makeUIView` creates a `GMSMapView` regardless. With an empty key the app aborts when the Route tab appears (`+[GMSServices checkServicePreconditions]` raises from `-[GMSMapView initWithOptions:]`), so anyone who builds the app without a Maps key (a new contributor, a CI job without the placeholder) gets a crash, not a message. Found in the S0 spike; reproduced with empty build-setting overrides, 5 of 5 launches crashed.
-- Done when: launching the app with an empty Maps key does not crash, and the Route tab shows a plain message instead of the map (the wording and whether other tabs stay usable are agreed with the human before implementation), shown by a test that launches without a key (a UI test once the iOS UI-test target exists, otherwise a unit/snapshot test of the decision "key present or not").
-- Refs: `iosApp/TrailMetrics/TrailMetricsApp.swift`; `iosApp/Packages/Route/Sources/Route/RouteMapView.swift` (`makeUIView`); `RouteMapConfiguration`; `docs/epics/ios-ui-tests.md` (risks).
-
 ### classify-changes-self-test-failed-once
 - Type: task
 - Area: scripts

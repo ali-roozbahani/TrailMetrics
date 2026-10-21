@@ -630,7 +630,7 @@ ONLY_ACTIVE_ARCH=NO` (F20) and prints through `scripts/filter-xcode-log.sh`.
       commands.
     - >-
       LaunchUITests' comment about the Maps key is corrected: with an empty key the app crashes
-      on the Route tab (board record maps-empty-api-key-crashes-route-tab).
+      on the Route tab.
     - >-
       tm-ios describes the configuration, the scheme and which framework each one links.
   tier2: none - project configuration and scheme only
@@ -868,7 +868,7 @@ S1 and S8, different waves. `tm-ios` in S2 and S3, `tm-testing` in S1 and S3, di
   key launches the app with no alert and no crash, and the long press works. An EMPTY key
   crashes the app at launch of the Route tab (`GMSMapView.init` raises in `GMSServices
   checkServicePreconditions`; the app skips `configure` but `RouteMapView` still creates the
-  map; board record `maps-empty-api-key-crashes-route-tab`). So the step that writes the
+  map). So the step that writes the
   placeholder configuration is a hard prerequisite of the UI-test step, in CI and in any local
   worktree. Locally the real key loads map tiles during UI tests (network use, no assertion
   depends on it).
