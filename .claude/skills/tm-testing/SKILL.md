@@ -258,7 +258,9 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   `iosApp/`, the command in `tm-ios` ("Build configurations and schemes"): `xcodebuild test
   -scheme TrailMetricsUITests` with a concrete simulator id, `-skipMacroValidation`, the arm64
   flags, `CODE_SIGNING_ALLOWED=NO`, piped through `../scripts/filter-xcode-log.sh`. The app needs
-  the machine's Maps key configuration; an empty key crashes the Route tab.
+  the machine's Maps key configuration for the real map; with an empty key the Route tab shows
+  a message instead of the map (`RouteMapConfiguration.isMapAvailable`), so the Route UI tests
+  that need the map fail.
 - **Variant.** The scheme builds `Debug-UITest`, which links the test-only framework variant of
   `shared-uitest` and sets `UITEST_SEAM`. Normal Debug and Release builds contain no seam.
 - **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)`

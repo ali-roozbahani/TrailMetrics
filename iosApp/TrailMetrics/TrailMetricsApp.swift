@@ -31,9 +31,7 @@ struct TrailMetricsApp: App {
         KoinInitIosKt.doInitKoinIos()
         #endif
 
-        if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String, !apiKey.isEmpty {
-            RouteMapConfiguration.configure(apiKey: apiKey)
-        }
+        RouteMapConfiguration.configureIfKeyPresent()
     }
 
     var body: some Scene {
