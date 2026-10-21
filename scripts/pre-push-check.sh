@@ -260,6 +260,12 @@ if [ "$RUN_IOS_STEPS" = true ]; then
         FAILURES+=("swiftlint (not installed — install with 'brew install swiftlint')")
     fi
 
+    # The two SwiftLint rules that keep hardcoded user-visible strings out of iOS code, run against
+    # their fixtures (violating, fixed, out of scope). Needs swiftlint, like the step above.
+    if command -v swiftlint >/dev/null 2>&1; then
+        run_step "localized strings rules self-test" scripts/check-localized-strings.sh --self-test
+    fi
+
     # Same hash-gated script as the Xcode scheme pre-action, so the iOS build and the package
     # tests below never link a stale XCFramework, whichever Xcode scheme is picked up.
     run_step "KMP XCFramework" scripts/build-kmp-framework.sh

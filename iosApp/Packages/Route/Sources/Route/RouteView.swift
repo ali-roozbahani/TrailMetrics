@@ -67,13 +67,13 @@ public struct RouteView: View {
             )
         }
         .alert(
-            "Error",
+            Text("Error", bundle: .module),
             isPresented: Binding(get: { errorMessage != nil }, set: { isPresented in
                 if !isPresented { errorMessage = nil }
             }),
             presenting: errorMessage
         ) { _ in
-            Button("OK") { errorMessage = nil }
+            Button { errorMessage = nil } label: { Text("OK", bundle: .module) }
         } message: { message in
             Text(message)
         }
@@ -168,7 +168,7 @@ public struct RouteView: View {
                     if viewModel.isLoading {
                         ProgressView()
                     } else {
-                        Text("Generate Route")
+                        Text("Generate Route", bundle: .module)
                     }
                 }
                 .buttonStyle(.borderedProminent)

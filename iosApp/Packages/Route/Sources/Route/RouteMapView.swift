@@ -47,7 +47,7 @@ struct RouteMapView: UIViewRepresentable {
 
         if let startPoint {
             let marker = GMSMarker(position: startPoint.locationCoordinate)
-            marker.title = "Start / Finish"
+            marker.title = String(localized: "Start / Finish", bundle: .module)
             marker.icon = GMSMarker.markerImage(with: .systemGreen)
             marker.map = mapView
         }

@@ -8,7 +8,7 @@ import SwiftUI
 /// Mirrors `Tracking`'s private `TrackingMetricCell` layout (icon + label + value), shared
 /// here between the History row and Details screen rather than duplicated between them.
 struct HistoryMetricCell: View {
-    let label: String
+    let label: Text
     let value: String
     let systemImage: String
 
@@ -16,7 +16,7 @@ struct HistoryMetricCell: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
-                Text(label)
+                label
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

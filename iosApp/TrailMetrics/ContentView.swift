@@ -19,13 +19,13 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             RouteTab()
                 .tabItem {
-                    Label("Route", systemImage: "map")
+                    Label { Text("Route", bundle: .main) } icon: { Image(systemName: "map") }
                 }
                 .tag(AppTab.route)
 
             HistoryTab()
                 .tabItem {
-                    Label("History", systemImage: "clock.arrow.circlepath")
+                    Label { Text("History", bundle: .main) } icon: { Image(systemName: "clock.arrow.circlepath") }
                 }
                 .tag(AppTab.history)
         }

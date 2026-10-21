@@ -34,11 +34,11 @@ struct TrackingLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         Link(destination: TrackingLiveActivityConstants.deepLinkURL) {
-                            Label("Open", systemImage: "arrow.up.forward.app")
+                            Label { Text("Open", bundle: .main) } icon: { Image(systemName: "arrow.up.forward.app") }
                         }
                         Spacer()
                         Button(intent: StopTrackingIntent()) {
-                            Label("Stop", systemImage: "stop.fill")
+                            Label { Text("Stop", bundle: .main) } icon: { Image(systemName: "stop.fill") }
                         }
                         .tint(.red)
                     }
@@ -74,31 +74,32 @@ private struct TrackingLockScreenView: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack {
-                Label(
-                    context.attributes.activityType,
-                    systemImage: activitySymbolName(for: context.attributes.activityType)
-                )
+                Label {
+                    Text(LocalizedStringKey(context.attributes.activityType), bundle: .main)
+                } icon: {
+                    Image(systemName: activitySymbolName(for: context.attributes.activityType))
+                }
                 .font(.headline)
                 Spacer()
                 Button(intent: StopTrackingIntent()) {
-                    Label("Stop", systemImage: "stop.fill")
+                    Label { Text("Stop", bundle: .main) } icon: { Image(systemName: "stop.fill") }
                 }
                 .tint(.red)
             }
 
             HStack(spacing: 16) {
                 metric(
-                    label: "Distance",
+                    label: Text("Distance", bundle: .main),
                     value: formatDistance(meters: context.state.distanceMeters),
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 )
                 metric(
-                    label: "Time",
+                    label: Text("Time", bundle: .main),
                     value: formatElapsed(millis: context.state.elapsedMillis),
                     systemImage: "timer"
                 )
                 metric(
-                    label: "Speed",
+                    label: Text("Speed", bundle: .main),
                     value: formatSpeed(metersPerSecond: context.state.currentSpeedMetersPerSecond),
                     systemImage: "speedometer"
                 )
@@ -108,11 +109,11 @@ private struct TrackingLockScreenView: View {
         .widgetURL(TrackingLiveActivityConstants.deepLinkURL)
     }
 
-    private func metric(label: String, value: String, systemImage: String) -> some View {
+    private func metric(label: Text, value: String, systemImage: String) -> some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
-                Text(label)
+                label
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -127,7 +128,7 @@ private struct TrackingLockScreenView: View {
 // Matches Route's StartTrackingPanel.swift (ActivityTypeControl.symbolName) —
 // same activity types, same icons. Keyed by the display-name String from
 // TrackingActivityAttributes.activityType (set from TrackingViewModel's own
-// activityTypeDisplayName) rather than the Kotlin ActivityType enum itself,
+// liveActivityTypeKey) rather than the Kotlin ActivityType enum itself,
 // since this target can't import SharedKit. Keep in sync with that mapping.
 private func activitySymbolName(for activityType: String) -> String {
     switch activityType {
