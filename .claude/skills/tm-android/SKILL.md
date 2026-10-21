@@ -239,7 +239,8 @@ is all the plain `detekt` task reads, so the root build points it at every `src/
 ## Tests
 
 Test code follows `tm-testing` (stack, fakes, `core-testing`, Robolectric, Compose UI tests). Use
-`UnconfinedTestDispatcher` unless a test needs to control dispatch order.
+`UnconfinedTestDispatcher` unless a test needs to control dispatch order. Robolectric only when a
+test genuinely needs the Android framework.
 
 ## Known deviations in the current code
 
