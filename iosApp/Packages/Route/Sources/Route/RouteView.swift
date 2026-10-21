@@ -21,6 +21,14 @@ public struct RouteView: View {
     }
 
     public var body: some View {
+        if RouteMapConfiguration.isMapAvailable {
+            mapScreen
+        } else {
+            RouteMapUnavailableView()
+        }
+    }
+
+    private var mapScreen: some View {
         ZStack {
             RouteMapView(
                 startPoint: viewModel.startPoint,
