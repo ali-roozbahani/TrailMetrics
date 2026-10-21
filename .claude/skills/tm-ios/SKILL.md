@@ -24,7 +24,7 @@ exists", the rules here win for "what new code should look like".
 - Feature packages do not depend on each other. Cross-feature navigation is wired in the
   app target (`iosApp/TrailMetrics/ContentView.swift`), not inside a feature.
 - The only third-party dependency is `ios-maps-sdk` (GoogleMaps) in feature packages that
-  render maps. Never add another package dependency unless the task names it.
+  render maps.
 - `iosApp/TrackingWidget/` is the Live Activity widget extension. It is a separate target,
   but SwiftLint and the iOS build still cover it.
 
@@ -98,11 +98,9 @@ fails, so observe through a use case that turns the failure into a value on the 
   take completion closures (`TrackingViewModel.onFinishClicked(snapshotFilePath:onSaved:)`,
   `DetailsViewModel.onDeleteConfirmed(onDeleted:)`). For new code, prefer a `UiEvent` case,
   but don't rewrite existing closures unless the task asks for it.
-- Known limitation, deliberately not fixed: `TrackingViewModel.onStopClicked` cancels and nils
-  `stateObservationTask` and `locationIssuesObservationTask`, which only `init` starts, so an
-  instance does not observe again after Stop. A user cannot hit it: the in-app Stop (controls
-  row and exit alert) calls `dismiss()` right after, the Live Activity Stop emits `.dismissed`,
-  and reaching the destination swaps the controls row for `finishCard`.
+- Known limitation, deliberately not fixed: `TrackingViewModel.onStopClicked` cancels the
+  observation tasks that only `init` starts, so an instance does not observe again after Stop; no
+  user path reaches it (every Stop dismisses the screen or swaps in `finishCard`).
 
 ## Koin / KoinHelper
 
@@ -137,21 +135,12 @@ fails, so observe through a use case that turns the failure into a value on the 
   `userInfo["KotlinException"]`. See the `underlyingRouteError` extension in
   `RouteViewModel.swift`, and map to `RouteUiError` via `.toUiError()` with
   `RouteUiErrorGeneral.shared` as the fallback.
-- Never drop an error: no `try?` that hides a failure and no unstructured `Task { try ... }`
-  without `do/catch`. A caught error reaches the user through the ViewModel's `.showError`
-  event, and state stays as it was. Only Kotlin functions with `@Throws` can throw into Swift
-  without crashing; see `tm-kmp-shared` ("`@Throws` policy"). History and Details have no
-  events stream: they publish `errorMessage` and show it in an "Error" alert.
-  The `try?` part is enforced by SwiftLint: the custom rule `optional_try` (see "SwiftLint")
-  reports every `try?` outside comments and string literals as an error; the unstructured
-  `Task` part is still enforced by review only.
-  Exception: a best-effort side effect whose failure the user can't act on may use `try?` with
-  `// swiftlint:disable:next optional_try - <reason>` on the line above, the reason saying why
-  the error can be dropped there. The only two in production code are `deleteSnapshotFile` (an
-  orphaned image file after the record is gone) and `TrackingLiveActivityController`'s
-  `Activity.request` (Live Activities can be turned off). The test helpers `waitUntil`
-  (TestSupport) and `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no
-  other `try?` is left under `iosApp/`.
+- Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `optional_try`) and
+  no unstructured `Task { try ... }` without `do/catch` (review only). A caught error reaches the
+  user through the ViewModel's `.showError` event, and state stays as it was. Only Kotlin
+  functions with `@Throws` can throw into Swift without crashing; see `tm-kmp-shared` ("`@Throws`
+  policy"). History and Details have no events stream: they publish `errorMessage` and show it
+  in an "Error" alert.
 - Generic collections crossing the bridge: check the inferred Swift type rather than
   assuming it (`HistoryViewModel`'s `[ActivityRecord]` is the worked example).
 
@@ -365,22 +354,21 @@ no code change.
 
 ## Naming (Swift)
 
-- Types `PascalCase`, functions/properties `camelCase`. Protocols carry no `I` prefix
-  (`ActivityHistoryRepository`, not `IActivityHistoryRepository`).
+- Types `PascalCase`, functions/properties `camelCase`. No `I` prefix and booleans read as
+  questions, as in `tm-android` ("Naming (Kotlin)").
 - SPM packages and Swift modules are `PascalCase` single words (`History`, `DesignSystem`).
   The Kotlin "lowercase, no underscores" rule applies to Kotlin packages and Gradle modules;
   the Swift form of it is: no underscores or hyphens in package names.
 - Per-feature types: `<Feature>View`, `<Feature>ViewModel`, `<Feature>UiEvent`.
   Extension files: `Type+Purpose.swift` (`RouteUiError+Message.swift`,
   `Color+TrailMetrics.swift`).
-- Booleans read as questions: `isLoading`, `canStart`, `hasReachedDestination`. Never a bare
-  noun.
 - Identifiers are at least 3 characters (`id` is the one exception, enforced by
   `identifier_name`), so no `vm`, `i` or `e`.
 - Test functions: `func test_savesActivity_recalculatesCalories()`, never `test1`.
 
 ## No deprecated APIs (Swift)
 
+`CLAUDE.md` states the rule; the Swift specifics:
 - Never call anything marked `@available(*, deprecated)`, or anything deprecated at or below
   the iOS 17 deployment target. Xcode reports these only as warnings, and SwiftLint doesn't
   catch them, so read the build log. Examples that matter here: `NavigationView` →
@@ -390,17 +378,14 @@ no code change.
 - Fix the call rather than silencing it. Swift has no narrow call-site suppression: marking
   your wrapper `@available(*, deprecated)` only moves the warning to its callers. If a
   deprecation is genuinely unavoidable, stop and report it instead of wrapping it.
-- Don't mark your own APIs `@available(*, deprecated)` to phase them out. Update the callers
-  and delete the old API in the same change.
+- Own APIs: same rule as Kotlin (`tm-android`, "No deprecated APIs (Kotlin)"), with
+  `@available(*, deprecated)`.
 
 ## No dead code
 
-- No commented-out code, no unused types, functions, properties or `private` helpers left
-  behind after a refactor. Git history is the backup.
+- Otherwise as `tm-android` ("No dead code"): no commented-out code, no unused declarations.
 - No unused imports (`unused_import` is enabled). Import `SharedKit`, not
   `TrailMetricsShared`.
-- Explanatory comments are welcome. This codebase documents *why* at length (see the
-  `TrackingDestination` and `makeEventsStream()` comments). Commented-out code is not.
 
 ## SwiftLint (CI-enforced, `--strict`)
 
@@ -421,9 +406,13 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
 - Custom rule `optional_try` (error): a regex for `try?`, not matched inside comments and
   string literals (`excluded_match_kinds`); `try` and `try!` are not its business (`force_try`
   covers `try!`). Handle the error with `do`/`catch`; a deliberate `try?` needs the
-  `swiftlint:disable:next optional_try - <reason>` comment on the line above (see "SKIE interop
-  from Swift", never drop an error). SwiftLint does not check that a reason is there or true:
-  review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
+  `swiftlint:disable:next optional_try - <reason>` comment on the line above, allowed only for a
+  best-effort side effect whose failure the user can't act on, the reason saying why the error can
+  be dropped there. The only two in production code are `deleteSnapshotFile` (an orphaned image
+  file after the record is gone) and `TrackingLiveActivityController`'s `Activity.request` (Live
+  Activities can be turned off); the test helpers `waitUntil` (TestSupport) and
+  `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no other `try?` is left
+  under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
   'optional_try' rule" and turns the rule off, without failing `--strict`.
 - Custom rules `localized_text_without_bundle` and `literal_text_in_view_initializer` (error):
   see "Strings". They match source text with `included`/`excluded` path regexes, so a new

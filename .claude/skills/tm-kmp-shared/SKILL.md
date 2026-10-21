@@ -21,15 +21,15 @@ description: Use when changing or adding code in TrailMetrics `domain`, `data`, 
   rest, package `...uitest.testsupport`) and nothing else, and no production module depends on
   it. Test-only Kotlin never goes into `shared`: `scripts/check-production-framework.sh` fails
   the gate and CI when the production framework contains it.
-- If a task seems to need a forbidden import, stop and report. Do not work around it.
 
 ## Existing error model — use it, don't replace it
 
 TrailMetrics already has `RouteError` (domain-level) and `RouteUiError` (`toUiError()`
 mapping in `core`), used across `TrackingSessionManager.locationIssues` and ViewModels on
-both platforms. This is the project's error-handling convention. Do not introduce a
-generic `Result<T, E>` wrapper or a different error hierarchy without being asked —
-extend `RouteError`/`RouteUiError` with new cases instead.
+both platforms. This is the project's error-handling convention. A custom two-parameter
+`Result<T, E>` is not added, nor a different error hierarchy, without being asked;
+`kotlin.Result<T>`, as `LocationRepository` and `DirectionsRepository` return it, is the current
+convention. Extend `RouteError`/`RouteUiError` with new cases instead.
 
 ## Where logic lives
 
@@ -149,11 +149,8 @@ open every older database and keep its rows. The procedure, in order:
 4. Write `MIGRATION_M_N` (a `val` or `object` extending `androidx.room3.migration.Migration`) in
    `data/src/commonMain/.../local/database/Migrations.kt` and add it to `appMigrations`, which
    `getRoomDatabase` adds to the builder. The app and the harness use the same list.
-5. Add the harness case (`tm-testing`, "Migration cases (Room)"): the frozen fixture of version M
-   if it is not there yet, and a case named for `MIGRATION_M_N` that opens it and asserts every
-   row at N. The case must insert rows at M and assert them after migrating: only then does it
-   show that no row is lost and the new or changed columns get the intended values. A case that
-   only names the migration passes the schema check and proves nothing.
+5. Add the frozen fixture of version M (if missing) and the case named for `MIGRATION_M_N`:
+   `tm-testing`, "Migration cases (Room)" is the canonical statement of what they must contain.
 6. A destructive step (dropping a table or column, deleting or rewriting rows,
    `fallbackToDestructiveMigration`) and any change of the database file name
    (`DATABASE_FILE_NAME`, pinned by `DatabaseFileNameTest`), its directory or the driver is the
@@ -180,25 +177,10 @@ the epic branch; Android UI and iOS UI then proceed independently since they onl
 
 ## Kotlin conventions (domain / data / core / shared)
 
-The same Kotlin rules `tm-android` applies under `androidApp/` apply here too:
-- Naming: Gradle modules lowercase and hyphenated; packages lowercase dot segments with no
-  underscores. Classes/interfaces `PascalCase` with no `I` prefix
-  (`ActivityHistoryRepository`, not `IActivityHistoryRepository`); functions/properties
-  `camelCase`. Booleans read as questions (`isLoading`, `canStart`, `hasPermission`), never
-  a bare noun. Test names are backtick sentences, never `test1` (see `tm-testing`).
-- No deprecated APIs. These modules compile with `allWarningsAsErrors = true`, so a
-  deprecation call fails the build. Use the replacement. If one is genuinely unavoidable
-  (a third-party library with no replacement yet), suppress it narrowly at the call site
-  with `@Suppress("DEPRECATION")` and a comment stating why, never at file or module
-  level, and only with human approval. Don't mark your own APIs `@Deprecated` to phase
-  them out; update the callers and delete the old API in the same change.
-- No dead code: no commented-out blocks, no unused declarations or imports left behind
-  after a refactor. Git history is the backup. Comments explaining *why* are welcome.
+Naming, no deprecated APIs (these modules compile with `allWarningsAsErrors = true` too) and no
+dead code: the Kotlin rules in `tm-android` ("Naming (Kotlin)", "No deprecated APIs (Kotlin)",
+"No dead code") apply here unchanged.
 
-## Detekt reminders (CI-enforced, see `config/detekt.yml`)
+## Detekt
 
-No `println`/`print` (`ForbiddenMethodCall` — use the injected `Logger`), no
-`kotlinx.coroutines.GlobalScope` (`ForbiddenImport`), `maxIssues: 0`. `TrackingSessionManager`
-and `TrackingViewModel` have an explicit `LongParameterList` exclude — don't casually
-extend that exclude list to other classes; if a class is growing too many parameters,
-that's a signal to look at its responsibilities, not to suppress the rule.
+CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android` ("Detekt").

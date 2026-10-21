@@ -1,24 +1,22 @@
 ---
 name: tm-testing
-description: Use whenever writing or reviewing tests anywhere in TrailMetrics — domain, data, ViewModel/MVI, or Compose UI tests, on Android or in commonTest/KMP code. Fixes the testing stack (JUnit4 for Android, kotlin.test for KMP and assertions, hand-written fakes; MockK/Turbine are intended but not yet in the catalog; no Truth, no JUnit5) and testing patterns per layer. Not for the code under test itself — see tm-kmp-shared or tm-android for that.
+description: Use whenever writing or reviewing tests anywhere in TrailMetrics — domain, data, ViewModel/MVI, or Compose UI tests, on Android or in commonTest/KMP code. Fixes the testing stack (JUnit4 for Android, kotlin.test for KMP and assertions, hand-written fakes; MockK and Turbine are not in the catalog and are not added; no Truth, no JUnit5) and testing patterns per layer. Not for the code under test itself — see tm-kmp-shared or tm-android for that.
 ---
 
 # TrailMetrics testing
 
-## Stack (fixed — do not introduce an alternative without being asked)
+## Stack (fixed — do not introduce an alternative)
 
 | Layer | Framework | Assertions | Mocking |
 |---|---|---|---|
 | `domain`, other commonTest/KMP | `kotlin.test` | `kotlin.test` (`assertEquals`, `assertTrue`, ...) | fakes, not mocks — MockK has no Kotlin/Native artifact |
-| `data`, Android-framework code (Robolectric, Compose), Android ViewModels | JUnit4 | `kotlin.test` | hand-written fakes today; MockK once added (see below) |
+| `data`, Android-framework code (Robolectric, Compose), Android ViewModels | JUnit4 | `kotlin.test` | hand-written fakes |
 | `data` HTTP-level tests (commonTest) | `kotlin.test` | `kotlin.test` | Ktor `MockEngine` (`ktor-client-mock`) serving a canned response to the real repository |
 
 ### What's actually available today
 
-MockK and Turbine are the intended additions for Android-side tests, but **neither is in
-`gradle/libs.versions.toml` and no module depends on either** (checked 2026-09-29; no
-file in the repo imports `io.mockk` or `app.cash.turbine`). CLAUDE.md forbids adding a
-third-party dependency the task doesn't name, so until a task explicitly adds them:
+MockK and Turbine are not in `gradle/libs.versions.toml`; do not add them (`CLAUDE.md`: the
+testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
 
 - Android ViewModel/MVI tests use JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` +
   hand-written fakes. All three libraries are already catalog entries (`junit`,
@@ -37,8 +35,6 @@ third-party dependency the task doesn't name, so until a task explicitly adds th
   versions) as `testImplementation`, plus `testOptions.unitTests.isIncludeAndroidResources = true`
   so tests can read string resources. All three feature modules (`feature-history`,
   `feature-route`, `feature-tracking`) now have them. See "Compose UI tests".
-- A task that adds MockK or Turbine must name it, add it to the catalog, and update this
-  section in the same change.
 - Ktor `MockEngine` (`ktor-client-mock`, on the catalog's `ktor` version) is a `data`
   commonTest dependency, so it runs on the Android host and the iOS simulator. Build the
   real repository on `HttpClient(MockEngine { respond(...) })` with the same
@@ -87,9 +83,6 @@ val events = mutableListOf<RouteEvent>()
 backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
 ```
 
-Turbine (`.test { awaitItem() }`) replaces both once a task adds it (see "What's actually
-available today").
-
 ## Fakes over mocks in `domain`
 
 `domain` tests use hand-written fakes implementing the repository interfaces (no MockK
@@ -103,8 +96,7 @@ class FakeLocationRepository : LocationRepository {
 }
 ```
 
-Android-only tests (ViewModels, repositories) use fakes too, since MockK isn't available
-yet. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules.
+Android-only tests (ViewModels, repositories) use fakes too. The fakes in `domain/src/commonTest/.../fakes/` aren't visible to other modules.
 Android feature tests share theirs through `androidApp/core-testing` (consumed only via
 `testImplementation`, never `implementation`/`api`; see its `README.md`):
 - Before writing a fake or fixture for a ViewModel test, check `core-testing` for an
@@ -118,9 +110,7 @@ Concrete classes such as the use cases and `TrackingSessionManager` are final. B
 real class around fakes of its interface collaborators (`TrackingSessionManager` from a
 fake `LocationRepository`, `TrackingServiceLauncher`, `Clock` and `Logger` plus a
 `TestScope`, as the domain test does). That way ViewModel tests drive real state
-transitions instead of stubbing return values. Once MockK is added, it's fine for
-collaborators that are tedious to fake, but a fake stays preferred for anything with real
-behavior worth exercising.
+transitions instead of stubbing return values.
 
 The iOS UI tests' fakes are Kotlin and live in `shared-uitest` (package
 `dev.roozbahani.trailmetrics.uitest`, `src/iosMain`), not in `TestSupport`: the app reaches them
@@ -306,6 +296,7 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
 
 ## Migration cases (Room)
 
+This section is the canonical statement of the migration test (step 5 of the schema procedure).
 The harness lives in `data/src/commonTest/.../local/database/`: `TrailMetricsMigrationTest`
 (abstract suite) and `FrozenDatabaseVersions.kt` (one `FrozenDatabaseVersion` per old version,
 plus `CURRENT_DATABASE_VERSION`). `TrailMetricsMigrationAndroidHostTest` (Robolectric, platform
