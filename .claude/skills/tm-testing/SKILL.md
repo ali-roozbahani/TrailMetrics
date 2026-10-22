@@ -105,14 +105,10 @@ fake `LocationRepository`, `TrackingServiceLauncher`, `Clock` and `Logger` plus 
 transitions instead of stubbing return values.
 
 The iOS UI tests' fakes are Kotlin and live in `shared-uitest` (package
-`dev.roozbahani.trailmetrics.uitest`, `src/iosMain`), not in `TestSupport`: the app reaches them
-only through the test-only variant of the framework, which UI-test builds alone link (ADR-002,
-"Amendment"). They are hand-written like every other fake, count calls in `MutableStateFlow<Int>`
-counters incremented with `update`, hold calls on a `CompletableDeferred` gate and use no delay
-and no clock. Their tests are `kotlin.test` in `shared-uitest/src/iosTest`, run by
-`./gradlew :shared-uitest:iosSimulatorArm64Test` and by the gate's `allTests`; the module has no
-Kover floor (iOS targets only, which Kover can't measure). The XCUITest side is in "XCUITest"
-below.
+`dev.roozbahani.trailmetrics.uitest`, `src/iosMain`), not in `TestSupport`. They are hand-written
+like every other fake, count calls in `MutableStateFlow<Int>` counters incremented with `update`,
+hold calls on a `CompletableDeferred` gate and use no delay and no clock. When you write or change
+one, read `xcuitest.md` first. The XCUITest side is in "XCUITest" below.
 
 ## Testing MVI ViewModels
 
@@ -177,103 +173,55 @@ behavior when the defect is fixed, not deleted.
 
 ## Compose UI tests
 
-`ComposeTestRule`, JUnit4 (`@get:Rule`). Use the Robot pattern once a screen has 3+ UI
-test cases or several tests share setup/assertion sequences — one robot class per
-screen, every method returns `this` for chaining:
+When you write or change a Compose UI test, read `compose-ui-tests.md` first: the robot example,
+the real-ViewModel screen-test setup, the double-tap reasoning and the Maps shadow details.
 
-```kotlin
-class TrackingScreenRobot(private val rule: ComposeContentTestRule) {
-    fun setContent(state: TrackingState, onAction: (TrackingAction) -> Unit = {}) = apply {
-        rule.setContent { TrackingScreen(state = state, onAction = onAction) }
-    }
-    fun assertStartButtonEnabled() = apply {
-        rule.onNodeWithTag("start_button").assertIsEnabled()
-    }
-    fun clickStart() = apply {
-        rule.onNodeWithTag("start_button").performClick()
-    }
-}
-```
-
-Don't reach for the robot pattern for a 1-2 assertion smoke test — plain
-`composeTestRule.setContent { ... }` + a couple of `onNodeWith...` calls is clearer there.
-
-### Screen tests through the real ViewModel (the pattern to copy)
-
-`feature-history`'s `DetailsScreenTest`/`HistoryScreenTest` (with `DetailsScreenRobot`/
-`HistoryScreenRobot`) are the reference. What they do:
-
-- `@RunWith(RobolectricTestRunner::class)`, `@Config(sdk = [35])` (as in `data`; add
-  `qualifiers = "w411dp-h891dp"` when a `LazyColumn` must compose several rows), and
+- `ComposeTestRule`, JUnit4 (`@get:Rule`). Use the Robot pattern once a screen has 3+ UI test cases
+  or several tests share setup/assertion sequences: one robot class per screen, every method returns
+  `this` for chaining. Don't reach for it for a 1-2 assertion smoke test: plain
+  `composeTestRule.setContent { ... }` + a couple of `onNodeWith...` calls is clearer there.
+- Screen tests run the real ViewModel (`feature-history`'s `DetailsScreenTest`/`HistoryScreenTest`
+  are the pattern to copy): `@RunWith(RobolectricTestRunner::class)`, `@Config(sdk = [35])` (add
+  `qualifiers = "w411dp-h891dp"` when a `LazyColumn` must compose several rows) and
   `createAndroidComposeRule<ComponentActivity>()`, so strings come from
   `rule.activity.getString(...)` instead of being copied into the test.
-- Test the `<X>Root`, not only the stateless `<X>Screen`, so event handling (navigation
-  callback, snackbar) is covered. In `@Before`: `Dispatchers.setMain(UnconfinedTestDispatcher(...))`
-  and `startKoin { modules(<feature>UiModule, module { /* fakes from core-testing */ }) }`;
-  in `@After`: `stopKoin()` and `resetMain()`. `koinViewModel()` then builds the real ViewModel.
-  Navigation lives in `androidApp/app`, so assert on the Root's callback (count its calls).
-- Hold a suspending call with the fake's gate (`deleteActivityGate`, `getActivityGate`, ...:
-  a `CompletableDeferred` the fake awaits). Act, assert nothing happened yet, `complete(Unit)`,
-  `rule.waitForIdle()`, assert. No `Thread.sleep`, no real delays.
-- Double tap: `performTouchInput { down(center); up(); down(center); up() }`. The injector
-  advances the main clock by the time between events (whatever `autoAdvance` is), and
-  `click()` includes a move that takes time, so `click(); click()` lets the first tap's
-  recomposition remove the button and the second tap hits nothing: the test passes with or
-  without the guard. Check it once by removing the guard in the working tree: the test must
-  fail on the doubled call (for `DetailsScreenTest`: `Expected <[1]>, actual <[1, 1]>.`).
+- Test the `<X>Root`, not only the stateless `<X>Screen`, so event handling (navigation callback,
+  snackbar) is covered. `@Before` sets the main dispatcher and starts Koin with the feature's UI
+  module plus fakes from `core-testing`; `@After` calls `stopKoin()` and `resetMain()`. Navigation
+  lives in `androidApp/app`, so assert on the Root's callback (count its calls).
+- Hold a suspending call with the fake's gate (a `CompletableDeferred` the fake awaits). Act,
+  assert nothing happened yet, `complete(Unit)`, `rule.waitForIdle()`, assert. No `Thread.sleep`,
+  no real delays.
+- Double tap: `performTouchInput { down(center); up(); down(center); up() }`, never
+  `click(); click()` (the first tap's recomposition can remove the button, so the test passes with
+  or without the guard). Check it once by removing the guard in the working tree: the test must
+  fail on the doubled call.
 - Maps: when the test needs no map callback, wrap the content in
-  `CompositionLocalProvider(LocalInspectionMode provides true)`, as the Route, Details and
-  Tracking robots do. maps-compose's `GoogleMap` then draws an empty `Box`, so no Maps SDK
-  runs on the JVM; the map's content (polylines, markers) is not tested. No production seam
-  is needed for it.
-  When the test must drive a map callback (`MapEffect`, `GoogleMap.snapshot { }`), render the
-  map instead, as `feature-tracking`'s `TrackingScreenSnapshotTest` does with test sources
-  only (`src/test/.../fakes/FakeGoogleMap.kt`): `@Config(shadows = [ShadowMapView::class])`
-  replaces `MapView` with a Robolectric shadow (it must extend `ShadowViewGroup`, the shadow
-  of its superclass chain) whose `getMapAsync` answers at once with a real `GoogleMap` over
-  `FakeGoogleMap`'s `Proxy` delegate. The test sets `FakeGoogleMap.current` before composing
-  and composes with `LocalInspectionMode` false. Every delegate call returns a default except
-  `snapshot`, whose callback the test delivers with `deliverSnapshot(...)`. The map's content
-  is still not asserted, and the camera and bitmap-descriptor factories are fakes installed by
-  `FakeGoogleMap.installFactories()`. They are static, so a test that renders no map and must see
-  an uninitialized Maps SDK (`TrackingScreenTest`) calls `FakeGoogleMap.uninstallFactories()` first;
-  `TrackingScreen` builds its camera update only once the map exists.
+  `CompositionLocalProvider(LocalInspectionMode provides true)`; the map's content is not tested and
+  no production seam is needed. When the test must drive a map callback (`MapEffect`,
+  `GoogleMap.snapshot { }`), render the map as `TrackingScreenSnapshotTest` does, with test sources
+  only (its `ShadowMapView` must extend `ShadowViewGroup`). A test that renders no map and must see
+  an uninitialized Maps SDK (`TrackingScreenTest`) calls `FakeGoogleMap.uninstallFactories()` first.
 - Find nodes by visible text and content description first; a `testTag` is a production
   change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
   matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.
 
 ## XCUITest
 
+When you write or change an XCUITest, a `UiTestScenario` or a fake in `shared-uitest`, read
+`xcuitest.md` first: the run command, the seam and probe in detail, the CI shard and timing details.
+
 The iOS UI tests are `iosApp/TrailMetricsUITests` (XCTest, no other library); the plan and its
 decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
 
-- **Run.** Scheme `TrailMetricsUITests`: in Xcode select it and press ⌘U; from the shell, from
-  `iosApp/`, the command in `tm-ios` ("Build configurations and schemes"): `xcodebuild test
-  -scheme TrailMetricsUITests` with a concrete simulator id, `-skipMacroValidation`, the arm64
-  flags, `CODE_SIGNING_ALLOWED=NO`, piped through `../scripts/filter-xcode-log.sh`. The app needs
-  the machine's Maps key configuration for the real map; with an empty key the Route tab shows
-  a message instead of the map (`RouteMapConfiguration.isMapAvailable`), so the Route UI tests
-  that need the map fail.
-- **Variant.** The scheme builds `Debug-UITest`, which links the test-only framework variant of
-  `shared-uitest` and sets `UITEST_SEAM`. Normal Debug and Release builds contain no seam.
-- **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)`
-  (`Support/`), which passes `-uiTestScenario <name>` (the Kotlin `name` of a `UiTestScenario`
-  entry). `TrailMetricsApp.init()` then calls `doInitKoinIosForUiTest(scenario:)`; without the
-  argument the app runs the normal composition root, an unknown name stops it.
-- **Probe.** In a scenario launch the app shows a top-centre overlay: text `uitest.probe`
-  (`refreshes=<n> directions=<n> directionsDone=<n> saves=<n> deletes=<n> waypoints=<n>`: the
-  refresh generation, the fakes' counters and the Route map's waypoint count, read by reflection
-  from the map's delegate in `UITestWaypointCount`, -1 if not found), buttons `uitest.probe.refresh`
-  (re-reads the counters and increments the generation), `uitest.probe.release` (completes every
-  held call, leaves the text alone) and `uitest.probe.addWaypoint` (adds the next of five fixed
-  Route waypoints and returns at once; `UITestWaypointSeam` calls the map delegate's public
-  `didLongPressAt` with a coordinate from the map's projection, so the coordinator and view model
-  run as for a press and only the SDK's gesture recognition is skipped; the text stays as it is,
-  a refresh reads the result). The counters are read only on a refresh tap.
-  `UITestProbe.refreshedCounters()` reads the generation, taps refresh and returns the text only
-  once its generation is higher, so a read is never older than its tap (it may time out, never
-  return a stale value; a second tap after 10 s covers a lost one); `releasedCounters()` taps
-  release, then does the same.
+- **Run.** Scheme `TrailMetricsUITests` (⌘U in Xcode, or the `xcodebuild test` command in `tm-ios`,
+  "Build configurations and schemes", piped through `../scripts/filter-xcode-log.sh`). With an empty
+  Maps key the Route UI tests that need the map fail.
+- **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)` (`Support/`); the
+  name must be the Kotlin `name` of a `UiTestScenario` entry (an unknown name stops the app). Normal
+  Debug and Release builds contain no seam.
+- **Probe.** The overlay's counters are read only on a refresh tap: read them through
+  `UITestProbe.refreshedCounters()` and `releasedCounters()`.
 - **Determinism (D5).**
   - one `launch` per test, with its scenario; no test depends on another or on simulator state;
   - wait with `waitForExistence(timeout: 10)`; no `sleep`, no fixed delay, in tests or fakes;
@@ -283,10 +231,7 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
   - check once in the working tree that the test fails when the guarded behavior breaks.
 - **Shards.** CI runs the UI tests in one `ios-ui` job; plan a shard step when they exceed about
-  10 tests (cap 3). The "Run iOS UI tests" step boots the simulator and waits for it
-  (`simctl bootstatus -b`) before `xcodebuild`, and prefixes every `xcodebuild` output line with a
-  UTC time, plus `[ui-timing]` lines for boot ready and `xcodebuild` start: a launch timeout in a
-  red run is placed with those times (runner start, test start, app launch).
+  10 tests (cap 3).
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
   failure without a related change gets a `BOARD.md` record.
 - **Identifiers (D7).** Find elements by their text first; a View gets an
@@ -299,29 +244,26 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
 
 ## Migration cases (Room)
 
-This section is the canonical statement of the migration test (step 5 of the schema procedure).
-The harness lives in `data/src/commonTest/.../local/database/`: `TrailMetricsMigrationTest`
-(abstract suite) and `FrozenDatabaseVersions.kt` (one `FrozenDatabaseVersion` per old version,
-plus `CURRENT_DATABASE_VERSION`). `TrailMetricsMigrationAndroidHostTest` (Robolectric, platform
-SQLite, through the internal `buildRoomDatabase`) and `TrailMetricsMigrationIosTest` (the app's
-`getRoomDatabase`, bundled driver) run it in `testAndroidHostTest` and `iosSimulatorArm64Test`.
-Each case writes a database file at an old version with plain SQL, outside Room, opens it through
-the app's builder pipeline and `appMigrations`, and reads every row back through the DAO. The
-schema change procedure around it is in `tm-kmp-shared`, "Changing the database schema (Room)".
+When you write a Room migration case or a frozen fixture, read `room-migration-tests.md` first: the
+harness files and how a fixture is built from the schema file.
+
+This section is the canonical statement of the migration test (step 5 of the schema procedure). The
+schema change procedure around it is in `tm-kmp-shared`, "Changing the database schema (Room)". Each
+case writes a database file at an old version with plain SQL, outside Room, opens it through the
+app's builder pipeline and `appMigrations`, and reads every row back through the DAO.
 
 For a migration from M to N:
 - If version M has no fixture yet, add one: its `schemaStatements` are copied from
-  `data/schemas/.../M.json` (each entity's `createSql` with `${TABLE_NAME}` replaced, then the
-  `setupQueries`), its rows are `INSERT` statements in version M's stored form written as literal
-  text (never produced by the current converters), and it goes into `frozenDatabaseVersions`.
-  `FrozenDatabaseVersionsSchemaTest` (host only) fails when a fixture differs from its schema file.
-  Rows cover every column: each `ActivityType` name, null and non-null optional columns, empty and
-  non-empty coordinate lists. A fixture never changes once its version has shipped.
+  `data/schemas/.../M.json`, its rows are `INSERT` statements in version M's stored form written as
+  literal text (never produced by the current converters), and it goes into
+  `frozenDatabaseVersions`. `FrozenDatabaseVersionsSchemaTest` (host only) fails when a fixture
+  differs from its schema file. Rows cover every column: each `ActivityType` name, null and non-null
+  optional columns, empty and non-empty coordinate lists. A fixture never changes once its version
+  has shipped.
 - Add one case whose name contains `MIGRATION_M_N` (the schema check's rule (c) looks for that
-  text), for example `` `MIGRATION_1_2 keeps every row and gives note the default` ``. It opens the
-  fixture and asserts, with `assertEquals` on whole `ActivityEntity` lists, every field of every
-  row at N, including the value the migration gives each new or changed column, and the stored
-  `user_version` N.
+  text). It opens the fixture and asserts, with `assertEquals` on whole `ActivityEntity` lists,
+  every field of every row at N, including the value the migration gives each new or changed
+  column, and the stored `user_version` N.
 - A test that only names `MIGRATION_M_N`, or asserts a row count without the rows' fields, does
   not satisfy the reviewer: the schema check accepts it, so the assertions are what prove the
   rows survive.
