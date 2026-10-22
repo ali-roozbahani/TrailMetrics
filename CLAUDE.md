@@ -19,6 +19,9 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 
 ## Skills (load the matching one before working)
 
+Load the skill as the first tool call of a task, alone, before any other command (no
+exploration in the same turn), and do `tm-pr-workflow`'s "Before starting" steps before the first edit.
+
 - `tm-kmp-shared`       anything in domain / data / core / shared, or a change that crosses platforms
 - `tm-android`          anything under androidApp/
 - `tm-ios`              anything under iosApp/
