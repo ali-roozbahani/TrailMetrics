@@ -575,9 +575,12 @@ the stamp if one of them ever does change the framework).
   the matching lint tasks. This is unrelated to any change made in this
   project — it surfaces the first time a full `build` (not just `assemble`
   or `test`) is run against a KMP module using both KSP and Android Lint.
-- SwiftLint needs no separate installation step on GitHub Actions'
-  `macos-latest` runners — it ships preinstalled, same as Xcode and
-  fastlane.
+- SwiftLint is not reliably preinstalled on GitHub Actions' `macos-latest`
+  runners (on PR #104's run `brew install swiftlint` poured 0.65.1), so
+  CI's `ios-main` job runs an unpinned `brew install swiftlint`. A newer
+  SwiftLint can reject an `excluded_match_kinds` name of the `optional_try`
+  rule and switch it off without failing `--strict`; that is why
+  `scripts/check-optional-try.sh --self-test` runs next to it.
 - iOS CI (`xcodebuild build -destination "generic/platform=iOS Simulator"`)
   needs the XCFramework built *before* `xcodebuild` runs, via an explicit
   `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` step —

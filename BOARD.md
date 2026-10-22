@@ -146,15 +146,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: it shows elapsed time and key metrics, or the decision not to is documented.
 - Refs: `data/src/androidMain` `TrackingService.buildNotification`.
 
-### swiftlint-optional-try-rule-selftest
-- Type: task
-- Area: iosApp, scripts
-- Order: 192
-- Source: agentic-dev-loop run 18 review (PR #104), 2026-10-05
-- Problem: the custom rule `optional_try` in `iosApp/.swiftlint.yml` is turned off without failing `swiftlint lint --strict` if its `excluded_match_kinds` contains a name the installed SwiftLint does not know: SwiftLint only prints the warning "Invalid configuration for 'optional_try' rule. Falling back to default." and reports no `try?` at all (seen with SwiftLint 0.65.1 on a fixture: exit 0, 0 violations). CI's `ios-main` job installs SwiftLint with an unpinned `brew install swiftlint` (on PR #104's run it poured `swiftlint--0.65.1` from Homebrew, so the runner did not already have it, although `LEARNINGS.md` says SwiftLint ships preinstalled on `macos-latest` and needs no install step), so a new SwiftLint version could disable the rule silently. Nothing in the repository would notice.
-- Done when: a committed check (a script with fixtures, in the style of the existing self-tests: one fixture dir per case, a `--self-test`, fail loudly never skip) lints fixture Swift files and shows that an unannotated `try?` fails, an annotated one passes, `try?` inside a comment and a string passes, and that the check fails if SwiftLint prints an invalid-configuration message; it runs in `scripts/pre-push-check.sh` and in CI's `ios-main` job (a workflow change: its PR must say so and authorize it), the PR states whether SwiftLint is pinned in CI or why not, and the `LEARNINGS.md` line about SwiftLint being preinstalled matches what CI does.
-- Refs: `iosApp/.swiftlint.yml`; `.github/workflows/ci.yml` (`ios-main` job, steps "Install SwiftLint" and "Run SwiftLint"); `tm-ios` ("SwiftLint"); `LEARNINGS.md` (SwiftLint on `macos-latest` runners); PR #104.
-
 ### swiftlint-disable-requires-reason-rule
 - Type: task
 - Area: iosApp
@@ -191,15 +182,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a Finish without a loaded profile on either platform either reads the profile again before saving or tells the user why nothing was saved (through the screen's existing error event), with a ViewModel test per platform; a Finish tap while the profile is still loading keeps working as today.
 - Refs: `androidApp/feature-tracking` `TrackingViewModel` (`finish`, init); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`onFinishClicked`); `tm-kmp-shared` ("`@Throws` policy", rules 4 and 5).
 
-### skill-changes-digest-self-test
-- Type: task
-- Area: scripts
-- Order: 199
-- Source: protected-paths-review S4 (open reference skills PR), 2026-10-06
-- Problem: `scripts/skill-changes-digest.sh` (the human-run digest of skill and `CLAUDE.md` changes on `origin/main`) has no self-test, so a regression in its date validation, its first-parent commit selection or its `+`/`-` line filter would go unnoticed until the human runs it. The gate and CI files were outside S4's `allowed_paths`, so it was shown by hand only.
-- Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
-- Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
-
 ### user-profile-corrupt-stored-profile-becomes-null
 - Type: task
 - Area: data, domain
@@ -208,6 +190,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `UserProfileRepositoryImpl.getUserProfile` reads the stored JSON with `runCatching { Json.decodeFromString<UserProfile>(json) }.getOrNull()`. A stored profile that no longer decodes (corrupt or from an older shape) returns `null`, the same value as "no profile saved yet", with no signal to the caller. Android `RouteViewModel` then asks the user for a profile as if none existed, and the broken value stays in storage. This is the "failure turned into null with no signal to the caller" pattern of `tm-pr-review` item 13. No detekt rule reports it. The fix is a design question: fail with an exception the callers already map to `RouteUiError.General` (rule 3 of the `@Throws` policy), return a result type that tells "missing" from "unreadable", or delete the unreadable value and say so.
 - Done when: a stored profile that cannot be decoded is distinguishable from no stored profile by every caller on Android and iOS (`RouteViewModel`, `TrackingViewModel`), with a `data` commonTest for the corrupt case and a ViewModel test per platform for how each reacts; the chosen design is stated in the PR.
 - Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation"); `tracking-finish-without-profile-silent`.
+
+### build-kmp-framework-self-test
+- Type: task
+- Area: scripts
+- Order: 201
+- Source: chore/script-self-tests scan for scripts without a `--self-test`, 2026-10-22
+- Problem: `scripts/build-kmp-framework.sh` decides by an input hash and a variant marker whether to rebuild the XCFramework, and fails an Xcode `--build-phase` call after a rebuild instead of linking a stale copy. None of this has a self-test, so a regression in the hash gating, the variant switch or the `--build-phase` exit would show up only as a stale framework in an iOS build. A self-test needs the Gradle call stubbed (a fake `gradlew` in a scratch tree), which is a design choice of its own.
+- Done when: a `--self-test` runs the script in a scratch tree with a fake `gradlew` and checks: a first build runs Gradle, an unchanged second run skips it, a changed input or the other variant rebuilds, `--build-phase` after a rebuild exits non-zero with the message, an unknown option and an unknown variant exit 2; it passes on bash 3.2 and bash 5 (or `sh`, per the script's shebang), and is wired into the gate, CI's `android` job and CODEOWNERS like the other self-tests; it was shown failing against a deliberately broken version.
+- Refs: `scripts/build-kmp-framework.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.github/CODEOWNERS`.
+
+### simulate-route-self-test
+- Type: task
+- Area: scripts
+- Order: 202
+- Source: chore/script-self-tests scan for scripts without a `--self-test`, 2026-10-22
+- Problem: `scripts/simulate-route.sh` (the developer tool that walks an iOS Simulator along a route through `xcrun simctl location`) interpolates points between waypoints and paces them to a speed, and has no self-test, so a regression in the interpolation, the pacing or the CSV parsing would show only as a wrong walk in a simulator. It needs `xcrun`, so a test must put a fake `xcrun` first on `PATH`.
+- Done when: a `--self-test` runs the script against a fake `xcrun` that records its calls and a short CSV in a `*-fixtures/` folder, and checks the interpolated points, the pace, the loop back to the first waypoint (the run bounded by the fake) and the errors for a missing or malformed file; it passes on bash 3.2 and bash 5, is wired into the gate and CODEOWNERS (CI's `android` job has no simulator but needs none), and was shown failing against a deliberately broken version.
+- Refs: `scripts/simulate-route.sh`; `scripts/routes/sample-loop.csv`; `scripts/pre-push-check.sh`; `.github/CODEOWNERS`.
 
 ### ios-ui-route-generate-twice-failed-on-main
 - Type: task

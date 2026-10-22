@@ -413,7 +413,9 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   Activities can be turned off); the test helpers `waitUntil` (TestSupport) and
   `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no other `try?` is left
   under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
-  'optional_try' rule" and turns the rule off, without failing `--strict`.
+  'optional_try' rule" and turns the rule off, without failing `--strict`; `scripts/check-optional-try.sh --self-test`
+  (in the gate's iOS steps and CI's `ios-main`) lints fixtures with the committed config, fails on that message,
+  and shows the rule silently off on a config with an unknown kind.
 - Custom rules `localized_text_without_bundle` and `literal_text_in_view_initializer` (error):
   see "Strings". They match source text with `included`/`excluded` path regexes, so a new
   production source folder outside `Packages/*/Sources`, the files directly in `iosApp/TrailMetrics/`

@@ -140,6 +140,7 @@ run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 run_step "CI verdict reader self-test" scripts/read-ci-verdict.sh --self-test
 run_step "board check self-test" scripts/check-board.sh --self-test
 run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-test
+run_step "skill changes digest self-test" scripts/skill-changes-digest.sh --self-test
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
 # every classification, light included (no Gradle needed). Same check as CI's android job, which
@@ -267,6 +268,12 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     # their fixtures (violating, fixed, out of scope). Needs swiftlint, like the step above.
     if command -v swiftlint >/dev/null 2>&1; then
         run_step "localized strings rules self-test" scripts/check-localized-strings.sh --self-test
+    fi
+
+    # The `optional_try` custom rule against its fixtures, and a check that SwiftLint does not print
+    # "Invalid configuration" for it (it then turns the rule off without failing `--strict`).
+    if command -v swiftlint >/dev/null 2>&1; then
+        run_step "optional_try rule self-test" scripts/check-optional-try.sh --self-test
     fi
 
     # Same hash-gated script as the Xcode scheme pre-action, so the iOS build and the package

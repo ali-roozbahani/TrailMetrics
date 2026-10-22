@@ -82,6 +82,9 @@ jobs:
       - name: Push hook self-test
         run: scripts/claude-hooks/block-git-push.sh --self-test
 
+      - name: Skill changes digest self-test
+        run: scripts/skill-changes-digest.sh --self-test
+
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
       # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
@@ -366,6 +369,9 @@ jobs:
 
       - name: Localized strings rules self-test
         run: scripts/check-localized-strings.sh --self-test
+
+      - name: Optional try rule self-test
+        run: scripts/check-optional-try.sh --self-test
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
