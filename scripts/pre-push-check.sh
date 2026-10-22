@@ -139,6 +139,7 @@ run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
 run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 run_step "CI verdict reader self-test" scripts/read-ci-verdict.sh --self-test
 run_step "board check self-test" scripts/check-board.sh --self-test
+run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-test
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
 # every classification, light included (no Gradle needed). Same check as CI's android job, which
