@@ -217,6 +217,8 @@ user-visible changes (see #32, #35).
   listed under Tier 2 does not block a merge the agent makes: it stays in the PR's
   description, and the human does it when testing the feature (the epic-level Tier 2),
   not before the merge.
+- The agent's part does not end at the open PR: the run continues with `tm-agent-loop`, sections 6 to 8
+  (watch CI, read the verdict, merge conditions), and the "Merge check" comment is posted on every PR.
 - **The PR title becomes the commit on `main`.** PRs are squash-merged as
   `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
 
@@ -377,7 +379,10 @@ format). It is not protected, and a PR that touches only that file is not a boar
   learned, deletes the `BOARD.md` record, and adds an entry to `LEARNINGS.md` (why it flaked,
   what fixed it).
 
-## After the PR is open (human's steps, for context)
+## After the PR is open
+
+The agent continues with `tm-agent-loop`, sections 6 to 8, and posts the "Merge check" comment on every
+PR. What follows is the human's part, for context:
 
 1. CI runs on the PR. It should already be green because the gate mirrors it.
 2. The human checks the Tier 2 list (CI's `pr-reviewer` checks it too, `tm-pr-review`
