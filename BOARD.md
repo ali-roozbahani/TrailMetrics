@@ -255,15 +255,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
 - Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`, `formatElapsed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
 
-### ci-block-git-push-hook-self-test
-- Type: task
-- Area: .github
-- Order: 229
-- Source: PR #200
-- Problem: `scripts/claude-hooks/block-git-push.sh --self-test` runs in the local gate (`scripts/pre-push-check.sh`) but not in CI's `android` job, where the other script self-tests run. `.github/workflows/ci.yml` is a workflow file the machine token cannot push, so only the human can add the step.
-- Done when: `.github/workflows/ci.yml` runs `scripts/claude-hooks/block-git-push.sh --self-test` as a step next to the other self-test steps, pushed by the human.
-- Refs: `.github/workflows/ci.yml` (self-test steps); `scripts/claude-hooks/block-git-push.sh`; `scripts/pre-push-check.sh`.
-
 ### skill-folder-front-matter-detection
 - Type: task
 - Area: scripts
