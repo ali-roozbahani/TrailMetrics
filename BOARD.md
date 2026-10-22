@@ -191,6 +191,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a stored profile that cannot be decoded is distinguishable from no stored profile by every caller on Android and iOS (`RouteViewModel`, `TrackingViewModel`), with a `data` commonTest for the corrupt case and a ViewModel test per platform for how each reacts; the chosen design is stated in the PR.
 - Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation"); `tracking-finish-without-profile-silent`.
 
+### build-kmp-framework-self-test
+- Type: task
+- Area: scripts
+- Order: 201
+- Source: chore/script-self-tests scan for scripts without a `--self-test`, 2026-10-22
+- Problem: `scripts/build-kmp-framework.sh` decides by an input hash and a variant marker whether to rebuild the XCFramework, and fails an Xcode `--build-phase` call after a rebuild instead of linking a stale copy. None of this has a self-test, so a regression in the hash gating, the variant switch or the `--build-phase` exit would show up only as a stale framework in an iOS build. A self-test needs the Gradle call stubbed (a fake `gradlew` in a scratch tree), which is a design choice of its own.
+- Done when: a `--self-test` runs the script in a scratch tree with a fake `gradlew` and checks: a first build runs Gradle, an unchanged second run skips it, a changed input or the other variant rebuilds, `--build-phase` after a rebuild exits non-zero with the message, an unknown option and an unknown variant exit 2; it passes on bash 3.2 and bash 5 (or `sh`, per the script's shebang), and is wired into the gate, CI's `android` job and CODEOWNERS like the other self-tests; it was shown failing against a deliberately broken version.
+- Refs: `scripts/build-kmp-framework.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.github/CODEOWNERS`.
+
+### simulate-route-self-test
+- Type: task
+- Area: scripts
+- Order: 202
+- Source: chore/script-self-tests scan for scripts without a `--self-test`, 2026-10-22
+- Problem: `scripts/simulate-route.sh` (the developer tool that walks an iOS Simulator along a route through `xcrun simctl location`) interpolates points between waypoints and paces them to a speed, and has no self-test, so a regression in the interpolation, the pacing or the CSV parsing would show only as a wrong walk in a simulator. It needs `xcrun`, so a test must put a fake `xcrun` first on `PATH`.
+- Done when: a `--self-test` runs the script against a fake `xcrun` that records its calls and a short CSV in a `*-fixtures/` folder, and checks the interpolated points, the pace, the loop back to the first waypoint (the run bounded by the fake) and the errors for a missing or malformed file; it passes on bash 3.2 and bash 5, is wired into the gate and CODEOWNERS (CI's `android` job has no simulator but needs none), and was shown failing against a deliberately broken version.
+- Refs: `scripts/simulate-route.sh`; `scripts/routes/sample-loop.csv`; `scripts/pre-push-check.sh`; `.github/CODEOWNERS`.
+
 ### ios-ui-route-generate-twice-failed-on-main
 - Type: task
 - Area: iosApp/TrailMetricsUITests
