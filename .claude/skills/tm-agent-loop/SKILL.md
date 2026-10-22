@@ -42,7 +42,7 @@ scripts/check-board.sh --next
 Follow `tm-pr-workflow` from "Before starting" on: branch prefix and name, commits with
 `git commit -F <file>`, Boundaries, "Docs follow the code you changed", the "Board" rules,
 and the record deleted in its own commit. Load the code skills for the paths you touch.
-Scope is the record's Done when and nothing else.
+Scope is the record's Done when and the same-subject fixes of that sweep, nothing else.
 
 ## 3. Protected paths
 
@@ -50,8 +50,9 @@ Scope is the record's Done when and nothing else.
 scripts/check-protected-paths.sh --base "$(git merge-base HEAD origin/main)"
 ```
 
-A task may touch protected paths if its record says so; the PR is then the human's to merge
-(say so in the report). Never touch a protected path as a side effect.
+A task may touch protected paths if its record says so or for a same-subject sweep fix; the
+PR is then the human's to merge (say so in the report). Never touch a protected path as an
+unrelated side effect.
 
 ## 4. Local review
 

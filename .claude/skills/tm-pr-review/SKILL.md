@@ -52,7 +52,9 @@ from memory.
 
 1. **Task.** The diff does what `TASK`'s Done when (or acceptance) says, and nothing its
    Scope says must not change. If `TASK` lists `allowed_paths`, every changed file in
-   `diff` is inside them. Missing work or an out-of-scope file is blocking.
+   `diff` is inside them. Missing work or an out-of-scope file is blocking. A fix of the
+   task's own subject within the sweep bound (`tm-pr-workflow`, "Docs follow the code you
+   changed") is in scope, not creep; one over the bound or of another subject is out of scope.
 2. **Repo skills** for the touched areas: `tm-kmp-shared` (module boundaries), `tm-android`
    (MVI shape, Compose, Koin, deprecated APIs), `tm-ios` (ViewModel/View shape, SKIE use,
    deprecated APIs), `tm-testing` (testing stack, no MockK/Turbine/JUnit5/AssertK/Truth),
@@ -104,7 +106,8 @@ from memory.
    or `plugins` block, `Package.swift` or `Package.resolved` must be named in `TASK`'s
    Scope. Otherwise blocking (`CLAUDE.md`, "Hard rules"; `tm-pr-workflow`, Boundaries).
 8. **Board bookkeeping** (`tm-pr-workflow`, "Board"). Follow-ups and drift the diff leaves
-   behind have `BOARD.md` records; a record the task started from is deleted in its own
+   behind have `BOARD.md` records, each with its reason, and a record or follow-up whose
+   reason is a same-subject fix within the sweep bound is blocking; a record the task started from is deleted in its own
    commit (`chore(board): remove <slug>`); no `After` or skill/doc mention of a removed
    slug is left; the change is not board-only. Exception (rule 5): a parallel subtask of an
    epic with an integration branch never edits `BOARD.md` and lists its follow-ups and
