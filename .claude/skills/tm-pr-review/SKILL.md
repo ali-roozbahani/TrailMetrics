@@ -1,6 +1,6 @@
 ---
 name: tm-pr-review
-description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the twelve checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
+description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the thirteen checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
 ---
 
 # TrailMetrics pre-push review
@@ -101,7 +101,7 @@ from memory.
    or `plugins` block, `Package.swift` or `Package.resolved` must be named in `TASK`'s
    Scope. Otherwise blocking (`CLAUDE.md`, "Hard rules"; `tm-pr-workflow`, Boundaries).
 8. **Board bookkeeping** (`tm-pr-workflow`, "Board"). Follow-ups and drift the diff leaves
-   behind have `BOARD.md` records; a record the task started from is deleted in the last
+   behind have `BOARD.md` records; a record the task started from is deleted in its own
    commit (`chore(board): remove <slug>`); no `After` or skill/doc mention of a removed
    slug is left; the change is not board-only. Exception (rule 5): a parallel subtask of an
    epic with an integration branch never edits `BOARD.md` and lists its follow-ups and
@@ -174,16 +174,8 @@ from memory.
       `data/schemas/`; `CURRENT_DATABASE_VERSION` that does not match `@Database`; a deleted or
       loosened harness test or pin (`ConvertersTest`, `DatabaseFileNameTest`,
       `FrozenDatabaseVersionsSchemaTest`), which item 5 also escalates.
-    - *What the scripts check, and what they don't.* `scripts/check-room-schema.sh --base`
-      fails when (a) an existing schema file is deleted or its `database.version` or
-      `identityHash` changes; (b) the `@Database` version goes down; (c) a bump from M to N
-      lacks `N.json`, `MIGRATION_M_N` under `data/src/commonMain/.../local/database/` or an added
-      or changed test under `data/src/commonTest/.../local/database/` containing that text;
-      (d) the current version has no schema file; (e) a main source set calls a
-      `fallbackToDestructiveMigration` variant. Its `--check-export-fresh` mode fails when the
-      build left a changed or new file under `data/schemas/`. Both run in the gate and in CI,
-      and both are text and path checks only: whether the rows survive is the harness's job,
-      and whether the harness case really proves it is yours.
+    - *What the scripts check.* `scripts/check-room-schema.sh` (rules in `tm-kmp-shared`, "What
+      catches what") is a text and path check; whether the harness case proves the rows survive is yours.
     - *`ESCALATE_TO_HUMAN`, reason `critical`.* A migration that drops a table or column,
       deletes rows, rewrites stored values, or copies a table in a way that loses rows or
       values; any `fallbackToDestructiveMigration` variant; any change of the
@@ -194,6 +186,11 @@ from memory.
       column, or a column with a default, through `ALTER TABLE ... ADD COLUMN`; a new table) is
       not destructive. If you cannot tell whether a step loses data, the reason is
       `cannot judge`, never `APPROVE`.
+13. **Silent failures**, only in lines the diff adds or changes: an empty or log-only `catch`; an
+    `Exception`/`Throwable` catch in suspend code not rethrowing `CancellationException`; a
+    `runCatching` whose failure is dropped; a failure turned into `null`, an empty list or a default
+    with no signal to the caller; a Swift `try?` that discards an error the caller needed.
+    Blocking; cite file, quoted text and pattern. Untouched code is no finding.
 
 ## Verdict rules
 
