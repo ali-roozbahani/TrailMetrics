@@ -38,6 +38,11 @@ belongs here.
   The only other module that applies SKIE and defines a framework is the
   test-only `shared-uitest` (see above).
 
+- **Tests** (`commonTest`, `androidHostTest`, `iosTest`): `KoinGraphAndroidTest` and
+  `KoinGraphIosTest` start the graph `initKoin` builds, replace the platform pieces that need a
+  `Context` or a device with fakes, and resolve every definition, so a missing binding fails here and
+  not at app start.
+
 ## What does NOT belong here
 
 - Business logic (goes in `domain`), repository implementations (`data`),
