@@ -14,8 +14,12 @@ internal class FakeSharedPreferences : SharedPreferences {
     override fun getBoolean(key: String, defValue: Boolean): Boolean = values[key] as Boolean? ?: defValue
     override fun contains(key: String): Boolean = key in values
     override fun edit(): SharedPreferences.Editor = FakeEditor()
-    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
-    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
+    override fun registerOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener
+    ) = Unit
+    override fun unregisterOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener
+    ) = Unit
 
     private inner class FakeEditor : SharedPreferences.Editor {
         private val pending = mutableMapOf<String, Any?>()
