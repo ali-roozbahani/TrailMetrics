@@ -61,115 +61,35 @@ Branch: <type>/<slug>
 
 ## Tier 1: the local gate (agent's job)
 
-`scripts/pre-push-check.sh` must exit 0 before any push. Before any step it removes
-secret-looking variables from its own environment (deny list by name in `scripts/scrub-env.sh`;
-it prints the count and the names, never a value, and stops if the file cannot be sourced or a
-matching variable cannot be removed), so no step and no `xcodebuild` log inherits a token; it
-also runs the scrub self-test (`scripts/scrub-env.sh --self-test`, fake values only). Build
-settings are not in its environment, so both `xcodebuild` steps print their output (stderr too)
-through `scripts/filter-xcode-log.sh`, which hides Xcode's exported-environment lines (whitespace,
-then `export` or `setenv`, then whitespace: the build settings, the Maps key among them, that Xcode
-passes to script phases; not the arguments on the `xcodebuild` command line, which `xcodebuild`
-echoes, so the gate must never pass a secret there); the raw `xcodebuild` log is not kept, and without an executable filter
-those steps fail before `xcodebuild` starts. The gate runs that script's self-test
-(`scripts/filter-xcode-log.sh --self-test`, fake values only) next to the scrub one. It always runs the board check
-(`scripts/check-board.sh`, also the first step of CI's `android` job), the protected-paths
-check (`scripts/check-protected-paths.sh --validate` and `--self-test`, blocking, also the
-"Protected paths check" step of CI's `android` job) followed by a report-only line with the
-classifier's verdict on the branch's diff (`protected` or `unprotected` and the matching files;
-it never fails the gate), the change classification self-test
-(`scripts/classify-changes.sh --self-test`), the reviewer workflow self-test
-(`scripts/check-pr-review-workflow.sh --self-test`, also the "Reviewer workflow self-test" step
-of CI's `android` job: it runs the "Run pr-reviewer" and "Map verdict" scripts of
-`.github/workflows/pr-review.yml`, taken from the committed file, against a stub `claude`, and
-its "Rule changes from the base" script in scratch git repositories; it needs `python3`, `jq`,
-`git` and `tar` and fails without them), the skill rule-change self-test
-(`scripts/check-skill-rule-changes.sh --self-test`, also the "Skill rule-change self-test" step
-of CI's `android` job: the script whose base-branch copy writes the reviewers' `rule-changes`
-input, `tm-pr-review` item 10), the Kover floors self-test (`scripts/check-kover-floors.sh
---self-test`, also the "Kover floors self-test" step of CI's `android` job), the Room schema
-self-test (`scripts/check-room-schema.sh --self-test`, also the "Room schema self-test" step of
-CI's `android` job), the iOS scope
-self-test
-(`scripts/check-ios-scope.sh --self-test`, also the "iOS scope self-test" step of CI's `android`
-job: it runs the gate's iOS scope block below, extracted from the committed script between its
-`# >>> iOS scope: ... (begin) >>>` and `(end)` markers, in scratch git repositories, one case
-per fixture in `scripts/check-ios-scope-fixtures/`, and it also checks that every `BUILD_FILES`
-entry of `scripts/build-kmp-framework.sh`, taken from the committed file, matches the filter; it
-needs `python3`, `bash` and `git` and fails without them) and the variant API check self-test
-(`scripts/check-variant-api.sh --self-test`: the check that `scripts/build-kmp-framework.sh
---variant uitest` runs on the test-only framework variant of `shared-uitest`, run against the
-fixtures in `scripts/check-variant-api-fixtures/`; gate, and the step "Variant API check
-self-test" of CI's `android` job) and the localized strings rules self-test
-(`scripts/check-localized-strings.sh --self-test`: the fixtures in
-`scripts/check-localized-strings-fixtures/` against the SwiftLint rules
-`localized_text_without_bundle` and `literal_text_in_view_initializer`; it runs with the iOS
-steps; gate only, the rules themselves run in CI via swiftlint: `swiftlint lint --strict` in
-`ios-main`, and `iosApp/.swiftlint.yml` is protected).
-The gate also runs the Kover floors check in every classification, light included
-(`scripts/check-kover-floors.sh --base <merge-base>`; see "Coverage ratchet"), also the "Kover
-floors check" step of CI's `android` job, which compares with the PR's base commit and is skipped
-on push events. The Room schema check runs the same way, in every classification
-(`scripts/check-room-schema.sh --base <merge-base>`: schema files under `data/schemas/` are
-append-only, a version bump needs its schema file, `MIGRATION_M_N` and a test naming it, no
-`fallbackToDestructiveMigration` in `data/src/*Main/`), also the "Room schema check" step of CI's
-`android` job, with the same base and the same skip on push events.
-The heavy steps run unless
-`scripts/classify-changes.sh` decides `light` (non-source changes only; the gate prints the
-decision and its files, report only): `detekt`, Android `lint`, `allTests test` and
-`assembleDebug`, then the schema export freshness check (`scripts/check-room-schema.sh
---check-export-fresh`: fails when the build left a modified, deleted or untracked file under
-`data/schemas/`; also the "Room schema export freshness" step right after CI's `Build`), and the
-iOS steps below, which also need their path filter. After the tests it also generates the merged
-Kover coverage report (`build/reports/kover/`) and prints the line-coverage figure. That
-report step is best-effort and never fails the gate. The next step, `koverVerify`, is
-enforced: it fails the gate (and CI's android job) when a module drops below its minimum line
-coverage. Minimums are set in `config/kover-floors.properties`, one entry per module for `domain`,
-`data` and the three `androidApp` feature modules, whose `build.gradle.kts` reads it, a little
-below each module's measured coverage from its own tests. `core`,
-`shared`, `androidApp/app` and `androidApp/core-ui` have no minimum on purpose: they have no tests
-of their own that Kover measures (0% own line coverage), so a floor could never fail; each one's
-`build.gradle.kts` says what the module is and gets a floor when its first test of its own runs on
-the Android host. `shared-uitest` has no minimum either: it has only iOS targets, which Kover
-can't measure, so it does not apply Kover at all. The merged root report is not the sum of the module reports. Checked on
-2026-10-05 with `./gradlew koverXmlReport`, then the `LINE` counter of each report
-(`for f in build/reports/kover/report.xml */build/reports/kover/report.xml androidApp/*/build/reports/kover/report.xml; do echo "$f $(grep -o '<counter type="LINE"[^>]*/>' "$f" | tail -1)"; done`):
-the nine modules' own reports sum to 723 of 2121 lines covered, the root to 906 of 2327. All of
-the difference is `data`'s generated Room and BuildKonfig classes (206 lines, 169 covered), which
-only `data`'s own report excludes, and 14 lines in `domain` (7) and `core` (7) covered only by other
-modules' tests. Repeat it when a module joins the root merge block or a Kover filter changes.
-It adds `swiftlint lint --strict`, the shared
-XCFramework build (`scripts/build-kmp-framework.sh`, hash-gated), an `xcodebuild` simulator
-build and the iOS package tests when the branch's diff touches a file under `iosApp/`, `domain/`,
-`data/`, `core/`, `shared/` or `shared-uitest/` other than markdown (`*.md`), one of the root Gradle files
-`build.gradle.kts`, `settings.gradle.kts`, `gradle.properties` and `gradle/libs.versions.toml`,
-one of the files that run the Gradle build (`gradlew`, `gradle/wrapper/gradle-wrapper.jar`,
-`gradle/wrapper/gradle-wrapper.properties`, `gradle/gradle-daemon-jvm.properties`), or
-`scripts/build-kmp-framework.sh`. Not `gradlew.bat`, `scripts/pre-push-check.sh` itself or
-`scripts/classify-changes.sh`; CI's macOS iOS jobs (`ios-build-ui`, `ios-ui`, `ios-main`) run in
-full for those (they are not `light`).
-Not `scripts/check-variant-api.sh` either: it is deliberately not part of any gate scope (only
-`scripts/build-kmp-framework.sh --variant uitest` runs it), and its self-test runs in every gate run.
-When the diff also touches the UI scope (`IOS_UI_PATHS`: `iosApp/TrailMetrics/`,
-`iosApp/TrailMetricsUITests/`, `iosApp/Packages/<Name>/Sources/`, `shared/src/commonMain/`,
-`shared/src/iosMain/` and `shared-uitest/`, other than markdown; true on the fail-safe path), the
-iOS part ends with one smoke UI test: the gate builds the `uitest` framework variant and runs
-`DetailsFailedDeleteUITests` through the `TrailMetricsUITests` scheme, with a hard limit of 180 s
-for the whole step. Its output shows that test's result and `iOS smoke UI test: <n> s`, or says
-"timeout"; when the iOS steps run without a UI-scope file it prints `skipped`. The variant stays at
-the debug path, and the next normal build rebuilds production.
-The list is `git diff --no-renames -z`, so a move counts with both its paths and no path is
-quoted or split. Fail-safe: when the gate cannot read the branch's exact list (no merge-base
-with `origin/main`, or `git diff` fails), the iOS steps count as required and a warning prints
-why, with the first line of git's error; an empty list read without an error does not count.
-When those iOS steps will run, the gate first checks, after the change classification and
-before any heavy step, that the git-ignored iOS secrets config (README "iOS", step 2) exists;
-if it is missing, the gate stops at once with a non-zero exit, before the heavy steps and the
-verdict line. It tests existence only and never reads or creates the file. Its last step prints the `pr-reviewer` verdict recorded for HEAD
-(`APPROVE`, `CHANGES` or `ESCALATE_TO_HUMAN`, or that none is recorded); it is report only
-and never fails the gate. When and how the session runs the reviewer and records that verdict
-(after the last commit, before the gate's final run, again after every new commit) is in
-`tm-pr-review`, "Orchestrator's part".
+`scripts/pre-push-check.sh` must exit 0 before any push. The script is the description of the
+gate: its header comment, its output (it names every step that ran) and the `--self-test`
+option of each `scripts/check-*.sh` script say what is checked, so read them rather than a list
+here. Run the script itself, not a hand-picked command.
+
+- **`light` or full.** `scripts/classify-changes.sh` decides. On `light` (non-source changes
+  only) the gate skips the Gradle build and test steps and the iOS steps; the checks that need
+  no build, among them the Kover floors and Room schema checks, still run. A full run adds the
+  iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
+  diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
+- **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
+  the failed steps and "Do not push". Fix it within the "Retry budget".
+- **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:
+  `xcodebuild` echoes its arguments, and the gate's log filter hides only Xcode's
+  exported-environment lines. The iOS secrets config (README "iOS", step 2) is git-ignored; when
+  the gate stops because it is missing, never read, print, create or commit it: stop and
+  report.
+- **Coverage.** `koverVerify` fails the gate when a module is below its minimum in
+  `config/kover-floors.properties`; see "Coverage ratchet". A module with no floor gets one when
+  its first test of its own runs on the Android host.
+- **Room schema.** `scripts/check-room-schema.sh --base <merge-base>` runs in every
+  classification: schema files under `data/schemas/` are append-only, a version bump needs its
+  schema file, `MIGRATION_M_N` and a test naming it, and `data/src/*Main/` has no
+  `fallbackToDestructiveMigration`. The build must leave `data/schemas/` unchanged (a modified,
+  deleted or untracked file there fails the gate).
+- **Reviewer verdict.** The gate prints the recorded `pr-reviewer` verdict for HEAD and never
+  fails on it. When the session runs the reviewer and records the verdict (after the last
+  commit, before the gate's final run, again after every new commit) is in `tm-pr-review`,
+  "Orchestrator's part".
 
 How it is enforced, and what that means for the order of operations:
 
