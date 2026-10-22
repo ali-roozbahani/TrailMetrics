@@ -286,11 +286,11 @@ End the description with the attribution line the session specifies.
   changes. That is part of the task, not a side effect, so it needs no separate
   authorization, a protected path (a workflow file the human has to push) included; the PR
   is then the human's to merge. The bound is 10 changed lines in 2 files per hit and 30
-  lines for all hits (the fixes of #194, #195 and #203 were 2 to 3 lines each). The
-  authorization never covers changing a rule's content or strength, adding a rule or
-  weakening a check. Drift about code this task didn't change, or a hit beyond the bound, is
-  not fixed here: add a drift record to `BOARD.md` and list it under "Drift found (not
-  fixed)" in the PR description, with the line and what the code actually does.
+  lines for all hits. The authorization never covers changing a rule's content or
+  strength, adding a rule or weakening a check. Drift about code this task didn't change,
+  or a hit beyond the bound, is not fixed here: add a drift record to `BOARD.md` and list
+  it under "Drift found (not fixed)" in the PR description, with the line and what the
+  code actually does.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
@@ -323,11 +323,10 @@ step of the gate and of CI's `android` job.
    Problem. Each such follow-up and drift you list under "Follow-ups (out of scope, not
    changed)" or "Drift found (not fixed)", including one only the human can do (a workflow
    file this token can't push) when it is not of this task's subject. The human decides when
-   it is done, not whether it is recorded. A same-subject item within the bound is fixed, never recorded. The PR
-   description keeps those sections, and each bullet names its slug; a bullet without a slug
-   breaks this rule. Every
-   new record gets an `Order` and, only if it truly can't start before another record is done,
-   an `After`.
+   it is done, not whether it is recorded. A same-subject item within the bound is fixed,
+   never recorded. The PR description keeps those sections, and each bullet names its slug;
+   a bullet without a slug breaks this rule. Every new record gets an `Order` and, only if
+   it truly can't start before another record is done, an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
    does the work, as its own commit (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
