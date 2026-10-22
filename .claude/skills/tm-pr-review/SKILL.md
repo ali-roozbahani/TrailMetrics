@@ -239,7 +239,7 @@ number. Nothing else: no summary of the change, no checklist walk-through.
 
 ## Orchestrator's part
 
-The implementing session runs this after its last commit and before the gate's final run.
+The implementing session runs this before every push, after its last commit and before the gate's final run.
 
 1. Commit everything (`git status --porcelain` must be empty), then fill the input
    directory from git alone:

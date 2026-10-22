@@ -105,10 +105,11 @@ here. Run the script itself, not a hand-picked command.
   schema file, `MIGRATION_M_N` and a test naming it, and `data/src/*Main/` has no
   `fallbackToDestructiveMigration`. The build must leave `data/schemas/` unchanged (a modified,
   deleted or untracked file there fails the gate).
-- **Reviewer verdict.** The gate prints the recorded `pr-reviewer` verdict for HEAD and never
-  fails on it. When the session runs the reviewer and records the verdict (after the last
-  commit, before the gate's final run, again after every new commit) is in `tm-pr-review`,
-  "Orchestrator's part".
+- **Reviewer verdict.** Every push needs the local `pr-reviewer` verdict for HEAD recorded
+  first, `light` or full, docs-only or not, whatever CI's reviewer will run. The gate prints it
+  and never fails on it, so "no review verdict recorded" means you have not run it: go back.
+  When to run it and record it (after the last commit, before the gate's final run, again after
+  every new commit) is in `tm-pr-review`, "Orchestrator's part".
 
 How it is enforced, and what that means for the order of operations:
 
