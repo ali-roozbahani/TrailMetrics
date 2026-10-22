@@ -127,6 +127,7 @@ How it is enforced, and what that means for the order of operations:
   `scripts/pre-push-check.sh`. The first run doesn't count. If the gate is still red after
   the second fix attempt (third run), **stop**: don't push, and report which step fails,
   the relevant output, and what each attempt changed. Then wait.
+- Every stop-and-report, and the final report of a run, has the shape in `tm-agent-loop`, "Report".
 - Environment failures are not attempts. Report them right away rather than working
   around them: SwiftLint not installed, no Xcode/simulator, Gradle daemon or network
   errors, a failure that reproduces on a clean `main`.
