@@ -25,15 +25,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Epics
 
-### agentic-dev-loop
-- Type: epic
-- Area: scripts, .github, .claude, iosApp, androidApp
-- Order: 40
-- Source: chat 2026-10-02
-- Problem: Every task needs the human as reviewer, merger and Tier 2 tester, which is the slowest part of development.
-- Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on Android (Compose UI tests); on iOS (XCUITest) the UI-test target, the launch-time seam, the CI UI suite and the smoke test in the local gate are done; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR; that list is the Tier 2 categories of `tm-pr-workflow` ("Tier 2: what automated tests cannot show"), not a separate list.
-- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`.
-
 ### route-completion-to-domain
 - Type: epic
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
