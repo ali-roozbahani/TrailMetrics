@@ -269,8 +269,8 @@ End the description with the attribution line the session specifies.
   single paths). If a protected file is wrong, report it under "Follow-ups" instead (#32,
   #33, #34 and #37 all did this).
   The four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are not
-  protected (their `SKILL.md` files have ownerless lines in CODEOWNERS), so an agent may edit
-  them in a task that calls for it; the reviewer judges that diff like any other, and the
+  protected (their folders have ownerless lines in CODEOWNERS, so every file in them is open),
+  so an agent may edit them in a task that calls for it; the reviewer judges that diff like any other, and the
   rule-change signal (`tm-pr-review` item 10) escalates any removed or rewritten rule line.
 - An agent never merges a PR that touches a protected path. The human merges those. The one
   exception is a subtask PR into an epic branch whose plan `allowed_paths` cover the path

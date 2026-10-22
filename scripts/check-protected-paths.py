@@ -34,7 +34,7 @@ Every owner must be @ali-roozbahani. As on GitHub, the last matching line decide
 protected when its last matching line has an owner, and the line reported for it is that line's
 pattern. A line with no owner makes the files it matches not owned, so they are unprotected
 when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
-skill files) may be ownerless; any other ownerless line is an error in classification too (exit
+skill folders) may be ownerless; any other ownerless line is an error in classification too (exit
 2), so one stray line can't unprotect a directory. --validate also rejects an ownerless line
 that a later line matches as well (the later line overrides it, so it has no effect), and a
 pattern that matches no tracked file, unless it is in NOT_YET_TRACKED_PATTERNS (patterns that
@@ -50,14 +50,16 @@ from pathlib import Path
 
 CODEOWNERS = Path(".github") / "CODEOWNERS"
 OWNER = "@ali-roozbahani"
-# The only lines that may have no owner: the reference skills, which an agent may edit
-# (docs/epics/protected-paths-review.md, Decisions 2 and 5). File patterns, not directories, so
-# a file added next to one of them stays protected by /.claude/.
+# The only lines that may have no owner: the folders of the reference skills, which an agent may
+# edit (docs/epics/protected-paths-review.md, Decisions 2 and 5; folders rather than SKILL.md
+# files so a reference file added later
+# is covered). Anchored, so a sibling skill folder stays protected by /.claude/. A CLAUDE.md or
+# .gitignore inside one of them stays protected because its line comes later in CODEOWNERS.
 UNOWNED_PATTERNS = (
-    "/.claude/skills/tm-ios/SKILL.md",
-    "/.claude/skills/tm-android/SKILL.md",
-    "/.claude/skills/tm-kmp-shared/SKILL.md",
-    "/.claude/skills/tm-testing/SKILL.md",
+    "/.claude/skills/tm-ios/",
+    "/.claude/skills/tm-android/",
+    "/.claude/skills/tm-kmp-shared/",
+    "/.claude/skills/tm-testing/",
 )
 # The only patterns that may match no tracked file: they protect a file before it exists, because
 # a tool or an agent session reads it once someone adds it (docs/epics/protected-paths-review-2.md,
@@ -315,19 +317,23 @@ build.gradle.kts   @ali-roozbahani
 /docs/epics/       @ali-roozbahani
 """
 
-# GOOD_CODEOWNERS plus /.claude/ and, after it, the four ownerless reference skill lines.
+# GOOD_CODEOWNERS plus /.claude/ and, after it, the four ownerless reference skill folder lines.
 REF_CODEOWNERS = (GOOD_CODEOWNERS + "/.claude/ @ali-roozbahani\n"
                   + "".join(f"{pattern}\n" for pattern in UNOWNED_PATTERNS))
 
-REF_SKILLS = [pattern.lstrip("/") for pattern in UNOWNED_PATTERNS]
+REF_SKILLS = [pattern.lstrip("/") + "SKILL.md" for pattern in UNOWNED_PATTERNS]
+# A reference file beside SKILL.md and one a level down, in each of the four folders.
+REF_FILES = [pattern.lstrip("/") + name for pattern in UNOWNED_PATTERNS
+             for name in ("reference.md", "references/deep.md")]
 OTHER_CLAUDE = [".claude/skills/tm-pr-review/SKILL.md", ".claude/skills/tm-pr-workflow/SKILL.md",
                 ".claude/skills/tm-agent-loop/SKILL.md",
                 ".claude/skills/epic-orchestration/SKILL.md", ".claude/settings.json",
-                ".claude/agents/pr-reviewer.md", ".claude/skills/tm-ios/extra.sh"]
+                ".claude/agents/pr-reviewer.md", ".claude/skills/tm-ios-extra/SKILL.md",
+                ".claude/skills/tm-testing-extra/x.md"]
 
 TRACKED = [".github/CODEOWNERS", "CLAUDE.md", "build.gradle.kts", "data/build.gradle.kts",
            "docs/epics/plan.md", "README.md", "data/src/A.kt", "shared/A.kt"] \
-          + REF_SKILLS + OTHER_CLAUDE[:-1]
+          + REF_SKILLS + REF_FILES + OTHER_CLAUDE
 
 # (name, CODEOWNERS text or None for GOOD_CODEOWNERS, args, exit code, exact stdout or None,
 #  texts that must appear in stdout + stderr)
@@ -380,6 +386,24 @@ E2E_CASES = [
     # Ownerless lines: the four reference skill files only, after the line they override.
     ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
      "unprotected\n", []),
+    ("ownerless: every file in the four folders, one level down too, is unprotected",
+     REF_CODEOWNERS, ["--files"] + REF_FILES, 0, "unprotected\n", []),
+    ("ownerless: a CLAUDE.md or .gitignore inside a reference folder stays protected",
+     REF_CODEOWNERS + "CLAUDE.md @ali-roozbahani\n.gitignore @ali-roozbahani\n",
+     ["--files", ".claude/skills/tm-ios/CLAUDE.md", ".claude/skills/tm-testing/a/.gitignore"], 0,
+     "protected\n.claude/skills/tm-ios/CLAUDE.md  (CLAUDE.md)\n"
+     ".claude/skills/tm-testing/a/.gitignore  (.gitignore)\n", []),
+    ("ownerless: a fifth ownerless skill folder is rejected by validate",
+     REF_CODEOWNERS + "/.claude/skills/tm-pr-workflow/\n", ["--validate"], 1, None,
+     ["CODEOWNERS:11: '/.claude/skills/tm-pr-workflow/': no owner (only these patterns may have none",
+      "FAILED, 1 problem(s)"]),
+    ("ownerless: a fifth ownerless skill folder is an error in classification",
+     REF_CODEOWNERS + "/.claude/skills/tm-pr-workflow/\n",
+     ["--files", ".claude/skills/tm-pr-workflow/SKILL.md"], 2, "",
+     ["unsupported CODEOWNERS syntax", "'/.claude/skills/tm-pr-workflow/': no owner"]),
+    ("ownerless: the unanchored form of a folder is rejected too",
+     REF_CODEOWNERS + "tm-ios/\n", ["--validate"], 1, None,
+     ["CODEOWNERS:11: 'tm-ios/': no owner", "FAILED, 2 problem(s)"]),
     ("ownerless: the rest of .claude/ stays protected", REF_CODEOWNERS, ["--files"] + OTHER_CLAUDE,
      0, "protected\n" + "".join(f"{f}  (/.claude/)\n" for f in OTHER_CLAUDE), []),
     ("ownerless: reference skill plus CLAUDE.md", REF_CODEOWNERS,
@@ -420,7 +444,10 @@ REAL_PATH_CASES = [
     (".claude/settings.json", "/.claude/"),
     (".claude/agents/pr-reviewer.md", "/.claude/"),
     (".claude/skills/tm-pr-review/SKILL.md", "/.claude/"),
-    (".claude/skills/tm-ios/extra.md", "/.claude/"),  # next to a reference skill
+    (".claude/skills/tm-ios-extra/SKILL.md", "/.claude/"),  # a sibling folder by name prefix
+    (".claude/skills/tm-pr-workflow/SKILL.md", "/.claude/"),
+    (".claude/skills/epic-orchestration/SKILL.md", "/.claude/"),
+    (".claude/skills/tm-ios/CLAUDE.md", "CLAUDE.md"),  # an instruction file stays protected
     ("CLAUDE.md", "/CLAUDE.md"),
     ("docs/architecture/x.md", "/docs/architecture/"),
     ("docs/epics/protected-paths-review-2.md", "/docs/epics/"),
@@ -483,6 +510,11 @@ REAL_PATH_CASES = [
     (".claude/skills/tm-android/SKILL.md", None),
     (".claude/skills/tm-kmp-shared/SKILL.md", None),
     (".claude/skills/tm-testing/SKILL.md", None),
+    (".claude/skills/tm-testing/compose-ui-tests.md", None),  # reference files
+    (".claude/skills/tm-testing/references/deep.md", None),   # one level down
+    (".claude/skills/tm-ios/extra.md", None),
+    (".claude/skills/tm-android/extra.md", None),
+    (".claude/skills/tm-kmp-shared/extra.md", None),
     ("androidApp/feature-route/src/main/kotlin/x.kt", None),
     ("domain/src/commonMain/kotlin/x.kt", None),
     (PERSISTENCE + "mapper/x.kt", None),
