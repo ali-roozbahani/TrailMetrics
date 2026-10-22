@@ -73,6 +73,9 @@ jobs:
       - name: CI verdict reader self-test
         run: scripts/read-ci-verdict.sh --self-test
 
+      - name: CI re-run guard self-test
+        run: scripts/rerun-failed-once.sh --self-test
+
       - name: Scrub-env self-test
         run: scripts/scrub-env.sh --self-test
 

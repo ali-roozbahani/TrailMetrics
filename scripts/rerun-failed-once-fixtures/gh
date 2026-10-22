@@ -1,0 +1,9 @@
+#!/bin/bash
+# Fake `gh` for scripts/rerun-failed-once.sh --self-test: serves one fixture case and never touches
+# the network. FAKE_GH_DIR is the case directory, FAKE_GH_LOG a file that records each re-run.
+[ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: simulated failure" >&2; exit 1; }
+case "$*" in
+    "api "*"/actions/runs/"*) cat "$FAKE_GH_DIR/run.json" ;;
+    "run rerun "*" --failed") echo "$*" >> "$FAKE_GH_LOG" ;;
+    *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
+esac

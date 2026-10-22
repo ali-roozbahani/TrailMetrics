@@ -74,6 +74,8 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/skill-changes-digest-fixtures/     @ali-roozbahani
 /scripts/read-ci-verdict.sh                 @ali-roozbahani
 /scripts/read-ci-verdict-fixtures/          @ali-roozbahani
+/scripts/rerun-failed-once.sh               @ali-roozbahani
+/scripts/rerun-failed-once-fixtures/        @ali-roozbahani
 
 # Build and dependency files
 /settings.gradle.kts                        @ali-roozbahani
