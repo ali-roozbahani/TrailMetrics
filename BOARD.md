@@ -155,15 +155,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: each gets the same git flags and the same resilient cleanup as `check-skill-rule-changes.py` (or one shared approach the human agrees), with its self-test still passing.
 - Refs: `scripts/check-kover-floors.py`; `scripts/check-protected-paths.py`; `scripts/classify-changes.sh`; `scripts/check-ios-scope.py`; `scripts/check-skill-rule-changes.py` (`remove_scratch`).
 
-### tracking-finish-without-profile-silent
-- Type: task
-- Area: androidApp/feature-tracking, iosApp/Tracking
-- Order: 198
-- Source: bugfix/android-persistence-errors-handled PR, 2026-10-05
-- Problem: On both platforms the tracking screen's Finish returns without saving, without an event and without a message when no user profile is loaded (Android `TrackingViewModel.finish`: `_userProfile.value?.weightKg ?: return`; iOS `onFinishClicked`: `guard let userProfile = loadedUserProfile else { return }`). Since that PR the failed profile load itself is shown once as a general error, but a later Finish tap still does nothing visible, and the profile is never read again for that screen, so the session can't be saved.
-- Done when: a Finish without a loaded profile on either platform either reads the profile again before saving or tells the user why nothing was saved (through the screen's existing error event), with a ViewModel test per platform; a Finish tap while the profile is still loading keeps working as today.
-- Refs: `androidApp/feature-tracking` `TrackingViewModel` (`finish`, init); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`onFinishClicked`); `tm-kmp-shared` ("`@Throws` policy", rules 4 and 5).
-
 ### user-profile-corrupt-stored-profile-becomes-null
 - Type: task
 - Area: data, domain
@@ -171,7 +162,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: detekt exception-rules spike (round-2 proposal P7), 2026-10-22
 - Problem: `UserProfileRepositoryImpl.getUserProfile` reads the stored JSON with `runCatching { Json.decodeFromString<UserProfile>(json) }.getOrNull()`. A stored profile that no longer decodes (corrupt or from an older shape) returns `null`, the same value as "no profile saved yet", with no signal to the caller. Android `RouteViewModel` then asks the user for a profile as if none existed, and the broken value stays in storage. This is the "failure turned into null with no signal to the caller" pattern of `tm-pr-review` item 13. No detekt rule reports it. The fix is a design question: fail with an exception the callers already map to `RouteUiError.General` (rule 3 of the `@Throws` policy), return a result type that tells "missing" from "unreadable", or delete the unreadable value and say so.
 - Done when: a stored profile that cannot be decoded is distinguishable from no stored profile by every caller on Android and iOS (`RouteViewModel`, `TrackingViewModel`), with a `data` commonTest for the corrupt case and a ViewModel test per platform for how each reacts; the chosen design is stated in the PR.
-- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation"); `tracking-finish-without-profile-silent`.
+- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation").
 
 ### build-kmp-framework-self-test
 - Type: task
