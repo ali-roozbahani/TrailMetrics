@@ -155,15 +155,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: each gets the same git flags and the same resilient cleanup as `check-skill-rule-changes.py` (or one shared approach the human agrees), with its self-test still passing.
 - Refs: `scripts/check-kover-floors.py`; `scripts/check-protected-paths.py`; `scripts/classify-changes.sh`; `scripts/check-ios-scope.py`; `scripts/check-skill-rule-changes.py` (`remove_scratch`).
 
-### user-profile-corrupt-stored-profile-becomes-null
-- Type: task
-- Area: data, domain
-- Order: 200
-- Source: detekt exception-rules spike (round-2 proposal P7), 2026-10-22
-- Problem: `UserProfileRepositoryImpl.getUserProfile` reads the stored JSON with `runCatching { Json.decodeFromString<UserProfile>(json) }.getOrNull()`. A stored profile that no longer decodes (corrupt or from an older shape) returns `null`, the same value as "no profile saved yet", with no signal to the caller. Android `RouteViewModel` then asks the user for a profile as if none existed, and the broken value stays in storage. This is the "failure turned into null with no signal to the caller" pattern of `tm-pr-review` item 13. No detekt rule reports it. The fix is a design question: fail with an exception the callers already map to `RouteUiError.General` (rule 3 of the `@Throws` policy), return a result type that tells "missing" from "unreadable", or delete the unreadable value and say so.
-- Done when: a stored profile that cannot be decoded is distinguishable from no stored profile by every caller on Android and iOS (`RouteViewModel`, `TrackingViewModel`), with a `data` commonTest for the corrupt case and a ViewModel test per platform for how each reacts; the chosen design is stated in the PR.
-- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation").
-
 ### build-kmp-framework-self-test
 - Type: task
 - Area: scripts
