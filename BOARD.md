@@ -255,6 +255,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `.github/workflows/ci.yml` has a step `Run scripts/read-ci-verdict.sh --self-test` next to the other script self-test steps, and CI is green with it.
 - Refs: `.github/workflows/ci.yml` (the self-test steps after "Board check"); `scripts/read-ci-verdict.sh`; `scripts/pre-push-check.sh`.
 
+### wire-check-board-self-test
+- Type: task
+- Area: scripts, .github
+- Order: 231
+- Source: PR for chore/board-slug-check-skips-historical-plans
+- Problem: `scripts/check-board.sh --self-test` (the fixtures in `scripts/check-board-fixtures/`) runs nowhere automatically: `scripts/pre-push-check.sh` and `.github/workflows/ci.yml` run only the plain `scripts/check-board.sh`, while most other `scripts/check-*.sh` scripts have a self-test step in both. A fixture that stops matching the script goes unnoticed. The token the agent pushes with has no `workflow` scope, so only the human can push the CI part.
+- Done when: the gate runs `scripts/check-board.sh --self-test` as a step next to the other script self-tests, and `.github/workflows/ci.yml` has the matching step, with CI green.
+- Refs: `scripts/pre-push-check.sh` (the self-test steps); `.github/workflows/ci.yml` (the steps after "Board check"); `scripts/check-board.sh`; `ci-wire-read-ci-verdict-self-test`.
+
 ## Drift
 
 ### pr-review-board-item-last-commit
