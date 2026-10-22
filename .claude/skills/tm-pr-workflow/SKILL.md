@@ -18,6 +18,25 @@ those on its own initiative once Tier 1 passes.
 
 ## Before starting
 
+Every run starts with these steps, for a named task and a board pick alike:
+
+```bash
+gh api user --jq .login          # must print peter-christofer-bot
+cd ~/agent-workspace/TrailMetrics
+git status --porcelain           # must be empty
+git fetch --prune origin && git switch main && git pull --ff-only
+git branch -vv                   # every branch other than main is from an earlier run
+```
+
+- Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
+  and report.
+- For each local branch other than `main`, look up its PR
+  (`gh pr list --head <branch> --state all --json number,state`). `MERGED`: delete it with
+  `git branch -D <branch>` (a squash merge is not "merged" for git). `OPEN` or no PR: leave it
+  and name it in the report. GitHub deletes the remote branch itself ("Automatically delete
+  head branches" is on).
+- Create the task's branch from this local `main` (see "Branching").
+
 - Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,
   and `LEARNINGS.md` for known KMP/Xcode/Gradle gotchas.
 - Load the code skill(s) for the modules touched (`tm-kmp-shared`, `tm-android`, `tm-ios`,
@@ -54,8 +73,8 @@ Branch: <type>/<slug>
 - Use the name from the task's `Branch:` line. If it uses any other prefix (`docs/`, `ci/`,
   `fix/`, ...), switch to the closest allowed one and say so under "Assumptions" in the PR.
   Precedent: #35 was asked for `docs/...` and used `chore/...`.
-- Branch from an up-to-date `main` (`git fetch origin` first) unless the task names a
-  different base.
+- Branch from the local `main` that "Before starting" left equal to `origin/main`, never from
+  `origin/main` directly, unless the task names a different base.
 - Slug: lowercase, hyphenated, describes the change (`chore/fix-gate-test-coverage`,
   `bugfix/route-reset-profile-refetch`).
 
@@ -287,10 +306,14 @@ step of the gate and of CI's `android` job.
    `scripts/check-board.sh --next` prints. If that record is an epic (or
    `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
    approve, not with code.
-1. **Add.** Everything you list under "Follow-ups (out of scope, not changed)" or "Drift
-   found (not fixed)" gets a record in `BOARD.md` in the **same** PR. The PR description
-   keeps those sections, and each bullet names its slug. Every new record gets an `Order`
-   and, only if it truly can't start before another record is done, an `After`.
+1. **Add.** Everything this PR leaves for later gets a record in `BOARD.md` in the **same**
+   PR, in every run, whether or not the task came from the board: each follow-up and each
+   drift you list under "Follow-ups (out of scope, not changed)" or "Drift found (not
+   fixed)", including one only the human can do (a workflow file this token can't push). The
+   human decides when it is done, not whether it is recorded. The PR description keeps those
+   sections, and each bullet names its slug; a bullet without a slug breaks this rule. Every
+   new record gets an `Order` and, only if it truly can't start before another record is done,
+   an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
    does the work, as the last commit before the final push (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
@@ -357,8 +380,7 @@ silently force-pushing.
 - **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
   step of CI's `android` job).
 - **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
-  when it merges; the local branch is the agent's to delete (`tm-agent-loop`, "After-merge
-  cleanup").
+  when it merges; the local branch is the agent's to delete ("Before starting").
 - **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it
   only gates pushes made from a Claude Code session. A push from a terminal skips it.
 - **CI doesn't mirror the gate exactly.** CI's heavy steps run unless
