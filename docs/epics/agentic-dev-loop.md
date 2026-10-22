@@ -1,18 +1,19 @@
 # Epic: Agentic development loop
 
+> **The trial (S6) is complete and auto-merge is in force**: the rule is `tm-agent-loop`, section 8.
+
 > **Amended 2026-10-03, approved by Ali Roozbahani.** S3 as built (workflow, check name,
 > green for `APPROVE` and `ESCALATE_TO_HUMAN`); workflow files are pushed by the human; new
 > Decision 8 (reading the CI verdict); Decisions 5 and 7 spell out the merge conditions and
 > Decision 7 keeps "Allow auto-merge" off; S4 is split into S4a and S4b; S5 and S6 follow
-> that. S4b also adds the two follow-up board records from the S4a PR, and no agent merges
-> any PR until S6 (Trial mode). The text below is the plan as amended; the approval line
-> keeps its original date.
+> that. S4b also adds the two follow-up board records from the S4a PR. The text below is the plan as
+> amended; the approval line keeps its original date.
 
 - **Slug:** agentic-dev-loop
 - **Integration branch:** none. A chain of plain PRs against `main`, each merged by the human.
 - **Goal:** An agent can take the next task from `BOARD.md`, implement it, get an
   independent review, run the full local gate, open a PR, and, for tasks that touch no
-  protected path and only after a trial period, merge it itself once CI and the reviewer
+  protected path, merge it itself once CI and the reviewer
   agree. Protected paths and epics are always merged by the human.
 - **Out of scope:** the test seam, UI test targets and the manual device checklist (they
   become their own epic with their own plan after S6); any app code; GitHub Apps; renaming
@@ -33,8 +34,8 @@
 2. **Layers before a merge.** (a) A fresh-context reviewer subagent reviews locally before
    the push; (b) the full local gate runs the full test suite of every platform the diff
    touches; (c) push and PR; (d) CI re-runs the same tests on a clean machine and a GitHub
-   Action review runs, both as required checks; (e) merge: the human during the trial,
-   afterwards the agent for unprotected paths.
+   Action review runs, both as required checks; (e) merge: the agent for unprotected paths,
+   the human otherwise.
 3. **Tests.** The local gate is the primary place where failures are found and fixed, before
    any push; CI runs the same tests on a clean environment as a second confirmation and, as
    a required check, blocks the merge when red. A red CI after a green local gate means the
@@ -60,15 +61,7 @@
    fast-forwards it, deletes the local branch with `-D` (squash merges leave it unmerged by
    ancestry) and runs `git fetch --prune`. GitHub deletes the remote branch (repository
    setting "Automatically delete head branches").
-7. **Auto-merge.** Enabled only after a trial of 5 consecutive PRs in which the reviewer's
-   verdict and the human's decision agree (any disagreement restarts the count), and only
-   for PRs that touch no protected path. The trial counts only PRs that touch no protected
-   path: a protected PR always escalates and the human merges it, so agreement there proves
-   nothing. A PR whose first review report was malformed (its first line not a verdict) and
-   whose automatic retry, or a human re-run of the failed check, produced a valid report
-   counts normally, by the final valid verdict compared with the human's decision. A PR
-   whose check never produced a valid report does not count toward the trial and is not a
-   disagreement. After the trial the agent merges itself with
+7. **Auto-merge.** Only for PRs that touch no protected path: the agent merges itself with
    `gh pr merge --squash --match-head-commit <SHA>`, and only when all of these hold: both
    required checks are green; the PR head is a branch of this repository; the author is the
    machine account; the CI annotation says `APPROVE` for that head SHA (Decision 8); the

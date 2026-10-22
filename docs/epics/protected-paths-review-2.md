@@ -1,5 +1,8 @@
 # Epic: Protected paths review 2: protect the control plane, open the product code
 
+> **The auto-merge trial is complete and auto-merge is in force**: the rule is `tm-agent-loop`,
+> section 8.
+
 - **Slug:** protected-paths-review-2
 - **Status:** approved
 - **Integration branch:** none. A chain of plain PRs against `main`, one at a time. Every
@@ -80,9 +83,9 @@ Three things must stay true after this epic. Where each is enforced on `main` to
      the `Review — pr-reviewer` check is green for `ESCALATE_TO_HUMAN` too, so it is the
      annotation (condition 4), not the check's colour, that stops an agent merge.
 
-Opening a product path changes none of these three. It changes one thing only: after the
-`agentic-dev-loop` trial, a PR that touches only opened paths and meets all six conditions
-can be merged by the agent instead of waiting for the human.
+Opening a product path changes none of these three. It changes one thing only: a PR
+that touches only opened paths and meets all six conditions can be merged by the agent instead of
+waiting for the human.
 
 ## Why
 

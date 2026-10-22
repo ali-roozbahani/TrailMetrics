@@ -25,15 +25,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Epics
 
-### agentic-dev-loop
-- Type: epic
-- Area: scripts, .github, .claude, iosApp, androidApp
-- Order: 40
-- Source: chat 2026-10-02
-- Problem: Every task needs the human as reviewer, merger and Tier 2 tester, which is the slowest part of development.
-- Done when: a human-approved plan under `docs/epics/` comes first. Then: (1) a deterministic test seam (fakes for location, directions and storage injectable at app launch) and UI-test targets exist on Android (Compose UI tests); on iOS (XCUITest) the UI-test target, the launch-time seam, the CI UI suite and the smoke test in the local gate are done; (2) an independent reviewer agent with a fresh context reviews every PR from git against the task's Done when and the repo's skills; (3) protected paths are defined by `.github/CODEOWNERS` and enforced by branch protection with required code owner review, so only the human merges a PR that touches one; (4) agents merge their own PR only when it touches no protected path, after the required CI checks are green and the reviewer approved, and only after a trial of 5 consecutive PRs that touch no protected path in which the reviewer's verdict and the human's decision agree (the exact merge conditions are the plan's Decision 7; GitHub's "Allow auto-merge" setting stays off); (5) for each epic the agents loop implement, test and review on their own and the human does one final end-user test; (6) a short list of manual device checks remains (real GPS, Live Activity, notifications, permissions, Google Maps rendering) and is done before releases, not per PR; that list is the Tier 2 categories of `tm-pr-workflow` ("Tier 2: what automated tests cannot show"), not a separate list.
-- Refs: `docs/epics/agentic-dev-loop.md`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow`; `.claude/skills/epic-orchestration`.
-
 ### route-completion-to-domain
 - Type: epic
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
@@ -73,6 +64,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The in-app elapsed time shows `metrics.elapsedMillis` from the tracking state, which is only re-emitted on location events. There is no ticker, so a stationary device freezes the timer and the display can jump (observed by 2 s).
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
+
+### android-ui-test-launch-seam
+- Type: task
+- Area: androidApp
+- Order: 90
+- Source: PR #210 and chat 2026-10-23
+- Problem: Android has no launch-time seam (fakes for location, directions and storage injectable when the app starts, as iOS has with `UITEST_SEAM`) and no app-level UI-test target; its UI tests are Robolectric tests per screen, so a flow across screens with the app's real navigation and Koin graph is not covered by any test. Recorded because the deleted `agentic-dev-loop` epic's Done when (1) was read as Robolectric tests only; it is a different subject from the PR that found it.
+- Done when: such a seam and a UI-test target exist on Android, and at least one flow across two screens runs in CI and fails when a binding or a navigation is broken (shown on a deliberately broken version). The design (instrumented test or Robolectric with the real graph) is stated in the PR and fits the `shared` Koin graph tests of #207.
+- Refs: `docs/epics/agentic-dev-loop.md` (Done when item 1, deleted record); `docs/epics/ios-ui-tests.md`; `.claude/skills/tm-testing`; `shared-uitest`.
 
 ### release-build-links-debug-xcframework
 - Type: task

@@ -1,5 +1,8 @@
 # Epic: Protected paths review
 
+> **The auto-merge trial is complete and auto-merge is in force**: the rule is `tm-agent-loop`,
+> section 8.
+
 - **Slug:** protected-paths-review
 - **Integration branch:** none. A chain of plain PRs against `main`, each merged by the human
   (every PR in this epic touches a protected path, so none counts toward the S6 trial).
@@ -83,7 +86,7 @@ closes that gap mechanically.
    revert anything. It is not a workflow and does not change merge rules.
 7. **Interaction with the trial and board rules.** PRs of this epic are protected and do not
    count. After S3, a PR that edits only reference skills and passes the reviewer with
-   `APPROVE` is unprotected and counts toward the trial like any other. Board rule 2 stays
+   `APPROVE` is unprotected and is merged by the agent under the six conditions. Board rule 2 stays
    as written; it now produces a protected PR only when the skill named is a process skill.
 8. **Changes to `.github/workflows/`** are pushed by the human (Decision 1 of
    `docs/epics/agentic-dev-loop.md`): the agent builds and verifies locally, stops before
