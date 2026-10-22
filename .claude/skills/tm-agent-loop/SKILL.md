@@ -20,7 +20,7 @@ git status --porcelain           # must be empty
 ```
 
 Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
-and report. If the previous run's PR has been merged, do the after-merge cleanup first.
+and report. If the previous run's PR has been merged, do "After-merge cleanup" first.
 
 A run whose gate will run the iOS steps needs the git-ignored iOS secrets config (README
 "iOS", step 2) in the clone. The gate checks that it exists and stops at once if it is
@@ -209,10 +209,9 @@ gh pr merge <N> --squash --match-head-commit <SHA> --subject "<PR title> (#<N>)"
 human's squash merge does. Then post the "Merge check" comment with the result
 ("Auto-merge") and, if the PR merged, do the after-merge cleanup in the same run.
 
-GitHub's "Allow auto-merge" setting stays off: never enable it and never use
-`gh pr merge --auto`. The epic PR into `main` is never the agent's: the human merges it, on
-their own explicit command, with `gh pr merge --match-head-commit <tested SHA>`. If the epic
-touches a protected path, the human also approves the PR on GitHub (Decision 5).
+The epic PR into `main` is merged by the human, on their own explicit command, with
+`gh pr merge --match-head-commit <tested SHA>` ("Never"). If the epic touches a protected
+path, the human also approves the PR on GitHub (Decision 5).
 
 ## Auto-merge
 
@@ -228,20 +227,15 @@ Merge check
 3. Author is peter-christofer-bot: yes|no
 4. CI annotation APPROVE: yes|no (<title>, <level>, "<first words of message>")
 5. Local verdict APPROVE for <SHA>: yes|no
-6. No protected path (subtask PR into an epic branch: allowed_paths cover every changed path): yes|no
+6. No protected path, or allowed_paths cover every changed path: yes|no
 
 Merged: yes|no (<reason when no>)
 ```
 
 The reason after "no" is the condition that is "no", or the first line of the merge
-command's refusal. The agent runs the merge command in section 8 only when all six are "yes",
-and does the after-merge cleanup only if the PR merged. When any condition is "no", the
-comment is posted without a merge attempt, and the agent reports to the human, who merges;
-a refused merge is reported the same way. A PR that touches a protected path is never the
-agent's to merge, except a subtask PR into an epic branch whose plan `allowed_paths` for that
-subtask cover every changed path (section 8, condition 6). The epic PR into `main` and a PR
-whose CI annotation is not `APPROVE` are never the agent's to merge.
-"Allow auto-merge" and `gh pr merge --auto` stay forbidden (section 8).
+command's refusal. The agent runs the merge command in section 8 only when all six are "yes".
+When any condition is "no", the comment is posted without a merge attempt, and the agent
+reports to the human, who merges; a refused merge is reported the same way.
 
 ## After-merge cleanup
 
@@ -271,10 +265,23 @@ GitHub deletes the remote branch itself ("Automatically delete head branches" is
   progress: read the current head SHA's checks after it, not the earlier run.
 - A merge condition that is "no" (section 8).
 
+## Report
+
+The final report to the human has three parts: Done, Not done, Not verified.
+
+- Done: each item with the command run and what it printed (exit code, SHA, URL, counts),
+  never a conclusion alone. Who pushed, and which SHA, branch or credential, comes from
+  `git` or `gh` output of this run, not from memory.
+- A check that did not run, or whose output was not read, is under Not verified, never
+  shown as passed. A blocked or denied command is quoted (the message) and reported, not
+  worked around.
+- The PR description keeps its own headings (`tm-pr-workflow`); this shape is for the chat report.
+
 ## Never
 
 - Push to `main`, force-push or amend, or cancel a CI run.
-- Enable auto-merge, change repository settings, or edit a protected path outside the task.
+- Enable GitHub's auto-merge setting (it stays off) or use `gh pr merge --auto`; change
+  repository settings; edit a protected path outside the task.
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
   wall: don't try to get around them.
 - Merge a PR for which one of section 8's conditions is not met, or an epic PR into `main`.
