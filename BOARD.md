@@ -246,6 +246,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
 - Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`, `formatElapsed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
 
+### ci-wire-read-ci-verdict-self-test
+- Type: task
+- Area: .github
+- Order: 228
+- Source: PR #190 follow-up, 2026-10-22
+- Problem: `scripts/read-ci-verdict.sh --self-test` runs in the local gate (`scripts/pre-push-check.sh`, "CI verdict reader self-test") but not in `.github/workflows/ci.yml`, which has a self-test step for most other `scripts/check-*.sh` scripts. The token the agent pushes with has no `workflow` scope, so only the human can push this change.
+- Done when: `.github/workflows/ci.yml` has a step `Run scripts/read-ci-verdict.sh --self-test` next to the other script self-test steps, and CI is green with it.
+- Refs: `.github/workflows/ci.yml` (the self-test steps after "Board check"); `scripts/read-ci-verdict.sh`; `scripts/pre-push-check.sh`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure

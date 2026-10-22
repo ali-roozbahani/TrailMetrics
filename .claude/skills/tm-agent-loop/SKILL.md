@@ -12,15 +12,8 @@ conditions and the reading of the CI verdict are the plan's Decisions 5 to 8
 
 ## Preconditions
 
-```bash
-gh api user --jq .login          # must print peter-christofer-bot
-cd ~/agent-workspace/TrailMetrics
-git fetch origin && git switch main && git pull --ff-only
-git status --porcelain           # must be empty
-```
-
-Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
-and report. If the previous run's PR has been merged, do "After-merge cleanup" first.
+Do the start-of-run steps of `tm-pr-workflow`, "Before starting" (login, clean tree, `main`
+pulled, merged branches deleted, `fetch --prune`).
 
 A run whose gate will run the iOS steps needs the git-ignored iOS secrets config (README
 "iOS", step 2) in the clone. The gate checks that it exists and stops at once if it is
@@ -241,16 +234,9 @@ reports to the human, who merges; a refused merge is reported the same way.
 
 ## After-merge cleanup
 
-Right after the agent's own merge, or at the start of the next run (Decision 6):
-
-```bash
-gh pr view <N> --json state      # must be MERGED
-git switch main && git pull --ff-only
-git branch -D <branch>           # squash merges are not "merged" for git
-git fetch --prune
-```
-
-GitHub deletes the remote branch itself ("Automatically delete head branches" is on).
+Right after the agent's own merge, or at the start of the next run (Decision 6): check that
+`gh pr view <N> --json state` prints `MERGED`, then do the steps of `tm-pr-workflow`,
+"Before starting", which delete the merged local branch and prune.
 
 ## Stop and report
 
