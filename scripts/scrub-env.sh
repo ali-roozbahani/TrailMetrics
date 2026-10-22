@@ -11,9 +11,9 @@
 # scrub_secret_env unsets every exported variable whose NAME matches the deny list below
 # (shell `case` patterns, case-sensitive) and prints one line with the number and the names of
 # the removed variables, never a value. Names come from `compgen -e`, which lists names only and
-# is not confused by a value that contains a newline. A matching name that bash cannot unset (a
-# readonly variable, or a name that is not a valid shell identifier, such as `A.TOKEN`, which
-# bash 3.2 imports but cannot unset) is named on stderr and the function returns 1, so a caller
+# is not confused by a value that contains a newline; names that are not valid identifiers, which
+# bash 5 leaves out of `compgen -e`, are read from `env`. A matching name that bash cannot unset (a
+# readonly variable, or a name that is not a valid shell identifier, such as `A.TOKEN`) is named on stderr and the function returns 1, so a caller
 # can stop instead of running with it. Variables that are set but not exported are left alone.
 #
 # The patterns match anywhere they say: `*TOKEN*` also removes a name like `TOKENIZER_OK`, and
@@ -23,13 +23,17 @@
 #
 # bash 3.2 compatible (macOS /bin/bash): no associative arrays, no ${var,,}, no mapfile.
 
+_tm_scrub_matches() {
+    case "$1" in
+        *TOKEN*|*SECRET*|*PASSWORD*|*PASSWD*|*CREDENTIAL*|*API_KEY*|*APIKEY*|*PRIVATE_KEY*|*ACCESS_KEY*|ANTHROPIC_*|CLAUDE*|GH_*|GITHUB_*) return 0 ;;
+    esac
+    return 1
+}
+
 scrub_secret_env() {
-    local _tm_scrub_name _tm_scrub_count=0 _tm_scrub_removed="" _tm_scrub_failed=""
+    local _tm_scrub_name _tm_scrub_line _tm_scrub_count=0 _tm_scrub_removed="" _tm_scrub_failed=""
     while IFS= read -r _tm_scrub_name; do
-        case "$_tm_scrub_name" in
-            *TOKEN*|*SECRET*|*PASSWORD*|*PASSWD*|*CREDENTIAL*|*API_KEY*|*APIKEY*|*PRIVATE_KEY*|*ACCESS_KEY*|ANTHROPIC_*|CLAUDE*|GH_*|GITHUB_*) ;;
-            *) continue ;;
-        esac
+        _tm_scrub_matches "$_tm_scrub_name" || continue
         if unset -v "$_tm_scrub_name" 2>/dev/null; then
             _tm_scrub_count=$((_tm_scrub_count + 1))
             _tm_scrub_removed="$_tm_scrub_removed $_tm_scrub_name"
@@ -38,6 +42,24 @@ scrub_secret_env() {
         fi
     done <<EOF
 $(compgen -e)
+EOF
+    # A name that is not a valid identifier (`A.TOKEN`) is in the environment that children inherit,
+    # but bash 5 does not import it into its own variables, so `compgen -e` does not list it (bash
+    # 3.2 lists it and then cannot unset it). Read those names from `env`; a line without `=` is the
+    # continuation of a value with a newline and is skipped. A line of such a value that looks like
+    # an invalid matching name is reported too, which only errs towards failing.
+    while IFS= read -r _tm_scrub_line; do
+        _tm_scrub_name="${_tm_scrub_line%%=*}"
+        [ "$_tm_scrub_name" = "$_tm_scrub_line" ] && continue
+        case "$_tm_scrub_name" in
+            ''|[0-9]*|*[!A-Za-z0-9_]*) ;;
+            *) continue ;;
+        esac
+        _tm_scrub_matches "$_tm_scrub_name" || continue
+        case " $_tm_scrub_failed " in *" $_tm_scrub_name "*) continue ;; esac
+        _tm_scrub_failed="$_tm_scrub_failed $_tm_scrub_name"
+    done <<EOF
+$(command env)
 EOF
     echo "scrub-env: removed $_tm_scrub_count secret-looking variable(s) from the environment:${_tm_scrub_removed:- none}"
     if [ -n "$_tm_scrub_failed" ]; then
