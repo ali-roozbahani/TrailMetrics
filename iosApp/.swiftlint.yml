@@ -35,6 +35,8 @@ cyclomatic_complexity:
 
 # `tm-ios` ("SKIE interop from Swift"): never drop an error. A `try?` stays only where
 # dropping the error is deliberate, with the reason in a disable comment on the line above.
+# An unknown `excluded_match_kinds` name makes SwiftLint turn this rule off without failing.
+# Self-test: scripts/check-optional-try.sh --self-test
 custom_rules:
   optional_try:
     name: "Optional Try"

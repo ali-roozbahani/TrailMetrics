@@ -370,6 +370,9 @@ jobs:
       - name: Localized strings rules self-test
         run: scripts/check-localized-strings.sh --self-test
 
+      - name: Optional try rule self-test
+        run: scripts/check-optional-try.sh --self-test
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

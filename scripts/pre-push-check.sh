@@ -270,6 +270,12 @@ if [ "$RUN_IOS_STEPS" = true ]; then
         run_step "localized strings rules self-test" scripts/check-localized-strings.sh --self-test
     fi
 
+    # The `optional_try` custom rule against its fixtures, and a check that SwiftLint does not print
+    # "Invalid configuration" for it (it then turns the rule off without failing `--strict`).
+    if command -v swiftlint >/dev/null 2>&1; then
+        run_step "optional_try rule self-test" scripts/check-optional-try.sh --self-test
+    fi
+
     # Same hash-gated script as the Xcode scheme pre-action, so the iOS build and the package
     # tests below never link a stale XCFramework, whichever Xcode scheme is picked up.
     run_step "KMP XCFramework" scripts/build-kmp-framework.sh
