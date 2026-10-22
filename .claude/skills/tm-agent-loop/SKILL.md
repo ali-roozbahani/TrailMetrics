@@ -5,8 +5,8 @@ description: Use for every TrailMetrics run that ends in a PR, a named task or a
 
 # TrailMetrics agent loop
 
-One run takes one task, named or a board record, to a PR. The rules for each step live in other skills; this
-skill gives the order, the decisions between steps and the merge conditions. The merge
+One run takes one task, named or a board record, to a PR. The rules for each step live in other
+skills; this skill gives the order, the decisions between steps and the merge conditions. The merge
 conditions and the reading of the CI verdict are the plan's Decisions 5 to 8
 (`docs/epics/agentic-dev-loop.md`); among the skills they are written down only here.
 
@@ -21,8 +21,8 @@ missing; the agent never reads or creates it, and stops and reports instead.
 
 ## One task per run
 
-A named task skips only section 1: after "Before starting" and the work it goes through sections 3 to 8,
-Auto-merge, After-merge cleanup, Stop and Report exactly as a picked one.
+A named task skips only section 1: after "Before starting" and the work it goes through
+sections 3 to 8, Auto-merge, After-merge cleanup, Stop and Report exactly as a picked one.
 
 A run ends when its PR is merged, or open and reported when a merge condition is "no"
 (section 8, "Auto-merge"). The next task is a new run; the human clears the session between
@@ -45,7 +45,8 @@ scripts/check-board.sh --next
 Follow `tm-pr-workflow` from "Before starting" on: branch prefix and name, commits with
 `git commit -F <file>`, Boundaries, "Docs follow the code you changed", the "Board" rules,
 and the record deleted in its own commit. Load the code skills for the paths you touch.
-Scope is the task (a picked record's Done when) and the same-subject fixes of that sweep, nothing else.
+Scope is the task (a picked record's Done when) and the same-subject fixes of that sweep, nothing
+else.
 
 ## 3. Protected paths
 

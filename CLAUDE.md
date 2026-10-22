@@ -20,7 +20,9 @@ Full module graph and rationale: `docs/architecture/OVERVIEW.md`.
 ## Skills (load the matching one before working)
 
 Load the skill as the first tool call of a task, alone, before any other command (no
-exploration in the same turn; for a task that ends in a PR, load `tm-pr-workflow` and `tm-agent-loop` together there), and do `tm-pr-workflow`'s "Before starting" steps before the first edit.
+exploration in the same turn; for a task that ends in a PR, load `tm-pr-workflow` and
+`tm-agent-loop` together there), and do `tm-pr-workflow`'s "Before starting" steps before the first
+edit.
 
 - `tm-kmp-shared`       anything in domain / data / core / shared, or a change that crosses platforms
 - `tm-android`          anything under androidApp/
@@ -28,7 +30,8 @@ exploration in the same turn; for a task that ends in a PR, load `tm-pr-workflow
 - `tm-testing`          writing or changing tests on any platform
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
-- `tm-agent-loop`       every task that ends in a PR, named or picked from the board ("take the next task"); with `tm-pr-workflow`
+- `tm-agent-loop`       every task that ends in a PR, named or picked from the board ("take the next
+                        task"); with `tm-pr-workflow`
 
 Open epics, tasks and drift live in `BOARD.md`; how to add and remove records: `tm-pr-workflow` → "Board".
 
