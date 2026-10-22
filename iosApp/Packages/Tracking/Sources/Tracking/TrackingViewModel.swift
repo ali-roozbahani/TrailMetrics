@@ -39,6 +39,8 @@ public class TrackingViewModel: ObservableObject {
     private let clock: Clock
 
     private var loadedUserProfile: UserProfile?
+    /// True while the load started in `init` runs; a Finish in that time does nothing.
+    private var isLoadingUserProfile = false
     private var startedAtEpochMillis: Int64 = 0
     /// Set before a save starts, so a repeated Finish neither saves twice nor calls `onSaved`
     /// twice; cleared when the save fails (retry) and when a new session starts.
@@ -143,11 +145,14 @@ public class TrackingViewModel: ObservableObject {
     }
 
     private func loadUserProfile() {
+        isLoadingUserProfile = true
         Task {
+            defer { isLoadingUserProfile = false }
             do {
                 loadedUserProfile = try await userProfileRepository.getUserProfile()
                 recomputeCalories()
             } catch {
+                // Without a profile there are no calories; Finish reads the profile again.
                 emit(.showError(RouteUiErrorGeneral.shared))
             }
         }
@@ -263,11 +268,24 @@ public class TrackingViewModel: ObservableObject {
     public func onFinishClicked(snapshotFilePath: String?, onSaved: @escaping () -> Void) {
         guard !isSessionSaved else { return }
         guard case .finished(let data) = onEnum(of: trackingState) else { return }
-        guard let userProfile = loadedUserProfile else { return }
+        let knownUserProfile = loadedUserProfile
+        guard knownUserProfile != nil || !isLoadingUserProfile else { return }
 
         isSessionSaved = true
         Task {
             do {
+                let userProfile: UserProfile?
+                if let knownUserProfile {
+                    userProfile = knownUserProfile
+                } else {
+                    userProfile = try await readUserProfileAgain()
+                }
+                guard let userProfile else {
+                    // Nothing is saved or discarded; the user can tap Finish again.
+                    isSessionSaved = false
+                    emit(.showError(RouteUiErrorGeneral.shared))
+                    return
+                }
                 _ = try await saveActivityUseCase.invoke(
                     activityType: activityType,
                     plannedRoutePoints: plannedRoutePoints,
@@ -282,6 +300,13 @@ public class TrackingViewModel: ObservableObject {
                 emit(.showError(RouteUiErrorGeneral.shared))
             }
         }
+    }
+
+    private func readUserProfileAgain() async throws -> UserProfile? {
+        let userProfile = try await userProfileRepository.getUserProfile()
+        loadedUserProfile = userProfile
+        recomputeCalories()
+        return userProfile
     }
 
     // MARK: - Live Activity

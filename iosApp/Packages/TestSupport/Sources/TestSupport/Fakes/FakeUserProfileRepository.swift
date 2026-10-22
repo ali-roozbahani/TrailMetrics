@@ -40,6 +40,11 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
         lock.withLock { isFailingStorage = isFailing }
     }
 
+    /// Replaces the stored profile that later `getUserProfile` calls return.
+    public func setProfile(_ profile: UserProfile?) {
+        lock.withLock { storedProfile = profile }
+    }
+
     /// Makes every later `getUserProfile` call wait (already counted) until `releaseReads()`.
     public func holdReads() {
         lock.withLock { isHoldingReads = true }

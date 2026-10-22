@@ -295,8 +295,8 @@ final class TrackingViewModelTests: TrackingTestCase {
 
     // MARK: - Profile load
 
-    // The profile is loaded only once, from init, so there is no later successful load to
-    // assert; without a profile, calories stay nil and Finish saves nothing (see above).
+    // Without a profile, calories stay nil; Finish reads the profile again (see
+    // TrackingViewModelFinishTests).
     func test_init_profileLoadFails_emitsGeneralErrorAndLeavesProfileUnset() async {
         let subject = makeSubject(
             updates: TrackingFixtures.movingUpdates,
