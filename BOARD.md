@@ -264,6 +264,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `.github/workflows/ci.yml` runs `scripts/claude-hooks/block-git-push.sh --self-test` as a step next to the other self-test steps, pushed by the human.
 - Refs: `.github/workflows/ci.yml` (self-test steps); `scripts/claude-hooks/block-git-push.sh`; `scripts/pre-push-check.sh`.
 
+### skill-folder-front-matter-detection
+- Type: task
+- Area: scripts
+- Order: 231
+- Source: PR for pr-review-item-3-reference-skill-files
+- Problem: A change to the YAML front matter of a `SKILL.md` or reference file in the four ownerless skill folders (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) is escalated by `tm-pr-review` item 3 only because the reviewer reads the diff. No script detects it, so a missed read lets front matter (which can carry settings) change without a human.
+- Done when: a script under `scripts/` with a self-test (in the gate and CI) reports a diff that changes the front matter of a Markdown file in those folders, and item 3 of `tm-pr-review` points to its output instead of asking the reviewer to read for it. Both are protected paths: a human PR.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`); `scripts/check-skill-rule-changes.py`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -275,11 +284,11 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
 - Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
 
-### pr-review-item-3-reference-skill-files
+### ownerless-folders-markdown-only-comments
 - Type: drift
 - Area: .claude
-- Order: 231
-- Source: PR for tm-testing-reference-files-unowned
-- Problem: `.claude/skills/tm-pr-review/SKILL.md`, checklist item 3, still describes file-level ownerless lines ("allowed for the four reference skill files") and makes a diff that "adds a file under `.claude/skills/` next to a reference skill's `SKILL.md`" an `ESCALATE_TO_HUMAN`. CODEOWNERS now leaves the four reference skill folders ownerless as a whole, so a file added in one of them is unprotected and the escalation clause contradicts it. `CLAUDE.md` does not name the four skills and needs no change.
-- Done when: item 3 says the ownerless lines are the four reference skill folders and drops (or narrows to a file outside those folders) the "adds a file next to a reference `SKILL.md`" escalation, in a protected-path PR by the human.
-- Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `.github/CODEOWNERS`; `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`).
+- Order: 232
+- Source: PR for pr-review-item-3-reference-skill-files
+- Problem: `scripts/check-protected-paths.py` now protects a file in the four ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the four ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
+- Done when: both say that Markdown files in those folders are open and any other file is protected, in a PR that may touch the protected paths.
+- Refs: `.github/CODEOWNERS` (reference skills comment); `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `scripts/check-protected-paths.py` (`protecting_pattern`).

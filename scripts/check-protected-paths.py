@@ -34,7 +34,9 @@ Every owner must be @ali-roozbahani. As on GitHub, the last matching line decide
 protected when its last matching line has an owner, and the line reported for it is that line's
 pattern. A line with no owner makes the files it matches not owned, so they are unprotected
 when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
-skill folders) may be ownerless; any other ownerless line is an error in classification too (exit
+skill folders) may be ownerless, and only for Markdown: a file there whose name does not end in
+`.md` is protected anyway and reported with the folder's pattern (the rule is in the script, not
+in CODEOWNERS, which has no negation); any other ownerless line is an error in classification too (exit
 2), so one stray line can't unprotect a directory. --validate also rejects an ownerless line
 that a later line matches as well (the later line overrides it, so it has no effect), and a
 pattern that matches no tracked file, unless it is in NOT_YET_TRACKED_PATTERNS (patterns that
@@ -72,6 +74,8 @@ NOT_YET_TRACKED_PATTERNS = (
     "*.gradle",         # Groovy build scripts, run by Gradle
     "/buildSrc/",       # built and put on the build classpath by Gradle
 )
+# Only Markdown is open in an ownerless folder; the match is on the file name, case-sensitive.
+MARKDOWN_SUFFIX = ".md"
 DEFAULT_BASE = "origin/main"
 USAGE = ("usage: check-protected-paths.sh [--base <ref> | --files <path>... | --validate | "
          "--self-test] [--root <dir>]")
@@ -171,13 +175,26 @@ def matching_rule(rules, path):
     return match
 
 
+def protecting_pattern(rules, path):
+    """Returns the pattern that protects the path, or None. A file whose last matching line is an
+    ownerless reference skill folder is unprotected only when it is Markdown: anything else there
+    (a script, a binary, a settings file) is executable surface, so the folder's pattern is
+    reported for it."""
+    rule = matching_rule(rules, path)
+    if rule is None:
+        return None
+    if rule.owners or (rule.pattern in UNOWNED_PATTERNS and not path.endswith(MARKDOWN_SUFFIX)):
+        return rule.pattern
+    return None
+
+
 def classify(rules, files):
     """Returns the output lines for a list of repo-relative paths."""
     hits = []
     for path in files:
-        rule = matching_rule(rules, path)
-        if rule is not None and rule.owners:
-            hits.append(f"{path}  ({rule.pattern})")
+        pattern = protecting_pattern(rules, path)
+        if pattern is not None:
+            hits.append(f"{path}  ({pattern})")
     return ["protected" if hits else "unprotected"] + hits
 
 
@@ -325,6 +342,10 @@ REF_SKILLS = [pattern.lstrip("/") + "SKILL.md" for pattern in UNOWNED_PATTERNS]
 # A reference file beside SKILL.md and one a level down, in each of the four folders.
 REF_FILES = [pattern.lstrip("/") + name for pattern in UNOWNED_PATTERNS
              for name in ("reference.md", "references/deep.md")]
+# A script one level down in two folders, a binary and a settings file in the others.
+REF_NON_MARKDOWN = [pattern.lstrip("/") + name for pattern, name in
+                    zip(UNOWNED_PATTERNS * 2, ("run.sh", "scripts/x.py", "icon.png", "settings.json",
+                                               "hooks/pre.sh", "x.json", "a.kts", "b.yaml"))]
 OTHER_CLAUDE = [".claude/skills/tm-pr-review/SKILL.md", ".claude/skills/tm-pr-workflow/SKILL.md",
                 ".claude/skills/tm-agent-loop/SKILL.md",
                 ".claude/skills/epic-orchestration/SKILL.md", ".claude/settings.json",
@@ -386,8 +407,20 @@ E2E_CASES = [
     # Ownerless lines: the four reference skill files only, after the line they override.
     ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
      "unprotected\n", []),
-    ("ownerless: every file in the four folders, one level down too, is unprotected",
+    ("ownerless: every Markdown file in the four folders, one level down too, is unprotected",
      REF_CODEOWNERS, ["--files"] + REF_FILES, 0, "unprotected\n", []),
+    ("ownerless: a file that is not Markdown in the four folders is protected",
+     REF_CODEOWNERS, ["--files"] + REF_NON_MARKDOWN, 0,
+     "protected\n" + "".join(f"{f}  ({pattern})\n"
+                             for pattern, f in zip(UNOWNED_PATTERNS * 2, REF_NON_MARKDOWN)), []),
+    ("ownerless: a Markdown file next to a script is unprotected, the script is not",
+     REF_CODEOWNERS, ["--files", REF_FILES[0], REF_NON_MARKDOWN[0]], 0,
+     f"protected\n{REF_NON_MARKDOWN[0]}  ({UNOWNED_PATTERNS[0]})\n", []),
+    ("ownerless: .MD, .md.sh and a name without a suffix are not Markdown",
+     REF_CODEOWNERS, ["--files", ".claude/skills/tm-ios/A.MD", ".claude/skills/tm-ios/a.md.sh",
+                      ".claude/skills/tm-ios/README"], 0,
+     "protected\n" + "".join(f".claude/skills/tm-ios/{n}  ({UNOWNED_PATTERNS[0]})\n"
+                             for n in ("A.MD", "a.md.sh", "README")), []),
     ("ownerless: a CLAUDE.md or .gitignore inside a reference folder stays protected",
      REF_CODEOWNERS + "CLAUDE.md @ali-roozbahani\n.gitignore @ali-roozbahani\n",
      ["--files", ".claude/skills/tm-ios/CLAUDE.md", ".claude/skills/tm-testing/a/.gitignore"], 0,
@@ -515,6 +548,11 @@ REAL_PATH_CASES = [
     (".claude/skills/tm-ios/extra.md", None),
     (".claude/skills/tm-android/extra.md", None),
     (".claude/skills/tm-kmp-shared/extra.md", None),
+    # Anything that is not Markdown in these folders stays protected (executable surface)
+    (".claude/skills/tm-ios/run.sh", "/.claude/skills/tm-ios/"),
+    (".claude/skills/tm-android/scripts/x.py", "/.claude/skills/tm-android/"),
+    (".claude/skills/tm-kmp-shared/icon.png", "/.claude/skills/tm-kmp-shared/"),
+    (".claude/skills/tm-testing/settings.json", "/.claude/skills/tm-testing/"),
     ("androidApp/feature-route/src/main/kotlin/x.kt", None),
     ("domain/src/commonMain/kotlin/x.kt", None),
     (PERSISTENCE + "mapper/x.kt", None),
@@ -551,8 +589,7 @@ def real_path_problems(script_dir):
     lines = [f"    FAIL {problem}" for problem in problems]
     failed = 0
     for file, expected in REAL_PATH_CASES:
-        rule = matching_rule(rules, file)
-        actual = rule.pattern if rule is not None and rule.owners else None
+        actual = protecting_pattern(rules, file)
         ok = actual == expected and not problems
         failed += not ok
         want = f"protected ({expected})" if expected else "unprotected"
