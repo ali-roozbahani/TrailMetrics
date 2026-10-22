@@ -17,6 +17,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,16 +54,14 @@ class TrackingViewModel(
 
     private val _events = Channel<TrackingEvent>(Channel.BUFFERED)
 
-    init {
-        viewModelScope.launch {
-            try {
-                _userProfile.value = userProfileRepository.getUserProfile()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // Without a profile there are no calories, and Finish saves nothing.
-                _events.send(TrackingEvent.ShowError(RouteUiError.General))
-            }
+    private val initialProfileLoad: Job = viewModelScope.launch {
+        try {
+            _userProfile.value = userProfileRepository.getUserProfile()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Without a profile there are no calories; Finish reads the profile again.
+            _events.send(TrackingEvent.ShowError(RouteUiError.General))
         }
     }
 
@@ -148,15 +147,24 @@ class TrackingViewModel(
     private fun finish(snapshotFilePath: String?) {
         if (isSessionSaved) return
         val finishedState = trackingSessionManager.currentState.value as? TrackingState.Finished ?: return
-        val weightKg = _userProfile.value?.weightKg ?: return
+        val loadedProfile = _userProfile.value
+        // The first load is still running: Finish does nothing, as before, and a later tap works.
+        if (loadedProfile == null && initialProfileLoad.isActive) return
         isSessionSaved = true
         viewModelScope.launch {
             try {
+                val userProfile = loadedProfile ?: readProfileAgain()
+                if (userProfile == null) {
+                    // Nothing is saved or discarded; the user can tap Finish again.
+                    isSessionSaved = false
+                    _events.send(TrackingEvent.ShowError(RouteUiError.General))
+                    return@launch
+                }
                 saveActivityUseCase(
                     activityType = activityType,
                     plannedRoutePoints = plannedRoutePoints,
                     metrics = finishedState.metrics,
-                    weightKg = weightKg,
+                    weightKg = userProfile.weightKg,
                     startedAtEpochMillis = startedAtEpochMillis,
                     snapshotFilePath = snapshotFilePath
                 )
@@ -171,6 +179,9 @@ class TrackingViewModel(
             _events.send(TrackingEvent.Saved)
         }
     }
+
+    private suspend fun readProfileAgain(): UserProfile? =
+        userProfileRepository.getUserProfile().also { _userProfile.value = it }
 }
 
 /** Named to avoid colliding with the domain [TrackingState] it wraps. */

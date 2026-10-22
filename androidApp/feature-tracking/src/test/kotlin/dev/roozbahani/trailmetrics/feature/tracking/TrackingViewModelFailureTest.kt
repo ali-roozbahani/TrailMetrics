@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
@@ -16,6 +17,7 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -30,6 +32,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 /**
@@ -142,6 +145,90 @@ class TrackingViewModelFailureTest {
 
             assertEquals(listOf(TrackingEvent.ShowError(RouteUiError.General), TrackingEvent.Saved), events)
             assertEquals(1, activityHistoryRepository.savedActivities.size)
+        }
+
+    @Test
+    fun `a Finish without a loaded profile reads it again and saves once it is readable`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+            startAndStop(viewModel)
+            val events = collectEvents(viewModel)
+            userProfileRepository.userProfile = PROFILE
+
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+            assertEquals(2, userProfileRepository.getUserProfileCalls)
+        }
+
+    @Test
+    fun `a Finish whose profile is still missing emits a general ShowError and keeps the session`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+            startAndStop(viewModel)
+            val events = collectEvents(viewModel)
+
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowError(RouteUiError.General)), events)
+            assertEquals(emptyList(), activityHistoryRepository.savedActivities)
+            assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
+
+            userProfileRepository.userProfile = PROFILE
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf(TrackingEvent.ShowError(RouteUiError.General), TrackingEvent.Saved), events)
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+        }
+
+    @Test
+    fun `a Finish whose profile read fails emits a general ShowError and can be retried`() =
+        runTest(testScheduler) {
+            userProfileRepository.userProfile = PROFILE
+            userProfileRepository.getUserProfileFailure = IllegalStateException("database locked")
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            startAndStop(viewModel)
+
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            // One error for the failed load at init, one for the failed read on Finish.
+            assertEquals(List(2) { TrackingEvent.ShowError(RouteUiError.General) }, events)
+            assertEquals(emptyList(), activityHistoryRepository.savedActivities)
+            assertEquals(2, userProfileRepository.getUserProfileCalls)
+
+            userProfileRepository.getUserProfileFailure = null
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(TrackingEvent.Saved, events.last())
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+        }
+
+    @Test
+    fun `Finish tapped twice while the profile is read again reads and saves once`() =
+        runTest(testScheduler) {
+            val viewModel = createViewModel()
+            startAndStop(viewModel)
+            val events = collectEvents(viewModel)
+            userProfileRepository.userProfile = PROFILE
+            val profileGate = CompletableDeferred<Unit>()
+            userProfileRepository.getUserProfileGate = profileGate
+
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+            profileGate.complete(Unit)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+            assertEquals(2, userProfileRepository.getUserProfileCalls)
         }
 
     private companion object {

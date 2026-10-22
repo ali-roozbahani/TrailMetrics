@@ -29,7 +29,8 @@ class TrackingTestCase: XCTestCase {
         updates: [any LocationUpdate] = [],
         profile: UserProfile? = nil,
         activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository(),
-        isProfileStorageFailing: Bool = false
+        isProfileStorageFailing: Bool = false,
+        userProfileRepository: FakeUserProfileRepository? = nil
     ) -> TrackingSubject {
         let scope = SwiftTestScope()
         scopes.append(scope)
@@ -39,7 +40,8 @@ class TrackingTestCase: XCTestCase {
             profile: profile,
             activityHistoryRepository: activityHistoryRepository,
             clockMillis: Self.startedAtMillis,
-            isProfileStorageFailing: isProfileStorageFailing
+            isProfileStorageFailing: isProfileStorageFailing,
+            userProfileRepository: userProfileRepository
         )
     }
 
