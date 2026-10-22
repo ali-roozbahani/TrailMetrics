@@ -1,0 +1,13 @@
+{
+  "total_count": 2,
+  "check_runs": [
+    {
+      "id": 9001,
+      "name": "Review — pr-reviewer",
+      "head_sha": "2222222222222222222222222222222222222222",
+      "status": "completed",
+      "conclusion": "success",
+      "details_url": "https://github.com/o/r/actions/runs/777/job/1"
+    }
+  ]
+}

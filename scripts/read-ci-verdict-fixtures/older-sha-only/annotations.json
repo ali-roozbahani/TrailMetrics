@@ -1,0 +1,14 @@
+[
+  {
+    "path": ".github",
+    "start_line": 1,
+    "end_line": 1,
+    "start_column": null,
+    "end_column": null,
+    "annotation_level": "notice",
+    "title": "Review — pr-reviewer",
+    "message": "APPROVE. old",
+    "raw_details": null,
+    "blob_href": "https://github.com/o/r/blob/2222222222222222222222222222222222222222/.github"
+  }
+]
