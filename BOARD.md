@@ -255,6 +255,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
 - Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`, `formatElapsed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
 
+### tm-testing-reference-files-unowned
+- Type: task
+- Area: .github, scripts
+- Order: 228
+- Source: PR for tm-testing-reference-files
+- Problem: The reference files next to `.claude/skills/tm-testing/SKILL.md` (`compose-ui-tests.md`, `xcuitest.md`, `room-migration-tests.md`) are protected: `.github/CODEOWNERS` leaves only the four `SKILL.md` files ownerless, so every other file under `.claude/` falls under `/.claude/`, and `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`, and its self-test case that `.claude/skills/tm-ios/extra.md` is protected) allows no other ownerless line. An agent can edit `SKILL.md` alone, and a PR that changes a reference file needs the human's merge.
+- Done when: the human decides whether the reference files stay protected (then this record is removed with that decision) or become ownerless: then a CODEOWNERS line per file (or a rule for reference files), the matching entry in `UNOWNED_PATTERNS` and the self-test cases of `check-protected-paths.py` are changed in a protected-path PR by the human.
+- Refs: `.github/CODEOWNERS`; `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`, self-tests); `.claude/skills/tm-testing/`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
