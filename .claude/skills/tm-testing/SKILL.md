@@ -33,6 +33,12 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   Build the real repository on `HttpClient(MockEngine { respond(...) })` with the same
   `ContentNegotiation`/`Json` setup as `networkModule` and JSON shaped like the DTO (see
   `DirectionsRepositoryImplTest`). Don't fake `HttpClient` or the repository.
+- The Koin graph that `initKoin` builds is tested in `shared` (`KoinGraphAndroidTest` on the
+  Android host, `KoinGraphIosTest` on the simulator, helper `checkKoinGraph` in commonTest): the real
+  modules, every definition resolved, only the platform pieces that need a `Context` or a device
+  overridden by fakes. A new binding is covered by it; a new binding that needs a `Context` or a
+  device needs its fake in that test too. `koin-test`'s `checkModules` is deprecated and `verify` is
+  JVM-only reflection, so neither is used.
 
 No JUnit5 anywhere in this project (evaluated and rejected, see `docs/architecture`). No
 AssertK. No Truth (removed from `data`, its only user; no `com.google.truth` import remains).
@@ -273,8 +279,8 @@ row) and see the case fail on both platforms on the row assertion, then restore.
 
 ## What to test, and coverage priorities (current state: measured, uneven)
 
-The merged Kover report (see `tm-pr-workflow`, Tier 1) is the current measure; `core`, `shared`,
-`androidApp/app` and `androidApp/core-ui` have no tests of their own. `domain`, `data` and the
+The merged Kover report (see `tm-pr-workflow`, Tier 1) is the current measure; `core`,
+`androidApp/app` and `androidApp/core-ui` have no tests of their own. `domain`, `data`, `shared` and the
 feature modules have a `koverVerify` minimum, so adding untested code there can fail the gate.
 When asked to raise coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
