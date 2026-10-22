@@ -65,6 +65,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
+### android-ui-test-launch-seam
+- Type: task
+- Area: androidApp
+- Order: 90
+- Source: PR #210 and chat 2026-10-23
+- Problem: Android has no launch-time seam (fakes for location, directions and storage injectable when the app starts, as iOS has with `UITEST_SEAM`) and no app-level UI-test target; its UI tests are Robolectric tests per screen, so a flow across screens with the app's real navigation and Koin graph is not covered by any test. Recorded because the deleted `agentic-dev-loop` epic's Done when (1) was read as Robolectric tests only; it is a different subject from the PR that found it.
+- Done when: such a seam and a UI-test target exist on Android, and at least one flow across two screens runs in CI and fails when a binding or a navigation is broken (shown on a deliberately broken version). The design (instrumented test or Robolectric with the real graph) is stated in the PR and fits the `shared` Koin graph tests of #207.
+- Refs: `docs/epics/agentic-dev-loop.md` (Done when item 1, deleted record); `docs/epics/ios-ui-tests.md`; `.claude/skills/tm-testing`; `shared-uitest`.
+
 ### release-build-links-debug-xcframework
 - Type: task
 - Area: iosApp, shared
