@@ -100,40 +100,28 @@ is read from its annotation (Decision 8). The check run `Review — pr-reviewer`
 SHA carries exactly one annotation whose title is `Review — pr-reviewer` (other annotations,
 such as runner notices, have other titles).
 
-`scripts/read-ci-verdict.sh <PR number> <head SHA>` is the same logic as the block below (it prints only the verdict line, or `UNKNOWN <reason>`); the block stays the reference until the script has been used on 5 PRs.
-
 ```bash
-N=<PR number>
-SHA="$(gh pr view "$N" --json headRefOid --jq .headRefOid)"
-D="$(mktemp -d)"
-gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?check_name=Review%20%E2%80%94%20pr-reviewer&filter=latest" > "$D/runs.json"
-RUN_ID="$(jq -r --arg sha "$SHA" '[.check_runs[] | select(.name == "Review — pr-reviewer" and .head_sha == $sha)] | if length == 1 then .[0].id else empty end' "$D/runs.json")"
-if [ -n "$RUN_ID" ]; then
-  gh api "repos/{owner}/{repo}/check-runs/$RUN_ID/annotations?per_page=100" > "$D/annotations.json"
-else
-  echo '[]' > "$D/annotations.json"
-fi
-jq -n -r --arg sha "$SHA" --slurpfile runs "$D/runs.json" --slurpfile ann "$D/annotations.json" '
-  ($runs[0].check_runs | map(select(.name == "Review — pr-reviewer" and .head_sha == $sha))) as $r
-  | if ($r | length) != 1 then "NOT_APPROVE: \($r | length) check runs for \($sha)"
-    elif $r[0].status != "completed" then "NOT_APPROVE: check run is \($r[0].status)"
-    else ($ann[0] | map(select(.title == "Review — pr-reviewer"))) as $a
-    | if ($a | length) != 1 then "NOT_APPROVE: \($a | length) annotations with that title"
-      elif ($a[0].blob_href | tostring | contains("/blob/\($sha)/") | not) then "NOT_APPROVE: annotation is not for \($sha)"
-      elif $a[0].annotation_level == "notice" and ($a[0].message | startswith("APPROVE.")) then "APPROVE"
-      elif $a[0].annotation_level == "warning" and ($a[0].message | startswith("ESCALATE_TO_HUMAN:")) then "ESCALATE_TO_HUMAN"
-      elif $a[0].annotation_level == "failure" and ($a[0].message | startswith("CHANGES:")) then "CHANGES"
-      else "NOT_APPROVE: level \($a[0].annotation_level) and message \($a[0].message | .[0:30]) disagree"
-      end
-    end'
-jq '.[] | select(.title == "Review — pr-reviewer") | {annotation_level, title, message}' "$D/annotations.json"
+SHA="$(gh pr view <PR number> --json headRefOid --jq .headRefOid)"
+scripts/read-ci-verdict.sh <PR number> "$SHA"
 ```
 
-The mapping: level `notice` with a message starting `APPROVE.` = `APPROVE`; `warning` with
-a message starting `ESCALATE_TO_HUMAN:` = `ESCALATE_TO_HUMAN`; `failure` with a message
-starting `CHANGES:` = `CHANGES`. Anything else is **not** `APPROVE`: no annotation with that
-title, more than one, a level and message that disagree, a check run that is not completed,
-or an annotation from a different SHA. Fail closed: only the exact output `APPROVE` counts.
+It prints one line and exits 0 only for the first three:
+
+- `APPROVE`: level `notice`, message starting `APPROVE.`
+- `ESCALATE_TO_HUMAN`: level `warning`, message starting `ESCALATE_TO_HUMAN:`
+- `CHANGES`: level `failure`, message starting `CHANGES:`
+- `UNKNOWN <reason>`: anything else (exit 1): no or several check runs or annotations with
+  that title, a level and message that disagree, a check run that is not completed, an
+  annotation from a different SHA, a PR head that is no longer `$SHA`, a failed `gh` call.
+
+Fail closed: only the exact line `APPROVE` counts as an approval. `ESCALATE_TO_HUMAN`,
+`CHANGES` and `UNKNOWN <reason>` are not an approval.
+
+What the script does not check, on purpose:
+
+- It never reads the check run's conclusion, only its status and the annotation.
+- It reads only the first page of check runs for the SHA.
+- A null annotation message is `UNKNOWN`, not an approval.
 
 ### Reading the report after `CHANGES` or blocking findings
 
@@ -144,6 +132,8 @@ blocking findings under `ESCALATE_TO_HUMAN`, download it for the head SHA into a
 temp dir outside the repo:
 
 ```bash
+D="$(mktemp -d)"
+gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?check_name=Review%20%E2%80%94%20pr-reviewer&filter=latest" > "$D/runs.json"
 RUN="$(jq -r --arg sha "$SHA" '[.check_runs[] | select(.name == "Review — pr-reviewer" and .head_sha == $sha)] | if length == 1 then .[0].details_url else empty end' "$D/runs.json" | sed -n 's#.*/actions/runs/\([0-9][0-9]*\)/.*#\1#p')"
 R="$(mktemp -d)"
 gh run download "$RUN" -n pr-review-report -D "$R"
