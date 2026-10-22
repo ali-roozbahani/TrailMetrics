@@ -1,0 +1,4 @@
+exit: 0
+contains: notice: docs/epics/plan.md:1: board `gone-drift` is not a record in BOARD.md
+contains: check-board: OK, 4 records
+absent: FAILED

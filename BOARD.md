@@ -255,7 +255,25 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `.github/workflows/ci.yml` has a step `Run scripts/read-ci-verdict.sh --self-test` next to the other script self-test steps, and CI is green with it.
 - Refs: `.github/workflows/ci.yml` (the self-test steps after "Board check"); `scripts/read-ci-verdict.sh`; `scripts/pre-push-check.sh`.
 
+### wire-check-board-self-test
+- Type: task
+- Area: scripts, .github
+- Order: 231
+- Source: PR for chore/board-slug-check-skips-historical-plans
+- Problem: `scripts/check-board.sh --self-test` (the fixtures in `scripts/check-board-fixtures/`) runs nowhere automatically: `scripts/pre-push-check.sh` and `.github/workflows/ci.yml` run only the plain `scripts/check-board.sh`, while most other `scripts/check-*.sh` scripts have a self-test step in both. A fixture that stops matching the script goes unnoticed. The token the agent pushes with has no `workflow` scope, so only the human can push the CI part.
+- Done when: the gate runs `scripts/check-board.sh --self-test` as a step next to the other script self-tests, and `.github/workflows/ci.yml` has the matching step, with CI green.
+- Refs: `scripts/pre-push-check.sh` (the self-test steps); `.github/workflows/ci.yml` (the steps after "Board check"); `scripts/check-board.sh`; `ci-wire-read-ci-verdict-self-test`.
+
 ## Drift
+
+### pr-review-board-item-last-commit
+- Type: drift
+- Area: .claude
+- Order: 229
+- Source: PR for chore/board-slug-check-skips-historical-plans
+- Problem: `tm-pr-review` checklist item 8 (Board bookkeeping) says a record the task started from "is deleted in the last commit (`chore(board): remove <slug>`)". `tm-pr-workflow` Board rule 2 now only requires the deletion to be its own commit, so a reviewer can flag a PR that follows the rule. `tm-pr-review/SKILL.md` is a protected path and was not in the authorization for that task.
+- Done when: item 8 says "deleted in its own commit", in a PR that may touch the protected path.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` (checklist item 8); `.claude/skills/tm-pr-workflow/SKILL.md` ("Board" rule 2).
 
 ### data-kover-comment-stale-figure
 - Type: drift

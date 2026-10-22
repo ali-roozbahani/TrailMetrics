@@ -41,7 +41,7 @@ scripts/check-board.sh --next
 
 Follow `tm-pr-workflow` from "Before starting" on: branch prefix and name, commits with
 `git commit -F <file>`, Boundaries, "Docs follow the code you changed", the "Board" rules,
-and the record deleted in the last commit. Load the code skills for the paths you touch.
+and the record deleted in its own commit. Load the code skills for the paths you touch.
 Scope is the record's Done when and nothing else.
 
 ## 3. Protected paths
