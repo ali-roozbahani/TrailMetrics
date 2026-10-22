@@ -69,6 +69,7 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/scrub-env.sh                       @ali-roozbahani
 /scripts/filter-xcode-log.sh                @ali-roozbahani
 /scripts/skill-changes-digest.sh            @ali-roozbahani
+/scripts/skill-changes-digest-fixtures/     @ali-roozbahani
 /scripts/read-ci-verdict.sh                 @ali-roozbahani
 /scripts/read-ci-verdict-fixtures/          @ali-roozbahani
 
