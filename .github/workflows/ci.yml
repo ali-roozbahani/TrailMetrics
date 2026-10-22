@@ -79,6 +79,9 @@ jobs:
       - name: Xcode log filter self-test
         run: scripts/filter-xcode-log.sh --self-test
 
+      - name: Push hook self-test
+        run: scripts/claude-hooks/block-git-push.sh --self-test
+
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
       # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
