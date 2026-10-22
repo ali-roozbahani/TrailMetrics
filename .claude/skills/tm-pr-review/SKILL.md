@@ -66,12 +66,13 @@ from memory.
    `tm-ios`, `tm-android`, `tm-kmp-shared` and `tm-testing`): a file whose last matching line
    has no owner is not protected. For those lines the classifier's output is authoritative,
    and a disagreement between it and your own reading still means `ESCALATE_TO_HUMAN`.
-   A new or changed Markdown file in those folders is judged like any other diff. A diff that
-   changes the YAML front matter (the block between the first two `---` lines) of a `SKILL.md`
-   or reference file there, or that adds or changes a file there that is not Markdown (a script,
-   a binary, a settings or hook file), is `ESCALATE_TO_HUMAN` with the reason `protected path` and
-   a note that says which of the two it is: a skill folder is executable surface, and item 10
-   does not look at front matter.
+   A new or changed Markdown file in those folders is judged like any other diff. The classifier
+   reports a file there whose name does not end in `.md` (a script, a binary, a settings or hook
+   file) as protected, so that case is `ESCALATE_TO_HUMAN` through its output. The classifier does
+   not read content: you read the diff, and one that changes the YAML front matter (the block
+   between the first two `---` lines) of a `SKILL.md` or reference file there is
+   `ESCALATE_TO_HUMAN` with the reason `protected path` and a note saying it is a front-matter
+   change: front matter can carry settings, and item 10 does not look at it.
 4. **Bugfix: red test first** (`tm-testing`, "Bugfixes: red test first"). A bugfix task
    (`bugfix/` branch, `fix` type, or a task that describes a defect) needs a test that
    reproduces the defect in the diff, in a commit before or the same as the fix (see
