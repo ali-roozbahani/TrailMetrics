@@ -106,6 +106,8 @@ is read from its annotation (Decision 8). The check run `Review — pr-reviewer`
 SHA carries exactly one annotation whose title is `Review — pr-reviewer` (other annotations,
 such as runner notices, have other titles).
 
+`scripts/read-ci-verdict.sh <PR number> <head SHA>` is the same logic as the block below (it prints only the verdict line, or `UNKNOWN <reason>`); the block stays the reference until the script has been used on 5 PRs.
+
 ```bash
 N=<PR number>
 SHA="$(gh pr view "$N" --json headRefOid --jq .headRefOid)"
