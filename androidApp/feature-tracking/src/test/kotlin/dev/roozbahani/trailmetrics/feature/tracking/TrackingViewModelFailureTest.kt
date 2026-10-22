@@ -9,6 +9,7 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
@@ -203,6 +204,31 @@ class TrackingViewModelFailureTest {
             assertEquals(2, userProfileRepository.getUserProfileCalls)
 
             userProfileRepository.getUserProfileFailure = null
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(TrackingEvent.Saved, events.last())
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+        }
+
+    @Test
+    fun `an unreadable stored profile is a failed profile read, at init and on Finish`() =
+        runTest(testScheduler) {
+            userProfileRepository.getUserProfileFailure = StoredUserProfileUnreadableException(cause = null)
+            val viewModel = createViewModel()
+            val events = collectEvents(viewModel)
+            startAndStop(viewModel)
+
+            viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
+            testScheduler.runCurrent()
+
+            assertEquals(List(2) { TrackingEvent.ShowError(RouteUiError.General) }, events)
+            assertNull(viewModel.state.value.calories)
+            assertEquals(emptyList(), activityHistoryRepository.savedActivities)
+            assertEquals(2, userProfileRepository.getUserProfileCalls)
+
+            // The user saves a new profile elsewhere; the broken value is gone and Finish works.
+            userProfileRepository.saveUserProfile(PROFILE)
             viewModel.onAction(TrackingAction.Finish(SNAPSHOT_PATH))
             testScheduler.runCurrent()
 

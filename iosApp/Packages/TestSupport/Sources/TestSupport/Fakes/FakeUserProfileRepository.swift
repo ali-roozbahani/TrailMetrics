@@ -16,6 +16,7 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
     private var recordedSavedProfiles: [UserProfile] = []
     private var recordedGetCallCount = 0
     private var isFailingStorage: Bool
+    private var isStoredProfileUnreadable = false
     private var isHoldingReads = false
     private var heldReads: [CheckedContinuation<Void, Never>] = []
 
@@ -38,6 +39,13 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
     /// the Swift caller as an error instead of terminating the process.
     public func setFailing(_ isFailing: Bool) {
         lock.withLock { isFailingStorage = isFailing }
+    }
+
+    /// Makes later `getUserProfile` calls throw the Kotlin `StoredUserProfileUnreadableException` (as
+    /// the real repository does for a stored value that cannot be decoded) until a profile is
+    /// saved, which replaces the broken value, or `setUnreadable(false)`.
+    public func setUnreadable(_ isUnreadable: Bool) {
+        lock.withLock { isStoredProfileUnreadable = isUnreadable }
     }
 
     /// Replaces the stored profile that later `getUserProfile` calls return.
@@ -74,6 +82,14 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
         }
         return try lock.withLock {
             if isFailingStorage { throw StorageError() }
+            if isStoredProfileUnreadable {
+                // The shape SKIE gives a thrown Kotlin exception: an NSError carrying it in userInfo.
+                throw NSError(
+                    domain: "KotlinException",
+                    code: 0,
+                    userInfo: ["KotlinException": StoredUserProfileUnreadableException(cause: nil)]
+                )
+            }
             return storedProfile
         }
     }
@@ -84,6 +100,7 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
             if isFailingStorage { throw StorageError() }
             recordedSavedProfiles.append(userProfile)
             storedProfile = userProfile
+            isStoredProfileUnreadable = false
         }
     }
 }

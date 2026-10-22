@@ -152,6 +152,46 @@ final class TrackingViewModelFinishTests: TrackingTestCase {
         XCTAssertEqual(subject.activityHistoryRepository.savedActivities.map(\.snapshotFilePath), ["again"])
     }
 
+    func test_onFinishClicked_withUnreadableStoredProfile_isAFailedReadAndCanFinishAfterANewProfile() async {
+        let userProfileRepository = FakeUserProfileRepository()
+        userProfileRepository.setUnreadable(true)
+        let subject = makeSubject(
+            updates: TrackingFixtures.movingUpdates,
+            userProfileRepository: userProfileRepository
+        )
+        let viewModel = subject.viewModel
+        let recorder = EventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+        viewModel.onStartClicked()
+        await waitUntil {
+            viewModel.currentPath.count == TrackingFixtures.movingPath.count
+                && userProfileRepository.getUserProfileCallCount == 1
+                && !recorder.events.isEmpty
+        }
+        viewModel.onStopClicked()
+
+        var onSavedCallCount = 0
+        viewModel.onFinishClicked(snapshotFilePath: "unreadable") { onSavedCallCount += 1 }
+        await waitUntil { recorder.events.count == 2 }
+
+        // One error for the failed load, one for the failed read on Finish.
+        XCTAssertTrue(recorder.events.allSatisfy { $0.isGeneralError }, "got \(recorder.events)")
+        XCTAssertEqual(onSavedCallCount, 0)
+        XCTAssertTrue(subject.activityHistoryRepository.savedActivities.isEmpty)
+        XCTAssertEqual(userProfileRepository.getUserProfileCallCount, 2)
+
+        // Saving a new profile replaces the broken value, then Finish works.
+        do {
+            try await userProfileRepository.__saveUserProfile(userProfile: UserProfile(weightKg: Self.weightKg))
+        } catch {
+            return XCTFail("Saving the new profile failed: \(error)")
+        }
+        viewModel.onFinishClicked(snapshotFilePath: "again") { onSavedCallCount += 1 }
+        await waitUntil { onSavedCallCount > 0 }
+
+        XCTAssertEqual(subject.activityHistoryRepository.savedActivities.map(\.snapshotFilePath), ["again"])
+    }
+
     func test_onFinishClicked_twiceWhileProfileIsReadAgain_readsAndSavesOnce() async {
         let subject = await makeStoppedSubjectWithoutProfile()
         let viewModel = subject.viewModel
@@ -227,5 +267,12 @@ final class TrackingViewModelFinishTests: TrackingTestCase {
         barrier.viewModel.onFinishClicked(snapshotFilePath: "barrier") { barrierOnSavedCallCount += 1 }
         await waitUntil { barrierOnSavedCallCount > 0 }
         await Task.yield()
+    }
+}
+
+private extension TrackingUiEvent {
+    var isGeneralError: Bool {
+        guard case .showError(let error) = self else { return false }
+        return error is RouteUiErrorGeneral
     }
 }

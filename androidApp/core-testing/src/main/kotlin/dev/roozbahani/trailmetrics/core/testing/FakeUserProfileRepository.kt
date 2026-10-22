@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.core.testing
 
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CompletableDeferred
 
@@ -30,6 +31,8 @@ class FakeUserProfileRepository(
 
     override suspend fun saveUserProfile(userProfile: UserProfile) {
         saveUserProfileFailure?.let { throw it }
+        // Saving overwrites a stored value that could not be read, as the real repository does.
+        if (getUserProfileFailure is StoredUserProfileUnreadableException) getUserProfileFailure = null
         savedProfiles += userProfile
         this.userProfile = userProfile
     }
