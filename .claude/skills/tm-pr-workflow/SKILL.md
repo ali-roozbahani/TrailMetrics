@@ -163,7 +163,8 @@ How it is enforced, and what that means for the order of operations:
     failure: all of #30–#37 were green in CI on the first run.
   - CI going red after a green local gate. That shouldn't happen (see "CI vs the gate"
     below). If it does, follow `tm-agent-loop`, section 6 (a fix is a new commit through the
-    gate, a flake is re-run once through the script) instead of iterating against CI.
+    gate, at most 2 such CI-fix rounds per PR; a flake is re-run once through the script)
+    instead of iterating against CI.
 
 ## Tier 2: what automated tests cannot show
 
