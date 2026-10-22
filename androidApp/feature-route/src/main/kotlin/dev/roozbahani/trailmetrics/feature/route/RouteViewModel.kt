@@ -11,6 +11,7 @@ import dev.roozbahani.trailmetrics.domain.model.RouteDraft
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
@@ -162,6 +163,10 @@ class RouteViewModel(
                 userProfileRepository.getUserProfile()
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: StoredUserProfileUnreadableException) {
+                // As a missing profile: the user enters a new one, which overwrites the broken
+                // value. The load already showed the error, so it is not shown again here.
+                null
             } catch (_: Exception) {
                 _events.send(RouteEvent.ShowError(RouteUiError.General))
                 return@launch
@@ -190,6 +195,10 @@ class RouteViewModel(
                 userProfileRepository.getUserProfile()
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: StoredUserProfileUnreadableException) {
+                // As a missing profile, but not silently.
+                _events.send(RouteEvent.ShowError(RouteUiError.General))
+                null
             } catch (_: Exception) {
                 _events.send(RouteEvent.ShowError(RouteUiError.General))
                 return@launch

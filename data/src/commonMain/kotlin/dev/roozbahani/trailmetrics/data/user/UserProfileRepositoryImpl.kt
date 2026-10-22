@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.data.user
 
 import dev.roozbahani.trailmetrics.data.common.KeyValueStorage
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,13 @@ class UserProfileRepositoryImpl(
 
     override suspend fun getUserProfile(): UserProfile? = withContext(ioDispatcher) {
         val json = storage.getString(KEY_USER_PROFILE) ?: return@withContext null
-        runCatching { Json.decodeFromString<UserProfile>(json) }.getOrNull()
+        // SerializationException is an IllegalArgumentException; nothing else is caught, so
+        // cancellation and storage failures propagate.
+        try {
+            Json.decodeFromString<UserProfile>(json)
+        } catch (e: IllegalArgumentException) {
+            throw StoredUserProfileUnreadableException(e)
+        }
     }
 
     override suspend fun saveUserProfile(userProfile: UserProfile) = withContext(ioDispatcher) {

@@ -195,6 +195,10 @@ public class RouteViewModel: ObservableObject {
             let profile: UserProfile?
             do {
                 profile = try await userProfileRepository.getUserProfile()
+            } catch where error.isStoredUserProfileUnreadable {
+                // As a missing profile: the user enters a new one, which overwrites the broken
+                // value. The load already showed the error, so it is not shown again here.
+                profile = nil
             } catch {
                 emitError(error)
                 return
@@ -223,6 +227,10 @@ public class RouteViewModel: ObservableObject {
         Task {
             do {
                 userProfile = try await userProfileRepository.getUserProfile()
+            } catch where error.isStoredUserProfileUnreadable {
+                // As a missing profile, but not silently.
+                userProfile = nil
+                emit(.showError(RouteUiErrorGeneral.shared))
             } catch {
                 emitError(error)
             }
@@ -231,6 +239,12 @@ public class RouteViewModel: ObservableObject {
 }
 
 private extension Error {
+    /// The stored profile exists but cannot be decoded (a missing one returns nil instead).
+    var isStoredUserProfileUnreadable: Bool {
+        guard let nsError = self as? NSError else { return false }
+        return nsError.userInfo["KotlinException"] is StoredUserProfileUnreadableException
+    }
+
     /// SKIE bridges a thrown Kotlin exception to an NSError with the real value in userInfo["KotlinException"].
     var underlyingRouteError: RouteError? {
         guard let nsError = self as? NSError,

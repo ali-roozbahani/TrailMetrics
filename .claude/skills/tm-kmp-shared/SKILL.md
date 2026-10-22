@@ -97,7 +97,10 @@ looks safe even when the Kotlin side declares nothing.
 
 Today: `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase` follow rule 2 (their
 repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileRepository` and
-`ActivityHistoryRepository`'s suspend members follow rule 3. `observeActivities()` is a `Flow`,
+`ActivityHistoryRepository`'s suspend members follow rule 3. `UserProfileRepository.getUserProfile`
+returns `null` for "nothing saved" and throws `StoredUserProfileUnreadableException` (an `Exception`,
+so rule 3 covers it) for a stored value that cannot be decoded; the value stays in storage until a
+new profile overwrites it. `observeActivities()` is a `Flow`,
 which `@Throws` doesn't cover: a failing Flow terminates the iOS app (SKIE collects it in a
 coroutine scope with no handler, and its Swift iterator `fatalError`s on the error). Swift
 therefore doesn't iterate it directly: `ObserveActivitiesUseCase` (domain) maps each emission to
