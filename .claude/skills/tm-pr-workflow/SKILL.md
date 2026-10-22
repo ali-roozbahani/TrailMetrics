@@ -249,7 +249,8 @@ Add these when they apply. Recent PRs use them consistently:
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left alone
-  because fixing them would break scope or a boundary. Say what the fix would be. Each
+  because they need a human decision, are of another subject, or are over the sweep's bound
+  or break a boundary. Say what the fix would be and why it is left. Each
   bullet names its `BOARD.md` record's slug (see "Board").
 - **Drift found (not fixed)**: docs that disagree with code this task didn't change (see
   "Docs follow the code you changed" under Boundaries). Each bullet names its `BOARD.md`
@@ -266,8 +267,9 @@ End the description with the attribution line the session specifies.
   change only through their own explicitly scoped task and review. The single source of
   truth for which paths are protected is `.github/CODEOWNERS`; there is no list here.
   `scripts/check-protected-paths.sh` classifies a diff from it (`--files <path>...` for
-  single paths). If a protected file is wrong, report it under "Follow-ups" instead (#32,
-  #33, #34 and #37 all did this).
+  single paths). If a protected file is wrong and not of this task's subject (see "Docs
+  follow the code you changed"), report it under "Follow-ups" instead (#32, #33, #34 and #37
+  all did this).
   The four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are not
   protected (their folders have ownerless lines in CODEOWNERS, so every file in them is open),
   so an agent may edit them in a task that calls for it; the reviewer judges that diff like any other, and the
@@ -276,13 +278,19 @@ End the description with the attribution line the session specifies.
   exception is a subtask PR into an epic branch whose plan `allowed_paths` cover the path
   (`tm-agent-loop`, "Merge conditions", condition 6); the epic PR into `main` is always the
   human's.
-- **Docs follow the code you changed.** Before opening the PR, fix in the same PR any line
-  in a skill or `CLAUDE.md` that directly describes the current state of the code this
-  task changed and is now wrong. That is part of the task, not a side effect, so it needs
-  no separate authorization. Drift anywhere else (docs about code this task didn't
-  change) is not yours to fix: add a drift record to `BOARD.md` and list it under
-  "Drift found (not fixed)" in the PR description, with the line and what the code
-  actually does, for a human to decide.
+- **Docs follow the code you changed.** Before the final gate run, sweep: search the repo
+  (code, skills, docs, comments, CODEOWNERS, scripts, CI, `BOARD.md` records) for the names,
+  paths, slugs, counts and behaviours this task touches or makes stale, and check each hit.
+  Fix in the same PR every hit of the task's own subject: a line now wrong because of the
+  change, or the CI, gate or CODEOWNERS wiring of a script or file the change adds or
+  changes. That is part of the task, not a side effect, so it needs no separate
+  authorization, a protected path (a workflow file the human has to push) included; the PR
+  is then the human's to merge. The bound is 10 changed lines in 2 files per hit and 30
+  lines for all hits. The authorization never covers changing a rule's content or
+  strength, adding a rule or weakening a check. Drift about code this task didn't change,
+  or a hit beyond the bound, is not fixed here: add a drift record to `BOARD.md` and list
+  it under "Drift found (not fixed)" in the PR description, with the line and what the
+  code actually does.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
@@ -308,14 +316,17 @@ step of the gate and of CI's `android` job.
    `scripts/check-board.sh --next` prints. If that record is an epic (or
    `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
    approve, not with code.
-1. **Add.** Everything this PR leaves for later gets a record in `BOARD.md` in the **same**
-   PR, in every run, whether or not the task came from the board: each follow-up and each
-   drift you list under "Follow-ups (out of scope, not changed)" or "Drift found (not
-   fixed)", including one only the human can do (a workflow file this token can't push). The
-   human decides when it is done, not whether it is recorded. The PR description keeps those
-   sections, and each bullet names its slug; a bullet without a slug breaks this rule. Every
-   new record gets an `Order` and, only if it truly can't start before another record is done,
-   an `After`.
+1. **Add.** What this PR leaves for later and the sweep ("Docs follow the code you changed")
+   does not fix gets a record in `BOARD.md` in the **same** PR, in every run, whether or not
+   the task came from the board: only an item that needs a human decision or design, is of a
+   different subject, or is over the sweep's bound, each with that one-line reason in its
+   Problem. Each such follow-up and drift you list under "Follow-ups (out of scope, not
+   changed)" or "Drift found (not fixed)", including one only the human can do (a workflow
+   file this token can't push) when it is not of this task's subject. The human decides when
+   it is done, not whether it is recorded. A same-subject item within the bound is fixed,
+   never recorded. The PR description keeps those sections, and each bullet names its slug;
+   a bullet without a slug breaks this rule. Every new record gets an `Order` and, only if
+   it truly can't start before another record is done, an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
    does the work, as its own commit (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
