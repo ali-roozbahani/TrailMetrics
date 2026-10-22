@@ -262,7 +262,8 @@ Right after the agent's own merge, or at the start of the next run (Decision 6):
 - The gate's retry budget or the review fix budget is exhausted.
 - The record is an epic or unclear.
 - A protected-path change the task did not call for.
-- CI still red on the same SHA after its one re-run, the script refuses, a third failing push after 2 CI-fix rounds, or the reviewer check is `UNKNOWN` (section 6).
+- CI still red on the same SHA after its one re-run, the script refuses, a third failing push after
+  2 CI-fix rounds, or the reviewer check is `UNKNOWN` (section 6).
 - The reviewer's report cannot be downloaded after `CHANGES` (section 7).
 - Anything that would need a force-push, an amend, a cancelled run or reading a credential.
   A run cancelled because a newer push superseded its SHA is not that case: the checks of the
