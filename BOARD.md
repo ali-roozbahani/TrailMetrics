@@ -255,15 +255,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
 - Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`, `formatElapsed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
 
-### tm-testing-reference-files-unowned
-- Type: task
-- Area: .github, scripts
-- Order: 228
-- Source: PR for tm-testing-reference-files
-- Problem: The reference files next to `.claude/skills/tm-testing/SKILL.md` (`compose-ui-tests.md`, `xcuitest.md`, `room-migration-tests.md`) are protected: `.github/CODEOWNERS` leaves only the four `SKILL.md` files ownerless, so every other file under `.claude/` falls under `/.claude/`, and `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`, and its self-test case that `.claude/skills/tm-ios/extra.md` is protected) allows no other ownerless line. An agent can edit `SKILL.md` alone, and a PR that changes a reference file needs the human's merge.
-- Done when: the human decides whether the reference files stay protected (then this record is removed with that decision) or become ownerless: then a CODEOWNERS line per file (or a rule for reference files), the matching entry in `UNOWNED_PATTERNS` and the self-test cases of `check-protected-paths.py` are changed in a protected-path PR by the human.
-- Refs: `.github/CODEOWNERS`; `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`, self-tests); `.claude/skills/tm-testing/`.
-
 ### ci-block-git-push-hook-self-test
 - Type: task
 - Area: .github
@@ -283,3 +274,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The comment above the Kover floor in `data/build.gradle.kts` gives the measured coverage as 44.38% (142/320 lines). With `AndroidLocationRepositoryImplTest` the `data` host report measures 49.38% (160 of 324 lines) and the floor in `config/kover-floors.properties` is 48. `data/build.gradle.kts` is a protected path, so the comment was left as it is.
 - Done when: the comment states the current measured figure, or no longer quotes one, in a PR that may touch the protected path.
 - Refs: `data/build.gradle.kts` (Kover floor comment); `config/kover-floors.properties`.
+
+### pr-review-item-3-reference-skill-files
+- Type: drift
+- Area: .claude
+- Order: 231
+- Source: PR for tm-testing-reference-files-unowned
+- Problem: `.claude/skills/tm-pr-review/SKILL.md`, checklist item 3, still describes file-level ownerless lines ("allowed for the four reference skill files") and makes a diff that "adds a file under `.claude/skills/` next to a reference skill's `SKILL.md`" an `ESCALATE_TO_HUMAN`. CODEOWNERS now leaves the four reference skill folders ownerless as a whole, so a file added in one of them is unprotected and the escalation clause contradicts it. `CLAUDE.md` does not name the four skills and needs no change.
+- Done when: item 3 says the ownerless lines are the four reference skill folders and drops (or narrows to a file outside those folders) the "adds a file next to a reference `SKILL.md`" escalation, in a protected-path PR by the human.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `.github/CODEOWNERS`; `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`).
