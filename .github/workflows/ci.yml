@@ -67,6 +67,18 @@ jobs:
       - name: Variant API check self-test
         run: scripts/check-variant-api.sh --self-test
 
+      - name: Board check self-test
+        run: scripts/check-board.sh --self-test
+
+      - name: CI verdict reader self-test
+        run: scripts/read-ci-verdict.sh --self-test
+
+      - name: Scrub-env self-test
+        run: scripts/scrub-env.sh --self-test
+
+      - name: Xcode log filter self-test
+        run: scripts/filter-xcode-log.sh --self-test
+
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
       # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
@@ -349,6 +361,9 @@ jobs:
           cd iosApp
           swiftlint lint --strict
 
+      - name: Localized strings rules self-test
+        run: scripts/check-localized-strings.sh --self-test
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -364,6 +379,9 @@ jobs:
       # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework.
       - name: Production framework check
         run: scripts/check-production-framework.sh
+
+      - name: Production framework check self-test
+        run: scripts/check-production-framework.sh --self-test
 
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
