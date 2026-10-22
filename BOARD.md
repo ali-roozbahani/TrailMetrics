@@ -264,6 +264,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the human decides whether the reference files stay protected (then this record is removed with that decision) or become ownerless: then a CODEOWNERS line per file (or a rule for reference files), the matching entry in `UNOWNED_PATTERNS` and the self-test cases of `check-protected-paths.py` are changed in a protected-path PR by the human.
 - Refs: `.github/CODEOWNERS`; `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`, self-tests); `.claude/skills/tm-testing/`.
 
+### ci-block-git-push-hook-self-test
+- Type: task
+- Area: .github
+- Order: 229
+- Source: PR #200
+- Problem: `scripts/claude-hooks/block-git-push.sh --self-test` runs in the local gate (`scripts/pre-push-check.sh`) but not in CI's `android` job, where the other script self-tests run. `.github/workflows/ci.yml` is a workflow file the machine token cannot push, so only the human can add the step.
+- Done when: `.github/workflows/ci.yml` runs `scripts/claude-hooks/block-git-push.sh --self-test` as a step next to the other self-test steps, pushed by the human.
+- Refs: `.github/workflows/ci.yml` (self-test steps); `scripts/claude-hooks/block-git-push.sh`; `scripts/pre-push-check.sh`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
