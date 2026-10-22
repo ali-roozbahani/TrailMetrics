@@ -239,7 +239,7 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
 - **Shards.** CI runs the UI tests in one `ios-ui` job; plan a shard step when they exceed about
   10 tests (cap 3).
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
-  failure without a related change gets a `BOARD.md` record.
+  failure without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
 - **Identifiers (D7).** Find elements by their text first; a View gets an
   `accessibilityIdentifier` (`<screen>.<element>`, e.g. `details.deleteButton`) only where text
   cannot find it (image-only buttons, rows, a label that changes).
