@@ -248,15 +248,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Drift
 
-### pr-review-board-item-last-commit
-- Type: drift
-- Area: .claude
-- Order: 229
-- Source: PR for chore/board-slug-check-skips-historical-plans
-- Problem: `tm-pr-review` checklist item 8 (Board bookkeeping) says a record the task started from "is deleted in the last commit (`chore(board): remove <slug>`)". `tm-pr-workflow` Board rule 2 now only requires the deletion to be its own commit, so a reviewer can flag a PR that follows the rule. `tm-pr-review/SKILL.md` is a protected path and was not in the authorization for that task.
-- Done when: item 8 says "deleted in its own commit", in a PR that may touch the protected path.
-- Refs: `.claude/skills/tm-pr-review/SKILL.md` (checklist item 8); `.claude/skills/tm-pr-workflow/SKILL.md` ("Board" rule 2).
-
 ### data-kover-comment-stale-figure
 - Type: drift
 - Area: data

@@ -106,6 +106,11 @@ when `observeActivities()` is called or while collecting, into one `ActivitiesUp
 then completes; `invoke()` itself never throws. The iOS and Android `HistoryViewModel`s both
 consume that. A new Flow that Swift iterates and that can fail needs the same treatment.
 
+## Cancellation
+
+A `catch` that can see `CancellationException` rethrows it (`SafeApiCall.kt` is the pattern), and
+`runCatching` is not used around suspend calls unless it rethrows it.
+
 ## Events that must not be silently dropped
 
 `MutableSharedFlow(extraBufferCapacity = 1)` with no replay (as used for
