@@ -46,29 +46,13 @@ Every screen has:
    via `Channel`, never a plain callback lambda.
 4. **ViewModel** — `StateFlow<State>` + `onAction()`, no other public methods.
 
-**Current code: all four Android ViewModels are migrated** (`RouteViewModel` in #50,
-`HistoryViewModel`/`DetailsViewModel` in #53, `TrackingViewModel` in #54). Each exposes
-`val state: StateFlow<<X>State>`, `val events: Flow<<X>Event>` backed by a `Channel`, and a
-single public `onAction(<X>Action)`. Each screen file has a `<X>Root` that gets the
-ViewModel via `koinViewModel()` and collects events, and a stateless `<X>Screen(state,
-onAction, ...)`. Any of the four is a valid reference for a new screen, apart from the
-NavHost-overload deviation noted under "Known deviations". (`TrackingViewModel`'s state is
-`TrackingScreenState`, renamed to avoid the domain `TrackingState` clash below.)
-
-The migrated ViewModels replaced an older pattern (public methods like `onStartClicked()`,
-`onPauseClicked()`, and a callback parameter `onFinishClicked(path, onSaved: () -> Unit)`
-in the pre-#54 `TrackingViewModel.kt`). If you ever migrate a ViewModel from that style:
-- `onFinishClicked(snapshotFilePath, onSaved: () -> Unit)` becomes
-  `onAction(Action.Finish(snapshotFilePath))`, with success signaled by an `Event`
-  (e.g. `Event.Saved`) that the Root composable observes — not a callback parameter.
-- `startedAtEpochMillis` as a bare `var` on the ViewModel should move into `State` or
-  stay as private implementation state only if it never needs to survive process death;
-  don't carry it forward as a public/mutable field.
-- Computed properties on the UI state (`canStart`, `canPause`, `currentMetrics`, ...)
-  are fine to keep as `State` getters — that part of the current design already matches
-  the target shape and should not be rewritten.
-- Do NOT copy from an unmigrated ViewModel as your reference pattern. Check whether the
-  file you're using as a model has itself been migrated first.
+**Current code:** all four ViewModels follow this shape: `val state: StateFlow<<X>State>`,
+`val events: Flow<<X>Event>` backed by a `Channel`, one public `onAction(<X>Action)`; each screen
+file has a `<X>Root` (`koinViewModel()`, collects events) and a stateless `<X>Screen(state,
+onAction, ...)`. `HistoryViewModel` is a reference for a new screen (`TrackingViewModel`'s state is
+`TrackingScreenState`, to avoid the domain `TrackingState` clash below). Don't copy from a
+ViewModel that is not on this shape; computed properties on the state (`canStart`, ...) may stay
+`State` getters.
 
 ```kotlin
 data class TrackingState(  // careful: this name collides with the existing domain
@@ -161,7 +145,7 @@ AGP 9's built-in support; there is no `kotlin-android` plugin), `compileSdk` via
 `build.gradle.kts` for the exact block — copy its structure, don't hand-roll a new one).
 Register it in `settings.gradle.kts` and add it to `:androidApp:app`'s dependencies.
 All versions come from `libs.versions.toml` — never hardcode a version in a module's
-`build.gradle.kts`. Never add a third-party dependency unless the task names it.
+`build.gradle.kts`.
 
 After changing anything in `domain`, `data`, `core` or `shared`, dependent Android modules
 need a Gradle sync/rebuild. A normal Android Studio run does this automatically. If you see
@@ -187,26 +171,24 @@ stale behavior right after a shared-module change, suspect this first.
 
 ## No deprecated APIs (Kotlin)
 
-- Never call anything marked `@Deprecated`, including AndroidX/Compose/Material APIs
-  deprecated in the current BOM. Use the documented replacement (for example
-  `Icons.AutoMirrored.Filled.DirectionsRun`, not `Icons.Filled.DirectionsRun`).
-- `allWarningsAsErrors = true` enforces this in every Kotlin module, `androidApp/*` included.
-  The root `build.gradle.kts` sets it for `androidApp/*` via
-  `plugins.withId("com.android.application")` / `plugins.withId("com.android.library")`
-  configuring `KotlinAndroidProjectExtension`. Those modules use AGP 9 built-in Kotlin, so
-  AGP registers the `kotlin` extension itself and `org.jetbrains.kotlin.android` is never
-  applied (hooking on that id is what left the flag off before). KMP modules are covered by
-  the separate `org.jetbrains.kotlin.multiplatform` block. Any compiler warning, including
-  a deprecation or an unacknowledged `@RequiresOptIn` warning, fails the build.
-- Experimental APIs (`@RequiresOptIn`, e.g. maps-compose's `MapsComposeExperimentalApi`)
-  also warn. If there's no stable alternative, opt in as narrowly as possible, at the call
-  expression or the smallest enclosing declaration, with a comment saying why (see
-  `MapEffect` in `TrackingScreen.kt`). Never opt in module-wide via `optIn` compiler options.
-- If a deprecation is genuinely unavoidable (a third-party library with no replacement
-  yet), suppress it narrowly at the call site with `@Suppress("DEPRECATION")` and a comment
-  stating why. Never suppress at file or module level.
-- Don't mark your own APIs `@Deprecated` to phase them out. Update the callers and delete
-  the old API in the same change.
+`CLAUDE.md` states the rule (never call a deprecated API); the Kotlin specifics:
+- Use the documented replacement (for example `Icons.AutoMirrored.Filled.DirectionsRun`, not
+  `Icons.Filled.DirectionsRun`), including for AndroidX/Compose/Material APIs deprecated in the
+  current BOM.
+- `allWarningsAsErrors = true` is set for every Kotlin module: the root `build.gradle.kts` hooks
+  `plugins.withId("com.android.application")` / `("com.android.library")` for `androidApp/*`
+  (AGP 9 built-in Kotlin, so `org.jetbrains.kotlin.android` is never applied) and the
+  `org.jetbrains.kotlin.multiplatform` block for KMP modules. Any compiler warning, including a
+  deprecation or an unacknowledged `@RequiresOptIn`, fails the build.
+- Experimental APIs (`@RequiresOptIn`, e.g. maps-compose's `MapsComposeExperimentalApi`) also
+  warn. With no stable alternative, opt in as narrowly as possible, at the call expression or the
+  smallest enclosing declaration, with a comment saying why (see `MapEffect` in
+  `TrackingScreen.kt`). Never opt in module-wide via `optIn` compiler options.
+- A genuinely unavoidable deprecation (a third-party library with no replacement yet): suppress it
+  narrowly at the call site with `@Suppress("DEPRECATION")` and a comment stating why, only with
+  human approval, never at file or module level.
+- Don't mark your own APIs `@Deprecated` to phase them out. Update the callers and delete the
+  old API in the same change.
 
 ## No dead code
 
@@ -227,7 +209,6 @@ The Android-relevant parts:
 - `shared` is the only module that exports production API to iOS (`shared-uitest` builds only a
   test-only variant of the same framework, linked by UI-test builds alone; ADR-002).
 - Feature modules stay off `:data`/`:shared` and off each other (see Architecture).
-- If a task seems to need crossing one of these, stop and report it. Don't work around it.
 
 ## Detekt (CI-enforced, `maxIssues: 0`)
 
@@ -245,23 +226,21 @@ is all the plain `detekt` task reads, so the root build points it at every `src/
   injected scoped `CoroutineScope`).
 - Thresholds: `LongMethod` 60 lines, `CyclomaticComplexMethod` 15 (both ignore
   `@Composable` functions but apply everywhere else), `TooManyFunctions` 12 per class,
-  `LongParameterList` 7 for functions and constructors (`TrackingViewModel.kt` is
-  excluded). Default `MaxLineLength` is 120. `MagicNumber` and `ReturnCount` are off.
+  `LongParameterList` 7 for functions and constructors (`TrackingSessionManager.kt` and
+  `TrackingViewModel.kt` are excluded; a class growing too many parameters is a signal to look at
+  its responsibilities, not to extend the exclude list). Default `MaxLineLength` is 120. `MagicNumber` and `ReturnCount` are off.
 - `!!` is not banned by tooling but is rejected in review. Use `checkNotNull(x) { "why" }`,
   or restructure so the nullable type never reaches that point.
 - Don't add excludes to `config/detekt/detekt.yml` and don't add `@Suppress` to make a
   violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. Any
-  suppression needs explicit human approval and a comment with the reason.
+  suppression needs explicit human approval and a comment with the reason, on its own line
+  directly above the annotation.
 
 ## Tests
 
-Test code follows `tm-testing`, which has the rest. In short: JUnit4 with `kotlin.test`
-assertions, `kotlinx-coroutines-test` and hand-written fakes for Android tests (MockK is not
-in the catalog), and compose-ui-test for Compose UI tests; `kotlin.test` + hand-written fakes
-in `domain`; no Truth, no JUnit5; `UnconfinedTestDispatcher` unless a test needs to control
-dispatch order; Robolectric only when a test genuinely needs the Android framework. The three
-feature modules have JVM test source sets, sharing fakes via `androidApp/core-testing`. Truth
-was removed in #32.
+Test code follows `tm-testing` (stack, fakes, `core-testing`, Robolectric, Compose UI tests). Use
+`UnconfinedTestDispatcher` unless a test needs to control dispatch order. Robolectric only when a
+test genuinely needs the Android framework.
 
 ## Known deviations in the current code
 
@@ -270,5 +249,3 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
-- Every suppression carries a reason comment on its own line directly above the annotation.
-  New suppressions need one too.
