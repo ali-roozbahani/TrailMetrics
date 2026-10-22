@@ -5,6 +5,7 @@ Run through scripts/check-board.sh (the entry point). Standard library only, so 
 the stock python3 of macOS and ubuntu-latest without installing anything.
 
   check-board.sh              check BOARD.md and the board mentions in the skills and docs
+                              (a gone slug under docs/epics/ only prints a notice)
   check-board.sh --next       print the first record in Order whose After slugs are all gone
   check-board.sh --self-test  run the fixtures in scripts/check-board-fixtures/
   --root <dir>                check another tree (used by the fixtures); default: repo root
@@ -37,6 +38,11 @@ LINE_NUMBER_PATTERNS = [
 # board `slug`, board record `slug`, and lists continued with commas: board `a`, `b`.
 BOARD_MENTION_RE = re.compile(r"\bboard (?:record )?(`[^`\n]+`(?:,\s*`[^`\n]+`)*)", re.IGNORECASE)
 BACKTICKED_RE = re.compile(r"`([^`\n]+)`")
+
+# Epic plans are historical: they stay as written once the epic runs, so a mention of a record
+# that is gone is a notice there, not a failure. This one directory is the whole exception;
+# a mention in a skill, CLAUDE.md, README.md, another doc or BOARD.md itself still fails.
+HISTORICAL_PLAN_DIR = Path("docs") / "epics"
 
 
 class Record:
@@ -202,7 +208,7 @@ def doc_files(root):
     return [f for f in files if f.is_file()]
 
 
-def check_mentions(root, records, problems):
+def check_mentions(root, records, problems, notices):
     slugs = {r.slug for r in records}
     for path in doc_files(root):
         rel = path.relative_to(root)
@@ -212,8 +218,13 @@ def check_mentions(root, records, problems):
                 for slug in BACKTICKED_RE.findall(match.group(1)):
                     if "<" in slug:
                         continue  # a placeholder such as `<slug>`
-                    if slug not in slugs:
-                        problems.append(f"{rel}:{number}: board `{slug}` is not a record in BOARD.md")
+                    if slug in slugs:
+                        continue
+                    message = f"{rel}:{number}: board `{slug}` is not a record in BOARD.md"
+                    if HISTORICAL_PLAN_DIR in rel.parents:
+                        notices.append(f"notice: {message} (historical plan, not a failure)")
+                    else:
+                        problems.append(message)
 
 
 def next_record(records):
@@ -232,6 +243,7 @@ def run_check(root, want_next):
         return 2
     text = board.read_text(encoding="utf-8")
     problems = []
+    notices = []
     records = parse_board(text, problems)
 
     if want_next:
@@ -249,7 +261,9 @@ def run_check(root, want_next):
     check_fields(records, problems)
     check_order(records, problems)
     check_line_numbers(text, problems)
-    check_mentions(root, records, problems)
+    check_mentions(root, records, problems, notices)
+    for notice in notices:
+        print(notice)
     for problem in problems:
         print(problem)
     if problems:

@@ -315,11 +315,13 @@ step of the gate and of CI's `android` job.
    new record gets an `Order` and, only if it truly can't start before another record is done,
    an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
-   does the work, as the last commit before the final push (`chore(board): remove <slug>`).
+   does the work, as its own commit (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
    the record, narrow its Problem/Done when instead. If the record is obsolete, delete it
    and say why in the PR. The same commit removes the slug from every other record's
    `After` and from every board mention in the skills and docs, or `check-board.sh` fails.
+   A mention in a historical plan under `docs/epics/` stays as written: the check only prints
+   a notice for it.
 3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
    `Board: no changes`.
 4. **No board-only PRs.** Never open a PR just to update the board. The human or planner

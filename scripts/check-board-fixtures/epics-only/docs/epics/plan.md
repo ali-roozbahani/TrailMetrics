@@ -1,0 +1,1 @@
+Closes board `gone-drift`.

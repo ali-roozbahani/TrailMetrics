@@ -1,0 +1,4 @@
+exit: 1
+contains: .claude/skills/x/SKILL.md:2: board `gone-drift` is not a record in BOARD.md
+contains: check-board: FAILED, 1 problem(s)
+absent: notice:
