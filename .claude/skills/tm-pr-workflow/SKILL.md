@@ -107,8 +107,9 @@ here. Run the script itself, not a hand-picked command.
   deleted or untracked file there fails the gate).
 - **Reviewer verdict.** Every push needs the local `pr-reviewer` verdict for HEAD recorded
   first, `light` or full, docs-only or not, whatever CI's reviewer will run. The gate prints it
-  and never fails on it, so "no review verdict recorded" means you have not run it: go back.
-  When to run it and record it (after the last commit, before the gate's final run, again after
+  and never fails on it, but the push hook refuses a push (exit 2) unless the record is
+  `APPROVE` or `ESCALATE_TO_HUMAN` for HEAD; "no review verdict recorded" means you have not
+  run it: go back. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
   every new commit) is in `tm-pr-review`, "Orchestrator's part".
 
 How it is enforced, and what that means for the order of operations:
