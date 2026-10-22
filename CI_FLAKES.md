@@ -31,7 +31,7 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
 
 ## ios-ui-details-delete-button-not-found
 
-- Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, test `DetailsDeleteTwiceUITests.test_deleteConfirmedTwice_deletesOnce`, first error line "XCTAssertTrue failed - Details delete button not found (first)" (`DetailsDeleteTwiceUITests.swift:49`, after the 10 s wait for `details.deleteButton`)
+- Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, test `DetailsDeleteTwiceUITests.test_deleteConfirmedTwice_deletesOnce`, first error line "XCTAssertTrue failed - Details delete button not found (first)" (`DetailsDeleteTwiceUITests.swift`, after the 10 s wait for `details.deleteButton`)
 - Count: 1
 - Status: open
 - Occurrences:
