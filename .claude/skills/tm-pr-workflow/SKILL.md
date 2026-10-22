@@ -162,7 +162,9 @@ How it is enforced, and what that means for the order of operations:
     reviewer's correction led to a new, separately scoped task. None of them was a gate
     failure: all of #30–#37 were green in CI on the first run.
   - CI going red after a green local gate. That shouldn't happen (see "CI vs the gate"
-    below). If it does, report it instead of iterating against CI.
+    below). If it does, follow `tm-agent-loop`, section 6 (a fix is a new commit through the
+    gate, at most 2 such CI-fix rounds per PR; a flake is re-run once through the script)
+    instead of iterating against CI.
 
 ## Tier 2: what automated tests cannot show
 
@@ -355,6 +357,25 @@ step of the gate and of CI's `android` job.
 New slugs are kebab-case, unique in the file and descriptive (never a counter), so two
 PRs can't create the same one. A new record goes in the section for its type, at the
 position its `Order` gives it (records in a section are sorted by `Order`).
+
+## Flake log
+
+`CI_FLAKES.md` at the repo root logs CI flakes; the agent edits it (its header gives the entry
+format). It is not protected, and a PR that touches only that file is not a board-only PR.
+
+- One entry per signature: job, step, test, first error line, short slug. A re-run that turns
+  green adds an occurrence (date, run id, PR, re-run fixed it) and increments the count; a new
+  signature is a new entry, count 1, status `open`.
+- Put the update in the PR being watched when it is still open and a push is happening anyway;
+  otherwise make a small PR of its own. The agent may merge a PR that touches only
+  `CI_FLAKES.md` once the merge conditions of `tm-agent-loop`, section 8 hold.
+- At count 3 for an `open` entry, add a `BOARD.md` record in the PR you are working on (type
+  task, slug `flake-<slug>`, Problem with the occurrences, Done when: the flake no longer fails
+  or the runner/test is changed so it cannot, shown on 5 consecutive runs) and mark the entry
+  `escalated: flake-<slug>`. At most one record per entry.
+- The PR that fixes a flake sets the entry to `fixed` with the fix (PR) and one line of what was
+  learned, deletes the `BOARD.md` record, and adds an entry to `LEARNINGS.md` (why it flaked,
+  what fixed it).
 
 ## After the PR is open (human's steps, for context)
 

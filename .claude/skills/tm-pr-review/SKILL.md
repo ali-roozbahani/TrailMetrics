@@ -109,7 +109,8 @@ from memory.
    behind have `BOARD.md` records, each with its reason, and a record or follow-up whose
    reason is a same-subject fix within the sweep bound is blocking; a record the task
    started from is deleted in its own commit (`chore(board): remove <slug>`); no `After` or
-   skill/doc mention of a removed slug is left; the change is not board-only. Exception
+   skill/doc mention of a removed slug is left; the change is not board-only (a diff that
+   touches only `CI_FLAKES.md` is judged like any other). Exception
    (rule 5): a parallel subtask of an epic with an integration branch never edits
    `BOARD.md` and lists its follow-ups and drift in its PR description instead.
 9. **Docs follow the code** (`tm-pr-workflow`, "Docs follow the code you changed"). A skill
