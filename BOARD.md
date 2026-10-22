@@ -200,6 +200,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a `--self-test` builds a scratch git repository with an `origin/main` ref and checks the commit selection (first parent, since a date, oldest first, only `.claude/skills/` and `CLAUDE.md` paths), the changed-line output, the no-changes line, and exit 2 with the usage for a bad date and an unknown option; it runs on bash 3.2; the gate and CI's `android` job run it like the other script self-tests; it was shown failing against a deliberately broken version.
 - Refs: `scripts/skill-changes-digest.sh`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Tier 1").
 
+### user-profile-corrupt-stored-profile-becomes-null
+- Type: task
+- Area: data, domain
+- Order: 200
+- Source: detekt exception-rules spike (round-2 proposal P7), 2026-10-22
+- Problem: `UserProfileRepositoryImpl.getUserProfile` reads the stored JSON with `runCatching { Json.decodeFromString<UserProfile>(json) }.getOrNull()`. A stored profile that no longer decodes (corrupt or from an older shape) returns `null`, the same value as "no profile saved yet", with no signal to the caller. Android `RouteViewModel` then asks the user for a profile as if none existed, and the broken value stays in storage. This is the "failure turned into null with no signal to the caller" pattern of `tm-pr-review` item 13. No detekt rule reports it. The fix is a design question: fail with an exception the callers already map to `RouteUiError.General` (rule 3 of the `@Throws` policy), return a result type that tells "missing" from "unreadable", or delete the unreadable value and say so.
+- Done when: a stored profile that cannot be decoded is distinguishable from no stored profile by every caller on Android and iOS (`RouteViewModel`, `TrackingViewModel`), with a `data` commonTest for the corrupt case and a ViewModel test per platform for how each reacts; the chosen design is stated in the PR.
+- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/user/UserProfileRepositoryImpl.kt` (`getUserProfile`); `domain` `UserProfileRepository`; `tm-pr-review` item 13; `tm-kmp-shared` ("`@Throws` policy", "Cancellation"); `tracking-finish-without-profile-silent`.
+
 ### ios-ui-route-generate-twice-failed-on-main
 - Type: task
 - Area: iosApp/TrailMetricsUITests

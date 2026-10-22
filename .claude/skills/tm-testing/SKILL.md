@@ -18,32 +18,24 @@ description: Use whenever writing or reviewing tests anywhere in TrailMetrics �
 MockK and Turbine are not in `gradle/libs.versions.toml`; do not add them (`CLAUDE.md`: the
 testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
 
-- Android ViewModel/MVI tests use JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` +
-  hand-written fakes. All three libraries are already catalog entries (`junit`,
-  `kotlin-test`, `kotlinx-coroutines-test`).
-- Flow assertions read `StateFlow.value` after driving the test scheduler, or collect
-  into a list from `backgroundScope` (see "Coroutines / Flow"). Don't use Turbine's
-  `.test { awaitItem() }`.
-- `feature-route`, `feature-history` and `feature-tracking` already have JVM test source
-  sets with `testImplementation` lines for those catalog entries plus
-  `:androidApp:core-testing`. A new Android module's first test adds the same lines to
-  its own `build.gradle.kts`. That is not a new dependency.
-- Compose UI tests run on the JVM under Robolectric, inside the module's `testDebugUnitTest`
-  (no emulator, no `androidTest`). `feature-history` is the first feature module with them:
-  its `build.gradle.kts` adds the catalog entries `robolectric`, `androidx-compose-ui-test-junit4`
-  and `androidx-compose-ui-test-manifest` (with `platform(libs.androidx.compose.bom)` for their
-  versions) as `testImplementation`, plus `testOptions.unitTests.isIncludeAndroidResources = true`
-  so tests can read string resources. All three feature modules (`feature-history`,
-  `feature-route`, `feature-tracking`) now have them. See "Compose UI tests".
-- Ktor `MockEngine` (`ktor-client-mock`, on the catalog's `ktor` version) is a `data`
-  commonTest dependency, so it runs on the Android host and the iOS simulator. Build the
-  real repository on `HttpClient(MockEngine { respond(...) })` with the same
-  `ContentNegotiation`/`Json` setup as `networkModule`, and return JSON shaped like the
-  DTO (see `DirectionsRepositoryImplTest`). Don't fake `HttpClient` or the repository.
+- Android ViewModel/MVI tests add `kotlinx-coroutines-test` to JUnit4 + `kotlin.test` +
+  fakes; all three are catalog entries (`junit`, `kotlin-test`, `kotlinx-coroutines-test`).
+- Flow assertions: see "Coroutines / Flow". Don't use Turbine's `.test { awaitItem() }`.
+- The three feature modules' JVM test source sets have `testImplementation` lines for those
+  entries plus `:androidApp:core-testing`; a new Android module's first test adds the same
+  lines to its `build.gradle.kts` (not a new dependency).
+- Compose UI tests run on the JVM under Robolectric inside `testDebugUnitTest` (no emulator,
+  no `androidTest`) in all three feature modules. Their `build.gradle.kts` lists the catalog
+  entries (`robolectric`, `androidx-compose-ui-test-*`) and sets
+  `testOptions.unitTests.isIncludeAndroidResources = true` so tests can read string
+  resources. See "Compose UI tests".
+- Ktor `MockEngine` is a `data` commonTest dependency (Android host and iOS simulator).
+  Build the real repository on `HttpClient(MockEngine { respond(...) })` with the same
+  `ContentNegotiation`/`Json` setup as `networkModule` and JSON shaped like the DTO (see
+  `DirectionsRepositoryImplTest`). Don't fake `HttpClient` or the repository.
 
-No JUnit5 anywhere in this project (evaluated and rejected — see
-`docs/architecture` for the reasoning if resurrected later). No AssertK. No Truth (removed
-from `data`, its only prior user; no `com.google.truth` import remains).
+No JUnit5 anywhere in this project (evaluated and rejected, see `docs/architecture`). No
+AssertK. No Truth (removed from `data`, its only user; no `com.google.truth` import remains).
 
 ## Coroutines / Flow
 
@@ -126,9 +118,7 @@ below.
 
 Write the test against `onAction()` and the resulting `state`/`event` stream — never
 against the old per-action public methods once a screen has been migrated to MVI
-(see `tm-android`). Test-first when migrating: write the `onAction`-based test against
-the desired State/Action/Event shape before changing the ViewModel implementation, so
-the test both specifies and locks the target behavior.
+(see `tm-android`). When migrating, the `onAction` test comes first ("First move").
 
 ```kotlin
 @Test
@@ -171,6 +161,19 @@ fail for the right reason (the defect, not a compile error or a setup problem), 
 before or together with the fix. Put the red evidence in the PR: the test name and its failure
 message. A pinned "currently ..." test of a known defect is rewritten to assert the correct
 behavior when the defect is fixed, not deleted.
+
+## First move by kind of change
+
+| Change | Do first |
+|---|---|
+| Bug fix | The red test above, before the fix. |
+| Behavior change | Update the existing test to the new behavior and see it fail for that reason, then change the code. |
+| Refactor, no behavior change | Run the covering tests green; with none, write a characterization test of today's behavior and see it pass, then refactor. |
+| New use case, domain logic | `kotlin.test` in `domain` commonTest on fakes of the repository interfaces. |
+| ViewModel (Android) | A test against `onAction` and `state`/`events` on `core-testing` fakes; when migrating, written against the target State/Action/Event shape first, so it specifies and locks the behavior. |
+| Repository, HTTP call (`data`) | A commonTest on the real repository: Ktor `MockEngine` for HTTP, the Room repository suite for storage. |
+| Room schema | The frozen fixture for the old version, then the `MIGRATION_M_N` case ("Migration cases"). |
+| Swift ViewModel, iOS flow | An XCTest in the package's `Tests` on the real Kotlin class built on `TestSupport` fakes; a UI flow: XCUITest. |
 
 ## Compose UI tests
 
@@ -328,21 +331,15 @@ row) and see the case fail on both platforms on the row assertion, then restore.
 
 ## What to test, and coverage priorities (current state: measured, uneven)
 
-The merged Kover report (see `tm-pr-workflow`, Tier 1) shows real line coverage for `domain`
-(high), the three Android feature modules (partial) and `data` (partial: its Room repository suite
-runs on the Android host via Robolectric; the directions repository, `safeApiCall`, the directions
-DTOs and the polyline decoder have commonTest tests, the repository's on `mockHttpClient`; location,
-`TrackingService` and DI have no tests). `core`, `shared`, `androidApp/app` and
-`androidApp/core-ui` have no tests of their own. `domain`, `data` and the feature modules have
-a `koverVerify` minimum, so adding untested code there can fail the gate. When asked to raise
-coverage without a more specific target, prioritize in this order:
+The merged Kover report (see `tm-pr-workflow`, Tier 1) is the current measure; `core`, `shared`,
+`androidApp/app` and `androidApp/core-ui` have no tests of their own. `domain`, `data` and the
+feature modules have a `koverVerify` minimum, so adding untested code there can fail the gate.
+When asked to raise coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use
    cases like `SaveActivityUseCase`.
 2. `data`: repository implementations, especially anything with offline/fallback logic.
-3. ViewModels: all four Android ViewModels are on MVI and have `onAction`-based tests.
-   New or changed ViewModel behavior gets a test against `onAction` and the resulting
-   `state`/`events` (see above).
+3. ViewModels (all four are on MVI with `onAction` tests): new or changed behavior gets one.
 4. Compose UI tests: after a screen's ViewModel and Action/Event shape are stable.
 
 ## Detekt / CI note

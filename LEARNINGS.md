@@ -792,3 +792,8 @@ method: a public probe function added to a `domain` file, then
 `grep` for it in `Headers/TrailMetricsShared.h` of both the XCFramework and
 the `Build/Products/.../TrailMetricsShared.framework` copy that is actually
 linked.
+
+## detekt 1.23.8 exception rules: nothing to turn on (spike, 2026-10-22)
+
+detekt runs without type resolution. Five exception rules are already on and report 0, because their name allow-list accepts `_`. `SuspendFunSwallowedCancellation` is off by default and did not fire on a known-bad `runCatching { suspendCall() }` fixture; nothing analyses `commonMain` with type resolution.
+Decision: turn nothing on and keep `_` allowed: the `catch (_: Exception)` sites are boundaries that rethrow `CancellationException`.
