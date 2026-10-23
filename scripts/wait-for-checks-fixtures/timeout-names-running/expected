@@ -1,4 +1,4 @@
+Android — Lint, Detekt, Tests, Build	in_progress	-
 iOS — all stages	completed	failure
-iOS — all stages	in_progress	-
 Review — pr-reviewer	queued	-
-TIMEOUT iOS — all stages; Review — pr-reviewer
+TIMEOUT Android — Lint, Detekt, Tests, Build; Review — pr-reviewer

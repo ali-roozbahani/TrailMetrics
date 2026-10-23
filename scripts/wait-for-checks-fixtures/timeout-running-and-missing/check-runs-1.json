@@ -1,0 +1,1 @@
+{"total_count": 2, "check_runs": [{"name": "Android — Lint, Detekt, Tests, Build", "status": "in_progress", "conclusion": null}, {"name": "Review — pr-reviewer", "status": "completed", "conclusion": "success"}]}

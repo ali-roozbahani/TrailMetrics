@@ -103,10 +103,14 @@ While that command runs, you do not end your turn, do not send a report and do n
 It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
 check run of the head SHA is `completed`, and exits with one line per check run (name, status,
 conclusion) and a last line: `ALL_GREEN` (exit 0), `FAILED <names>`, `TIMEOUT <names still
-running>` or `SUPERSEDED <new sha>` (exit 1; a newer push changed the PR head, so watch that
-SHA instead), exit 2 for a usage error or a failed `gh` call. A check run that does not exist
-yet counts as not finished. The maximum wait is 90 minutes for a SHA (90 more after its one
-re-run); when it runs out (`TIMEOUT`), report the checks still running and stop.
+running>[; missing: <names>]` or `SUPERSEDED <new sha>` (exit 1; a newer push changed the PR
+head, so watch that SHA instead), exit 2 for a usage error or a `gh` call that failed 4 times in
+a row (it retries up to 3 times, one step apart). A check run that does not exist yet counts as
+not finished: `ALL_GREEN` needs both required checks of section 8 and `Review — pr-reviewer`
+to exist (the list is `REQUIRED_CHECKS` in the script) as well as every run completed, so a
+`TIMEOUT` can end with `missing:` the names that never appeared. The maximum wait is 90 minutes
+for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report the checks still
+running and the missing ones, and stop. Exit 2: stop and report its message.
 `ALL_GREEN`: continue (sections 7 and 8). `FAILED` names a failed job for every
 conclusion other than `success` or `skipped`,
 except the check run `Review — pr-reviewer`: it also shows `failure` for `CHANGES` (seen on

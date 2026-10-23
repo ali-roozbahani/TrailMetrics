@@ -1,0 +1,1 @@
+{"total_count": 4, "check_runs": [{"name": "Review — pr-reviewer", "status": "completed", "conclusion": "success"}, {"name": "iOS 1 — plan", "status": "completed", "conclusion": "success"}, {"name": "Android — Lint, Detekt, Tests, Build", "status": "completed", "conclusion": "success"}, {"name": "iOS — all stages", "status": "completed", "conclusion": "success"}]}
