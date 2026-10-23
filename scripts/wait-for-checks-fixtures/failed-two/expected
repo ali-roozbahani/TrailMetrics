@@ -1,0 +1,4 @@
+Android — Lint, Detekt, Tests, Build	completed	success
+iOS — all stages	completed	failure
+Review — pr-reviewer	completed	cancelled
+FAILED iOS — all stages; Review — pr-reviewer

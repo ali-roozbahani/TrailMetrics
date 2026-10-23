@@ -89,17 +89,30 @@ first. Stop after the gate, write the PR description to
 ## 6. After every push: watch CI
 
 A push is not the end of the task. After every push of a PR branch, wait for the checks of the
-head SHA through REST (GraphQL is refused here, so no `gh pr checks`); never cancel anything:
+head SHA with `scripts/wait-for-checks.sh`; it reads them through REST (GraphQL is refused here,
+so no `gh pr checks`) and never cancels or re-runs anything. Run it as a background command
+(`run_in_background`, with a timeout above 90 minutes), because you are re-invoked when it
+exits; a foreground `sleep` is blocked or capped in the agent's shell, so the wait must be this
+command:
 
 ```bash
-SHA="$(git rev-parse HEAD)"
-gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest&per_page=100" \
-  --jq '.check_runs[] | [.name, .status, .conclusion // "-"] | @tsv'
+scripts/wait-for-checks.sh <PR number>
 ```
 
-Poll every 5 minutes until every row is `completed`. The maximum wait is 90 minutes for a SHA
-(90 more after its one re-run); when it runs out, report the checks still running and stop.
-All `success` or `skipped`: continue (sections 7 and 8). Any other conclusion is a failed job,
+While that command runs, you do not end your turn, do not send a report and do not stop.
+It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
+check run of the head SHA is `completed`, and exits with one line per check run (name, status,
+conclusion) and a last line: `ALL_GREEN` (exit 0), `FAILED <names>`, `TIMEOUT <names still
+running>[; missing: <names>]` or `SUPERSEDED <new sha>` (exit 1; a newer push changed the PR
+head, so watch that SHA instead), exit 2 for a usage error or a `gh` call that failed 4 times in
+a row (it retries up to 3 times, one step apart). A check run that does not exist yet counts as
+not finished: `ALL_GREEN` needs both required checks of section 8 and `Review — pr-reviewer`
+to exist (the list is `REQUIRED_CHECKS` in the script) as well as every run completed, so a
+`TIMEOUT` can end with `missing:` the names that never appeared. The maximum wait is 90 minutes
+for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report the checks still
+running and the missing ones, and stop. Exit 2: stop and report its message.
+`ALL_GREEN`: continue (sections 7 and 8). `FAILED` names a failed job for every
+conclusion other than `success` or `skipped`,
 except the check run `Review — pr-reviewer`: it also shows `failure` for `CHANGES` (seen on
 three past PRs) and for a reviewer run that left no verdict, so it is never classified or
 re-run. Read it with `scripts/read-ci-verdict.sh` (section 7): `CHANGES`: read the report and
@@ -287,6 +300,9 @@ The final report to the human has three parts: Done, Not done, Not verified.
   shown as passed. A blocked or denied command is quoted (the message) and reported, not
   worked around.
 - The PR description keeps its own headings (`tm-pr-workflow`); this shape is for the chat report.
+- The final report is sent only after the PR is merged or after a stop-and-report condition,
+  never between opening the PR and the Merge check; an interim line saying "continuing" is not
+  a report and must be followed by the next tool call in the same turn.
 
 ## Never
 
