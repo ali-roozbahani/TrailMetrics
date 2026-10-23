@@ -17,7 +17,11 @@ import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,8 +42,16 @@ class TrackingViewModel(
     private val saveActivityUseCase: SaveActivityUseCase,
     private val activityType: ActivityType,
     private val plannedRoutePoints: List<Coordinates>,
-    private val clock: Clock
+    private val clock: Clock,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
+
+    /**
+     * Runs the snapshot file deletes. Not [viewModelScope]: [onCleared] deletes a retained file, and
+     * by then that scope is cancelled, so a delete launched in it would never run. Each launch is a
+     * short, self-completing job; nothing waits for it.
+     */
+    private val fileScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     private var startedAtEpochMillis: Long = 0L
 
@@ -224,7 +236,7 @@ class TrackingViewModel(
     }
 
     private fun deleteSnapshotFile(path: String) {
-        File(path).delete()
+        fileScope.launch { File(path).delete() }
     }
 
     override fun onCleared() {

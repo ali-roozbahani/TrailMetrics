@@ -19,9 +19,11 @@ import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -48,6 +50,8 @@ class TrackingViewModelSnapshotFileTest {
     val temporaryFolder = TemporaryFolder()
 
     private val testScheduler = TestCoroutineScheduler()
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private var ioDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(testScheduler)
     private val locationRepository = FakeLocationRepository()
     private val clock = FakeClock(nowMillis = 1_000_000L, elapsedRealtimeMillis = 5_000L)
     private val userProfileRepository = FakeUserProfileRepository()
@@ -89,7 +93,8 @@ class TrackingViewModelSnapshotFileTest {
                     saveActivityUseCase = SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock),
                     activityType = ActivityType.Cycling,
                     plannedRoutePoints = emptyList(),
-                    clock = clock
+                    clock = clock,
+                    ioDispatcher = ioDispatcher
                 )
             }
         })[TrackingViewModel::class]
@@ -225,6 +230,38 @@ class TrackingViewModelSnapshotFileTest {
 
         assertEquals(emptyList(), filesInDir())
     }
+
+    @Test
+    fun `the delete runs on the injected I O dispatcher, not on the calling one`() = runTest(testScheduler) {
+        // Its own scheduler: nothing the main (test) scheduler runs executes this dispatcher's work.
+        val ioScheduler = TestCoroutineScheduler()
+        ioDispatcher = StandardTestDispatcher(ioScheduler)
+        val viewModel = createFinishedSession()
+        val file = newSnapshotFile()
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+
+        finish(viewModel, file)
+
+        assertEquals(listOf(file), filesInDir(), "the calling dispatcher did not delete the surplus file")
+        ioScheduler.runCurrent()
+        assertEquals(emptyList(), filesInDir())
+    }
+
+    @Test
+    fun `a file retained after a failed save is still deleted when the ViewModel is cleared`() =
+        runTest(testScheduler) {
+            val ioScheduler = TestCoroutineScheduler()
+            ioDispatcher = StandardTestDispatcher(ioScheduler)
+            val viewModel = createFinishedSession()
+            activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
+            finish(viewModel, newSnapshotFile())
+
+            viewModelStore.clear()
+            ioScheduler.runCurrent()
+
+            assertEquals(emptyList(), filesInDir())
+        }
 
     private companion object {
         val START = Coordinates(latitude = 52.000, longitude = 13.000)
