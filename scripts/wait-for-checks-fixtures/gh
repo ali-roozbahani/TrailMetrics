@@ -1,0 +1,21 @@
+#!/bin/bash
+# Fake `gh` for scripts/wait-for-checks.sh --self-test: serves one fixture case and never touches
+# the network. FAKE_GH_DIR is the case directory, FAKE_GH_STATE a scratch directory that counts
+# the reads. The N-th read of the check runs (or of the PR) serves check-runs-N.json (pr-N.json);
+# past the last file the last one repeats. Only GET reads are served: anything else fails.
+[ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: simulated failure" >&2; exit 1; }
+
+serve() { # <kind>
+    local n i
+    n=$(($(cat "$FAKE_GH_STATE/$1" 2>/dev/null || echo 0) + 1))
+    echo "$n" > "$FAKE_GH_STATE/$1"
+    i="$n"
+    while [ "$i" -gt 1 ] && [ ! -e "$FAKE_GH_DIR/$1-$i.json" ]; do i=$((i - 1)); done
+    cat "$FAKE_GH_DIR/$1-$i.json"
+}
+
+case "$*" in
+    "api repos/{owner}/{repo}/pulls/"*) serve pr ;;
+    "api repos/{owner}/{repo}/commits/"*"/check-runs?filter=latest&per_page=100") serve check-runs ;;
+    *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
+esac

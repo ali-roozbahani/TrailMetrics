@@ -1,0 +1,1 @@
+{"total_count":2,"check_runs":[{"name":"Android — Lint, Detekt, Tests, Build","status":"completed","conclusion":"success"},{"name":"iOS — all stages","status":"in_progress","conclusion":null}]}

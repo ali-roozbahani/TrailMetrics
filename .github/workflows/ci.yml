@@ -76,6 +76,9 @@ jobs:
       - name: CI re-run guard self-test
         run: scripts/rerun-failed-once.sh --self-test
 
+      - name: CI wait self-test
+        run: scripts/wait-for-checks.sh --self-test
+
       - name: Scrub-env self-test
         run: scripts/scrub-env.sh --self-test
 
