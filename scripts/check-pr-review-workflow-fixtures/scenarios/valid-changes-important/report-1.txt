@@ -1,0 +1,5 @@
+VERDICT: CHANGES
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+1. [blocking] scripts/example.sh (@@MARKER@@): the problem; the fix.
+2. [important] scripts/example.sh (loop): P2: suspicion; check.

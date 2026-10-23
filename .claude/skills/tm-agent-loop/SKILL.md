@@ -68,7 +68,8 @@ and record the verdict.
   review again. That is one review fix attempt. The budget is **2 review fix attempts per
   PR**, separate from the gate's 2 fix attempts (`tm-pr-workflow`, "Retry budget"). If the
   third review still has a blocking finding: stop, don't push, report the findings.
-- Notes alone never trigger another round.
+- Notes and `[important]` findings never trigger another round; each `[important]` gets its
+  disposition in the PR description (`tm-pr-review`, "Orchestrator's part", step 5).
 - `ESCALATE_TO_HUMAN` with no blocking findings: continue; the human decides.
 - `NO_VERDICT` is never recorded: fix the cause and ask again. Environment problems are not
   attempts.
@@ -149,16 +150,18 @@ SHA="$(gh pr view <PR number> --json headRefOid --jq .headRefOid)"
 scripts/read-ci-verdict.sh <PR number> "$SHA"
 ```
 
-It prints one line and exits 0 only for the first three:
+It prints one line and exits 0 only for the first three. The message may carry the number of
+`[important]` findings of the report (`APPROVE, 2 important.`); the line then ends in `, <n> important`,
+and a message without a count (an older one) prints the bare verdict, which means zero:
 
-- `APPROVE`: level `notice`, message starting `APPROVE.`
-- `ESCALATE_TO_HUMAN`: level `warning`, message starting `ESCALATE_TO_HUMAN:`
-- `CHANGES`: level `failure`, message starting `CHANGES:`
+- `APPROVE`: level `notice`, message starting `APPROVE.` or `APPROVE, <n> important.`
+- `ESCALATE_TO_HUMAN`: level `warning`, message starting `ESCALATE_TO_HUMAN:` or `ESCALATE_TO_HUMAN, <n> important:`
+- `CHANGES`: level `failure`, message starting `CHANGES:` or `CHANGES, <n> important:`
 - `UNKNOWN <reason>`: anything else (exit 1): no or several check runs or annotations with
   that title, a level and message that disagree, a check run that is not completed, an
   annotation from a different SHA, a PR head that is no longer `$SHA`, a failed `gh` call.
 
-Fail closed: only the exact line `APPROVE` counts as an approval. `ESCALATE_TO_HUMAN`,
+Fail closed: only the line `APPROVE` or `APPROVE, <n> important` counts as an approval. `ESCALATE_TO_HUMAN`,
 `CHANGES` and `UNKNOWN <reason>` are not an approval.
 
 What the script does not check, on purpose:
@@ -167,12 +170,12 @@ What the script does not check, on purpose:
 - It reads only the first page of check runs for the SHA.
 - A null annotation message is `UNKNOWN`, not an approval.
 
-### Reading the report after `CHANGES` or blocking findings
+### Reading the report after `CHANGES`, blocking findings or a count above zero
 
-The annotation carries only the verdict. The reviewer's report is published as the workflow
+The annotation carries the verdict and the count of `[important]` findings. The reviewer's report is published as the workflow
 artifact `pr-review-report` of the run that owns the check run (`report.md`, and
-`first-report.md` when attempt 2 was used; nothing else). After `CHANGES`, or when you need the
-blocking findings under `ESCALATE_TO_HUMAN`, download it for the head SHA into a new empty
+`first-report.md` when attempt 2 was used; nothing else). After `CHANGES`, when the count is above
+zero, or when you need the blocking findings under `ESCALATE_TO_HUMAN`, download it for the head SHA into a new empty
 temp dir outside the repo:
 
 ```bash
@@ -205,8 +208,10 @@ hold:
    `iOS — all stages` and `Repo tooling — policy checks and script self-tests` (names exactly).
 2. The PR head is a branch of this repository (`isCrossRepository` is `false`).
 3. The author is `peter-christofer-bot`.
-4. The CI annotation says `APPROVE` for that head SHA (section 7).
-5. The local reviewer's recorded verdict for that SHA is `APPROVE`.
+4. The CI annotation says `APPROVE` for that head SHA (section 7), and each `[important]` finding of
+   the CI report has a disposition in the PR description.
+5. The local reviewer's recorded verdict for that SHA is `APPROVE`, and each `[important]` finding of
+   the local report has a disposition in the PR description.
 6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
    replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
 
@@ -255,8 +260,8 @@ Merge check
 1. Required checks green on <SHA>: yes|no
 2. Head is a branch of this repository: yes|no
 3. Author is peter-christofer-bot: yes|no
-4. CI annotation APPROVE: yes|no (<title>, <level>, "<first words of message>")
-5. Local verdict APPROVE for <SHA>: yes|no
+4. CI annotation APPROVE, each [important] disposed: yes|no (<title>, <level>, "<first words of message>")
+5. Local verdict APPROVE for <SHA>, each [important] disposed: yes|no
 6. No protected path, or allowed_paths cover every changed path: yes|no
 
 Merged: yes|no (<reason when no>)

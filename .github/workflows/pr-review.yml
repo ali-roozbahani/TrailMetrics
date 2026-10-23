@@ -208,6 +208,11 @@ jobs:
           first="$(head -n 1 "$report" 2>/dev/null || true)"
           second="$(sed -n 2p "$report" 2>/dev/null || true)"
           result=fail
+          # [important] findings do not change the verdict; the count in the message makes the agent
+          # read the report (tm-agent-loop, section 7). No count when it is zero.
+          n="$(grep -cE '^[0-9]+\. \[important\]' "$report" 2>/dev/null || true)"
+          case "$n" in ''|*[!0-9]*) n=0 ;; esac
+          if [ "$n" -gt 0 ]; then imp=", $n important"; else imp=""; fi
           if [ "$status" != 0 ]; then msg="The reviewer run failed (exit status: $status)."
           elif [ ! -s "$report" ]; then msg="The reviewer returned an empty report."
           elif [ "$first" != "VERDICT: APPROVE" ] && [ "$first" != "VERDICT: CHANGES" ] \
@@ -215,10 +220,10 @@ jobs:
             msg="The report's first line is not a verdict (NO_VERDICT or malformed)."
           elif [ "$second" != "REVIEWED_SHA: $HEAD_SHA" ]; then
             msg="REVIEWED_SHA does not match the PR head $HEAD_SHA."
-          elif [ "$first" = "VERDICT: APPROVE" ]; then result=pass; msg="APPROVE."
+          elif [ "$first" = "VERDICT: APPROVE" ]; then result=pass; msg="APPROVE${imp}."
           elif [ "$first" = "VERDICT: ESCALATE_TO_HUMAN" ]; then
-            result=warn; msg="ESCALATE_TO_HUMAN: the human decides. Read the report below or in the artifact pr-review-report of this run."
-          else msg="CHANGES: the reviewer found blocking problems, listed below and in the artifact pr-review-report of this run."
+            result=warn; msg="ESCALATE_TO_HUMAN${imp}: the human decides. Read the report below or in the artifact pr-review-report of this run."
+          else msg="CHANGES${imp}: the reviewer found blocking problems, listed below and in the artifact pr-review-report of this run."
           fi
           case "$result" in
             pass) echo "::notice title=Review — pr-reviewer::$msg" ;;

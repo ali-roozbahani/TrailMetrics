@@ -1,0 +1,5 @@
+VERDICT: ESCALATE_TO_HUMAN
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+1. [important] app/Foo.kt (@@MARKER@@): M2: leak risk; check.
+2. [note] protected path: .github/x (@@MARKER@@): human decides.

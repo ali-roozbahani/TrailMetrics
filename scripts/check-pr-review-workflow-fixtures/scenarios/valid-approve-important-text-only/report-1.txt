@@ -1,0 +1,4 @@
+VERDICT: APPROVE
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+1. [note] app/Foo.kt (@@MARKER@@): mentions [important] in prose only; none.

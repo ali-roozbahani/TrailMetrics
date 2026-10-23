@@ -1,0 +1,14 @@
+[
+  {
+    "path": ".github",
+    "start_line": 1,
+    "end_line": 1,
+    "start_column": null,
+    "end_column": null,
+    "annotation_level": "failure",
+    "title": "Review — pr-reviewer",
+    "message": "CHANGES, 1 important: the reviewer found blocking problems.",
+    "raw_details": null,
+    "blob_href": "https://github.com/o/r/blob/1111111111111111111111111111111111111111/.github"
+  }
+]
