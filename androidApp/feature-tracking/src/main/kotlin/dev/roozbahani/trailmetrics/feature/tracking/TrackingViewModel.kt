@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 class TrackingViewModel(
     private val trackingSessionManager: TrackingSessionManager,
@@ -47,6 +48,18 @@ class TrackingViewModel(
      * can't save the session again. Cleared by [start] for a new session, and if the save fails.
      */
     private var isSessionSaved = false
+
+    /**
+     * The snapshot file of the Finish whose save is running or has succeeded: a saved activity
+     * references it, so it is never deleted. Cleared by [start].
+     */
+    private var snapshotInUse: String? = null
+
+    /**
+     * The snapshot file kept after a Finish that did not save, so the retry reuses it instead of
+     * writing a new one. Deleted by [start] and [onCleared] if no retry used it.
+     */
+    private val retainedSnapshotPath = MutableStateFlow<String?>(null)
 
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
 
@@ -67,8 +80,9 @@ class TrackingViewModel(
 
     val state: StateFlow<TrackingScreenState> = combine(
         trackingSessionManager.currentState,
-        _userProfile
-    ) { trackingState, userProfile ->
+        _userProfile,
+        retainedSnapshotPath
+    ) { trackingState, userProfile, retainedPath ->
         val metrics: TrackingMetrics? = when (trackingState) {
             is TrackingState.Tracking -> trackingState.metrics
             is TrackingState.Paused -> trackingState.metrics
@@ -89,7 +103,8 @@ class TrackingViewModel(
         TrackingScreenState(
             trackingState = trackingState,
             calories = calories,
-            plannedRoutePoints = plannedRoutePoints
+            plannedRoutePoints = plannedRoutePoints,
+            retainedSnapshotPath = retainedPath
         )
     }.map(::withRouteCompletion).stateIn(
         scope = viewModelScope,
@@ -139,24 +154,36 @@ class TrackingViewModel(
     private fun start(startCoordinates: Coordinates) {
         startedAtEpochMillis = clock.nowMillis()
         isSessionSaved = false
+        snapshotInUse = null
+        // The session whose save failed is discarded; nothing can retry with its file.
+        retainedSnapshotPath.value?.let(::deleteSnapshotFile)
+        retainedSnapshotPath.value = null
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates)
         }
     }
 
     private fun finish(snapshotFilePath: String?) {
-        if (isSessionSaved) return
-        val finishedState = trackingSessionManager.currentState.value as? TrackingState.Finished ?: return
+        val finishedState = trackingSessionManager.currentState.value as? TrackingState.Finished
         val loadedProfile = _userProfile.value
         // The first load is still running: Finish does nothing, as before, and a later tap works.
-        if (loadedProfile == null && initialProfileLoad.isActive) return
+        val isProfileLoading = loadedProfile == null && initialProfileLoad.isActive
+        if (isSessionSaved || finishedState == null || isProfileLoading) {
+            deleteIfUnreferenced(snapshotFilePath)
+            return
+        }
+        // A retry reuses the file the failed Finish kept; a file handed in again is surplus.
+        val path = retainedSnapshotPath.value ?: snapshotFilePath
+        snapshotInUse = path
+        retainedSnapshotPath.value = null
         isSessionSaved = true
+        deleteIfUnreferenced(snapshotFilePath)
         viewModelScope.launch {
             try {
                 val userProfile = loadedProfile ?: readProfileAgain()
                 if (userProfile == null) {
                     // Nothing is saved or discarded; the user can tap Finish again.
-                    isSessionSaved = false
+                    keepForRetry(path)
                     _events.send(TrackingEvent.ShowError(RouteUiError.General))
                     return@launch
                 }
@@ -166,18 +193,43 @@ class TrackingViewModel(
                     metrics = finishedState.metrics,
                     weightKg = userProfile.weightKg,
                     startedAtEpochMillis = startedAtEpochMillis,
-                    snapshotFilePath = snapshotFilePath
+                    snapshotFilePath = path
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 // Let the user retry.
-                isSessionSaved = false
+                keepForRetry(path)
                 _events.send(TrackingEvent.ShowError(RouteUiError.General))
                 return@launch
             }
             _events.send(TrackingEvent.Saved)
         }
+    }
+
+    private fun keepForRetry(snapshotFilePath: String?) {
+        isSessionSaved = false
+        snapshotInUse = null
+        retainedSnapshotPath.value = snapshotFilePath
+    }
+
+    /** The screen only produces snapshot files; whether one is kept or deleted is decided here. */
+    private fun deleteIfUnreferenced(snapshotFilePath: String?) {
+        if (snapshotFilePath != null &&
+            snapshotFilePath != snapshotInUse &&
+            snapshotFilePath != retainedSnapshotPath.value
+        ) {
+            deleteSnapshotFile(snapshotFilePath)
+        }
+    }
+
+    private fun deleteSnapshotFile(path: String) {
+        File(path).delete()
+    }
+
+    override fun onCleared() {
+        retainedSnapshotPath.value?.let(::deleteSnapshotFile)
+        super.onCleared()
     }
 
     private suspend fun readProfileAgain(): UserProfile? =
@@ -190,7 +242,9 @@ data class TrackingScreenState(
     val calories: Double? = null,
     val plannedRoutePoints: List<Coordinates> = emptyList(),
     val routeProgress: RouteProgress? = null,
-    val hasReachedDestination: Boolean = false
+    val hasReachedDestination: Boolean = false,
+    /** Set after a Finish that did not save: the screen sends this file again instead of a new one. */
+    val retainedSnapshotPath: String? = null
 ) {
     val currentPath: List<Coordinates>
         get() = when (val state = trackingState) {
