@@ -1,4 +1,5 @@
 Android — Lint, Detekt, Tests, Build	completed	success
 iOS — all stages	completed	success
 Review — pr-reviewer	completed	success
+Repo tooling — policy checks and script self-tests	completed	success
 ALL_GREEN

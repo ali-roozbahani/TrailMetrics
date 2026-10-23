@@ -90,6 +90,9 @@ here. Run the script itself, not a hand-picked command.
   no build, among them the Kover floors and Room schema checks, still run. A full run adds the
   iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
   diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
+- **Self-test of a new script.** Its `--self-test` step goes into CI's `tooling` job (or an iOS
+  job when the script tests iOS-only things), never into the `android` job, and a job's name
+  states what the job runs.
 - **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:
@@ -315,7 +318,7 @@ End the description with the attribution line the session specifies.
 only while its item is open. Its header gives the record format, including `Order` (unique
 integer, ascending = do first, across all sections) and the optional `After` (slugs that must
 be gone from the board first). `scripts/check-board.sh` enforces the format; it is the first
-step of the gate and of CI's `android` job.
+step of the gate and of CI's `tooling` job.
 
 0. **Picking work.** An agent started without a named task takes the record that
    `scripts/check-board.sh --next` prints. If that record is an epic (or
@@ -408,11 +411,12 @@ silently force-pushing.
   required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
   the code owner's approval, and stale approvals are dismissed when new commits are pushed.
   Branches must be up to date before merging. The required checks are
-  `Android — Lint, Detekt, Tests, Build`, `iOS — all stages` (the `ios` aggregator job)
+  `Android — Lint, Detekt, Tests, Build`, `iOS — all stages` (the `ios` aggregator job),
+  `Repo tooling — policy checks and script self-tests` (the `tooling` job)
   and `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
   "Require approvals" is off (approval count **0**), so a PR that touches no owned path
   needs no approval. #30–#37 were all merged with no review, before code owner review was
-  required. The two CI checks were required before #38 merged.
+  required. The Android and iOS checks were required before #38 merged.
 - **The review check is required, but green is not approval.** `Review — pr-reviewer`
   (`.github/workflows/pr-review.yml`) is green for both `APPROVE` and `ESCALATE_TO_HUMAN`;
   the verdict is read from its annotation (`tm-agent-loop`, section 7).
@@ -420,7 +424,7 @@ silently force-pushing.
   of that run (kept 7 days), which the agent downloads with `gh run download` after `CHANGES`
   or blocking findings (`tm-agent-loop`, section 7).
 - **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
-  step of CI's `android` job).
+  step of CI's `tooling` job).
 - **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
   when it merges; the local branch is the agent's to delete ("Before starting").
 - **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it

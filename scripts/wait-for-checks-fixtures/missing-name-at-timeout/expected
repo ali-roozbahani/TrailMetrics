@@ -1,4 +1,5 @@
 Android — Lint, Detekt, Tests, Build	completed	success
 iOS — every stage	completed	success
 Review — pr-reviewer	completed	success
+Repo tooling — policy checks and script self-tests	completed	success
 TIMEOUT (none running); missing: iOS — all stages

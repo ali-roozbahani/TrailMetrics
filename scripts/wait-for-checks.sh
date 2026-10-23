@@ -46,13 +46,14 @@ set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FIXTURES="$ROOT/scripts/wait-for-checks-fixtures"
-# The check runs that must exist, by exact name, for ALL_GREEN: the two required checks of
+# The check runs that must exist, by exact name, for ALL_GREEN: the three required checks of
 # tm-agent-loop section 8 (branch protection) and the CI reviewer's check run
 # (.github/workflows/pr-review.yml). One name per line (names contain commas). If a check is
 # renamed, the run waits until the timeout and names it as missing instead of turning green:
 # update this list with the rename.
 REQUIRED_CHECKS="Android — Lint, Detekt, Tests, Build
 iOS — all stages
+Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
 USAGE="usage: scripts/wait-for-checks.sh <PR number | head SHA> | --self-test"
 

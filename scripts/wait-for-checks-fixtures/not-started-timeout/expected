@@ -1,1 +1,1 @@
-TIMEOUT (none running); missing: Android — Lint, Detekt, Tests, Build; iOS — all stages; Review — pr-reviewer
+TIMEOUT (none running); missing: Android — Lint, Detekt, Tests, Build; iOS — all stages; Repo tooling — policy checks and script self-tests; Review — pr-reviewer

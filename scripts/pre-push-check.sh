@@ -125,7 +125,7 @@ echo
 run_step "board check" scripts/check-board.sh
 
 # Protected paths (.github/CODEOWNERS): the file must be valid and the classifier's own tests
-# must pass. Same commands as CI's android job.
+# must pass. Same commands as CI's tooling job.
 run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
 run_step "change classification self-test" scripts/classify-changes.sh --self-test
 run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test

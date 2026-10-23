@@ -1,4 +1,5 @@
 Android — Lint, Detekt, Tests, Build	completed	success
 iOS — all stages	completed	failure
 Review — pr-reviewer	completed	cancelled
+Repo tooling — policy checks and script self-tests	completed	success
 FAILED iOS — all stages; Review — pr-reviewer

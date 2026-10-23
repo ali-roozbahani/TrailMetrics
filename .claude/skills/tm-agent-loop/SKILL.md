@@ -106,7 +106,7 @@ conclusion) and a last line: `ALL_GREEN` (exit 0), `FAILED <names>`, `TIMEOUT <n
 running>[; missing: <names>]` or `SUPERSEDED <new sha>` (exit 1; a newer push changed the PR
 head, so watch that SHA instead), exit 2 for a usage error or a `gh` call that failed 4 times in
 a row (it retries up to 3 times, one step apart). A check run that does not exist yet counts as
-not finished: `ALL_GREEN` needs both required checks of section 8 and `Review — pr-reviewer`
+not finished: `ALL_GREEN` needs the three required checks of section 8 and `Review — pr-reviewer`
 to exist (the list is `REQUIRED_CHECKS` in the script) as well as every run completed, so a
 `TIMEOUT` can end with `missing:` the names that never appeared. The maximum wait is 90 minutes
 for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report the checks still
@@ -201,8 +201,8 @@ approval count is 0, before and after a code owner approves.
 Once the checks are done, check each one, in order, for the PR's current head SHA. All must
 hold:
 
-1. The required CI checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`
-   and `iOS — all stages` (names exactly).
+1. The required CI checks are green on the head SHA: `Android — Lint, Detekt, Tests, Build`,
+   `iOS — all stages` and `Repo tooling — policy checks and script self-tests` (names exactly).
 2. The PR head is a branch of this repository (`isCrossRepository` is `false`).
 3. The author is `peter-christofer-bot`.
 4. The CI annotation says `APPROVE` for that head SHA (section 7).
@@ -216,7 +216,7 @@ a failure; only the current head SHA's checks count.
 
 ```bash
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
-  --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — all stages") | [.name, .status, .conclusion] | @tsv'
+  --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — all stages" or .name == "Repo tooling — policy checks and script self-tests") | [.name, .status, .conclusion] | @tsv'
 gh pr view "$N" --json isCrossRepository,author,headRefOid,baseRefName,state
 cat "$(git rev-parse --path-format=absolute --git-path .review-verdict)"   # "<SHA> APPROVE"
 git fetch origin
