@@ -88,6 +88,7 @@ class TrackingScreenSnapshotTest {
 
         val path = assertNotNull(fixture.activityHistoryRepository.savedActivities.single().snapshotFilePath)
         assertSnapshotFileUnderFilesDir(path)
+        assertEquals(listOf(File(path).canonicalFile), snapshotFiles().map { it.canonicalFile }, "one file, referenced")
         assertEquals(1, navigateBackCalls)
     }
 
@@ -119,14 +120,20 @@ class TrackingScreenSnapshotTest {
 
         // The snapshot's callback released the screen's guard: a second tap during the slow save
         // reaches the ViewModel, whose own guard keeps it from saving the session twice.
+        // The file name has millisecond resolution: move the first file aside so that a second write
+        // in the same millisecond is counted instead of overwriting it.
+        val first = snapshotFiles().single()
+        assertTrue(first.renameTo(File(first.parentFile, "first_${first.name}")))
         robot.clickFinish().waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
+        assertEquals(1, snapshotFiles().size, "the second snapshot's file is deleted while the save still runs")
         gate.complete(Unit)
         robot.waitForIdle()
 
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(1, navigateBackCalls)
+        assertEquals(listOf("first_${first.name}"), snapshotFiles().map { it.name })
     }
 
     @Test
@@ -181,22 +188,23 @@ class TrackingScreenSnapshotTest {
     }
 
     @Test
-    fun `a Finish after a failed save asks for a new snapshot and saves the activity`() {
+    fun `a Finish after a failed save reuses the kept snapshot file and saves the activity`() {
         fixture.activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
         showReachedDestination().clickFinish().waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
         robot.waitForIdle()
         assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(0, navigateBackCalls)
+        val kept = snapshotFiles().single()
 
         fixture.activityHistoryRepository.saveActivityFailure = null
         robot.clickFinish().waitForIdle()
 
-        assertEquals(2, fakeMap.snapshotRequests, "the first snapshot's callback released the guard")
-        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
-        robot.waitForIdle()
+        assertEquals(1, fakeMap.snapshotRequests, "the retry sends the kept file and asks for no new snapshot")
         val record = fixture.activityHistoryRepository.savedActivities.single()
         assertSnapshotFileUnderFilesDir(assertNotNull(record.snapshotFilePath))
+        assertEquals(listOf(kept.canonicalFile), snapshotFiles().map { it.canonicalFile })
+        assertEquals(kept.canonicalFile, File(record.snapshotFilePath!!).canonicalFile)
         assertEquals(1, navigateBackCalls)
     }
 

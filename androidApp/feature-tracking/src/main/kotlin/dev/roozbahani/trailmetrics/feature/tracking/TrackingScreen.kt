@@ -331,7 +331,11 @@ fun TrackingScreen(
                                 Button( // Finish
                                     onClick = {
                                         val map = googleMapRef
-                                        if (map != null) {
+                                        val retainedPath = state.retainedSnapshotPath
+                                        if (retainedPath != null) {
+                                            // A failed save kept its file; the retry reuses it.
+                                            onAction(TrackingAction.Finish(retainedPath))
+                                        } else if (map != null) {
                                             if (!isSnapshotPending) {
                                                 isSnapshotPending = true
                                                 map.snapshot { bitmap ->
