@@ -151,18 +151,20 @@ scripts/read-ci-verdict.sh <PR number> "$SHA"
 ```
 
 It prints one line and exits 0 only for the first three. The message may carry the number of
-`[important]` findings of the report (`APPROVE, 2 important.`); the line then ends in `, <n> important`,
-and a message without a count (an older one) prints the bare verdict, which means zero:
+`[important]` findings of the report (`APPROVE, 2 important.`); the line then ends in
+`, <n> important`, and a message without a count (an older one) prints the bare verdict, which
+means zero:
 
 - `APPROVE`: level `notice`, message starting `APPROVE.` or `APPROVE, <n> important.`
-- `ESCALATE_TO_HUMAN`: level `warning`, message starting `ESCALATE_TO_HUMAN:` or `ESCALATE_TO_HUMAN, <n> important:`
+- `ESCALATE_TO_HUMAN`: level `warning`, message starting `ESCALATE_TO_HUMAN:` or
+  `ESCALATE_TO_HUMAN, <n> important:`
 - `CHANGES`: level `failure`, message starting `CHANGES:` or `CHANGES, <n> important:`
 - `UNKNOWN <reason>`: anything else (exit 1): no or several check runs or annotations with
   that title, a level and message that disagree, a check run that is not completed, an
   annotation from a different SHA, a PR head that is no longer `$SHA`, a failed `gh` call.
 
-Fail closed: only the line `APPROVE` or `APPROVE, <n> important` counts as an approval. `ESCALATE_TO_HUMAN`,
-`CHANGES` and `UNKNOWN <reason>` are not an approval.
+Fail closed: only the line `APPROVE` or `APPROVE, <n> important` counts as an approval.
+`ESCALATE_TO_HUMAN`, `CHANGES` and `UNKNOWN <reason>` are not an approval.
 
 What the script does not check, on purpose:
 
@@ -172,10 +174,11 @@ What the script does not check, on purpose:
 
 ### Reading the report after `CHANGES`, blocking findings or a count above zero
 
-The annotation carries the verdict and the count of `[important]` findings. The reviewer's report is published as the workflow
-artifact `pr-review-report` of the run that owns the check run (`report.md`, and
-`first-report.md` when attempt 2 was used; nothing else). After `CHANGES`, when the count is above
-zero, or when you need the blocking findings under `ESCALATE_TO_HUMAN`, download it for the head SHA into a new empty
+The annotation carries the verdict and the count of `[important]` findings. The reviewer's report
+is published as the workflow artifact `pr-review-report` of the run that owns the check run
+(`report.md`, and `first-report.md` when attempt 2 was used; nothing else). After `CHANGES`, when
+the count is above zero, or when you need the blocking findings under `ESCALATE_TO_HUMAN`,
+download it for the head SHA into a new empty
 temp dir outside the repo:
 
 ```bash
@@ -210,8 +213,8 @@ hold:
 3. The author is `peter-christofer-bot`.
 4. The CI annotation says `APPROVE` for that head SHA (section 7), and each `[important]` finding of
    the CI report has a disposition in the PR description.
-5. The local reviewer's recorded verdict for that SHA is `APPROVE`, and each `[important]` finding of
-   the local report has a disposition in the PR description.
+5. The local reviewer's recorded verdict for that SHA is `APPROVE`, and each `[important]`
+   finding of the local report has a disposition in the PR description.
 6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
    replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
 
