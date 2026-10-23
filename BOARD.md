@@ -83,15 +83,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
 - Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/SwiftTestSupport.kt`; `scripts/check-production-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
 
-### tracking-finish-unsaved-snapshot-files-not-deleted
-- Type: task
-- Area: androidApp/feature-tracking
-- Order: 125
-- Source: PR from bugfix/tracking-finish-single-snapshot, 2026-10-07
-- Problem: `TrackingScreen`'s Finish button requests no second `map.snapshot { }` while one is pending, but the guard is released when the callback fires, before the save ends. A Finish tap after the snapshot arrived while the save is still running requests a new snapshot and writes a second `activity_<millis>.png`, which `TrackingViewModel.finish` ignores (`isSessionSaved`), so nothing references or deletes it. A save that fails also leaves its snapshot file behind, and the retry writes a new one. `TrackingScreenSnapshotTest`'s slow-save test ("a double tap on Finish whose first save is slow saves one activity") takes this path and does not count the files.
-- Done when: a Finish whose snapshot file ends up referenced by no saved activity (ignored by the ViewModel, or its save failed) leaves no file in `filesDir`, with a test that counts the files after a tap during a slow save and after a failed save followed by a successful retry.
-- Refs: `androidApp/feature-tracking` `TrackingScreen` (the Finish button), `util/MapSnapshotSaver.kt` (`saveSnapshotToFile`), `TrackingViewModel.finish`, `TrackingScreenSnapshotTest`.
-
 ### tracking-location-path-double-clock-read
 - Type: task
 - Area: domain
