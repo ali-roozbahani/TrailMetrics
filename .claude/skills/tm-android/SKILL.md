@@ -25,6 +25,20 @@ exists", this skill's MVI section wins for "what new ViewModels should look like
 - A ViewModel calls a `domain` use case, a repository interface or a domain state machine
   (`TrackingSessionManager`) directly. Dependencies point that way only: nothing in
   `domain`/`data` knows about a ViewModel.
+- A ViewModel holds presentation state only: it never touches a DAO, file, HTTP client or
+  `Context`, and holds no formatting or business rule that belongs in `domain` (`tm-kmp-shared`,
+  "Where logic lives"). Enforced: reviewer only. Violation: `blocking` for data access, `important`
+  for a misplaced rule.
+- Dependencies are constructor-injected and typed to the `domain` interface
+  (`ActivityHistoryRepository`), never to its `data` implementation. Enforced: the module graph (a
+  feature module cannot see `:data`); reviewer only elsewhere. Violation: `blocking`.
+- One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList` (see
+  "Detekt") are the mechanical signal; a class that mixes state, IO and formatting is the judgement
+  one, reviewer only. Violation: `important`.
+- Never an `is`/`as` cast on an abstraction to reach a concrete type, and never an interface method
+  that an implementer leaves empty or throws `NotImplementedError` from (split the interface).
+  Enforced: reviewer only. Violation: `important`.
+- Crashes, ANR, exceptions, threads, process death, leaks and performance: `tm-robustness`.
 - `AppRoute` lives in `core`'s `commonMain` and is the single source of destinations. Never
   recreate a local route sealed class in a feature module.
 - `RouteUiError` (in `core`) is the shared error classification. Its Android-only
@@ -116,8 +130,8 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   state that business logic never needs: Compose-owned holders (`LazyListState`,
   `SnackbarHostState`, `rememberCameraPositionState()`), dialog/sheet visibility
   (`showDeleteConfirmation`), or a text-field draft before it's submitted (`weightInput`).
-  Anything that must survive process death or that business logic reads belongs in the
-  ViewModel.
+  Anything that business logic reads belongs in the ViewModel. A ViewModel does not survive process
+  death: what the user would lose is also in `SavedStateHandle` or persisted (`tm-robustness`, R1).
 - Collect events in a `LaunchedEffect` in the Root, with an exhaustive `when`.
 - Animate below the recomposition layer: `graphicsLayer`, offset lambdas, or
   `animateFloatAsState` feeding into `graphicsLayer` — not `Modifier.alpha(animatedValue)`
@@ -209,6 +223,10 @@ The Android-relevant parts:
 - `shared` is the only module that exports production API to iOS (`shared-uitest` builds only a
   test-only variant of the same framework, linked by UI-test builds alone; ADR-002).
 - Feature modules stay off `:data`/`:shared` and off each other (see Architecture).
+- The dependency direction is presentation to `domain` to nothing; `data` implements `domain`
+  interfaces and `domain` never imports a `data` type. Enforced: the Gradle module graph (a wrong
+  `project(...)` line fails review of the build file); reviewer only for an import inside a module.
+  Violation: `blocking`.
 
 ## Detekt (CI-enforced, `maxIssues: 0`)
 
@@ -229,8 +247,8 @@ is all the plain `detekt` task reads, so the root build points it at every `src/
   `LongParameterList` 7 for functions and constructors (`TrackingSessionManager.kt` and
   `TrackingViewModel.kt` are excluded; a class growing too many parameters is a signal to look at
   its responsibilities, not to extend the exclude list). Default `MaxLineLength` is 120. `MagicNumber` and `ReturnCount` are off.
-- `!!` is not banned by tooling but is rejected in review. Use `checkNotNull(x) { "why" }`,
-  or restructure so the nullable type never reaches that point.
+- `!!` is rejected by detekt's `UnsafeCallOnNullableType`, which is on by default, and in review.
+  Use `checkNotNull(x) { "why" }`, or restructure so the nullable type never reaches that point.
 - Don't add excludes to `config/detekt/detekt.yml` and don't add `@Suppress` to make a
   violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. Any
   suppression needs explicit human approval and a comment with the reason, on its own line
@@ -249,3 +267,5 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
+- `TrackingViewModel` deletes snapshot files itself (`File(path).delete()` on an injected dispatcher),
+  (`deleteSnapshotFile`, `fileScope`), which is file access in a ViewModel (see Architecture).

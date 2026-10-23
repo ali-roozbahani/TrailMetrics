@@ -7,10 +7,14 @@ description: Use when changing or adding code in TrailMetrics `domain`, `data`, 
 
 ## Module boundaries (load-bearing)
 
-- `domain`: pure Kotlin. No `android.*`, `androidx.*`, UIKit, Compose, SwiftUI. Holds models
-  (`TrackingState`, `TrackingMetrics`, `Coordinates`, ...), use cases (`SaveActivityUseCase`),
-  repository interfaces, session state machines (`TrackingSessionManager`).
+- `domain`: pure Kotlin. No `android.*`, `androidx.*`, UIKit, Compose, SwiftUI, Room or Ktor type.
+  Holds models (`TrackingState`, `TrackingMetrics`, `Coordinates`, ...), use cases
+  (`SaveActivityUseCase`), repository interfaces, session state machines (`TrackingSessionManager`).
 - `data`: implements domain interfaces. Room, Ktor, platform services via expect/actual.
+- The dependency direction is presentation to `domain` to nothing, and `data` to `domain`: `domain`
+  imports no `data`, `shared` or UI type, and a class takes a `domain` interface, not the `data`
+  class that implements it. Enforced: the Gradle module graph and reviewer only for an import or a
+  parameter type. Violation: `blocking`.
 - `core` (commonMain only): `AppRoute`, `RouteError`/`RouteUiError`. Never a UI framework
   import. Compose belongs in `androidApp/core-ui`, never here (the Compose compiler plugin
   also compiles for iOS targets if applied in a commonMain module).
@@ -40,6 +44,13 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
   logic, both currently hand-written on each platform's ViewModel.
 - Platform ViewModels only adapt shared logic to UI state/Action/Event. They do not own
   business rules.
+- One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList`
+  (`tm-android`, "Detekt") are the mechanical signal; a class that mixes state, IO and formatting is
+  the judgement one, reviewer only. Violation: `important`.
+- Never an `is`/`as` cast on an abstraction to reach a concrete type, and never an interface method
+  that an implementer leaves empty or throws `NotImplementedError` from (split the interface).
+  Enforced: reviewer only. Violation: `important`.
+- Crashes, ANR, exceptions, dispatchers, process death, leaks and performance: `tm-robustness`.
 
 ## Time
 
@@ -192,3 +203,10 @@ dead code: the Kotlin rules in `tm-android` ("Naming (Kotlin)", "No deprecated A
 ## Detekt
 
 CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android` ("Detekt").
+
+## Known deviations in the current code
+
+Don't copy these as a pattern for new code.
+- `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
+  because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries").
+- The session state machine keeps the in-progress session only in memory (`tm-robustness`, R2 and R5).

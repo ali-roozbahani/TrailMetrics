@@ -40,7 +40,7 @@ git branch -vv                   # every branch other than main is from an earli
 - Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,
   and `LEARNINGS.md` for known KMP/Xcode/Gradle gotchas.
 - Load the code skill(s) for the modules touched (`tm-kmp-shared`, `tm-android`, `tm-ios`,
-  `tm-testing`) as well as this one.
+  `tm-testing`) as well as this one, and `tm-robustness` for any Kotlin or Swift change.
 - If the task names a board record, read `BOARD.md` first (see "Board").
 - Task prompts follow the standard template below. Treat the "should not change" part of
   `Scope` as a hard limit.
@@ -233,7 +233,7 @@ Required. Use these headings, and keep all four even when one is
 
 1. **What changed**: the diff in reviewer terms, including what was deliberately *not*
    changed if the Scope named it.
-2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-testing`, `tm-pr-workflow`.
+2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-robustness`, `tm-testing`, `tm-pr-workflow`.
 3. **Tier 1**: the gate result on the pushed HEAD, which steps ran, and why the iOS steps
    were skipped if they were. For test changes, include test counts before and after
    (from `allTests` JUnit XML, not `./gradlew test`), counted this way:
