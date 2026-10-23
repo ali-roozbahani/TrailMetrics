@@ -28,6 +28,7 @@ edit.
 - `tm-android`          anything under androidApp/
 - `tm-ios`              anything under iosApp/
 - `tm-testing`          writing or changing tests on any platform
+- `tm-robustness`       any Kotlin or Swift change, with the area skill (crashes, ANR, exceptions, threads, leaks)
 - `tm-pr-workflow`      every task that ends in a commit, push or PR (branching, gate, PR description)
 - `epic-orchestration`  a change big enough to split into parallel subtasks across layers/platforms
 - `tm-agent-loop`       every task that ends in a PR, named or picked from the board ("take the next

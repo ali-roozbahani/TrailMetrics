@@ -23,6 +23,20 @@ exists", the rules here win for "what new code should look like".
   create a second shared UI package.
 - Feature packages do not depend on each other. Cross-feature navigation is wired in the
   app target (`iosApp/TrailMetrics/ContentView.swift`), not inside a feature.
+- The dependency direction is view to ViewModel to `domain` (through `SharedKit`) to nothing. A
+  ViewModel holds presentation state only: no file, database or HTTP access of its own and no
+  formatting or business rule that belongs in `domain` (`tm-kmp-shared`, "Where logic lives").
+  Enforced: reviewer only. Violation: `blocking` for data access, `important` for a misplaced rule.
+- A ViewModel takes its dependencies in `init`, typed to the Kotlin interface
+  (`ActivityHistoryRepository`), never to a `data` class. Enforced: reviewer only. Violation:
+  `blocking`.
+- One reason to change per type. Enforced: SwiftLint `type_body_length` (300), `function_body_length`
+  (60) and `cyclomatic_complexity` (15) are the mechanical signal; a type that mixes state, IO and
+  formatting is the judgement one, reviewer only. Violation: `important`.
+- Never an `as?`/`is` cast on an abstraction to reach a concrete type (decoding a bridged Kotlin
+  exception, as `RouteViewModel`'s `underlyingRouteError` does, is the one exception). Enforced:
+  reviewer only. Violation: `important`.
+- Crashes, ANR, exceptions, actors, scene phase, leaks and performance: `tm-robustness`.
 - The only third-party dependency is `ios-maps-sdk` (GoogleMaps) in feature packages that
   render maps.
 - `iosApp/TrackingWidget/` is the Live Activity widget extension. It is a separate target,
@@ -424,3 +438,11 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. A suppression
   needs explicit human approval and a stated reason. Every existing one has the form
   `// swiftlint:disable:next <rule> - <reason>`.
+
+## Known deviations in the current code
+
+Don't copy these as a pattern for new code.
+- `TrackingViewModel` extracts the metrics from `TrackingState` and recomputes calories itself, the same
+  rules Android's `TrackingViewModel` holds (`tm-kmp-shared`, "Where logic lives").
+- The map snapshot is rendered, PNG-encoded and written on the main actor (`saveMapSnapshot`;
+  `tm-robustness`, C1).

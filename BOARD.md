@@ -210,6 +210,78 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a script under `scripts/` with a self-test (in the gate and CI) reports a diff that changes the front matter of a Markdown file in those folders, and item 3 of `tm-pr-review` points to its output instead of asking the reviewer to read for it. Both are protected paths: a human PR.
 - Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`); `scripts/check-skill-rule-changes.py`.
 
+### snapshot-save-off-main-thread
+- Type: task
+- Area: androidApp/feature-tracking, iosApp/Tracking
+- Order: 235
+- Source: PR for tm-robustness-skill
+- Problem: The map snapshot is scaled, PNG-encoded and written to disk on the main thread on both platforms: Android `saveSnapshotToFile` runs in the `map.snapshot { }` callback (`TrackingScreen.kt`), iOS `saveMapSnapshot` runs inside `DispatchQueue.main.async` in `TrackingMapView.swift`. `tm-robustness` C1 makes this a blocking violation. Needs product code in two platforms and a UI-test-visible change of when Finish proceeds, so it is not fixed in a skills PR. The Android scaled bitmap is also never recycled (M5).
+- Done when: the file write (and the scaling or PNG encoding) runs off the main thread on both platforms, Finish still passes the saved path (or null on failure) on the main thread, and a test covers the failure path.
+- Refs: `androidApp/feature-tracking/.../TrackingScreen.kt` (Finish button), `.../util/MapSnapshotSaver.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`; `tm-robustness` C1, D6, M5.
+
+### inject-dispatchers-from-di
+- Type: task
+- Area: androidApp/feature-tracking, data
+- Order: 236
+- Source: PR for tm-robustness-skill
+- Problem: Four classes name a dispatcher themselves, which `tm-robustness` D1 forbids: `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`. Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
+- Done when: only DI modules and the application root name `Dispatchers.*`; the four classes receive their dispatcher or scope from Koin; existing tests pass a test dispatcher.
+- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `tm-robustness` D1.
+
+### enable-robustness-lint-rules
+- Type: task
+- Area: config, scripts
+- Order: 237
+- Source: PR for tm-robustness-skill
+- Problem: Rules that would check `tm-robustness` mechanically are not enabled. Measured with scratch configs (production code, this repo): detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are on by default but need type resolution, and the gate runs plain `detekt`, so they never fire (`InjectDispatcher` gives 1 hit with `detektAndroidMain`, in `TrackingService`; only `data` and `shared` were run typed). Off by default and giving 0 hits: `GlobalCoroutineUsage`, `SuspendFunSwallowedCancellation`, `LateinitUsage`, `CastToNullableType`, `ThrowingExceptionInMain`, `NotImplementedDeclaration`; 1 hit: `ElseCaseInsteadOfExhaustiveWhen` (in `TrackingService.buildNotification`); `LabeledExpression` 9, `CognitiveComplexMethod` 4. SwiftLint opt-in rules with 0 hits: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. Android lint with all checks on gave nothing about threads or leaks. Config and gate files are protected, so a human decides.
+- Done when: the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
+- Refs: `config/detekt/detekt.yml`; `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
+
+### strictmode-leak-detection-debug
+- Type: task
+- Area: androidApp/app
+- Order: 238
+- Source: PR for tm-robustness-skill
+- Problem: The app has no `StrictMode` policy (thread or VM) and no LeakCanary, so a blocking call on the main thread or a leaked `Activity` or closable is only found by reading (`tm-robustness` C1, M8). LeakCanary is a third-party dependency, so it needs the human's decision; the `StrictMode` policies need none.
+- Done when: a debug-only `StrictMode` thread policy and VM policy (`detectLeakedClosableObjects`, `detectActivityLeaks`, penalty log or death) are set in `TrailMetricsApplication`, or LeakCanary is added by name in a task that approves it, and `tm-robustness` M8 names which one exists.
+- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`; `tm-robustness` M8.
+
+### tracking-session-lost-on-process-death
+- Type: task
+- Area: domain, data, androidApp, iosApp
+- Order: 239
+- Source: PR for tm-robustness-skill
+- Problem: The in-progress session exists only in `TrackingSessionManager`'s in-memory `MutableStateFlow`. After Android process death `TrackingService` (`START_STICKY`) restarts with a null intent, shows the "Setting up..." notification and observes an `Idle` state with no location collection, so a foreground service runs with nothing to track and the recorded path is gone. After iOS termination the session is gone as well (no persistence, no `scenePhase` handling). Persisting a session needs a design decision (what is stored, how often, restore or discard) that only the owner can make.
+- Done when: the decision is recorded, an in-progress session is restored or ended visibly after process death on Android and termination on iOS, the restarted service never idles with an empty notification, and tests cover the restore path.
+- Refs: `domain/.../tracking/TrackingSessionManager.kt`; `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `tm-robustness` R2, R5.
+
+### route-draft-lost-on-process-death
+- Type: task
+- Area: androidApp/feature-route, iosApp/Route
+- Order: 240
+- Source: PR for tm-robustness-skill
+- Problem: The route being planned (start point, waypoints, generated route, chosen activity type) lives only in `RouteViewModel` (`RouteState`) and its Swift twin; there is no `SavedStateHandle`, `rememberSaveable` or `@SceneStorage` anywhere in the app, so process death on either platform drops the plan. Whether the draft is worth persisting is a product decision.
+- Done when: the owner decides; if yes, the draft survives process death on both platforms with a test each, if no, `tm-robustness` R1 records the screen as accepted.
+- Refs: `androidApp/feature-route/.../RouteViewModel.kt` (`RouteState`); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `tm-robustness` R1.
+
+### tracking-location-update-path-cost
+- Type: task
+- Area: domain, data, androidApp/feature-tracking, iosApp/Tracking
+- Order: 241
+- Source: PR for tm-robustness-skill
+- Problem: Every location update (every 3 s on Android, every callback on iOS with no `distanceFilter`) copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`), emits a new state, and the Android polyline is rebuilt from the full list (`RoutePolyline`, `remember(points)`); nothing is conflated or sampled, and both platforms request the highest accuracy for the whole session. Cost grows with session length; the right sampling and accuracy are a product and battery decision.
+- Done when: the path grows without a full copy per update (or is sampled by distance), the UI receives conflated updates, and the owner's accuracy and interval choice is recorded in `tm-robustness` P4 and P6.
+- Refs: `domain/.../usecase/UpdateTrackingStateUseCase.kt`; `data/src/androidMain/.../location/AndroidLocationRepositoryImpl.kt`; `data/src/iosMain/.../location/IosLocationRepositoryImpl.kt`; `androidApp/core-ui/.../map/RoutePolyline.kt`; `tm-robustness` P4, P6.
+
+### history-query-index-and-columns
+- Type: task
+- Area: data
+- Order: 242
+- Source: PR for tm-robustness-skill
+- Problem: `tbl_activities` has no index on `startedAtEpochMillis`, which `ActivityDao.observeAll` sorts by, and the list query is `SELECT *`, so the history screen loads every row including both coordinate lists for the whole table (`tm-robustness` P5). An index is a Room schema change (`tm-kmp-shared`, "Changing the database schema") and a list projection changes the repository interface, so it is a task of its own.
+- Done when: the sorted column has an index with its migration and test, and the history list reads only the columns it shows (or the cost is measured and accepted).
+- Refs: `data/src/commonMain/.../local/entity/ActivityEntity.kt`; `.../local/dao/ActivityDao.kt`; `tm-robustness` P5.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -229,3 +301,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `scripts/check-protected-paths.py` now protects a file in the four ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the four ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
 - Done when: both say that Markdown files in those folders are open and any other file is protected, in a PR that may touch the protected paths.
 - Refs: `.github/CODEOWNERS` (reference skills comment); `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `scripts/check-protected-paths.py` (`protecting_pattern`).
+
+### skill-lists-omit-new-skills
+- Type: drift
+- Area: docs
+- Order: 243
+- Source: PR for tm-robustness-skill
+- Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
+- Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
+- Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
