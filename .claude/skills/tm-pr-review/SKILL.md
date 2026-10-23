@@ -59,8 +59,9 @@ from memory.
    (MVI shape, Compose, Koin, deprecated APIs), `tm-ios` (ViewModel/View shape, SKIE use,
    deprecated APIs), `tm-robustness` (crashes, ANR, exceptions, dispatchers, process death,
    leaks, performance; rule ids and severities), `tm-testing` (testing stack, no
-   MockK/Turbine/JUnit5/AssertK/Truth), `tm-pr-workflow` (branch prefix in `branch`, `type(scope): summary` commit format,
-   Boundaries). Read them under `.claude/skills/<name>/SKILL.md`. Also `CLAUDE.md`'s hard rules.
+   MockK/Turbine/JUnit5/AssertK/Truth), `tm-pr-workflow` (branch prefix in `branch`,
+   `type(scope): summary` commit format, Boundaries). Read them under
+   `.claude/skills/<name>/SKILL.md`. Also `CLAUDE.md`'s hard rules.
    A new hardcoded user-visible string in iOS code, or a localized text without the package bundle (`tm-ios`, "Strings"), is blocking.
 3. **Protected paths.** `protected` is `scripts/check-protected-paths.sh --base BASE`
    output. Also check the `diff` file list against `.github/CODEOWNERS` yourself. Any
