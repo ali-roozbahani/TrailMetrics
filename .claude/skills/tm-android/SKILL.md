@@ -267,5 +267,5 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
-- `TrackingViewModel` deletes snapshot files itself (`File(path).delete()` on an injected dispatcher),
-  (`deleteSnapshotFile`, `fileScope`), which is file access in a ViewModel (see Architecture).
+- `TrackingViewModel` deletes snapshot files itself (`deleteSnapshotFile`, `fileScope`, an injected
+  dispatcher), which is file access in a ViewModel (see Architecture).
