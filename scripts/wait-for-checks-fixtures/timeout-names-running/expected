@@ -1,4 +1,5 @@
 Android — Lint, Detekt, Tests, Build	in_progress	-
 iOS — all stages	completed	failure
 Review — pr-reviewer	queued	-
+Repo tooling — policy checks and script self-tests	completed	success
 TIMEOUT Android — Lint, Detekt, Tests, Build; Review — pr-reviewer

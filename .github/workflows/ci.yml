@@ -38,59 +38,6 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: scripts/classify-changes.sh --github
 
-      - name: Board check
-        run: scripts/check-board.sh
-
-      - name: Protected paths check
-        run: |
-          scripts/check-protected-paths.sh --validate
-          scripts/check-protected-paths.sh --self-test
-
-      - name: Change classification self-test
-        run: scripts/classify-changes.sh --self-test
-
-      - name: Reviewer workflow self-test
-        run: scripts/check-pr-review-workflow.sh --self-test
-
-      - name: iOS scope self-test
-        run: scripts/check-ios-scope.sh --self-test
-
-      - name: Skill rule-change self-test
-        run: scripts/check-skill-rule-changes.sh --self-test
-
-      - name: Kover floors self-test
-        run: scripts/check-kover-floors.sh --self-test
-
-      - name: Room schema self-test
-        run: scripts/check-room-schema.sh --self-test
-
-      - name: Variant API check self-test
-        run: scripts/check-variant-api.sh --self-test
-
-      - name: Board check self-test
-        run: scripts/check-board.sh --self-test
-
-      - name: CI verdict reader self-test
-        run: scripts/read-ci-verdict.sh --self-test
-
-      - name: CI re-run guard self-test
-        run: scripts/rerun-failed-once.sh --self-test
-
-      - name: CI wait self-test
-        run: scripts/wait-for-checks.sh --self-test
-
-      - name: Scrub-env self-test
-        run: scripts/scrub-env.sh --self-test
-
-      - name: Xcode log filter self-test
-        run: scripts/filter-xcode-log.sh --self-test
-
-      - name: Push hook self-test
-        run: scripts/claude-hooks/block-git-push.sh --self-test
-
-      - name: Skill changes digest self-test
-        run: scripts/skill-changes-digest.sh --self-test
-
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
       # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
@@ -187,6 +134,73 @@ jobs:
       - name: Room schema export freshness
         if: steps.changes.outputs.decision != 'light'
         run: scripts/check-room-schema.sh --check-export-fresh
+
+  # Repo tooling: the policy checks and the self-tests of the workflow scripts, none of which is
+  # about Android or iOS. It always runs: no path filter and no job-level `if`, because a required
+  # check that is skipped or never created blocks the PR or hides a break. No `needs`: it runs in
+  # parallel with the other jobs. New script self-tests go here, or into an iOS job when the script
+  # is iOS-only (tm-pr-workflow, "Tier 1").
+  tooling:
+    name: Repo tooling — policy checks and script self-tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Board check
+        run: scripts/check-board.sh
+
+      - name: Protected paths check
+        run: |
+          scripts/check-protected-paths.sh --validate
+          scripts/check-protected-paths.sh --self-test
+
+      - name: Change classification self-test
+        run: scripts/classify-changes.sh --self-test
+
+      - name: Reviewer workflow self-test
+        run: scripts/check-pr-review-workflow.sh --self-test
+
+      - name: iOS scope self-test
+        run: scripts/check-ios-scope.sh --self-test
+
+      - name: Skill rule-change self-test
+        run: scripts/check-skill-rule-changes.sh --self-test
+
+      - name: Kover floors self-test
+        run: scripts/check-kover-floors.sh --self-test
+
+      - name: Room schema self-test
+        run: scripts/check-room-schema.sh --self-test
+
+      - name: Variant API check self-test
+        run: scripts/check-variant-api.sh --self-test
+
+      - name: Board check self-test
+        run: scripts/check-board.sh --self-test
+
+      - name: CI verdict reader self-test
+        run: scripts/read-ci-verdict.sh --self-test
+
+      - name: CI re-run guard self-test
+        run: scripts/rerun-failed-once.sh --self-test
+
+      - name: CI wait self-test
+        run: scripts/wait-for-checks.sh --self-test
+
+      - name: Scrub-env self-test
+        run: scripts/scrub-env.sh --self-test
+
+      - name: Xcode log filter self-test
+        run: scripts/filter-xcode-log.sh --self-test
+
+      - name: Push hook self-test
+        run: scripts/claude-hooks/block-git-push.sh --self-test
+
+      - name: Skill changes digest self-test
+        run: scripts/skill-changes-digest.sh --self-test
 
   # The iOS work is split into parallel jobs behind one aggregator, `ios`, which keeps the required
   # check name "iOS — all stages". The iOS wall time is the longer of two chains: ios-main alone
