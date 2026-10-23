@@ -90,7 +90,9 @@ here. Run the script itself, not a hand-picked command.
   no build, among them the Kover floors and Room schema checks, still run. A full run adds the
   iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
   diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
-- **Self-test of a new script.** Its `--self-test` step goes into CI's `tooling` job (or an iOS job when the script tests iOS-only things), never into the `android` job, and a job's name states what the job runs.
+- **Self-test of a new script.** Its `--self-test` step goes into CI's `tooling` job (or an iOS
+  job when the script tests iOS-only things), never into the `android` job, and a job's name
+  states what the job runs.
 - **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:

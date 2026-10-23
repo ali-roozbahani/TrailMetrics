@@ -314,9 +314,9 @@ one of them.
 ### Protection
 
 `main` today (as set by the human on 2026-10-18): PR required, required status checks
-`Android — Lint, Detekt, Tests, Build`, `iOS — all stages`, `Repo tooling — policy checks and script self-tests`
-and `Review — pr-reviewer` with **strict** (up-to-date) on, 0 approvals, `enforce_admins` on,
-no force pushes, no deletions.
+`Android — Lint, Detekt, Tests, Build`, `iOS — all stages`,
+`Repo tooling — policy checks and script self-tests` and `Review — pr-reviewer` with
+**strict** (up-to-date) on, 0 approvals, `enforce_admins` on, no force pushes, no deletions.
 `pr-review.yml` has no branch filter, so `Review — pr-reviewer` runs for pull requests into
 epic integration branches too.
 
@@ -335,11 +335,11 @@ branch. The reasons:
   future epic branch the moment it's created. There's nothing to remember per epic, and
   no window where the branch is unprotected. The repo is public, so rulesets are
   available.
-- The three CI jobs run on every PR (no path filters), so requiring all three checks can't
-  leave a PR stuck waiting for a check that never runs.
+- The CI jobs behind the four checks run on every PR (no path filters), so requiring all four
+  checks can't leave a PR stuck waiting for a check that never runs.
 
 The human sets this up **once**, before the first epic. The orchestrator must not run
-it. Suggested ruleset (same three checks, integration id 15368 = GitHub Actions, as on
+it. Suggested ruleset (same four checks, integration id 15368 = GitHub Actions, as on
 `main`):
 
 ```json
@@ -367,7 +367,7 @@ it. Suggested ruleset (same three checks, integration id 15368 = GitHub Actions,
 ```
 
 `do_not_enforce_on_create: true` is explicit because GitHub defaults it to `false`, which
-rejects creating the branch unless its base commit already has all three checks green.
+rejects creating the branch unless its base commit already has all four checks green.
 
 Apply it with `gh api -X POST repos/ali-roozbahani/TrailMetrics/rulesets --input <file>`,
 or through Settings → Rules. There are no bypass actors, which matches `enforce_admins` on
