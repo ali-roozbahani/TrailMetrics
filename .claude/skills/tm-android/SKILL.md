@@ -268,4 +268,5 @@ Don't copy these as a pattern for new code.
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
 - `TrackingViewModel` deletes snapshot files itself (`deleteSnapshotFile`, `fileScope`, an injected
-  dispatcher), which is file access in a ViewModel (see Architecture).
+  dispatcher), which is file access in a ViewModel (see Architecture;
+  `tracking-viewmodel-snapshot-file-access`).

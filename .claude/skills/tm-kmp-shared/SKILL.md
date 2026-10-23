@@ -208,5 +208,6 @@ CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android`
 
 Don't copy these as a pattern for new code.
 - `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
-  because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries").
+  because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries";
+  `ios-launcher-depends-on-concrete-location-repository`).
 - The session state machine keeps the in-progress session only in memory (`tm-robustness`, R2 and R5).

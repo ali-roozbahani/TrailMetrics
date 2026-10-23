@@ -45,6 +45,96 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
+### snapshot-save-off-main-thread
+- Type: task
+- Area: androidApp/feature-tracking, iosApp/Tracking
+- Order: 10
+- Source: PR for tm-robustness-skill
+- Problem: The map snapshot is scaled, PNG-encoded and written to disk on the main thread on both platforms: Android `saveSnapshotToFile` runs in the `map.snapshot { }` callback (`TrackingScreen.kt`), iOS `saveMapSnapshot` runs inside `DispatchQueue.main.async` in `TrackingMapView.swift`. `tm-robustness` C1 makes this a blocking violation. Needs product code in two platforms and a UI-test-visible change of when Finish proceeds, so it is not fixed in a skills PR. The Android scaled bitmap is also never recycled (M5).
+- Done when: the file write (and the scaling or PNG encoding) runs off the main thread on both platforms, Finish still passes the saved path (or null on failure) on the main thread, and a test covers the failure path.
+- Refs: `androidApp/feature-tracking/.../TrackingScreen.kt` (Finish button), `.../util/MapSnapshotSaver.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`; `tm-robustness` C1, D6, M5.
+
+### tracking-session-lost-on-process-death
+- Type: task
+- Area: domain, data, androidApp, iosApp
+- Order: 20
+- Source: PR for tm-robustness-skill
+- Problem: The in-progress session exists only in `TrackingSessionManager`'s in-memory `MutableStateFlow`. After Android process death `TrackingService` (`START_STICKY`) restarts with a null intent, shows the "Setting up..." notification and observes an `Idle` state with no location collection, so a foreground service runs with nothing to track and the recorded path is gone. After iOS termination the session is gone as well (no persistence, no `scenePhase` handling). Persisting a session needs a design decision (what is stored, how often, restore or discard) that only the owner can make.
+- Done when: the decision is recorded, an in-progress session is restored or ended visibly after process death on Android and termination on iOS, the restarted service never idles with an empty notification, and tests cover the restore path.
+- Refs: `domain/.../tracking/TrackingSessionManager.kt`; `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `tm-robustness` R2, R5.
+
+### route-draft-lost-on-process-death
+- Type: task
+- Area: androidApp/feature-route, iosApp/Route
+- Order: 30
+- Source: PR for tm-robustness-skill
+- Problem: The route being planned (start point, waypoints, generated route, chosen activity type) lives only in `RouteViewModel` (`RouteState`) and its Swift twin; there is no `SavedStateHandle`, `rememberSaveable` or `@SceneStorage` anywhere in the app, so process death on either platform drops the plan. Whether the draft is worth persisting is a product decision.
+- Done when: the owner decides; if yes, the draft survives process death on both platforms with a test each, if no, `tm-robustness` R1 records the screen as accepted.
+- Refs: `androidApp/feature-route/.../RouteViewModel.kt` (`RouteState`); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `tm-robustness` R1.
+
+### inject-dispatchers-from-di
+- Type: task
+- Area: androidApp/feature-tracking, data
+- Order: 40
+- Source: PR for tm-robustness-skill
+- Problem: Five places name a dispatcher themselves, which `tm-robustness` D1 forbids (neither a DI module nor the application root): `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`, and `DatabaseBuilder.kt` calls `setQueryCoroutineContext(Dispatchers.IO)`. Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
+- Done when: only DI modules and the application root name `Dispatchers.*`; the five places receive their dispatcher or scope from Koin (the database builder gets its query context passed in); existing tests pass a test dispatcher.
+- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `tm-robustness` D1.
+
+### strictmode-leak-detection-debug
+- Type: task
+- Area: androidApp/app
+- Order: 45
+- Source: PR for tm-robustness-skill
+- Problem: The app has no `StrictMode` policy (thread or VM) and no LeakCanary, so a blocking call on the main thread or a leaked `Activity` or closable is only found by reading (`tm-robustness` C1, M8). LeakCanary is a third-party dependency, so it needs the human's decision; the `StrictMode` policies need none.
+- Done when: a debug-only `StrictMode` thread policy and VM policy (`detectLeakedClosableObjects`, `detectActivityLeaks`, penalty log or death) are set in `TrailMetricsApplication`, or LeakCanary is added by name in a task that approves it, and `tm-robustness` M8 names which one exists.
+- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`; `tm-robustness` M8.
+
+### enable-robustness-lint-rules
+- Type: task
+- Area: config, scripts
+- Order: 50
+- Source: PR for tm-robustness-skill
+- Problem: Rules that would check `tm-robustness` mechanically are not enabled. Measured with scratch configs (production code, this repo): detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are on by default but need type resolution, and the gate runs plain `detekt`, so they never fire (`InjectDispatcher` gives 1 hit with `detektAndroidMain`, in `TrackingService`; only `data` and `shared` were run typed). Off by default and giving 0 hits: `GlobalCoroutineUsage`, `SuspendFunSwallowedCancellation`, `LateinitUsage`, `CastToNullableType`, `ThrowingExceptionInMain`, `NotImplementedDeclaration`; 1 hit: `ElseCaseInsteadOfExhaustiveWhen` (in `TrackingService.buildNotification`); `LabeledExpression` 9, `CognitiveComplexMethod` 4. SwiftLint opt-in rules with 0 hits: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. Android lint with all checks on gave nothing about threads or leaks. Config and gate files are protected, so a human decides.
+- Done when: the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
+- Refs: `config/detekt/detekt.yml`; `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
+
+### tracking-viewmodel-snapshot-file-access
+- Type: task
+- Area: androidApp/feature-tracking
+- Order: 51
+- Source: PR for tm-robustness-cleanup
+- Problem: Android `TrackingViewModel` deletes snapshot files itself (`deleteSnapshotFile`, `fileScope`, `File(path).delete()`), a ViewModel touching a file, which the Architecture rules of `tm-android` mark `blocking`. Moving it behind a `domain` interface changes constructors, Koin wiring and tests, so it is not fixed in a skills PR.
+- Done when: the ViewModel has no `java.io` use and no file scope; the deletion sits behind an interface (a domain use case or a data class) that the ViewModel receives, with its test.
+- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`deleteSnapshotFile`, `fileScope`); `tm-android` Architecture; `tm-robustness` D3.
+
+### ios-launcher-depends-on-concrete-location-repository
+- Type: task
+- Area: data, domain
+- Order: 52
+- Source: PR for tm-robustness-cleanup
+- Problem: `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not a `domain` interface, because `setBackgroundUpdatesEnabled` is not on `LocationRepository`; `tm-kmp-shared` ("Module boundaries") marks a class that takes the implementing class `blocking`. Adding a method to the interface or a new one changes domain, both platforms' fakes and the Koin module, so it needs a decision on the interface shape.
+- Done when: `IosTrackingServiceLauncher` receives a domain interface only, the Koin module passes that, and a test covers the launcher with a fake.
+- Refs: `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `data/src/iosMain/.../di/IosLocationModule.kt`; `data/src/iosMain/.../location/IosLocationRepositoryImpl.kt`; `tm-kmp-shared` ("Module boundaries").
+
+### tracking-metrics-calories-to-domain
+- Type: task
+- Area: domain, iosApp/Tracking, androidApp/feature-tracking
+- Order: 53
+- Source: PR for tm-robustness-cleanup
+- Problem: The metrics extraction from `TrackingState` and the calorie recompute are hand-written in both `TrackingViewModel`s (Android's and iOS `TrackingViewModel.swift`: `currentMetrics`, `recomputeCalories`); `tm-kmp-shared` ("Where logic lives") puts derived state both platforms need in `domain`. Moving it changes both ViewModels and adds a use case with tests, so it is a task of its own.
+- Done when: one pure function or use case in `domain` with `kotlin.test` coverage computes them, and both ViewModels only adapt it.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentMetrics`, `recomputeCalories`); `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-kmp-shared` ("Where logic lives").
+
+### history-details-snapshot-delete-on-main
+- Type: task
+- Area: androidApp/feature-history
+- Order: 54
+- Source: PR for tm-robustness-cleanup
+- Problem: `HistoryViewModel.deleteActivity` and `DetailsViewModel.deleteActivity` call `deleteSnapshotFile` (`File(path).delete()`) inside `viewModelScope.launch`, which runs on the main thread after the repository call returns; `tm-robustness` C1 and D3 make that a blocking violation. The fix changes constructors and tests of two ViewModels, so it is a task of its own.
+- Done when: the file delete runs off the main thread (or behind the same interface as `tracking-viewmodel-snapshot-file-access`), with the failure path tested.
+- Refs: `androidApp/feature-history/.../HistoryViewModel.kt`, `.../DetailsViewModel.kt`, `.../util/SnapshotFileDeleter.kt`; `tm-robustness` C1, D3.
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -209,60 +299,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: A change to the YAML front matter of a `SKILL.md` or reference file in the four ownerless skill folders (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) is escalated by `tm-pr-review` item 3 only because the reviewer reads the diff. No script detects it, so a missed read lets front matter (which can carry settings) change without a human.
 - Done when: a script under `scripts/` with a self-test (in the gate and CI) reports a diff that changes the front matter of a Markdown file in those folders, and item 3 of `tm-pr-review` points to its output instead of asking the reviewer to read for it. Both are protected paths: a human PR.
 - Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`); `scripts/check-skill-rule-changes.py`.
-
-### snapshot-save-off-main-thread
-- Type: task
-- Area: androidApp/feature-tracking, iosApp/Tracking
-- Order: 235
-- Source: PR for tm-robustness-skill
-- Problem: The map snapshot is scaled, PNG-encoded and written to disk on the main thread on both platforms: Android `saveSnapshotToFile` runs in the `map.snapshot { }` callback (`TrackingScreen.kt`), iOS `saveMapSnapshot` runs inside `DispatchQueue.main.async` in `TrackingMapView.swift`. `tm-robustness` C1 makes this a blocking violation. Needs product code in two platforms and a UI-test-visible change of when Finish proceeds, so it is not fixed in a skills PR. The Android scaled bitmap is also never recycled (M5).
-- Done when: the file write (and the scaling or PNG encoding) runs off the main thread on both platforms, Finish still passes the saved path (or null on failure) on the main thread, and a test covers the failure path.
-- Refs: `androidApp/feature-tracking/.../TrackingScreen.kt` (Finish button), `.../util/MapSnapshotSaver.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`; `tm-robustness` C1, D6, M5.
-
-### inject-dispatchers-from-di
-- Type: task
-- Area: androidApp/feature-tracking, data
-- Order: 236
-- Source: PR for tm-robustness-skill
-- Problem: Four classes name a dispatcher themselves, which `tm-robustness` D1 forbids: `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`. Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
-- Done when: only DI modules and the application root name `Dispatchers.*`; the four classes receive their dispatcher or scope from Koin; existing tests pass a test dispatcher.
-- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `tm-robustness` D1.
-
-### enable-robustness-lint-rules
-- Type: task
-- Area: config, scripts
-- Order: 237
-- Source: PR for tm-robustness-skill
-- Problem: Rules that would check `tm-robustness` mechanically are not enabled. Measured with scratch configs (production code, this repo): detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are on by default but need type resolution, and the gate runs plain `detekt`, so they never fire (`InjectDispatcher` gives 1 hit with `detektAndroidMain`, in `TrackingService`; only `data` and `shared` were run typed). Off by default and giving 0 hits: `GlobalCoroutineUsage`, `SuspendFunSwallowedCancellation`, `LateinitUsage`, `CastToNullableType`, `ThrowingExceptionInMain`, `NotImplementedDeclaration`; 1 hit: `ElseCaseInsteadOfExhaustiveWhen` (in `TrackingService.buildNotification`); `LabeledExpression` 9, `CognitiveComplexMethod` 4. SwiftLint opt-in rules with 0 hits: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. Android lint with all checks on gave nothing about threads or leaks. Config and gate files are protected, so a human decides.
-- Done when: the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
-- Refs: `config/detekt/detekt.yml`; `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
-
-### strictmode-leak-detection-debug
-- Type: task
-- Area: androidApp/app
-- Order: 238
-- Source: PR for tm-robustness-skill
-- Problem: The app has no `StrictMode` policy (thread or VM) and no LeakCanary, so a blocking call on the main thread or a leaked `Activity` or closable is only found by reading (`tm-robustness` C1, M8). LeakCanary is a third-party dependency, so it needs the human's decision; the `StrictMode` policies need none.
-- Done when: a debug-only `StrictMode` thread policy and VM policy (`detectLeakedClosableObjects`, `detectActivityLeaks`, penalty log or death) are set in `TrailMetricsApplication`, or LeakCanary is added by name in a task that approves it, and `tm-robustness` M8 names which one exists.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`; `tm-robustness` M8.
-
-### tracking-session-lost-on-process-death
-- Type: task
-- Area: domain, data, androidApp, iosApp
-- Order: 239
-- Source: PR for tm-robustness-skill
-- Problem: The in-progress session exists only in `TrackingSessionManager`'s in-memory `MutableStateFlow`. After Android process death `TrackingService` (`START_STICKY`) restarts with a null intent, shows the "Setting up..." notification and observes an `Idle` state with no location collection, so a foreground service runs with nothing to track and the recorded path is gone. After iOS termination the session is gone as well (no persistence, no `scenePhase` handling). Persisting a session needs a design decision (what is stored, how often, restore or discard) that only the owner can make.
-- Done when: the decision is recorded, an in-progress session is restored or ended visibly after process death on Android and termination on iOS, the restarted service never idles with an empty notification, and tests cover the restore path.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt`; `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `tm-robustness` R2, R5.
-
-### route-draft-lost-on-process-death
-- Type: task
-- Area: androidApp/feature-route, iosApp/Route
-- Order: 240
-- Source: PR for tm-robustness-skill
-- Problem: The route being planned (start point, waypoints, generated route, chosen activity type) lives only in `RouteViewModel` (`RouteState`) and its Swift twin; there is no `SavedStateHandle`, `rememberSaveable` or `@SceneStorage` anywhere in the app, so process death on either platform drops the plan. Whether the draft is worth persisting is a product decision.
-- Done when: the owner decides; if yes, the draft survives process death on both platforms with a test each, if no, `tm-robustness` R1 records the screen as accepted.
-- Refs: `androidApp/feature-route/.../RouteViewModel.kt` (`RouteState`); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `tm-robustness` R1.
 
 ### tracking-location-update-path-cost
 - Type: task
