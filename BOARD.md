@@ -287,7 +287,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: scripts
 - Order: 231
 - Source: PR for pr-review-item-3-reference-skill-files
-- Problem: A change to the YAML front matter of a `SKILL.md` or reference file in the four ownerless skill folders (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) is escalated by `tm-pr-review` item 3 only because the reviewer reads the diff. No script detects it, so a missed read lets front matter (which can carry settings) change without a human.
+- Problem: A change to the YAML front matter of a `SKILL.md` or reference file in the five ownerless skill folders (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`, `tm-robustness`) is escalated by `tm-pr-review` item 3 only because the reviewer reads the diff. No script detects it, so a missed read lets front matter (which can carry settings) change without a human.
 - Done when: a script under `scripts/` with a self-test (in the gate and CI) reports a diff that changes the front matter of a Markdown file in those folders, and item 3 of `tm-pr-review` points to its output instead of asking the reviewer to read for it. Both are protected paths: a human PR.
 - Refs: `.claude/skills/tm-pr-review/SKILL.md` (item 3); `scripts/check-protected-paths.py` (`UNOWNED_PATTERNS`); `scripts/check-skill-rule-changes.py`.
 
@@ -343,7 +343,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: .claude
 - Order: 232
 - Source: PR for pr-review-item-3-reference-skill-files
-- Problem: `scripts/check-protected-paths.py` now protects a file in the four ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the four ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
+- Problem: `scripts/check-protected-paths.py` now protects a file in the five ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the four ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
 - Done when: both say that Markdown files in those folders are open and any other file is protected, in a PR that may touch the protected paths.
 - Refs: `.github/CODEOWNERS` (reference skills comment); `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `scripts/check-protected-paths.py` (`protecting_pattern`).
 

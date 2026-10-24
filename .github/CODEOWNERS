@@ -5,7 +5,7 @@
 # whose last matching line here has an owner. The one exception is a subtask PR into an epic
 # branch whose plan allowed_paths cover the path (.claude/skills/tm-agent-loop/SKILL.md,
 # "Merge conditions", condition 6). A line with no owner makes its path not owned
-# (the later line wins, as on GitHub); only the four reference skill folders may have one.
+# (the later line wins, as on GitHub); only the five reference skill folders may have one.
 # A pattern that matches no tracked file yet protects a file before it exists; --validate
 # accepts that only for the patterns listed in scripts/check-protected-paths.py.
 
@@ -17,13 +17,14 @@
 /.claude/                                   @ali-roozbahani
 # Reference skills: not owned, so an agent may edit them and add files to them; the reviewer
 # judges the diff and the rule-change signal escalates a removed or rewritten rule line. Whole
-# folders, so a reference file added later needs no edit here. Only these four folders: a
+# folders, so a reference file added later needs no edit here. Only these five folders: a
 # sibling skill folder and the rest of .claude/ stay protected by /.claude/. A CLAUDE.md or
 # .gitignore inside one of them stays protected by the lines below, which come later.
 /.claude/skills/tm-ios/
 /.claude/skills/tm-android/
 /.claude/skills/tm-kmp-shared/
 /.claude/skills/tm-testing/
+/.claude/skills/tm-robustness/
 CLAUDE.md                                   @ali-roozbahani
 /CLAUDE.md                                  @ali-roozbahani
 CLAUDE.local.md                             @ali-roozbahani
