@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.tracking.fakes
 
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
+import kotlinx.coroutines.CompletableDeferred
 
 /** In-memory [TrackingSessionStore]. Every state passed to [save] is kept in [savedStates], in order. */
 class FakeTrackingSessionStore : TrackingSessionStore {
@@ -16,6 +17,9 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     /** When set, [clear] throws it instead of clearing. */
     var clearFailure: Exception? = null
 
+    /** When set, [load] suspends until it is completed. */
+    var loadGate: CompletableDeferred<Unit>? = null
+
     /** When set, [load] throws it. */
     var loadFailure: Exception? = null
 
@@ -26,6 +30,7 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     }
 
     override suspend fun load(): TrackingState? {
+        loadGate?.await()
         loadFailure?.let { throw it }
         return stored
     }

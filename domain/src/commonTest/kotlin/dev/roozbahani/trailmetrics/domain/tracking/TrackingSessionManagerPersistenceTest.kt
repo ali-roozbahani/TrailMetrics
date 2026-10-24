@@ -11,6 +11,8 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -137,6 +139,22 @@ class TrackingSessionManagerPersistenceTest {
 
         assertEquals(running, manager.restore())
         assertEquals(running, manager.currentState.value)
+    }
+
+    @Test
+    fun `a session started while restore loads is not replaced`() = runTest(testScheduler) {
+        store.stored = TrackingState.Finished(metrics())
+        val gate = CompletableDeferred<Unit>()
+        store.loadGate = gate
+        val restoring = async { manager.restore() }
+        testScheduler.runCurrent()
+
+        manager.start(point1)
+        gate.complete(Unit)
+        val result = restoring.await()
+
+        assertIs<TrackingState.Tracking>(result)
+        assertEquals(result, manager.currentState.value)
     }
 
     @Test

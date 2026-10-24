@@ -95,8 +95,8 @@ class TrackingSessionManager(
             is TrackingState.Paused -> stored
             is TrackingState.Finished -> stored
         }
-        _state.value = restored
-        return restored
+        // A session the user started while the load ran is not replaced.
+        return if (_state.compareAndSet(TrackingState.Idle, restored)) restored else _state.value
     }
 
     /**
