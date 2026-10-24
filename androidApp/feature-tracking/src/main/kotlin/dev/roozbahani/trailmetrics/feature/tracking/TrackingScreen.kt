@@ -3,6 +3,7 @@ package dev.roozbahani.trailmetrics.feature.tracking
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -168,16 +169,28 @@ fun TrackingRoot(
         }
     }
 
+    val platformActions = remember(permissionHandler, context, snapshotDispatcher) {
+        TrackingPlatformActions(
+            requestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
+            saveSnapshot = { bitmap -> saveSnapshotToFile(context, bitmap, snapshotDispatcher) }
+        )
+    }
+
     TrackingScreen(
         state = state,
         onAction = viewModel::onAction,
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
-        onRequestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
         onNavigateBack = onNavigateBack,
-        snapshotDispatcher = snapshotDispatcher
+        platformActions = platformActions
     )
 }
+
+/** What the stateless screen asks the platform for; [TrackingRoot] provides both. */
+class TrackingPlatformActions(
+    val requestLocationPermission: () -> Unit,
+    val saveSnapshot: suspend (Bitmap) -> String?
+)
 
 @Composable
 fun TrackingScreen(
@@ -185,9 +198,8 @@ fun TrackingScreen(
     onAction: (TrackingAction) -> Unit,
     initialStartPoint: Coordinates,
     snackBarHostState: SnackbarHostState,
-    onRequestLocationPermission: () -> Unit,
     onNavigateBack: () -> Unit,
-    snapshotDispatcher: CoroutineDispatcher = Dispatchers.IO
+    platformActions: TrackingPlatformActions
 ) {
     val cameraPositionState = rememberCameraPositionState()
     val context = LocalContext.current
@@ -349,7 +361,7 @@ fun TrackingScreen(
                                                 map.snapshot { bitmap ->
                                                     snapshotScope.launch {
                                                         val filePath = try {
-                                                            bitmap?.let { saveSnapshotToFile(context, it, snapshotDispatcher) }
+                                                            bitmap?.let { platformActions.saveSnapshot(it) }
                                                         } finally {
                                                             isSnapshotPending = false
                                                         }
@@ -379,7 +391,7 @@ fun TrackingScreen(
                                         if (hasLocationPermission(context)) {
                                             onAction(TrackingAction.Start(initialStartPoint))
                                         } else {
-                                            onRequestLocationPermission()
+                                            platformActions.requestLocationPermission()
                                         }
                                     }
                                 ) {
@@ -528,8 +540,8 @@ private fun TrackingScreenPreview() {
             onAction = {},
             initialStartPoint = plannedRoute.first(),
             snackBarHostState = remember { SnackbarHostState() },
-            onRequestLocationPermission = {},
-            onNavigateBack = {}
+            onNavigateBack = {},
+            platformActions = TrackingPlatformActions(requestLocationPermission = {}, saveSnapshot = { null })
         )
     }
 }
