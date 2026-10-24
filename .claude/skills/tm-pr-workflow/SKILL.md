@@ -26,6 +26,7 @@ cd ~/agent-workspace/TrailMetrics
 git status --porcelain           # must be empty
 git fetch --prune origin && git switch main && git pull --ff-only
 scripts/prune-merged-branches.sh # deletes the local branches whose PR is merged
+scripts/main-ci-status.sh        # the CI run of origin/main's head: exit 0 green, 1 red, 3 running, 4 unknown
 ```
 
 - Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
@@ -35,6 +36,11 @@ scripts/prune-merged-branches.sh # deletes the local branches whose PR is merged
   new branch until `scripts/prune-merged-branches.sh --check` exits 0 (exit 4 is unknown: report
   it, don't bypass). GitHub deletes the remote branch itself ("Automatically delete head
   branches" is on).
+- `scripts/main-ci-status.sh` reads the run that the last merge started on `main`; nothing else does.
+  Put its summary line first in the report when it is `MAIN_RED`, `MAIN_RUNNING` or `MAIN_UNKNOWN`
+  (with the failed job names and the run URL). A red `main` does not stop the task by itself: the
+  owner decides, and that line is how they see it. A `MERGED-in-worktree` line of
+  `prune-merged-branches.sh` also goes in the report, with its path; the owner removes the worktree.
 - Create the task's branch from this local `main` (see "Branching").
 
 - Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,

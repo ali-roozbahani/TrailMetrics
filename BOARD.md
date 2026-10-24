@@ -327,6 +327,33 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the request handling (handle a request id once, cancel on teardown, drop a result whose request is no longer current, reset the request after delivery) is reachable from a Swift package test or a UI-test scenario, and tests cover each of the four.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`, `TrackingView.swift` (`finishTracking`); `tm-pr-workflow` Tier 2; `tm-testing`.
 
+### gate-self-test-list-duplicates-ci-tooling
+- Type: task
+- Area: scripts, .github/workflows/ci.yml
+- Order: 246
+- Source: investigation of ten red `main` runs, 2026-10-25
+- Problem: the self-tests are listed twice by hand: `scripts/pre-push-check.sh` (one `run_step` per script, from "protected paths" to "skill changes digest self-test") and the `tooling` job of `.github/workflows/ci.yml` (the steps from "Protected paths check" to "Skill changes digest self-test", plus the iOS ones at the `Localized strings rules self-test`, `Optional try rule self-test` and `Production framework check self-test` steps). A script added to one list and not the other runs only in the gate or only in CI; the new `main-ci-status.sh` self-test had to be added to both. Needs a human decision: one list (a script that runs every `*-fixtures` self-test) or a check that the two lists agree.
+- Done when: one source names the self-tests, or `scripts/` has a check that fails when the gate and `ci.yml` disagree, with its own self-test.
+- Refs: `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.github/CODEOWNERS`.
+
+### flake-ios-ui-details-launch-timeout
+- Type: task
+- Area: iosApp/TrailMetricsUITests
+- Order: 247
+- Source: CI runs 39425719146 and 40122507751 (main, push); escalated at count 3 from the entry `ios-ui-details-launch-timeout` in `CI_FLAKES.md`
+- Problem: `iOS 3 — run UI tests (after 2a)` failed on `main` with `DetailsDeleteTwiceUITests.test_deleteConfirmedTwice_deletesOnce` "Failed to launch" (73 s) in `XCUIApplication+Scenario.swift`, twice on pushes (2026-10-20, 2026-10-24) and once on a pull request; `DetailsFailedDeleteUITests` also failed to launch ("Failed to get background assertion") in the 2026-10-24 run. No test body ran. Later runs with the same tests were green. Cause not shown; the step boots the simulator with `simctl bootstatus -b` since #179 and the 2026-10-24 failure happened after it.
+- Done when: the flake no longer fails or the runner/test is changed so it cannot, shown on 5 consecutive runs of the iOS UI-test job.
+- Refs: CI runs 39425719146 and 40122507751; `iosApp/TrailMetricsUITests/Support/XCUIApplication+Scenario.swift`; `CI_FLAKES.md` entry `ios-ui-details-launch-timeout`.
+
+### ios-tracking-finish-test-fixed-wait
+- Type: task
+- Area: iosApp/Packages/Tracking
+- Order: 248
+- Source: CI run 39459833673 (main, push, head fe41afd), 2026-10-20
+- Problem: `iOS 2b` failed once in `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain` ("Condition not met within 2.0 seconds", then "Expected showError, got []"). The code was unchanged and green on the next push. The cause is in our test: a fixed 2.0 s wait for the ViewModel on a loaded runner. #209 rewrote this file after the run, so the wait may already be gone; not checked.
+- Done when: the tests in `TrackingViewModelFinishTests` wait on the state they assert without a fixed 2.0 s bound that depends on runner speed, or the record is deleted because #209 already did so.
+- Refs: CI run 39459833673; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md` entry `ios-tracking-finish-failed-save-wait`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
