@@ -3,7 +3,10 @@
 //  Tracking
 //
 
+import os
 import UIKit
+
+private let snapshotLogger = Logger(subsystem: "dev.roozbahani.trailmetrics.tracking", category: "MapSnapshotSaver")
 
 /// iOS equivalent of Android's `saveSnapshotToFile`: `GMSMapView` has no
 /// `map.snapshot(callback)` API like Android's `GoogleMap`, so this renders the map
@@ -45,12 +48,12 @@ func writeMapSnapshot(_ image: UIImage, to directory: URL) async -> String? {
 }
 
 /// Removes a snapshot file whose result nobody will receive. Best effort: a file that cannot be
-/// removed is an orphaned image the user cannot act on.
+/// removed is an orphaned image the user cannot act on, so the failure is logged.
 func discardSnapshotFile(atPath path: String?) {
     guard let path else { return }
     do {
         try FileManager.default.removeItem(atPath: path)
     } catch {
-        // Nothing to report: no record points at this file.
+        snapshotLogger.error("Failed to remove discarded map snapshot: \(error.localizedDescription)")
     }
 }

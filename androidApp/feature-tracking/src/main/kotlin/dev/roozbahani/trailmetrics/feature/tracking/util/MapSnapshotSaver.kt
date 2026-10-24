@@ -26,7 +26,8 @@ internal suspend fun saveSnapshotToFile(
     return try {
         withContext(ioDispatcher) { writeSnapshot(file, bitmap) }
     } catch (ex: CancellationException) {
-        withContext(NonCancellable + ioDispatcher) { file.delete() }
+        val deleted = withContext(NonCancellable + ioDispatcher) { !file.exists() || file.delete() }
+        if (!deleted) Log.e("MapSnapshotSaver", "Failed to delete the snapshot of a cancelled save: ${file.name}")
         throw ex
     }
 }
