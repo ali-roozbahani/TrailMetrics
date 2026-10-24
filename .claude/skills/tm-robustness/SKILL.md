@@ -147,7 +147,7 @@ rule that needs it never fires there (see "Mechanical rules").
 - **M5** An image, bitmap, snapshot or large buffer is released or downsampled before it is held or
   saved. Why: bitmaps are the usual out-of-memory crash, and memory and storage grow with pixels.
   Example: `saveSnapshotToFile` scales to 600 px
-  wide (it does not recycle the original). Enforced: reviewer only (Android lint `Recycle` covers
+  wide and recycles the scaled copy. Enforced: reviewer only (Android lint `Recycle` covers
   streams and cursors, not bitmaps). Severity: important.
 - **M6** Swift: a closure stored by an object that outlives the caller captures `self` weakly
   (`[weak self]`); delegates are `weak`; a `Timer` or `NotificationCenter` observer is invalidated or
@@ -211,9 +211,6 @@ Don't copy these as a pattern for new code. Each names its board record.
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
   (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
   snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
-- The map snapshot is scaled, PNG-encoded and written on the main thread: Android `saveSnapshotToFile`
-  in the `map.snapshot { }` callback, iOS `saveMapSnapshot` in `TrackingMapView` (C1, D6;
-  `snapshot-save-off-main-thread`).
 - The in-progress tracking session lives only in `TrackingSessionManager`'s in-memory
   `MutableStateFlow`: after Android process death `TrackingService` (`START_STICKY`) restarts with
   `Idle` state and no location collection, and after iOS termination the session is gone (R2, R5;

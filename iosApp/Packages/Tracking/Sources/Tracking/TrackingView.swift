@@ -205,6 +205,8 @@ public struct TrackingView: View {
     }
 
     private func finishTracking() {
+        // A request is pending until its path is delivered (the save runs off the main thread).
+        guard snapshotRequestID == nil else { return }
         snapshotRequestID = UUID()
     }
 

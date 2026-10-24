@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -245,8 +246,10 @@ fun TrackingScreen(
 
     val currentLocation = state.currentPath.lastOrNull()
 
-    // Set while a Finish tap waits for map.snapshot { }, so a repeated tap doesn't write a second file.
+    // Set from a Finish tap until the snapshot path (or null) is delivered, so a repeated tap doesn't
+    // write a second file. Leaving the composition cancels the save: its file is deleted, no Finish is sent.
     var isSnapshotPending by remember { mutableStateOf(false) }
+    val snapshotScope = rememberCoroutineScope()
 
     Scaffold { innerPadding ->
         Box(
@@ -339,9 +342,14 @@ fun TrackingScreen(
                                             if (!isSnapshotPending) {
                                                 isSnapshotPending = true
                                                 map.snapshot { bitmap ->
-                                                    isSnapshotPending = false
-                                                    val filePath = bitmap?.let { saveSnapshotToFile(context, it) }
-                                                    onAction(TrackingAction.Finish(filePath))
+                                                    snapshotScope.launch {
+                                                        val filePath = try {
+                                                            bitmap?.let { saveSnapshotToFile(context, it) }
+                                                        } finally {
+                                                            isSnapshotPending = false
+                                                        }
+                                                        onAction(TrackingAction.Finish(filePath))
+                                                    }
                                                 }
                                             }
                                         } else {

@@ -445,5 +445,3 @@ Don't copy these as a pattern for new code.
 - `TrackingViewModel` extracts the metrics from `TrackingState` and recomputes calories itself, the same
   rules Android's `TrackingViewModel` holds (`tm-kmp-shared`, "Where logic lives";
   `tracking-metrics-calories-to-domain`).
-- The map snapshot is rendered, PNG-encoded and written on the main actor (`saveMapSnapshot`;
-  `tm-robustness`, C1).
