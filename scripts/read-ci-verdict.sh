@@ -6,11 +6,13 @@
 #   scripts/read-ci-verdict.sh <PR number> <head SHA>
 #   scripts/read-ci-verdict.sh --self-test
 #
-# Prints one line: APPROVE, ESCALATE_TO_HUMAN, CHANGES, or UNKNOWN <reason>.
+# Prints one line: APPROVE, ESCALATE_TO_HUMAN, CHANGES, or UNKNOWN <reason>. When the message
+# carries a count of [important] findings (`APPROVE, 2 important.`) the line ends in
+# `, <n> important` (`APPROVE, 2 important`); a message without a count prints the bare verdict.
 # Exit 0 only for one of the three verdicts, which then comes from the one completed check run of
 # THAT SHA with exactly one annotation titled `Review — pr-reviewer` whose level and message
 # prefix agree and whose blob link names that SHA. Anything else is UNKNOWN and exits 1: only
-# the exact line APPROVE counts as an approval. Exit 2 is a usage error.
+# the line APPROVE or `APPROVE, <n> important` counts as an approval. Exit 2 is a usage error.
 # The PR number is used to confirm that the PR's head is still <head SHA>; a moved head is UNKNOWN.
 #
 # --self-test runs every case in scripts/read-ci-verdict-fixtures/ against a fake `gh` (no
@@ -55,15 +57,21 @@ read_verdict() {
           else ($ann[0] | map(select(.title == $name))) as $a
           | if ($a | length) != 1 then "NOT_APPROVE: \($a | length) annotations with that title"
             elif ($a[0].blob_href | tostring | contains("/blob/\($sha)/") | not) then "NOT_APPROVE: annotation is not for \($sha)"
-            elif $a[0].annotation_level == "notice" and ($a[0].message | startswith("APPROVE.")) then "APPROVE"
-            elif $a[0].annotation_level == "warning" and ($a[0].message | startswith("ESCALATE_TO_HUMAN:")) then "ESCALATE_TO_HUMAN"
-            elif $a[0].annotation_level == "failure" and ($a[0].message | startswith("CHANGES:")) then "CHANGES"
+            else ($a[0].message | capture("^(?<v>APPROVE|ESCALATE_TO_HUMAN|CHANGES)(, (?<n>[0-9]+) important)?(?<sep>[.:])") // null) as $m
+            | (if $m == null then ""
+               elif ($m.n // "") == "" or ($m.n | tonumber) == 0 then ""
+               else ", \($m.n | tonumber) important" end) as $imp
+            | if $m != null and $a[0].annotation_level == "notice" and $m.v == "APPROVE" and $m.sep == "." then "APPROVE\($imp)"
+            elif $m != null and $a[0].annotation_level == "warning" and $m.v == "ESCALATE_TO_HUMAN" and $m.sep == ":" then "ESCALATE_TO_HUMAN\($imp)"
+            elif $m != null and $a[0].annotation_level == "failure" and $m.v == "CHANGES" and $m.sep == ":" then "CHANGES\($imp)"
             else "NOT_APPROVE: level \($a[0].annotation_level) and message \($a[0].message | .[0:30]) disagree"
             end
+          end
           end' 2>/dev/null)" || unknown "check run data is not readable"
 
     case "$out" in
-        APPROVE | ESCALATE_TO_HUMAN | CHANGES) echo "$out"; exit 0 ;;
+        APPROVE | ESCALATE_TO_HUMAN | CHANGES | \
+        "APPROVE, "*" important" | "ESCALATE_TO_HUMAN, "*" important" | "CHANGES, "*" important") echo "$out"; exit 0 ;;
         "NOT_APPROVE: "*) unknown "${out#NOT_APPROVE: }" ;;
         *) unknown "unexpected result" ;;
     esac

@@ -1,0 +1,6 @@
+VERDICT: APPROVE
+REVIEWED_SHA: @@HEAD_SHA@@
+PROTECTED: none
+1. [important] app/Foo.kt (@@MARKER@@): P1: lazy list without key; add key.
+2. [important] app/Bar.kt (list): C2: suspicion; check.
+3. [note] app/Baz.kt (x): taste; skip.

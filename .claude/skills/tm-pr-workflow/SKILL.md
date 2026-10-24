@@ -254,6 +254,10 @@ Required. Use these headings, and keep all four even when one is
 
 Add these when they apply. Recent PRs use them consistently:
 
+- **Reviewer findings**: present when a reviewer report (local or CI) has an `[important]` finding
+  or a `[blocking]` one that was fixed. One line per `[important]` finding, with its disposition:
+  `fixed in <sha>` | `board record <slug>` | `rejected: <reason a human can check>` (`tm-pr-review`,
+  "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left alone
@@ -420,9 +424,10 @@ silently force-pushing.
 - **The review check is required, but green is not approval.** `Review — pr-reviewer`
   (`.github/workflows/pr-review.yml`) is green for both `APPROVE` and `ESCALATE_TO_HUMAN`;
   the verdict is read from its annotation (`tm-agent-loop`, section 7).
-  The annotation holds only the verdict; the report is the workflow artifact `pr-review-report`
-  of that run (kept 7 days), which the agent downloads with `gh run download` after `CHANGES`
-  or blocking findings (`tm-agent-loop`, section 7).
+  The annotation holds the verdict and the count of `[important]` findings; the report is the workflow
+  artifact `pr-review-report` of that run (kept 7 days), which the agent downloads with
+  `gh run download` after `CHANGES`, blocking findings or a count above zero (`tm-agent-loop`,
+  section 7).
 - **The protected-paths check runs in the gate and in CI** (the "Protected paths check"
   step of CI's `tooling` job).
 - **"Automatically delete head branches" is enabled.** GitHub deletes a PR's remote branch
