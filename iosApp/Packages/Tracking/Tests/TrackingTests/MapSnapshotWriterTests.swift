@@ -51,7 +51,8 @@ final class MapSnapshotWriterTests: XCTestCase {
     }
 
     func test_discard_removesFile() async throws {
-        let path = try XCTUnwrap(await writeMapSnapshot(image(), to: directory))
+        let written = await writeMapSnapshot(image(), to: directory)
+        let path = try XCTUnwrap(written)
 
         discardSnapshotFile(atPath: path)
 

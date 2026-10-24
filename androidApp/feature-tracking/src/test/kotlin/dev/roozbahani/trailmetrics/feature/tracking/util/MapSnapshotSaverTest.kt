@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -34,6 +35,7 @@ import kotlin.test.assertTrue
 class MapSnapshotSaverTest {
 
     private val context: Context = RuntimeEnvironment.getApplication()
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private suspend fun save(bitmap: Bitmap): String? = saveSnapshotToFile(context, bitmap, testDispatcher)
@@ -100,6 +102,7 @@ class MapSnapshotSaverTest {
         assertEquals(1, recording.dispatchCount)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
     fun `a save cancelled after the write deletes its file and rethrows the cancellation`() = runTest {
         val recording = RecordingDispatcher()
