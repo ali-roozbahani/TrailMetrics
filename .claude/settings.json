@@ -35,6 +35,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/claude-hooks/block-git-push.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/claude-hooks/block-branch-create-while-merged-branches.sh"
+          }
+        ]
       }
     ]
   }

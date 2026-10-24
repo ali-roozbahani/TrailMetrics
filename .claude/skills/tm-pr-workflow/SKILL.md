@@ -25,16 +25,16 @@ gh api user --jq .login          # must print peter-christofer-bot
 cd ~/agent-workspace/TrailMetrics
 git status --porcelain           # must be empty
 git fetch --prune origin && git switch main && git pull --ff-only
-git branch -vv                   # every branch other than main is from an earlier run
+scripts/prune-merged-branches.sh # deletes the local branches whose PR is merged
 ```
 
 - Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
   and report.
-- For each local branch other than `main`, look up its PR
-  (`gh pr list --head <branch> --state all --json number,state`). `MERGED`: delete it with
-  `git branch -D <branch>` (a squash merge is not "merged" for git). `OPEN` or no PR: leave it
-  and name it in the report. GitHub deletes the remote branch itself ("Automatically delete
-  head branches" is on).
+- `scripts/prune-merged-branches.sh` deletes every local branch whose PR is `MERGED` and keeps
+  the rest; the `OPEN #n` and `NO_PR` lines it prints go in the report. A hook refuses to create a
+  new branch until `scripts/prune-merged-branches.sh --check` exits 0 (exit 4 is unknown: report
+  it, don't bypass). GitHub deletes the remote branch itself ("Automatically delete head
+  branches" is on).
 - Create the task's branch from this local `main` (see "Branching").
 
 - Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,

@@ -142,6 +142,8 @@ run_step "CI re-run guard self-test" scripts/rerun-failed-once.sh --self-test
 run_step "CI wait self-test" scripts/wait-for-checks.sh --self-test
 run_step "board check self-test" scripts/check-board.sh --self-test
 run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-test
+run_step "prune merged branches self-test" scripts/prune-merged-branches.sh --self-test
+run_step "branch-create hook self-test" scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test
 run_step "skill changes digest self-test" scripts/skill-changes-digest.sh --self-test
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in

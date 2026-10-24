@@ -199,6 +199,12 @@ jobs:
       - name: Push hook self-test
         run: scripts/claude-hooks/block-git-push.sh --self-test
 
+      - name: Prune merged branches self-test
+        run: scripts/prune-merged-branches.sh --self-test
+
+      - name: Branch-create hook self-test
+        run: scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test
+
       - name: Skill changes digest self-test
         run: scripts/skill-changes-digest.sh --self-test
 
