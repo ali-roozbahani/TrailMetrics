@@ -336,6 +336,16 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `/scripts/prune-merged-branches.sh` has a CODEOWNERS line (`scripts/check-protected-paths.sh --validate` passes), and the gate runs `scripts/prune-merged-branches.sh --self-test` and `scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test` next to the other self-tests, or the owner records why not.
 - Refs: `.github/CODEOWNERS`; `scripts/pre-push-check.sh` (the "push hook self-test" step); `.github/workflows/ci.yml` `tooling`.
 
+### prune-merged-branches-checked-out-in-worktree
+- Type: task
+- Area: scripts
+- Order: 247
+- After: prune-merged-branches-gate-and-codeowners
+- Source: PR for prune-merged-branches-script-and-hook
+- Problem: `scripts/prune-merged-branches.sh` exits 4 when a branch whose PR is merged is checked out in another linked worktree (`git branch -D` refuses), so the branch-create hook then blocks with "do not bypass" and only the human's break-glass helps. How such a branch is reported (kept and printed, or removed with its worktree) changes the output contract the owner fixed (`<branch> <MERGED-deleted|OPEN #n|NO_PR>`), so it is a human decision.
+- Done when: the owner has decided the case, the script handles a merged branch checked out in another worktree without a dead end for the hook, and its self-test covers it.
+- Refs: `scripts/prune-merged-branches.sh`; `scripts/claude-hooks/block-branch-create-while-merged-branches.sh`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure

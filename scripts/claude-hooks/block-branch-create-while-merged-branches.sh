@@ -15,6 +15,9 @@
 # and the session's directory at `.cwd`; exit 0 = no decision, exit 2 = block, stderr is fed back
 # to Claude as the reason). Registered in .claude/settings.json under PreToolUse, matcher "Bash".
 #
+# The check runs in the session's cwd (`.cwd` of the hook input), not in the directory of a
+# `git -C <dir>`; a hook input without a readable `.cwd` blocks (fail closed).
+#
 # Limits: this is a guardrail, not a wall. It reads the command text, so a branch created through
 # a wrapper (`bash -c "git switch -c x"`) or a variable is not seen.
 #
@@ -194,6 +197,12 @@ STUB
     for c in "${others[@]}"; do expect "unknown, passes: $c" 0 "$c"; done
     unset STUB_GH_FAIL
 
+    # No session cwd in the input: branch creation blocks, other commands pass.
+    rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git switch -c new-b"}}' | bash "$hook" >/dev/null 2>&1) || rc=$?
+    if [ "$rc" = 2 ]; then echo "ok   missing cwd blocks (exit 2)"; else echo "FAIL missing cwd: expected exit 2, got $rc" >&2; fails=$((fails + 1)); fi
+    rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git status"}}' | bash "$hook" >/dev/null 2>&1) || rc=$?
+    if [ "$rc" = 0 ]; then echo "ok   missing cwd, other command passes (exit 0)"; else echo "FAIL missing cwd, git status: expected exit 0, got $rc" >&2; fails=$((fails + 1)); fi
+
     # Clean: nothing merged is left, branch creation passes.
     rm "$tmp/prs/old-merged"
     for c in "${creating[@]}"; do expect "clean check passes: $c" 0 "$c"; done
@@ -240,11 +249,15 @@ fi
 creates_branch "$COMMAND" || exit 0
 
 # Check the checkout the session works in (it may be a linked worktree), not the one this script
-# lives in. Without a usable cwd the check runs in the directory the hook was started in.
+# lives in. Without a readable cwd the right repo is unknown, so block rather than guess.
 HOOK_CWD="$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null || true)"
+if [ -z "$HOOK_CWD" ]; then
+    echo "Blocked: the hook input has no readable session cwd, so the merged-branch check cannot tell which repo to look at. Report this to the human and stop; do not bypass the hook." >&2
+    exit 2
+fi
 
 RC=0
-OUTPUT="$(cd "${HOOK_CWD:-$PWD}" 2>/dev/null && "$PRUNE" --check 2>&1)" || RC=$?
+OUTPUT="$(cd "$HOOK_CWD" 2>/dev/null && "$PRUNE" --check 2>&1)" || RC=$?
 
 case "$RC" in
     0) exit 0 ;;
