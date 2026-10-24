@@ -107,15 +107,35 @@ struct TrackingMapView: UIViewRepresentable {
 
         if let requestID = snapshotRequestID, requestID != context.coordinator.handledSnapshotRequestID {
             context.coordinator.handledSnapshotRequestID = requestID
-            let snapshotFilePath = saveMapSnapshot(mapView)
-            // Deferred: mutating @State synchronously from within an active SwiftUI
-            // update pass (which updateUIView is always called as part of) is a
-            // known hazard, so the reset is scheduled for the next run loop turn.
-            DispatchQueue.main.async {
+            // The render needs the main thread; the PNG encoding and the write run off it.
+            let image = renderMapSnapshot(mapView)
+            let coordinator = context.coordinator
+            coordinator.snapshotTask?.cancel()
+            coordinator.snapshotTask = Task {
+                let path: String?
+                if let directory = snapshotDirectory() {
+                    // Explicit hop: the encoding and the write must not run on the main actor.
+                    path = await Task.detached { await writeMapSnapshot(image, to: directory) }.value
+                } else {
+                    path = nil
+                }
+                // A result for a request that was cancelled (the map view went away) or replaced
+                // is dropped, and its file removed.
+                guard !Task.isCancelled, coordinator.handledSnapshotRequestID == requestID else {
+                    // File access: off the main actor, like the write.
+                    Task.detached { discardSnapshotFile(atPath: path) }
+                    return
+                }
+                // The binding is reset only now, so the Finish tap guard
+                // (`TrackingView.finishTracking`) holds until the path is delivered.
                 snapshotRequestID = nil
+                onSnapshotReady(path)
             }
-            onSnapshotReady(snapshotFilePath)
         }
+    }
+
+    static func dismantleUIView(_ mapView: GMSMapView, coordinator: Coordinator) {
+        coordinator.snapshotTask?.cancel()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -125,6 +145,7 @@ struct TrackingMapView: UIViewRepresentable {
     final class Coordinator {
         var lastCameraCoordinates: Coordinates?
         var handledSnapshotRequestID: UUID?
+        var snapshotTask: Task<Void, Never>?
     }
 }
 

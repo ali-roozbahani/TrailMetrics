@@ -11,6 +11,8 @@ import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Compan
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeGoogleMap
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.ShadowMapView
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -44,6 +46,10 @@ class TrackingScreenSnapshotTest {
     private val fakeMap = FakeGoogleMap()
     private var navigateBackCalls = 0
 
+    // The save runs on this dispatcher, so a delivered snapshot is saved before the test goes on.
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private val snapshotDispatcher = UnconfinedTestDispatcher()
+
     @Before
     fun setUp() {
         FakeGoogleMap.installFactories()
@@ -67,7 +73,8 @@ class TrackingScreenSnapshotTest {
             startPoint = START,
             plannedRoutePoints = WALKED_ROUTE,
             onNavigateBack = { navigateBackCalls++ },
-            inspectionMode = false
+            inspectionMode = false,
+            snapshotDispatcher = snapshotDispatcher
         ).clickStart()
         fixture.receiveLocation(END, millisAfterStart = 60_000L)
         return robot.waitForIdle().assertCompletedCard()

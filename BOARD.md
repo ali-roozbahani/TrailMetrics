@@ -45,15 +45,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### snapshot-save-off-main-thread
-- Type: task
-- Area: androidApp/feature-tracking, iosApp/Tracking
-- Order: 10
-- Source: PR for tm-robustness-skill
-- Problem: The map snapshot is scaled, PNG-encoded and written to disk on the main thread on both platforms: Android `saveSnapshotToFile` runs in the `map.snapshot { }` callback (`TrackingScreen.kt`), iOS `saveMapSnapshot` runs inside `DispatchQueue.main.async` in `TrackingMapView.swift`. `tm-robustness` C1 makes this a blocking violation. Needs product code in two platforms and a UI-test-visible change of when Finish proceeds, so it is not fixed in a skills PR. The Android scaled bitmap is also never recycled (M5).
-- Done when: the file write (and the scaling or PNG encoding) runs off the main thread on both platforms, Finish still passes the saved path (or null on failure) on the main thread, and a test covers the failure path.
-- Refs: `androidApp/feature-tracking/.../TrackingScreen.kt` (Finish button), `.../util/MapSnapshotSaver.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`; `tm-robustness` C1, D6, M5.
-
 ### tracking-session-lost-on-process-death
 - Type: task
 - Area: domain, data, androidApp, iosApp
@@ -77,9 +68,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: androidApp/feature-tracking, data
 - Order: 40
 - Source: PR for tm-robustness-skill
-- Problem: Five places name a dispatcher themselves, which `tm-robustness` D1 forbids (neither a DI module nor the application root): `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`, and `DatabaseBuilder.kt` calls `setQueryCoroutineContext(Dispatchers.IO)`. Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
-- Done when: only DI modules and the application root name `Dispatchers.*`; the five places receive their dispatcher or scope from Koin (the database builder gets its query context passed in); existing tests pass a test dispatcher.
-- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `tm-robustness` D1.
+- Problem: Seven places name a dispatcher themselves, which `tm-robustness` D1 forbids (neither a DI module nor the application root): `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`, and `DatabaseBuilder.kt` calls `setQueryCoroutineContext(Dispatchers.IO)`; the PR that moved the map snapshot save off the main thread added two more `Dispatchers.IO` defaults, the `ioDispatcher` parameter of `saveSnapshotToFile` (`util/MapSnapshotSaver.kt`) and the `snapshotDispatcher` parameter of `TrackingRoot` (`TrackingScreen.kt`). Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
+- Done when: only DI modules and the application root name `Dispatchers.*`; the seven places receive their dispatcher or scope from Koin (the database builder gets its query context passed in; `TrackingRoot` gets the snapshot dispatcher and passes it to `saveSnapshotToFile`); existing tests pass a test dispatcher.
+- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt` (`saveSnapshotToFile`); `androidApp/feature-tracking/.../TrackingScreen.kt` (`TrackingRoot`'s `snapshotDispatcher`); `tm-robustness` D1.
 
 ### strictmode-leak-detection-debug
 - Type: task
@@ -317,6 +308,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tbl_activities` has no index on `startedAtEpochMillis`, which `ActivityDao.observeAll` sorts by, and the list query is `SELECT *`, so the history screen loads every row including both coordinate lists for the whole table (`tm-robustness` P5). An index is a Room schema change (`tm-kmp-shared`, "Changing the database schema") and a list projection changes the repository interface, so it is a task of its own.
 - Done when: the sorted column has an index with its migration and test, and the history list reads only the columns it shows (or the cost is measured and accepted).
 - Refs: `data/src/commonMain/.../local/entity/ActivityEntity.kt`; `.../local/dao/ActivityDao.kt`; `tm-robustness` P5.
+
+### ios-snapshot-stored-at-full-resolution
+- Type: task
+- Area: iosApp/Tracking
+- Order: 244
+- Source: PR for snapshot-save-off-main-thread
+- Problem: The iOS map snapshot is rendered at the map view's full bounds and screen scale and stored as that PNG (`renderMapSnapshot`, `writeMapSnapshot` in `MapSnapshotSaver.swift`), while Android scales to 600 px wide (`saveSnapshotToFile`). The stored file is several times larger on iOS (`tm-robustness` M5). Changing the stored size or format is a product decision about what the history screens show, so it is not made in the PR that moved the save off the main thread.
+- Done when: the owner has decided the stored snapshot size, and iOS stores the same size as Android (or the difference is recorded as intended in `tm-ios`).
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt`; `tm-robustness` M5.
+
+### ios-snapshot-request-guard-test-seam
+- Type: task
+- Area: iosApp/Tracking
+- Order: 245
+- Source: PR for snapshot-save-off-main-thread
+- Problem: The iOS Finish snapshot request in `TrackingMapView.updateUIView` has no test: the once-per-request guard (`handledSnapshotRequestID`), the task cancelled in `dismantleUIView`, and the dropped result for an old request run inside a `UIViewRepresentable` over a `GMSMapView`, which no package test can render or drive, and the iOS UI tests have no scenario that reaches the map snapshot. A seam is needed, for example the request handling moved into a small type that takes the render and the writer as closures, so a package test can call it. That is a design choice for the owner, so it is not made in the PR that moved the save off the main thread (`tm-pr-workflow` Tier 2, reason 2).
+- Done when: the request handling (handle a request id once, cancel on teardown, drop a result whose request is no longer current, reset the request after delivery) is reachable from a Swift package test or a UI-test scenario, and tests cover each of the four.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`, `TrackingView.swift` (`finishTracking`); `tm-pr-workflow` Tier 2; `tm-testing`.
 
 ## Drift
 
