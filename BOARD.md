@@ -318,6 +318,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner has decided the stored snapshot size, and iOS stores the same size as Android (or the difference is recorded as intended in `tm-ios`).
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt`; `tm-robustness` M5.
 
+### ios-snapshot-request-guard-test-seam
+- Type: task
+- Area: iosApp/Tracking
+- Order: 245
+- Source: PR for snapshot-save-off-main-thread
+- Problem: The iOS Finish snapshot request in `TrackingMapView.updateUIView` has no test: the once-per-request guard (`handledSnapshotRequestID`), the task cancelled in `dismantleUIView`, and the dropped result for an old request run inside a `UIViewRepresentable` over a `GMSMapView`, which no package test can render or drive, and the iOS UI tests have no scenario that reaches the map snapshot. A seam is needed, for example the request handling moved into a small type that takes the render and the writer as closures, so a package test can call it. That is a design choice for the owner, so it is not made in the PR that moved the save off the main thread (`tm-pr-workflow` Tier 2, reason 2).
+- Done when: the request handling (handle a request id once, cancel on teardown, drop a result whose request is no longer current, reset the request after delivery) is reachable from a Swift package test or a UI-test scenario, and tests cover each of the four.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`, `TrackingView.swift` (`finishTracking`); `tm-pr-workflow` Tier 2; `tm-testing`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
