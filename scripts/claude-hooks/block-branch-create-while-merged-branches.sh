@@ -6,7 +6,9 @@
 #   with && || ; |).
 # For those it runs `scripts/prune-merged-branches.sh --check` in the session's cwd and blocks
 # when a local branch whose PR is merged is left (exit 1 of the check) or the answer is unknown
-# (exit 4, or anything else). Every other command passes untouched. The hook deletes nothing.
+# (exit 4, or anything else). A merged branch kept because it is checked out in another linked
+# worktree (`MERGED-in-worktree` in the script's output) is not left: the check exits 0 and the
+# creation passes. Every other command passes untouched. The hook deletes nothing.
 #
 # Why: tm-pr-workflow, "Before starting", used to tell the agent in prose to delete the merged
 # local branches, and three runs in a row created the next branch anyway.
@@ -225,8 +227,18 @@ STUB
     if [ "$rc" = 0 ]; then echo "ok   no jq, other command passes (exit 0)"; else echo "FAIL no jq, ls: expected exit 0, got $rc" >&2; fails=$((fails + 1)); fi
 
     # Clean: nothing merged is left, branch creation passes.
-    rm "$tmp/prs/old-merged"
+    rm -f "$tmp/prs/old-merged"
     for c in "${creating[@]}"; do expect "clean check passes: $c" 0 "$c"; done
+
+    # A merged branch checked out in another linked worktree is not a branch left: creation passes.
+    git -C "$repo" worktree add -q -b wt-merged-b "$tmp/wt" main
+    echo '[{"number":12,"state":"MERGED"}]' >"$tmp/prs/wt-merged-b"
+    rm -f "$tmp/prs/old-merged"
+    for c in "git switch -c new-b" "git checkout -b new-b" "git branch new-b" "git worktree add -b new-b ../wt2"; do
+        expect "merged branch only in a worktree passes: $c" 0 "$c"
+    done
+    echo '[{"number":3,"state":"MERGED"}]' >"$tmp/prs/old-merged"
+    expect "merged branch in a worktree plus another merged one blocks" 2 "git switch -c new-b"
 
     # The reason names the way out.
     echo '[{"number":3,"state":"MERGED"}]' >"$tmp/prs/old-merged"

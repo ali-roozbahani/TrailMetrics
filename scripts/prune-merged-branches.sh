@@ -6,8 +6,11 @@
 #   - a MERGED PR (and no OPEN one): `git branch -D <branch>`. The repo squash-merges, so git
 #     never sees the branch as merged: `git branch -d` and `--merged` would keep it.
 #   - an OPEN PR, or no PR (a PR that was only closed counts as none): the branch is kept.
+#   - a MERGED PR whose branch is checked out in another linked worktree: kept (git refuses to
+#     delete it), printed as `<branch> MERGED-in-worktree <path>`, not counted as a merged
+#     branch left, and named in the summary. Removing that worktree is the human's call.
 #
-# Output: one line per branch, `<branch> <MERGED-deleted|OPEN #n|NO_PR>`, then one summary line.
+# Output: one line per branch, `<branch> <MERGED-deleted|MERGED-in-worktree <path>|OPEN #n|NO_PR>`, then one summary line.
 #
 # Usage:
 #   scripts/prune-merged-branches.sh [--check]
@@ -20,7 +23,7 @@
 #   1  --check only: at least one merged branch is left
 #   2  usage error
 #   4  unknown, with the reason on stderr (a failed `gh` call, output that is not JSON, a branch
-#      that could not be deleted). Fail closed: unknown is not clean.
+#      that could not be deleted for any reason other than a worktree). Fail closed: unknown is not clean.
 #
 # scripts/claude-hooks/block-branch-create-while-merged-branches.sh runs `--check` before a
 # branch is created.
@@ -103,6 +106,18 @@ STUB
     run --check
     check "--check exits 0 when none is merged (got $rc)" test "$rc" = 0
 
+    # A merged branch checked out in another linked worktree is kept, listed, and not an error.
+    git -C "$repo" worktree add -q -b wt-merged-b "$tmp/wt" main
+    echo '[{"number":12,"state":"MERGED"}]' >"$tmp/prs/wt-merged-b"
+    run --check
+    check "--check exits 0 with only a merged branch in a worktree (got $rc)" test "$rc" = 0
+    check "worktree branch is listed with its path" contains "wt-merged-b MERGED-in-worktree $(cd "$tmp/wt" && pwd -P)"
+    check "summary names the worktree branch" bash -c 'printf "%s\n" "$1" | tail -n 1 | grep -q "worktree, kept: wt-merged-b"' _ "$out"
+    run
+    check "run exits 0 with a merged branch in a worktree (got $rc)" test "$rc" = 0
+    check "worktree branch is kept" has_branch wt-merged-b
+    check "worktree branch is not reported deleted" bash -c '! printf "%s\n" "$1" | grep -q "wt-merged-b MERGED-deleted"' _ "$out"
+
     git -C "$repo" branch late-merged-b
     echo '[{"number":11,"state":"MERGED"}]' >"$tmp/prs/late-merged-b"
     STUB_GH_FAIL=1 run --check
@@ -149,8 +164,15 @@ command -v jq >/dev/null 2>&1 || fail "jq is not installed"
 CURRENT="$(git branch --show-current 2>/dev/null)" || fail "not inside a git work tree"
 BRANCHES="$(git for-each-ref --format='%(refname:short)' refs/heads)" || fail "could not list the local branches"
 
+# `branch<TAB>path` for every branch checked out in a linked worktree (the current one is skipped
+# below). Plain `worktree <path>` / `branch refs/heads/<name>` lines of the porcelain output.
+WORKTREES="$(git worktree list --porcelain 2>/dev/null | awk '
+    /^worktree / { path = substr($0, 10) }
+    /^branch refs\/heads\// { print substr($0, 19) "\t" path }')" || fail "could not list the worktrees"
+
 merged=0
 kept=0
+in_worktree=""
 while IFS= read -r branch; do
     [ -n "$branch" ] || continue
     [ "$branch" = main ] && continue
@@ -163,7 +185,14 @@ while IFS= read -r branch; do
         elif any(.[]; .state == "MERGED") then "MERGED"
         else "NO_PR" end' 2>&1)" || fail "gh pr list gave unreadable output for $branch: $status"
 
+    wt_path=""
     if [ "$status" = MERGED ]; then
+        wt_path="$(printf '%s\n' "$WORKTREES" | awk -F '\t' -v b="$branch" '$1 == b { print $2; exit }')"
+    fi
+    if [ "$status" = MERGED ] && [ -n "$wt_path" ]; then
+        status="MERGED-in-worktree $wt_path"
+        in_worktree="$in_worktree${in_worktree:+, }$branch"
+    elif [ "$status" = MERGED ]; then
         merged=$((merged + 1))
         if [ "$MODE" = prune ]; then
             deleted="$(git branch -D "$branch" 2>&1)" || fail "could not delete $branch: $deleted"
@@ -175,9 +204,11 @@ while IFS= read -r branch; do
     echo "$branch $status"
 done <<<"$BRANCHES"
 
+wt_note=""
+[ -z "$in_worktree" ] || wt_note="; merged but checked out in a worktree, kept: $in_worktree"
 if [ "$MODE" = check ]; then
-    echo "prune-merged-branches: check: $merged merged branch(es) left, $kept kept"
+    echo "prune-merged-branches: check: $merged merged branch(es) left, $kept kept$wt_note"
     [ "$merged" -eq 0 ] || exit 1
 else
-    echo "prune-merged-branches: $merged deleted, $kept kept"
+    echo "prune-merged-branches: $merged deleted, $kept kept$wt_note"
 fi

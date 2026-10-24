@@ -39,6 +39,7 @@ CLAUDE.local.md                             @ali-roozbahani
 # The gate and its tooling
 /scripts/pre-push-check.sh                  @ali-roozbahani
 /scripts/claude-hooks/                      @ali-roozbahani
+/scripts/prune-merged-branches.sh           @ali-roozbahani
 /scripts/check-board.sh                     @ali-roozbahani
 /scripts/check-board.py                     @ali-roozbahani
 /scripts/check-board-fixtures/              @ali-roozbahani
