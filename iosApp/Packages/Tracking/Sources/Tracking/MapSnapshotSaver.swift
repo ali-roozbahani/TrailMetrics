@@ -23,7 +23,11 @@ func renderMapSnapshot(_ mapView: UIView) -> UIImage {
 /// The directory the snapshot files live in (`SnapshotFile.swift` in History resolves stored paths
 /// against the same one).
 func snapshotDirectory() -> URL? {
-    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    guard let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+        snapshotLogger.error("No Application Support directory: the map snapshot is not saved")
+        return nil
+    }
+    return directory
 }
 
 /// PNG-encodes `image` and writes it into `directory` off the main actor (a nonisolated `async`
