@@ -57,7 +57,10 @@ interface TrackingSessionDao {
     @Query("SELECT COUNT(*) FROM tbl_tracking_session_points WHERE sessionId = $TRACKING_SESSION_ID")
     suspend fun countPoints(): Int
 
-    @Query("DELETE FROM tbl_tracking_session_points WHERE sessionId = $TRACKING_SESSION_ID AND sequence >= :fromSequence")
+    @Query(
+        "DELETE FROM tbl_tracking_session_points " +
+            "WHERE sessionId = $TRACKING_SESSION_ID AND sequence >= :fromSequence"
+    )
     suspend fun deletePointsFrom(fromSequence: Int)
 
     @Query("DELETE FROM tbl_tracking_session WHERE id = $TRACKING_SESSION_ID")

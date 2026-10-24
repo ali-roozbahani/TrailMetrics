@@ -3,7 +3,10 @@ package dev.roozbahani.trailmetrics.data.local.entity
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
 
-/** The one in-progress session: always the row with [TRACKING_SESSION_ID]. Its path is in [TrackingSessionPointEntity]. */
+/**
+ * The one in-progress session: always the row with [TRACKING_SESSION_ID].
+ * Its path is in [TrackingSessionPointEntity].
+ */
 @Entity(tableName = "tbl_tracking_session")
 data class TrackingSessionEntity(
     @PrimaryKey val id: Int = TRACKING_SESSION_ID,

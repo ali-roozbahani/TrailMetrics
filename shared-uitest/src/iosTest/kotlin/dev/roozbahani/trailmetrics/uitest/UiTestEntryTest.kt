@@ -6,6 +6,7 @@ import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.shared.di.KoinHelper
 import dev.roozbahani.trailmetrics.shared.di.initKoin
 import kotlinx.coroutines.flow.first
@@ -51,6 +52,7 @@ class UiTestEntryTest {
             assertIs<UiTestLocationRepository>(koin.get<LocationRepository>(), "$scenario: location binding")
             assertIs<UiTestTrackingServiceLauncher>(koin.get<TrackingServiceLauncher>(), "$scenario: launcher")
             assertIs<UiTestDirectionsRepository>(koin.get<DirectionsRepository>(), "$scenario: directions binding")
+            assertIs<UiTestTrackingSessionStore>(koin.get<TrackingSessionStore>(), "$scenario: session store")
             stopKoin()
         }
     }

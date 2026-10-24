@@ -187,7 +187,7 @@ class TrackingViewModel(
         viewModelScope.launch { clearStoredSession() }
     }
 
-    /** Not cancelled with the ViewModel: the screen leaves right after, and a half-done clear would keep the session. */
+    /** Not cancelled with the ViewModel: the screen leaves right after, and a half-done clear keeps the session. */
     private suspend fun clearStoredSession() {
         withContext(NonCancellable) { trackingSessionManager.clearSession() }
     }
