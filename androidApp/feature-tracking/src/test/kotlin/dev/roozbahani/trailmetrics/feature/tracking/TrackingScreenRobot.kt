@@ -17,6 +17,8 @@ import androidx.compose.ui.test.performTouchInput
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Drives the real [TrackingRoot] (ViewModel from Koin) and reads what it shows. By default the
@@ -31,7 +33,8 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         plannedRoutePoints: List<Coordinates>,
         onNavigateBack: () -> Unit,
         inspectionMode: Boolean = true,
-        viaNavHostEntry: Boolean = false
+        viaNavHostEntry: Boolean = false,
+        snapshotDispatcher: CoroutineDispatcher = Dispatchers.IO
     ) = apply {
         rule.setContent {
             TrailMetricsTheme {
@@ -48,7 +51,8 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
                             initialStartPoint = startPoint,
                             plannedRoutePoints = plannedRoutePoints,
                             activityType = ActivityType.Running,
-                            onNavigateBack = onNavigateBack
+                            onNavigateBack = onNavigateBack,
+                            snapshotDispatcher = snapshotDispatcher
                         )
                     }
                 }

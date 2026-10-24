@@ -6,9 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -102,29 +100,36 @@ class MapSnapshotSaverTest {
         assertEquals(1, recording.dispatchCount)
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
     fun `a save cancelled after the write deletes its file and rethrows the cancellation`() = runTest {
-        val recording = RecordingDispatcher()
+        // Both dispatchers hold their work until pumped, so the order is explicit: the IO block writes
+        // the file, the job is cancelled, and only then does the caller resume and see the cancellation.
+        val caller = QueueDispatcher()
+        val io = QueueDispatcher()
         var cancellation: CancellationException? = null
-        val job = launch(UnconfinedTestDispatcher(testScheduler), start = CoroutineStart.LAZY) {
+        val job = launch(caller) {
             try {
-                saveSnapshotToFile(context, bitmap(width = 100, height = 100), recording)
+                saveSnapshotToFile(context, bitmap(width = 100, height = 100), io)
             } catch (ex: CancellationException) {
                 cancellation = ex
                 throw ex
             }
         }
-        // The job is cancelled right after the IO block wrote the file.
-        recording.cancelAfterFirstBlock = job
 
-        job.start()
-        job.join()
+        caller.runNext() // the save starts and hands the write to the IO dispatcher
+        io.runNext() // the file is written
+        assertEquals(1, activityFiles().size, "the file exists once the write ran")
+        job.cancel()
+        caller.runNext() // the caller resumes with the cancellation and asks for the delete
+        io.runNext() // the delete
+        caller.runNext() // the cancellation is rethrown
 
         assertNotNull(cancellation)
-        val leftovers = context.filesDir.listFiles { file -> file.name.startsWith("activity_") }.orEmpty()
-        assertEquals(0, leftovers.size)
+        assertEquals(0, activityFiles().size, "the cancelled save's file is deleted")
     }
+
+    private fun activityFiles(): List<File> =
+        context.filesDir.listFiles { file -> file.name.startsWith("activity_") }.orEmpty().toList()
 
     private fun assertSavedPng(path: String, width: Int, height: Int) {
         val file = File(path)
@@ -140,16 +145,24 @@ class MapSnapshotSaverTest {
 
     private fun bitmap(width: Int, height: Int): Bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-    /** Runs each block inline and counts the dispatches; can cancel a job right after the first block. */
+    /** Runs each block inline and counts the dispatches. */
     private class RecordingDispatcher : CoroutineDispatcher() {
         var dispatchCount = 0
-        var cancelAfterFirstBlock: Job? = null
 
         override fun dispatch(context: CoroutineContext, block: Runnable) {
             dispatchCount++
             block.run()
-            cancelAfterFirstBlock?.cancel()
-            cancelAfterFirstBlock = null
         }
+    }
+
+    /** Holds every dispatched block until [runNext] runs it. */
+    private class QueueDispatcher : CoroutineDispatcher() {
+        private val queue = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            queue.addLast(block)
+        }
+
+        fun runNext() = queue.removeFirst().run()
     }
 }

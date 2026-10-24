@@ -86,6 +86,8 @@ import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
 import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -113,7 +115,8 @@ fun TrackingRoot(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    snapshotDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     val viewModel: TrackingViewModel = koinViewModel(parameters = {
         parametersOf(
@@ -171,7 +174,8 @@ fun TrackingRoot(
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
         onRequestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        snapshotDispatcher = snapshotDispatcher
     )
 }
 
@@ -182,7 +186,8 @@ fun TrackingScreen(
     initialStartPoint: Coordinates,
     snackBarHostState: SnackbarHostState,
     onRequestLocationPermission: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    snapshotDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     val cameraPositionState = rememberCameraPositionState()
     val context = LocalContext.current
@@ -344,7 +349,7 @@ fun TrackingScreen(
                                                 map.snapshot { bitmap ->
                                                     snapshotScope.launch {
                                                         val filePath = try {
-                                                            bitmap?.let { saveSnapshotToFile(context, it) }
+                                                            bitmap?.let { saveSnapshotToFile(context, it, snapshotDispatcher) }
                                                         } finally {
                                                             isSnapshotPending = false
                                                         }
