@@ -18,6 +18,8 @@
 # The check runs in the session's cwd (`.cwd` of the hook input), not in the directory of a
 # `git -C <dir>`; a hook input without a readable `.cwd` blocks (fail closed).
 #
+# Needs jq (blocks without it when the input mentions git).
+#
 # Limits: this is a guardrail, not a wall. It reads the command text, so a branch created through
 # a wrapper (`bash -c "git switch -c x"`) or a variable is not seen.
 #
@@ -106,7 +108,7 @@ creates_branch() {
 }
 
 self_test() {
-    local hook tmp fails=0 repo stub rc case_name want
+    local hook tmp fails=0 repo stub rc case_name want ORIG_PATH nojq tool
     hook="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
     tmp="$(mktemp -d)"
     trap 'rm -rf -- "$tmp"' RETURN
@@ -130,6 +132,7 @@ f="$STUB_GH_DIR/${head//\//_}"
 if [ -f "$f" ]; then cat "$f"; else echo '[]'; fi
 STUB
     chmod +x "$stub/gh"
+    ORIG_PATH="$PATH"
     export PATH="$stub:$PATH" STUB_GH_DIR="$tmp/prs"
 
     repo="$tmp/repo"
@@ -203,6 +206,18 @@ STUB
     rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git status"}}' | bash "$hook" >/dev/null 2>&1) || rc=$?
     if [ "$rc" = 0 ]; then echo "ok   missing cwd, other command passes (exit 0)"; else echo "FAIL missing cwd, git status: expected exit 0, got $rc" >&2; fails=$((fails + 1)); fi
 
+    # Without jq: a command that mentions git blocks, any other passes. PATH holds only the tools
+    # the hook needs, so jq is not found.
+    nojq="$tmp/nojq"
+    mkdir -p "$nojq"
+    for tool in dirname basename grep cat tr git bash; do
+        ln -s "$(PATH="$ORIG_PATH" command -v "$tool")" "$nojq/$tool"
+    done
+    rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git switch -c new-b"},"cwd":"%s"}' "$repo" | PATH="$nojq" "$nojq/bash" "$hook" >/dev/null 2>&1) || rc=$?
+    if [ "$rc" = 2 ]; then echo "ok   no jq, git command blocks (exit 2)"; else echo "FAIL no jq, git command: expected exit 2, got $rc" >&2; fails=$((fails + 1)); fi
+    rc=0; (cd "$repo" && printf '{"tool_input":{"command":"ls"},"cwd":"%s"}' "$repo" | PATH="$nojq" "$nojq/bash" "$hook" >/dev/null 2>&1) || rc=$?
+    if [ "$rc" = 0 ]; then echo "ok   no jq, other command passes (exit 0)"; else echo "FAIL no jq, ls: expected exit 0, got $rc" >&2; fails=$((fails + 1)); fi
+
     # Clean: nothing merged is left, branch creation passes.
     rm "$tmp/prs/old-merged"
     for c in "${creating[@]}"; do expect "clean check passes: $c" 0 "$c"; done
@@ -238,13 +253,16 @@ fi
 
 INPUT="$(cat)"
 
-# jq handles escaped quotes inside the command. Without jq, fall back to the raw JSON: that may
-# over-match, which blocks rather than lets a branch creation through.
-if command -v jq >/dev/null 2>&1 && COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)"; then
-    :
-else
-    COMMAND="$INPUT"
+# The command and the cwd are read with jq. Without jq the command text cannot be tokenised, so
+# the hook blocks (fail closed) when the raw input mentions git, and passes otherwise.
+if ! command -v jq >/dev/null 2>&1; then
+    if printf '%s' "$INPUT" | grep -q 'git'; then
+        echo "Blocked: jq is not installed, so the branch-create hook cannot read this command. Report this to the human and stop; do not bypass the hook." >&2
+        exit 2
+    fi
+    exit 0
 fi
+COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)" || COMMAND=""
 
 creates_branch "$COMMAND" || exit 0
 
