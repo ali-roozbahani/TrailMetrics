@@ -33,7 +33,7 @@ rejected rather than guessed):
 Every owner must be @ali-roozbahani. As on GitHub, the last matching line decides: a file is
 protected when its last matching line has an owner, and the line reported for it is that line's
 pattern. A line with no owner makes the files it matches not owned, so they are unprotected
-when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the four reference
+when it is their last matching line. Only the patterns in UNOWNED_PATTERNS (the five reference
 skill folders) may be ownerless, and only for Markdown: a file there whose name does not end in
 `.md` is protected anyway and reported with the folder's pattern (the rule is in the script, not
 in CODEOWNERS, which has no negation); any other ownerless line is an error in classification too (exit
@@ -62,6 +62,7 @@ UNOWNED_PATTERNS = (
     "/.claude/skills/tm-android/",
     "/.claude/skills/tm-kmp-shared/",
     "/.claude/skills/tm-testing/",
+    "/.claude/skills/tm-robustness/",
 )
 # The only patterns that may match no tracked file: they protect a file before it exists, because
 # a tool or an agent session reads it once someone adds it (docs/epics/protected-paths-review-2.md,
@@ -334,12 +335,12 @@ build.gradle.kts   @ali-roozbahani
 /docs/epics/       @ali-roozbahani
 """
 
-# GOOD_CODEOWNERS plus /.claude/ and, after it, the four ownerless reference skill folder lines.
+# GOOD_CODEOWNERS plus /.claude/ and, after it, the five ownerless reference skill folder lines.
 REF_CODEOWNERS = (GOOD_CODEOWNERS + "/.claude/ @ali-roozbahani\n"
                   + "".join(f"{pattern}\n" for pattern in UNOWNED_PATTERNS))
 
 REF_SKILLS = [pattern.lstrip("/") + "SKILL.md" for pattern in UNOWNED_PATTERNS]
-# A reference file beside SKILL.md and one a level down, in each of the four folders.
+# A reference file beside SKILL.md and one a level down, in each of the five folders.
 REF_FILES = [pattern.lstrip("/") + name for pattern in UNOWNED_PATTERNS
              for name in ("reference.md", "references/deep.md")]
 # A script one level down in two folders, a binary and a settings file in the others.
@@ -404,12 +405,12 @@ E2E_CASES = [
      GOOD_CODEOWNERS + "/lint.xml @ali-roozbahani\n", ["--validate"], 1, None,
      ["CODEOWNERS:6: '/lint.xml': matches no tracked file", "FAILED, 1 problem(s)"]),
     ("missing CODEOWNERS", "", ["--files", "CLAUDE.md"], 2, "", ["CODEOWNERS not found"]),
-    # Ownerless lines: the four reference skill files only, after the line they override.
+    # Ownerless lines: the five reference skill files only, after the line they override.
     ("ownerless: reference skills are unprotected", REF_CODEOWNERS, ["--files"] + REF_SKILLS, 0,
      "unprotected\n", []),
-    ("ownerless: every Markdown file in the four folders, one level down too, is unprotected",
+    ("ownerless: every Markdown file in the five folders, one level down too, is unprotected",
      REF_CODEOWNERS, ["--files"] + REF_FILES, 0, "unprotected\n", []),
-    ("ownerless: a file that is not Markdown in the four folders is protected",
+    ("ownerless: a file that is not Markdown in the five folders is protected",
      REF_CODEOWNERS, ["--files"] + REF_NON_MARKDOWN, 0,
      "protected\n" + "".join(f"{f}  ({pattern})\n"
                              for pattern, f in zip(UNOWNED_PATTERNS * 2, REF_NON_MARKDOWN)), []),
@@ -426,26 +427,36 @@ E2E_CASES = [
      ["--files", ".claude/skills/tm-ios/CLAUDE.md", ".claude/skills/tm-testing/a/.gitignore"], 0,
      "protected\n.claude/skills/tm-ios/CLAUDE.md  (CLAUDE.md)\n"
      ".claude/skills/tm-testing/a/.gitignore  (.gitignore)\n", []),
-    ("ownerless: a fifth ownerless skill folder is rejected by validate",
+    ("ownerless: a file under tm-robustness/ is unprotected", REF_CODEOWNERS,
+     ["--files", ".claude/skills/tm-robustness/SKILL.md", ".claude/skills/tm-robustness/notes.md"],
+     0, "unprotected\n", []),
+    ("ownerless: tm-robustness/CLAUDE.md stays protected",
+     REF_CODEOWNERS + "CLAUDE.md @ali-roozbahani\n",
+     ["--files", ".claude/skills/tm-robustness/CLAUDE.md"], 0,
+     "protected\n.claude/skills/tm-robustness/CLAUDE.md  (CLAUDE.md)\n", []),
+    ("ownerless: a sibling folder of tm-robustness stays protected", REF_CODEOWNERS,
+     ["--files", ".claude/skills/tm-robustness-extra/SKILL.md"], 0,
+     "protected\n.claude/skills/tm-robustness-extra/SKILL.md  (/.claude/)\n", []),
+    ("ownerless: a sixth ownerless skill folder is rejected by validate",
      REF_CODEOWNERS + "/.claude/skills/tm-pr-workflow/\n", ["--validate"], 1, None,
-     ["CODEOWNERS:11: '/.claude/skills/tm-pr-workflow/': no owner (only these patterns may have none",
+     ["CODEOWNERS:12: '/.claude/skills/tm-pr-workflow/': no owner (only these patterns may have none",
       "FAILED, 1 problem(s)"]),
-    ("ownerless: a fifth ownerless skill folder is an error in classification",
+    ("ownerless: a sixth ownerless skill folder is an error in classification",
      REF_CODEOWNERS + "/.claude/skills/tm-pr-workflow/\n",
      ["--files", ".claude/skills/tm-pr-workflow/SKILL.md"], 2, "",
      ["unsupported CODEOWNERS syntax", "'/.claude/skills/tm-pr-workflow/': no owner"]),
     ("ownerless: the unanchored form of a folder is rejected too",
      REF_CODEOWNERS + "tm-ios/\n", ["--validate"], 1, None,
-     ["CODEOWNERS:11: 'tm-ios/': no owner", "FAILED, 2 problem(s)"]),
+     ["CODEOWNERS:12: 'tm-ios/': no owner", "FAILED, 2 problem(s)"]),
     ("ownerless: the rest of .claude/ stays protected", REF_CODEOWNERS, ["--files"] + OTHER_CLAUDE,
      0, "protected\n" + "".join(f"{f}  (/.claude/)\n" for f in OTHER_CLAUDE), []),
     ("ownerless: reference skill plus CLAUDE.md", REF_CODEOWNERS,
      ["--files", REF_SKILLS[0], "CLAUDE.md"], 0, "protected\nCLAUDE.md  (/CLAUDE.md)\n", []),
     ("ownerless: diff of a reference skill only", REF_CODEOWNERS,
      ["--base", "main", "--branch", "skill"], 0, "unprotected\n", []),
-    ("ownerless: validate OK", REF_CODEOWNERS, ["--validate"], 0, None, ["OK, 9 patterns"]),
+    ("ownerless: validate OK", REF_CODEOWNERS, ["--validate"], 0, None, ["OK, 10 patterns"]),
     ("ownerless: /shared/ rejected by validate", REF_CODEOWNERS + "/shared/\n", ["--validate"], 1,
-     None, ["CODEOWNERS:11: '/shared/': no owner (only these patterns may have none",
+     None, ["CODEOWNERS:12: '/shared/': no owner (only these patterns may have none",
             "FAILED, 1 problem(s)"]),
     ("ownerless: /shared/ is an error in classification", REF_CODEOWNERS + "/shared/\n",
      ["--files", "shared/A.kt"], 2, "", ["unsupported CODEOWNERS syntax", "'/shared/': no owner"]),

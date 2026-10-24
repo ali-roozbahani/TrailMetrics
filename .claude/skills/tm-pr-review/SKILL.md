@@ -66,8 +66,8 @@ from memory.
 3. **Protected paths.** `protected` is `scripts/check-protected-paths.sh --base BASE`
    output. Also check the `diff` file list against `.github/CODEOWNERS` yourself. Any
    protected file, or a disagreement between the two, means `ESCALATE_TO_HUMAN`.
-   CODEOWNERS can contain ownerless lines (allowed for the four reference skill folders:
-   `tm-ios`, `tm-android`, `tm-kmp-shared` and `tm-testing`): a file whose last matching line
+   CODEOWNERS can contain ownerless lines (allowed for the five reference skill folders:
+   `tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing` and `tm-robustness`): a file whose last matching line
    has no owner is not protected. For those lines the classifier's output is authoritative,
    and a disagreement between it and your own reading still means `ESCALATE_TO_HUMAN`.
    A new or changed Markdown file in those folders is judged like any other diff. The classifier

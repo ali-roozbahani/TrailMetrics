@@ -282,7 +282,7 @@ End the description with the attribution line the session specifies.
   single paths). If a protected file is wrong and not of this task's subject (see "Docs
   follow the code you changed"), report it under "Follow-ups" instead (#32, #33, #34 and #37
   all did this).
-  The four reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`) are not
+  The five reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`, `tm-robustness`) are not
   protected (their folders have ownerless lines in CODEOWNERS, so every file in them is open),
   so an agent may edit them in a task that calls for it; the reviewer judges that diff like any other, and the
   rule-change signal (`tm-pr-review` item 10) escalates any removed or rewritten rule line.
