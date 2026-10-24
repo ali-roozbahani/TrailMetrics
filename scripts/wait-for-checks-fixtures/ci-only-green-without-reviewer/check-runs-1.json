@@ -1,0 +1,1 @@
+{"check_runs": [{"name": "Android — Lint, Detekt, Tests, Build", "status": "completed", "conclusion": "success"}, {"name": "iOS — all stages", "status": "completed", "conclusion": "success"}, {"name": "Repo tooling — policy checks and script self-tests", "status": "completed", "conclusion": "success"}]}

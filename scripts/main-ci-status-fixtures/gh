@@ -1,0 +1,12 @@
+#!/bin/bash
+# Fake `gh` for scripts/main-ci-status.sh --self-test: serves one fixture case (FAKE_GH_DIR) and never
+# touches the network. Only the two GET reads of the script are served; anything else fails.
+[ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: simulated failure" >&2; exit 1; }
+case "$*" in
+    "api repos/{owner}/{repo}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=100") cat "$FAKE_GH_DIR/runs.json" ;;
+    "api repos/{owner}/{repo}/actions/runs/"*"/jobs?per_page=100")
+        [ -e "$FAKE_GH_DIR/gh-fail-jobs" ] && { echo "gh: simulated failure" >&2; exit 1; }
+        id="${2#repos/\{owner\}/\{repo\}/actions/runs/}"; id="${id%%/*}"
+        cat "$FAKE_GH_DIR/jobs-$id.json" ;;
+    *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
+esac

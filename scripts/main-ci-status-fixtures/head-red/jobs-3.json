@@ -1,0 +1,1 @@
+{"jobs": [{"name": "Android — Lint, Detekt, Tests, Build", "conclusion": "success"}, {"name": "iOS 3 — run UI tests (after 2a)", "conclusion": "failure"}, {"name": "iOS — all stages", "conclusion": "failure"}, {"name": "x", "conclusion": "skipped"}]}

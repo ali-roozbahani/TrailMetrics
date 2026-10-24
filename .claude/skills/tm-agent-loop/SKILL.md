@@ -281,6 +281,18 @@ Right after the agent's own merge, or at the start of the next run (Decision 6):
 `gh pr view <N> --json state` prints `MERGED`, then do the steps of `tm-pr-workflow`,
 "Before starting", which delete the merged local branch and prune.
 
+Then watch the CI run that the merge started on `main`, as a background command like section 6
+(`run_in_background`, timeout above 90 minutes), on the merge commit SHA:
+
+```bash
+scripts/wait-for-checks.sh --ci-only "$(gh api repos/{owner}/{repo}/pulls/<N> --jq .merge_commit_sha)"
+```
+
+`--ci-only` waits for the three CI checks and not for `Review — pr-reviewer`, which a push to `main`
+never runs. The report is not final until it prints `ALL_GREEN` or the failure is reported. A red
+result after your own merge (`FAILED`, `TIMEOUT`, exit 2) goes first in the report with the run URL
+(`scripts/main-ci-status.sh --sha <merge SHA>` names the failed jobs); do not start new work.
+
 ## Stop and report
 
 - The identity is wrong, or an environment failure.

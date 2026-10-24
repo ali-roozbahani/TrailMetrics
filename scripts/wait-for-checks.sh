@@ -3,8 +3,13 @@
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
-#   scripts/wait-for-checks.sh <PR number | head SHA (40 hex)>
+#   scripts/wait-for-checks.sh [--ci-only] <PR number | head SHA (40 hex)>
 #   scripts/wait-for-checks.sh --self-test
+#
+# --ci-only is for a merge commit on `main`: a `push` to `main` never starts `Review — pr-reviewer`
+# (pr-review.yml runs on pull requests), so that check is not waited for. The three CI checks must
+# exist; any check run that does exist is still read, and a failed one is FAILED. Without the
+# option the list is unchanged. It takes a SHA (a PR number would be a PR head, which has the review).
 #
 # Given a PR number it resolves the head SHA, and reads the PR again on every step: a newer push
 # changes the head. Given a SHA there is no PR to compare with, so SUPERSEDED cannot happen.
@@ -55,7 +60,7 @@ REQUIRED_CHECKS="Android — Lint, Detekt, Tests, Build
 iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
-USAGE="usage: scripts/wait-for-checks.sh <PR number | head SHA> | --self-test"
+USAGE="usage: scripts/wait-for-checks.sh [--ci-only] <PR number | head SHA> | --self-test"
 
 die() {
     echo "wait-for-checks: $1" >&2
@@ -150,7 +155,7 @@ self_test() {
         err="$state/stderr"
         actual="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" \
             WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
-            WAIT_FOR_CHECKS_FAST_STEP=1 WAIT_FOR_CHECKS_SLOW_STEP=1 "$0" "$(cat "$dir/arg")" 2>"$err")"
+            WAIT_FOR_CHECKS_FAST_STEP=1 WAIT_FOR_CHECKS_SLOW_STEP=1 "$0" $(cat "$dir/arg") 2>"$err")"
         code=$?
         if [ -e "$dir/expected-stderr" ] && ! grep -qF -- "$(cat "$dir/expected-stderr")" "$err"; then
             code="$code (stderr lacks '$(cat "$dir/expected-stderr")')"
@@ -169,6 +174,8 @@ self_test() {
     # usage errors exit 2
     "$0" > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL no argument does not exit 2"; failed=1; }
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric, non-SHA argument does not exit 2"; failed=1; }
+    "$0" --ci-only 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --ci-only with a PR number does not exit 2"; failed=1; }
+    "$0" --ci-only > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --ci-only without a SHA does not exit 2"; failed=1; }
     "$0" 12 13 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL two arguments do not exit 2"; failed=1; }
     WAIT_FOR_CHECKS_MAX_SECONDS=x "$0" 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric time does not exit 2"; failed=1; }
     if [ "$failed" = 0 ]; then echo "wait-for-checks: self-test passed"; else echo "wait-for-checks: self-test FAILED"; fi
@@ -195,13 +202,19 @@ fi
 
 PR=""
 SHA=""
+if [ "${1:-}" = "--ci-only" ]; then
+    # Drop the reviewer's check run from the list that must exist (the last line of REQUIRED_CHECKS).
+    REQUIRED_CHECKS="$(printf '%s\n' "$REQUIRED_CHECKS" | grep -vxF 'Review — pr-reviewer')"
+    CI_ONLY=1
+    shift
+fi
 if [ "$#" != 1 ]; then
     echo "$USAGE" >&2
     exit 2
 fi
 if [[ "$1" =~ ^[0-9a-f]{40}$ ]]; then
     SHA="$1"
-elif [[ "$1" =~ ^[0-9]+$ ]]; then
+elif [[ "$1" =~ ^[0-9]+$ ]] && [ -z "${CI_ONLY:-}" ]; then
     PR="$1"
 else
     echo "$USAGE" >&2

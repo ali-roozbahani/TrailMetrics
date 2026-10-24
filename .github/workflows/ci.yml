@@ -190,6 +190,9 @@ jobs:
       - name: CI wait self-test
         run: scripts/wait-for-checks.sh --self-test
 
+      - name: Main CI status self-test
+        run: scripts/main-ci-status.sh --self-test
+
       - name: Scrub-env self-test
         run: scripts/scrub-env.sh --self-test
 

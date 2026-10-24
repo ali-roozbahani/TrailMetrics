@@ -140,6 +140,7 @@ run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
 run_step "CI verdict reader self-test" scripts/read-ci-verdict.sh --self-test
 run_step "CI re-run guard self-test" scripts/rerun-failed-once.sh --self-test
 run_step "CI wait self-test" scripts/wait-for-checks.sh --self-test
+run_step "main CI status self-test" scripts/main-ci-status.sh --self-test
 run_step "board check self-test" scripts/check-board.sh --self-test
 run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-test
 run_step "prune merged branches self-test" scripts/prune-merged-branches.sh --self-test
