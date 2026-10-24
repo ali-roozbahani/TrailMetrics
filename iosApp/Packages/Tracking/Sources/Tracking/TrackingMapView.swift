@@ -122,7 +122,8 @@ struct TrackingMapView: UIViewRepresentable {
                 // A result for a request that was cancelled (the map view went away) or replaced
                 // is dropped, and its file removed.
                 guard !Task.isCancelled, coordinator.handledSnapshotRequestID == requestID else {
-                    discardSnapshotFile(atPath: path)
+                    // File access: off the main actor, like the write.
+                    Task.detached { discardSnapshotFile(atPath: path) }
                     return
                 }
                 // The binding is reset only now, so the Finish tap guard

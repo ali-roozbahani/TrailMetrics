@@ -58,4 +58,17 @@ final class MapSnapshotWriterTests: XCTestCase {
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: path))
     }
+
+    func test_discard_missingFile_doesNotCrashAndLeavesDirectoryAlone() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let missing = directory.appendingPathComponent("activity_missing.png").path
+
+        discardSnapshotFile(atPath: missing)
+
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), [])
+    }
+
+    func test_discard_nilPath_doesNothing() {
+        discardSnapshotFile(atPath: nil)
+    }
 }

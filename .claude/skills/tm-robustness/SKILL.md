@@ -201,7 +201,8 @@ tools that are not enabled today are in the PR that wrote this skill and in the 
 Don't copy these as a pattern for new code. Each names its board record.
 - No `StrictMode` policy and no LeakCanary anywhere in the app (M8; `strictmode-leak-detection-debug`).
 - `TrackingService` creates `CoroutineScope(SupervisorJob() + Dispatchers.Default)` itself;
-  `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` name
+  `TrackingViewModel`, `UserProfileRepositoryImpl`, `ActivityHistoryRepositoryImpl`,
+  `saveSnapshotToFile` and `TrackingRoot` (`snapshotDispatcher`) name
   `Dispatchers.IO` as a default argument, and `DatabaseBuilder.kt` (`getRoomDatabase`) passes
   `Dispatchers.IO` to `setQueryCoroutineContext`; it is neither a DI module nor the application
   root (D1; `inject-dispatchers-from-di`).

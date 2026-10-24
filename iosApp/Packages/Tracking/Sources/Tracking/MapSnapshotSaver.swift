@@ -30,9 +30,10 @@ func snapshotDirectory() -> URL? {
     return directory
 }
 
-/// PNG-encodes `image` and writes it into `directory` off the main actor (a nonisolated `async`
-/// function runs on the global executor). Returns the file path, or nil when the encoding or the
-/// write fails.
+/// PNG-encodes `image` and writes it into `directory`. The function is nonisolated, but the app
+/// target builds with `NonisolatedNonsendingByDefault`, so it runs on its caller's actor: the caller
+/// must hop off the main actor (`TrackingMapView` calls it from `Task.detached`). Returns the file
+/// path, or nil when the encoding or the write fails.
 func writeMapSnapshot(_ image: UIImage, to directory: URL) async -> String? {
     guard let data = image.pngData() else { return nil }
 
@@ -52,7 +53,9 @@ func writeMapSnapshot(_ image: UIImage, to directory: URL) async -> String? {
 }
 
 /// Removes a snapshot file whose result nobody will receive. Best effort: a file that cannot be
-/// removed is an orphaned image the user cannot act on, so the failure is logged.
+/// removed is an orphaned image the user cannot act on, so the failure is logged. This is file
+/// access: the caller must not run it on the main actor (`TrackingMapView` calls it from
+/// `Task.detached`).
 func discardSnapshotFile(atPath path: String?) {
     guard let path else { return }
     do {
