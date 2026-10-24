@@ -1,8 +1,11 @@
 package dev.roozbahani.trailmetrics.data.di
 
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.repository.TrackingSessionStoreImpl
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.Logger
@@ -22,6 +25,13 @@ val commonTrackingModule = module {
 
     factory { SpeedCalculator() }
 
+    single<TrackingSessionStore> {
+        TrackingSessionStoreImpl(
+            trackingSessionDao = get<TrackingSessionDao>(),
+            clock = get<Clock>()
+        )
+    }
+
     single {
         TrackingSessionManager(
             locationRepository = get<LocationRepository>(),
@@ -30,6 +40,7 @@ val commonTrackingModule = module {
             speedCalculator = get<SpeedCalculator>(),
             clock = get<Clock>(),
             logger = get<Logger>(),
+            trackingSessionStore = get<TrackingSessionStore>(),
             scope = get<CoroutineScope>(TRACKING_SCOPE)
         )
     }

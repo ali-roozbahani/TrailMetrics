@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class TrackingViewModel(
@@ -143,7 +145,7 @@ class TrackingViewModel(
             is TrackingAction.LocationPermissionGranted -> start(action.startCoordinates)
             TrackingAction.Pause -> trackingSessionManager.pause()
             TrackingAction.Resume -> trackingSessionManager.resume()
-            TrackingAction.Stop -> trackingSessionManager.stop()
+            TrackingAction.Stop -> stop()
             is TrackingAction.Finish -> finish(action.snapshotFilePath)
         }
     }
@@ -173,6 +175,21 @@ class TrackingViewModel(
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates)
         }
+    }
+
+    /**
+     * The screen leaves right after Stop (the Stop button and the exit dialog), so the stopped session
+     * is discarded: its stored copy is cleared. A session that stops by itself at the route's end is
+     * stopped by [withRouteCompletion] and stays stored until it is saved with Finish.
+     */
+    private fun stop() {
+        trackingSessionManager.stop()
+        viewModelScope.launch { clearStoredSession() }
+    }
+
+    /** Not cancelled with the ViewModel: the screen leaves right after, and a half-done clear would keep the session. */
+    private suspend fun clearStoredSession() {
+        withContext(NonCancellable) { trackingSessionManager.clearSession() }
     }
 
     private fun finish(snapshotFilePath: String?) {
@@ -207,6 +224,8 @@ class TrackingViewModel(
                     startedAtEpochMillis = startedAtEpochMillis,
                     snapshotFilePath = path
                 )
+                // Only now is the recorded data safe elsewhere; a failed save above keeps the stored session.
+                clearStoredSession()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

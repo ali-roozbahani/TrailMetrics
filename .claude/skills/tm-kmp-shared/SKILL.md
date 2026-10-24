@@ -210,4 +210,5 @@ Don't copy these as a pattern for new code.
 - `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
   because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries";
   `ios-launcher-depends-on-concrete-location-repository`).
-- The session state machine keeps the in-progress session only in memory (`tm-robustness`, R2 and R5).
+- The session state machine saves the in-progress session (`TrackingSessionStore`) but nothing
+  restores it yet (`tm-robustness`, R2 and R5).

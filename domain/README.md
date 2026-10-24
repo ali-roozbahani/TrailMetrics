@@ -21,7 +21,8 @@ Compose, or any platform framework.
   method — a thin passthrough to a single repository call is usually not
   worth a use case.
 - **Tracking orchestration** (`tracking/`): `TrackingSessionManager`, the
-  state machine driving Start/Pause/Resume/Stop.
+  state machine driving Start/Pause/Resume/Stop, and `TrackingSessionStore`,
+  the port that keeps the in-progress session across process death.
 - **Utilities** (`util/`): `CalorieCalculator`, `Clock` (injectable time
   source for testability: `nowMillis()` is wall-clock epoch time for stored or
   shown timestamps, `elapsedRealtimeMillis()` is the monotonic clock that

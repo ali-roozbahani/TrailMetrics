@@ -2,14 +2,19 @@ package dev.roozbahani.trailmetrics.data.local.database
 
 import androidx.sqlite.SQLiteDriver
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.repository.TrackingSessionStoreImpl
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Migration harness. Each case writes a database file at an old version outside Room (a
@@ -62,11 +67,37 @@ abstract class TrailMetricsMigrationTest {
     }
 
     @Test
-    fun `a version 1 database opens at the current version and keeps every row`() = runTest {
+    fun `MIGRATION_1_2 keeps every row and stores user_version 2`() = runTest {
         val rows = openAndReadAll(databaseVersion1)
 
         assertEquals(version1RowsAtCurrentVersion, rows)
         assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
+    }
+
+    @Test
+    fun `MIGRATION_1_2 adds the empty session tables the store can write and read`() = runTest {
+        databaseVersion1.writeTo(fixtureDriver, databasePath)
+        val database = openWithAppPipeline(databasePath)
+        try {
+            val dao = database.trackingSessionDao()
+            assertNull(dao.getSession())
+            assertEquals(0, dao.countPoints())
+
+            val state = TrackingState.Paused(
+                TrackingMetrics(
+                    elapsedMillis = 5_000,
+                    lastUpdateElapsedRealtimeMillis = 7_000,
+                    distanceMeters = 12.5,
+                    path = listOf(Coordinates(1.0, 2.0), Coordinates(3.0, 4.0)),
+                    currentSpeedMetersPerSecond = null
+                )
+            )
+            val store = TrackingSessionStoreImpl(dao, FixedClock)
+            store.save(state)
+            assertEquals(state, store.load())
+        } finally {
+            database.close()
+        }
     }
 
     /**
@@ -84,6 +115,11 @@ abstract class TrailMetricsMigrationTest {
         } finally {
             database.close()
         }
+    }
+
+    private object FixedClock : Clock {
+        override fun nowMillis(): Long = 1_700_300_000_000
+        override fun elapsedRealtimeMillis(): Long = 0L
     }
 
     private fun storedUserVersion(): Int {

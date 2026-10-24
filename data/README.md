@@ -9,7 +9,8 @@ does not publish that target yet).
 - **Repository implementations** (`local/repository/`, `directions/`,
   `user/`): `ActivityHistoryRepositoryImpl` (Room), `DirectionsRepositoryImpl`
   (Ktor), `UserProfileRepositoryImpl` (built on the `KeyValueStorage`
-  expect/actual).
+  expect/actual), `TrackingSessionStoreImpl` (Room: the in-progress tracking
+  session).
 - **Room persistence** (`local/`): `TrailMetricsDatabase`, DAOs, entities,
   converters. Fully shared in `commonMain` — Room 3.x provides a
   context-free, Kotlin/Native-compatible builder.
