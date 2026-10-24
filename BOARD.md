@@ -343,7 +343,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: .claude
 - Order: 232
 - Source: PR for pr-review-item-3-reference-skill-files
-- Problem: `scripts/check-protected-paths.py` now protects a file in the five ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the four ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
+- Problem: `scripts/check-protected-paths.py` now protects a file in the five ownerless skill folders whose name does not end in `.md`, but two lines still say every file there is open: the comment above the five ownerless lines in `.github/CODEOWNERS` ("an agent may edit them and add files to them") and the "Boundaries" paragraph in `.claude/skills/tm-pr-workflow/SKILL.md` ("every file in them is open"). Both are protected paths outside this PR's authorization.
 - Done when: both say that Markdown files in those folders are open and any other file is protected, in a PR that may touch the protected paths.
 - Refs: `.github/CODEOWNERS` (reference skills comment); `.claude/skills/tm-pr-workflow/SKILL.md` ("Boundaries"); `scripts/check-protected-paths.py` (`protecting_pattern`).
 
