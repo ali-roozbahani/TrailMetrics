@@ -327,6 +327,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the request handling (handle a request id once, cancel on teardown, drop a result whose request is no longer current, reset the request after delivery) is reachable from a Swift package test or a UI-test scenario, and tests cover each of the four.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`, `TrackingView.swift` (`finishTracking`); `tm-pr-workflow` Tier 2; `tm-testing`.
 
+### prune-merged-branches-gate-and-codeowners
+- Type: task
+- Area: scripts, .github
+- Order: 246
+- Source: PR for prune-merged-branches-script-and-hook
+- Problem: `scripts/prune-merged-branches.sh` is a new script, but `.github/CODEOWNERS` has no line for it (so it is unprotected, unlike every other workflow script) and `scripts/pre-push-check.sh` does not run its self-test or the new hook's (only CI's `tooling` job does, as the owner decided). Both files are protected and outside the owner's authorization for that PR, so they are a human decision, not part of it.
+- Done when: `/scripts/prune-merged-branches.sh` has a CODEOWNERS line (`scripts/check-protected-paths.sh --validate` passes), and the gate runs `scripts/prune-merged-branches.sh --self-test` and `scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test` next to the other self-tests, or the owner records why not.
+- Refs: `.github/CODEOWNERS`; `scripts/pre-push-check.sh` (the "push hook self-test" step); `.github/workflows/ci.yml` `tooling`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
