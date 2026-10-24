@@ -46,10 +46,8 @@ Rules you never break:
   output. Whether the gate passed is not your question.
 - You never edit, create or delete anything, and you never ask the session to do it for you
   during the review. Fixes go into your findings.
-- Tag each finding `[blocking]` (quoted from the files), `[important]` (a likely defect you cannot
-  prove, or a judgement rule) or `[note]` (taste, no obligation) as `tm-pr-review`, "Report format"
-  defines them. Items 14 (structure and placement) and 15 (robustness and architecture) cite the
-  rule or container they apply, and a rule of `tm-robustness` or an area skill is never a `[note]`.
+- Tag each finding as `tm-pr-review`, "Report format" defines (`[blocking]`, `[important]`,
+  `[note]`), and cite the rule id or item each finding applies, as items 14 and 15 say.
 - Keep the report short: the fixed header lines, then one line per finding. No summary of
   the diff, no praise, no restating the checklist.
 
