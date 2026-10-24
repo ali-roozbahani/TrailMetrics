@@ -206,6 +206,12 @@ STUB
     rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git status"}}' | bash "$hook" >/dev/null 2>&1) || rc=$?
     if [ "$rc" = 0 ]; then echo "ok   missing cwd, other command passes (exit 0)"; else echo "FAIL missing cwd, git status: expected exit 0, got $rc" >&2; fails=$((fails + 1)); fi
 
+    # Malformed input and an unreadable cwd: branch creation cannot be judged, so it blocks.
+    rc=0; (cd "$repo" && printf 'not json' | bash "$hook" >/dev/null 2>&1) || rc=$?
+    if [ "$rc" = 2 ]; then echo "ok   malformed input blocks (exit 2)"; else echo "FAIL malformed input: expected exit 2, got $rc" >&2; fails=$((fails + 1)); fi
+    rc=0; (cd "$repo" && printf '{"tool_input":{"command":"git switch -c new-b"},"cwd":"%s/missing"}' "$tmp" | bash "$hook" >/dev/null 2>"$tmp/err") || rc=$?
+    if [ "$rc" = 2 ] && grep -q 'cannot be entered' "$tmp/err"; then echo "ok   unreadable cwd blocks with its own reason (exit 2)"; else echo "FAIL unreadable cwd: expected exit 2 with reason, got $rc" >&2; fails=$((fails + 1)); fi
+
     # Without jq: a command that mentions git blocks, any other passes. PATH holds only the tools
     # the hook needs, so jq is not found.
     nojq="$tmp/nojq"
@@ -262,7 +268,11 @@ if ! command -v jq >/dev/null 2>&1; then
     fi
     exit 0
 fi
-COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)" || COMMAND=""
+# Input jq cannot parse also blocks: an unreadable command is unknown, not clean.
+if ! COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)"; then
+    echo "Blocked: the hook input is not valid JSON, so the branch-create hook cannot read the command. Report this to the human and stop; do not bypass the hook." >&2
+    exit 2
+fi
 
 creates_branch "$COMMAND" || exit 0
 
@@ -274,8 +284,12 @@ if [ -z "$HOOK_CWD" ]; then
     exit 2
 fi
 
+if ! cd "$HOOK_CWD" 2>/dev/null; then
+    echo "Blocked: the session cwd ($HOOK_CWD) cannot be entered, so merged local branches cannot be checked. Report this to the human and stop; do not bypass the hook." >&2
+    exit 2
+fi
 RC=0
-OUTPUT="$(cd "$HOOK_CWD" 2>/dev/null && "$PRUNE" --check 2>&1)" || RC=$?
+OUTPUT="$("$PRUNE" --check 2>&1)" || RC=$?
 
 case "$RC" in
     0) exit 0 ;;
