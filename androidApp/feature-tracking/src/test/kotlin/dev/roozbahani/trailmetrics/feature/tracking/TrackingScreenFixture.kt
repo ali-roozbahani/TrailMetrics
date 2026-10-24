@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /**
@@ -70,6 +71,21 @@ class TrackingScreenFixture {
                     single { CalorieCalculator() }
                     single<Clock> { clock }
                     single { SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock) }
+                    // Replaces trackingUiModule's definition, which leaves ioDispatcher at Dispatchers.IO: the
+                    // ViewModel's snapshot file deletes then run on a real thread that waitForIdle() does not wait
+                    // for. On this dispatcher a delete has run when the call that asked for it returns.
+                    viewModel { params ->
+                        TrackingViewModel(
+                            trackingSessionManager = get(),
+                            userProfileRepository = get(),
+                            calorieCalculator = get(),
+                            saveActivityUseCase = get(),
+                            activityType = params.get(),
+                            plannedRoutePoints = params.get(),
+                            clock = get(),
+                            ioDispatcher = UnconfinedTestDispatcher(testScheduler)
+                        )
+                    }
                 }
             )
         }
