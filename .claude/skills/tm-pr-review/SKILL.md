@@ -220,7 +220,8 @@ from memory.
     `[blocking]` only when you quote the violation from the files, `[important]` when it is a
     suspicion or a judgement rule. Never a `[note]` for a rule of these skills. One finding per
     rule per file. A violation in lines the diff leaves untouched is not a finding, except where
-    the diff relies on it or makes it worse; then at most a `[note]` naming the board record.
+    the diff relies on it or makes it worse; that is the one case where a `[note]` is allowed, and
+    it only names the board record.
     Swallowed exceptions are item 13, not repeated here.
 
 ## Verdict rules

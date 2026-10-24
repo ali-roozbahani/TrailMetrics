@@ -57,13 +57,13 @@ read_verdict() {
           else ($ann[0] | map(select(.title == $name))) as $a
           | if ($a | length) != 1 then "NOT_APPROVE: \($a | length) annotations with that title"
             elif ($a[0].blob_href | tostring | contains("/blob/\($sha)/") | not) then "NOT_APPROVE: annotation is not for \($sha)"
-            else ($a[0].message | capture("^(?<v>APPROVE|ESCALATE_TO_HUMAN|CHANGES)(, (?<n>[0-9]+) important)?(?<end>[.:])") // null) as $m
+            else ($a[0].message | capture("^(?<v>APPROVE|ESCALATE_TO_HUMAN|CHANGES)(, (?<n>[0-9]+) important)?(?<sep>[.:])") // null) as $m
             | (if $m == null then ""
                elif ($m.n // "") == "" or ($m.n | tonumber) == 0 then ""
                else ", \($m.n | tonumber) important" end) as $imp
-            | if $m != null and $a[0].annotation_level == "notice" and $m.v == "APPROVE" and $m.end == "." then "APPROVE\($imp)"
-            elif $m != null and $a[0].annotation_level == "warning" and $m.v == "ESCALATE_TO_HUMAN" and $m.end == ":" then "ESCALATE_TO_HUMAN\($imp)"
-            elif $m != null and $a[0].annotation_level == "failure" and $m.v == "CHANGES" and $m.end == ":" then "CHANGES\($imp)"
+            | if $m != null and $a[0].annotation_level == "notice" and $m.v == "APPROVE" and $m.sep == "." then "APPROVE\($imp)"
+            elif $m != null and $a[0].annotation_level == "warning" and $m.v == "ESCALATE_TO_HUMAN" and $m.sep == ":" then "ESCALATE_TO_HUMAN\($imp)"
+            elif $m != null and $a[0].annotation_level == "failure" and $m.v == "CHANGES" and $m.sep == ":" then "CHANGES\($imp)"
             else "NOT_APPROVE: level \($a[0].annotation_level) and message \($a[0].message | .[0:30]) disagree"
             end
           end
