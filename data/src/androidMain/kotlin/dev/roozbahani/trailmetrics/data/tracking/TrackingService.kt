@@ -66,8 +66,8 @@ class TrackingService : Service(), KoinComponent {
 
         override fun leaveNotice(text: String) {
             stopForeground(STOP_FOREGROUND_REMOVE)
-            getSystemService(NotificationManager::class.java)
-                .notify(RESTORED_NOTIFICATION_ID, buildRestoredNotification(text))
+            val notice = buildRestoredNotification(this@TrackingService, CHANNEL_ID, R.drawable.ic_notif_location, text)
+            getSystemService(NotificationManager::class.java).notify(RESTORED_NOTIFICATION_ID, notice)
             stopSelf()
         }
 
@@ -135,7 +135,7 @@ class TrackingService : Service(), KoinComponent {
     // backgrounded, or not running at all. MainActivity looks for ACTION_STOP_TRACKING to
     // drive both the stop call and the navigation.
     private fun buildStopPendingIntent(): PendingIntent {
-        val stopIntent = launchIntent().apply {
+        val stopIntent = launchIntent(this).apply {
             action = ACTION_STOP_TRACKING
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -144,25 +144,6 @@ class TrackingService : Service(), KoinComponent {
         return PendingIntent.getActivity(
             this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
-
-    // The notice a restart leaves behind: a normal notification that opens the app through its launcher
-    // intent, where the stored session is offered. It is not ongoing and goes away when tapped.
-    private fun buildRestoredNotification(text: String): Notification {
-        val openApp = PendingIntent.getActivity(
-            this, 1, launchIntent(), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("TrailMetrics")
-            .setContentText(text)
-            .setSmallIcon(R.drawable.ic_notif_location)
-            .setContentIntent(openApp)
-            .setAutoCancel(true)
-            .build()
-    }
-
-    private fun launchIntent(): Intent = checkNotNull(packageManager.getLaunchIntentForPackage(packageName)) {
-        "No launcher Activity found for $packageName"
     }
 
     companion object {
