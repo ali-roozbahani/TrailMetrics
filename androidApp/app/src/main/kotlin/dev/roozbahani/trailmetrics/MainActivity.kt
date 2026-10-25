@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -38,6 +40,7 @@ import dev.roozbahani.trailmetrics.navigation.TrailMetricsBottomBar
 import kotlin.reflect.typeOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
@@ -103,11 +106,25 @@ private fun TrailMetricsRoot(
     viewModel: SavedSessionOfferViewModel = koinViewModel()
 ) {
     val state: SavedSessionOfferState by viewModel.state.collectAsStateWithLifecycle()
+    SavedSessionOfferEvents(viewModel.events)
     TrailMetricsNavHost(
         stopTrackingRequested = stopTrackingRequested,
         savedSessionOffer = state.offer,
         onSavedSessionOfferConsumed = { viewModel.onAction(SavedSessionOfferAction.OfferConsumed) }
     )
+}
+
+@Composable
+internal fun SavedSessionOfferEvents(events: Flow<SavedSessionOfferEvent>) {
+    val context = LocalContext.current
+    LaunchedEffect(events) {
+        events.collect { event ->
+            when (event) {
+                SavedSessionOfferEvent.RestoreFailed ->
+                    Toast.makeText(context, R.string.saved_session_restore_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 }
 
 @Composable

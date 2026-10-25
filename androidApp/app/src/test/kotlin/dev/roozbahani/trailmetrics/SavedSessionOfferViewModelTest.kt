@@ -16,6 +16,8 @@ import dev.roozbahani.trailmetrics.fakes.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.feature.route.RouteState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -141,14 +143,19 @@ class SavedSessionOfferViewModelTest {
         assertEquals(1, store.loadCalls)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
-    fun `a failing restore offers nothing and is logged`() = runTest(testScheduler) {
+    fun `a failing restore offers nothing, is logged and emits RestoreFailed`() = runTest(testScheduler) {
         store.loadFailure = IllegalStateException("unreadable")
 
         val viewModel = createViewModel()
+        val events = mutableListOf<SavedSessionOfferEvent>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+        testScheduler.runCurrent()
 
         assertNull(viewModel.state.value.offer)
         assertEquals(1, logger.messages.size)
+        assertEquals(listOf<SavedSessionOfferEvent>(SavedSessionOfferEvent.RestoreFailed), events)
     }
 
     private companion object {
