@@ -108,5 +108,5 @@ dependencies {
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here
 // yet. This module is the app shell (Application, Koin start, `MainActivity` with the nav host, bottom
 // bar and nav types); its unit tests (src/test: the saved-session offer, the nav-host effect and the
-// notification Stop intent) cover 42.9% of its lines (measured 2026-10-25). A floor reads
-// config/kover-floors.properties the way the feature modules' do (board record app-kover-floor).
+// notification Stop intent) cover 42.9% of its lines (measured 2026-10-25). A floor, set the way
+// the feature modules' are, is the board record app-kover-floor.
