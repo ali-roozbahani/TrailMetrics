@@ -26,7 +26,7 @@ cd ~/agent-workspace/TrailMetrics
 git status --porcelain           # must be empty
 git fetch --prune origin && git switch main && git pull --ff-only
 scripts/prune-merged-branches.sh # deletes the local branches whose PR is merged
-scripts/main-ci-status.sh        # the CI run of origin/main's head: exit 0 green, 1 red, 3 running, 4 unknown
+scripts/main-ci-status.sh --recent 5   # the last 5 push runs on main, newest first
 ```
 
 - Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
@@ -36,11 +36,21 @@ scripts/main-ci-status.sh        # the CI run of origin/main's head: exit 0 gree
   new branch until `scripts/prune-merged-branches.sh --check` exits 0 (exit 4 is unknown: report
   it, don't bypass). GitHub deletes the remote branch itself ("Automatically delete head
   branches" is on).
-- `scripts/main-ci-status.sh` reads the run that the last merge started on `main`; nothing else does.
-  Put its summary line first in the report when it is `MAIN_RED`, `MAIN_RUNNING` or `MAIN_UNKNOWN`
-  (with the failed job names and the run URL). A red `main` does not stop the task by itself: the
-  owner decides, and that line is how they see it. A `MERGED-in-worktree` line of
-  `prune-merged-branches.sh` also goes in the report, with its path; the owner removes the worktree.
+- `scripts/main-ci-status.sh --recent 5` prints, newest first, one line per run (run id, merge SHA,
+  PR number or `-`, conclusion or `running`, failed job names) and `RECENT green=<n> red=<n>
+  running=<n> unacknowledged-red=<n>`; its exit code is that of the newest run (0 green, 1 red,
+  3 running, 4 unknown). It covers merges the agent did not make. Put the output first in the report.
+  - `running`: skip it, say so in the report, go on. The next task looks again.
+  - All `success`: say nothing but the summary line.
+  - An unacknowledged `failure`: STOP before any edit. Report the PR and merge SHA, the failed jobs,
+    your classification from reading the log as data (`defect`, a flake already in `CI_FLAKES.md`,
+    `infra` or `unknown`, with the evidence line) and your recommended way out; wait for the
+    owner. Never fix or re-run anything on `main`.
+  - The owner's "go on" after such a report is the only trigger for
+    `scripts/main-ci-status.sh --ack <run id>`; it stores the highest acknowledged run id in
+    `~/agent-workspace/main-ci-ack` and never lowers it. Runs at or below it are not unacknowledged.
+  A `MERGED-in-worktree` line of `prune-merged-branches.sh` also goes in the report, with its path;
+  the owner removes the worktree.
 - Create the task's branch from this local `main` (see "Branching").
 
 - Read `docs/architecture/OVERVIEW.md`, the `README.md` of every module the task touches,

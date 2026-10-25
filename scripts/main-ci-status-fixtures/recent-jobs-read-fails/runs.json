@@ -1,0 +1,14 @@
+{
+  "workflow_runs": [
+    {
+      "id": 52,
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_commit": {
+        "message": "feat: c (#52)\n\n* body line (#1)"
+      },
+      "html_url": "https://github.com/o/r/actions/runs/52"
+    }
+  ]
+}

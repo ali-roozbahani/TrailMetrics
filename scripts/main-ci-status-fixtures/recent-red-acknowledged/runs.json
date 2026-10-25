@@ -1,0 +1,24 @@
+{
+  "workflow_runs": [
+    {
+      "id": 32,
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "conclusion": "success",
+      "head_commit": {
+        "message": "feat: c (#33)\n\n* body line (#1)"
+      },
+      "html_url": "https://github.com/o/r/actions/runs/32"
+    },
+    {
+      "id": 31,
+      "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_commit": {
+        "message": "fix: b (#32)\n\n* body line (#1)"
+      },
+      "html_url": "https://github.com/o/r/actions/runs/31"
+    }
+  ]
+}

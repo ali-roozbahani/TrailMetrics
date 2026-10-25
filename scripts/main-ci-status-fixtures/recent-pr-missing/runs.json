@@ -1,0 +1,24 @@
+{
+  "workflow_runs": [
+    {
+      "id": 42,
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "completed",
+      "conclusion": "success",
+      "head_commit": {
+        "message": "chore: direct commit without a number\n\n* body line (#1)"
+      },
+      "html_url": "https://github.com/o/r/actions/runs/42"
+    },
+    {
+      "id": 41,
+      "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "status": "completed",
+      "conclusion": "success",
+      "head_commit": {
+        "message": "fix: b (#41)\n\n* body line (#1)"
+      },
+      "html_url": "https://github.com/o/r/actions/runs/41"
+    }
+  ]
+}
