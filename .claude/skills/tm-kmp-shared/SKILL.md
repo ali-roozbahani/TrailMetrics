@@ -72,7 +72,7 @@ the system time changes, so never subtract two `nowMillis()` reads.
 
 Android-only (Compose UI) Koin modules are NOT registered in `shared`; they're passed to
 `initKoin { modules(...) }` in `androidApp/app/TrailMetricsApplication.kt`
-(currently: `routeModule`, `trackingUiModule`, `historyUiModule`).
+(currently: `appModule`, `routeModule`, `trackingUiModule`, `historyUiModule`).
 
 ## SKIE and Swift-facing API design
 

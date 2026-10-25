@@ -383,11 +383,3 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
 
-### skill-koin-module-list-omits-app-module
-- Type: drift
-- Area: docs
-- Order: 250
-- Source: PR discard-and-service-restart-after-process-death
-- Problem: `tm-kmp-shared` ("Adding a dependency iOS needs") lists the Android-only modules passed to `initKoin { modules(...) }` as "currently: `routeModule`, `trackingUiModule`, `historyUiModule`". `TrailMetricsApplication` now also passes `appModule` (the `applicationScope` that `MainActivity` uses for the notification Stop). The PR that added it was told not to change skill lines.
-- Done when: the list in `tm-kmp-shared` names `appModule`, in a PR that may change skill lines.
-- Refs: `.claude/skills/tm-kmp-shared/SKILL.md`; `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`.
