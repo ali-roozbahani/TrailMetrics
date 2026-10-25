@@ -91,6 +91,16 @@ rule that needs it never fires there (see "Mechanical rules").
 - **D6** iOS: UI-facing types are `@MainActor`; no blocking work in `body` or on the main actor.
   Why: the same as C1. Example: `HistoryViewModel` (`@MainActor`). Enforced: reviewer only.
   Severity: blocking when it blocks the main actor, else important.
+- **D7** iOS: a `Task { }` created in a `@MainActor` context inherits the main actor, so blocking
+  work in it (file IO, PNG encoding, a heavy loop) goes to `Task.detached` or an explicit non-main
+  executor; `async` or `nonisolated` alone does not move it. Every statement of the `Task` body
+  counts, the early-return, cancellation and cleanup branches included. Why: the same as C1 and D6.
+  Whether a `nonisolated async` function hops off its caller's actor depends on the module that
+  defines it (the app target has `SWIFT_APPROACHABLE_CONCURRENCY`, the six `Package.swift` files do
+  not), so do not reason from a doc comment. Example: `TrackingMapView`'s snapshot `Task`: #219
+  called `discardSnapshotFile` (a `FileManager.removeItem`) in its cancel branch on the main actor
+  until it moved to `Task.detached`. Enforced: reviewer only. Severity: blocking when it blocks the
+  main actor, else important.
 
 ## Process death and lifecycle
 

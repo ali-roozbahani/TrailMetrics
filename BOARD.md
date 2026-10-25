@@ -372,6 +372,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner has decided in audit 61 which of these to close and how (a stronger mechanism, or accepting the limits in the hook header), and the chosen ones are done or the record is deleted.
 - Refs: `scripts/claude-hooks/require-local-review.sh` (header "Limits"); `scripts/local-review-gate.sh` (`valid_disposition`, `count_tag`); CI reviewer findings on PR #233.
 
+### reviewer-misses-main-actor-task-blocking
+- Type: task
+- Area: skills
+- Order: 260
+- Source: PR for tm-robustness-d7-main-actor-task
+- Problem: The local `pr-reviewer` missed the #219 case (`discardSnapshotFile`, a `FileManager.removeItem`, called in the cancel branch of a `Task { }` inside `TrackingMapView.updateUIView`, a main-actor context) in two scratch runs on the commit before the fix (`428444c`, base `c19d5e1`), with `tm-robustness` D7 in the tree both times. Run 1 (first D7 wording) cited D7/C1 but only as `[important]` for `snapshotDirectory()` ("cheap and not a real blocker") and said nothing about `discardSnapshotFile`; run 2 (D7 tightened once to say every statement of the `Task` body counts) had no finding on the `Task` body and did not cite D7. The CI reviewer found the case on the real PR, through C1 and D6. Two runs are a small sample, and the reviewer's output varies between runs. A text check cannot replace it: in #219 the `FileManager` call was inside `discardSnapshotFile`, called from a nested `if` of the `Task` body. `tm-pr-review` is a protected path, so a checklist change is not made here.
+- Done when: audit 61 has compared the local and the CI reviewer on this diff and decided whether a concurrency-specific checklist item or a fixed `TASK` input (the local run got the PR title and description as of the commit, the CI run gets the final description) closes the gap, and the chosen change is done or the record is deleted.
+- Refs: `.claude/skills/tm-robustness/SKILL.md` (D7); `.claude/skills/tm-pr-review/SKILL.md` (item 15); PR #219.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -409,3 +418,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `.claude/skills/tm-pr-review/SKILL.md`, "Orchestrator's part", step 3 tells the session to record the verdict by writing `.review-verdict` itself and never mentions that `scripts/claude-hooks/require-local-review.sh` now captures the reviewer's own report (SubagentStop) or that `scripts/local-review-gate.sh disposition` records the `[important]` dispositions the push hook requires; step 5 says dispositions go in the PR description only. `tm-pr-review` is a protected path outside this PR's authorization.
 - Done when: step 3 and step 5 say what the capture hook records and that the dispositions are written with `scripts/local-review-gate.sh disposition` before the push, in a PR that may touch `tm-pr-review`.
 - Refs: `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", steps 3 and 5); `scripts/claude-hooks/require-local-review.sh`; `scripts/local-review-gate.sh`.
+
+### snapshot-saver-doc-claims-wrong-isolation
+- Type: drift
+- Area: ios
+- Order: 270
+- Source: PR for tm-robustness-d7-main-actor-task
+- Problem: The doc comment of `writeMapSnapshot` in `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift` says the app target builds with `NonisolatedNonsendingByDefault`, so the function runs on its caller's actor. The function is defined in the `Tracking` package, whose `Package.swift` (swift-tools-version 5.9, no `swiftSettings`) does not set it; only the app target sets `SWIFT_APPROACHABLE_CONCURRENCY = YES` (`project.pbxproj`). So the original statement (a nonisolated `async` function runs on the global executor) may have been right for that module. Read from the files, not compiled. Changing the comment is a Swift change and would start the iOS jobs, so it is not done in the PR that found it.
+- Done when: the comment says what is true for that module (the call site's `Task.detached` stays), in a PR that may touch iOS code.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift` (`writeMapSnapshot`); `iosApp/Packages/Tracking/Package.swift`; `iosApp/TrailMetrics.xcodeproj/project.pbxproj`; `tm-robustness` D7.
