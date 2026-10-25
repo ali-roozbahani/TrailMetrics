@@ -11,7 +11,10 @@
 # `bash -c "git push"`, `xargs git push`) is blocked: the pushed ref cannot be resolved there. A
 # `cd <dir>` or `pushd <dir>` earlier in the same command moves the directory the refs are resolved
 # in; one whose target cannot be read (variable, ~, -, none, a missing directory, or any cd in a
-# group or `||` list) blocks a later push or PR creation. It also blocks the main session from calling `local-review-gate.sh record`
+# group or `||` list, or a cd that is not the command word of its segment) blocks a later push or
+# PR creation.
+#
+# The hook also blocks the main session from calling `local-review-gate.sh record`
 # or touching the review records through the shell: the records come from the reviewer itself.
 #
 # SubagentStop (matcher "pr-reviewer"): records the reviewer's final report (the `message` of its
@@ -69,7 +72,7 @@ resolve_commit() {
 # targets <dir> <command text>: print one line per needed review: a SHA, "BLOCK <reason>", or
 # nothing when no push / PR creation is in the command.
 targets() {
-    local dir="$1" text="$2" segment i sub word dir2 found=0 cur="$1" cdunknown=0 grouped=0 target
+    local dir="$1" text="$2" segment i k sub word dir2 found=0 cur="$1" cdunknown=0 grouped=0 target
     local -a tokens
     # A cd inside a group, a command substitution or an `||` list does not change the directory of
     # the following segments the way a linear reading says, so it counts as unreadable.
@@ -95,6 +98,12 @@ targets() {
         i=0
         while [ "$i" -lt "${#tokens[@]}" ] && [[ "${tokens[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do i=$((i + 1)); done
         [ "$i" -lt "${#tokens[@]}" ] || continue
+        # A cd that is not the command word of its segment ({ cd x, then cd x, builtin cd x,
+        # command cd x) cannot be followed: a later push or PR creation blocks.
+        for ((k = 0; k < ${#tokens[@]}; k++)); do
+            [ "$k" -ne "$i" ] || continue
+            case "${tokens[$k]}" in cd | pushd | popd) cdunknown=1 ;; esac
+        done
         dir2="$cur"
         case "${tokens[$i]##*/}" in
             cd | pushd)
@@ -422,10 +431,15 @@ self_test() {
     expect "cd with no argument blocks" 2 "cd && git push"
     expect "cd to a missing directory blocks" 2 "cd $tmp/nosuch && git push"
     expect "cd in a subshell then push blocks" 2 "(cd $repo2); git push"
+    expect "cd in braces then push blocks while HEAD is reviewed" 2 "{ cd ../repo2; git push; }"
+    expect "cd after then, then push blocks while HEAD is reviewed" 2 "if true; then cd ../repo2; git push; fi"
+    expect "builtin cd then push blocks while HEAD is reviewed" 2 "builtin cd ../repo2 && git push"
+    expect "command cd then push blocks while HEAD is reviewed" 2 "command cd ../repo2 && git push"
     expect "cd without a push passes" 0 "cd $repo2 && git status"
     expect "cd back to the reviewed checkout allows" 0 "cd $repo2 && cd $repo && git push"
     review_in "$repo2" "$sha2"
     expect "cd to another checkout with its review allows" 0 "cd $repo2 && git push"
+    expect "cd in braces then push blocks even with the target's review" 2 "{ cd ../repo2; git push; }"
     expect "cd then git -C . with the review of that directory allows" 0 "cd $repo2 && git -C . push"
     expect "cd then a relative git -C with the review allows" 0 "cd $tmp && git -C repo2 push"
     expect "git -C with an absolute path with its review allows" 0 "git -C $repo2 push"
