@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
 }
 
-// Test fakes shared by the androidApp/feature-* JVM test source sets. Consumed only through
+// Test fakes shared by the androidApp JVM test source sets. Consumed only through
 // testImplementation, so nothing here reaches the production APK.
 android {
     namespace = "dev.roozbahani.trailmetrics.core.testing"
