@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.fakes.FakeLocationRepository
 import dev.roozbahani.trailmetrics.domain.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
@@ -22,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** What [TrackingSessionManager] writes to its [TrackingSessionStore], and what restore reads back. */
@@ -57,7 +59,7 @@ class TrackingSessionManagerPersistenceTest {
         locationRepository.setUpdatesFlow(updates)
         val seen = mutableListOf<TrackingState>()
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         seen += manager.currentState.value
         emitFix(point2)
@@ -87,7 +89,7 @@ class TrackingSessionManagerPersistenceTest {
     fun `a second manager over the same store restores a tracking session as Paused with the same metrics`() =
         runTest(testScheduler) {
             locationRepository.setUpdatesFlow(updates)
-            manager.start(point1)
+            manager.start(point1, ActivityType.Running)
             testScheduler.runCurrent()
             emitFix(point2)
             val metrics = assertIs<TrackingState.Tracking>(manager.currentState.value).metrics
@@ -102,6 +104,70 @@ class TrackingSessionManagerPersistenceTest {
             assertEquals(0, secondLocationRepository.observeCallCount)
             assertEquals(0, secondLauncher.startCallCount)
         }
+
+    @Test
+    fun `start saves the activity type with every state`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+
+        manager.start(point1, ActivityType.Cycling)
+        testScheduler.runCurrent()
+        emitFix(point2)
+        manager.pause()
+        testScheduler.runCurrent()
+
+        assertEquals(ActivityType.Cycling, manager.activityType.value)
+        assertEquals(ActivityType.Cycling, store.storedActivityType)
+        assertEquals(3, store.savedStates.size)
+    }
+
+    @Test
+    fun `restore returns the stored activity type and a second manager saves it again`() =
+        runTest(testScheduler) {
+            locationRepository.setUpdatesFlow(updates)
+            manager.start(point1, ActivityType.Walking)
+            testScheduler.runCurrent()
+            val restoredManager = newManager(FakeLocationRepository(), FakeTrackingServiceLauncher())
+
+            restoredManager.restore()
+            restoredManager.resume()
+            testScheduler.runCurrent()
+
+            assertEquals(ActivityType.Walking, restoredManager.activityType.value)
+            assertIs<TrackingState.Tracking>(store.stored)
+            assertEquals(ActivityType.Walking, store.storedActivityType)
+        }
+
+    @Test
+    fun `a stored session without a type restores with a null type`() = runTest(testScheduler) {
+        store.stored = TrackingState.Paused(metrics())
+
+        manager.restore()
+
+        assertNull(manager.activityType.value)
+    }
+
+    @Test
+    fun `restore without a stored session leaves the type null`() = runTest(testScheduler) {
+        manager.restore()
+
+        assertNull(manager.activityType.value)
+    }
+
+    @Test
+    fun `restore does not replace the type of a session started while it loads`() = runTest(testScheduler) {
+        store.stored = TrackingState.Paused(metrics())
+        store.storedActivityType = ActivityType.Walking
+        val gate = CompletableDeferred<Unit>()
+        store.loadGate = gate
+        val restoring = async { manager.restore() }
+        testScheduler.runCurrent()
+
+        manager.start(point1, ActivityType.Running)
+        gate.complete(Unit)
+        restoring.await()
+
+        assertEquals(ActivityType.Running, manager.activityType.value)
+    }
 
     @Test
     fun `a paused session is restored as Paused`() = runTest(testScheduler) {
@@ -133,7 +199,7 @@ class TrackingSessionManagerPersistenceTest {
     @Test
     fun `restore does not replace a session that is already running`() = runTest(testScheduler) {
         store.stored = TrackingState.Finished(metrics())
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         val running = manager.currentState.value
 
@@ -149,7 +215,7 @@ class TrackingSessionManagerPersistenceTest {
         val restoring = async { manager.restore() }
         testScheduler.runCurrent()
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         gate.complete(Unit)
         val result = restoring.await()
 
@@ -177,7 +243,7 @@ class TrackingSessionManagerPersistenceTest {
 
     @Test
     fun `a save still pending when the session is cleared does not bring it back`() = runTest(testScheduler) {
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         manager.stop()
 
         manager.clearSession()
@@ -188,12 +254,12 @@ class TrackingSessionManagerPersistenceTest {
 
     @Test
     fun `a new session after clearSession is saved again`() = runTest(testScheduler) {
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         manager.stop()
         manager.clearSession()
         testScheduler.runCurrent()
 
-        manager.start(point2)
+        manager.start(point2, ActivityType.Running)
         testScheduler.runCurrent()
 
         assertIs<TrackingState.Tracking>(store.stored)
@@ -213,7 +279,7 @@ class TrackingSessionManagerPersistenceTest {
         locationRepository.setUpdatesFlow(updates)
         store.saveFailure = IllegalStateException("disk full")
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         emitFix(point2)
 

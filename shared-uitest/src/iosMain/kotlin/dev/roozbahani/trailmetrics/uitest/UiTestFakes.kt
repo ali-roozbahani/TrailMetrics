@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.uitest
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.Route
@@ -10,6 +11,7 @@ import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
+import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import kotlinx.coroutines.awaitCancellation
@@ -53,9 +55,9 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
 
 /** Keeps nothing, so no UI test opens the Room database through the session store. */
 internal class UiTestTrackingSessionStore : TrackingSessionStore {
-    override suspend fun save(state: TrackingState) = Unit
+    override suspend fun save(state: TrackingState, activityType: ActivityType?) = Unit
 
-    override suspend fun load(): TrackingState? = null
+    override suspend fun load(): StoredTrackingSession? = null
 
     override suspend fun clear() = Unit
 }

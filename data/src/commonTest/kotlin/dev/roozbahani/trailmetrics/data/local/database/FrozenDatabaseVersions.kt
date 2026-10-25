@@ -7,7 +7,7 @@ import androidx.sqlite.execSQL
  * The `version` of `@Database` in [TrailMetricsDatabase]. A version bump changes it here too, in
  * the same change that adds `N.json`, `MIGRATION_M_N` and its harness case.
  */
-internal const val CURRENT_DATABASE_VERSION = 2
+internal const val CURRENT_DATABASE_VERSION = 3
 
 /**
  * A database at an old version, written with plain SQL outside Room, the way Room itself wrote a
@@ -70,5 +70,38 @@ internal val databaseVersion1 = FrozenDatabaseVersion(
     ),
 )
 
+internal val databaseVersion2 = FrozenDatabaseVersion(
+    version = 2,
+    identityHash = "ff1fc035b8323f59ac62a35dfd1173f6",
+    schemaStatements = listOf(
+        "CREATE TABLE IF NOT EXISTS `tbl_activities` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`activityType` TEXT NOT NULL, `startedAtEpochMillis` INTEGER NOT NULL, " +
+            "`endedAtEpochMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, " +
+            "`durationMillis` INTEGER NOT NULL, `averageSpeedMetersPerSecond` REAL, `calories` REAL, " +
+            "`plannedRoutePoints` TEXT NOT NULL, `actualPath` TEXT NOT NULL, `snapshotFilePath` TEXT)",
+        "CREATE TABLE IF NOT EXISTS `tbl_tracking_session` (`id` INTEGER NOT NULL, " +
+            "`stateKind` TEXT NOT NULL, `elapsedMillis` INTEGER NOT NULL, " +
+            "`lastUpdateElapsedRealtimeMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, " +
+            "`currentSpeedMetersPerSecond` REAL, `savedAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "CREATE TABLE IF NOT EXISTS `tbl_tracking_session_points` (`sessionId` INTEGER NOT NULL, " +
+            "`sequence` INTEGER NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, " +
+            "PRIMARY KEY(`sessionId`, `sequence`))",
+        "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+        "INSERT OR REPLACE INTO room_master_table (id,identity_hash) " +
+            "VALUES(42, 'ff1fc035b8323f59ac62a35dfd1173f6')",
+    ),
+    rowStatements = listOf(
+        // A saved activity with every optional column set.
+        "INSERT INTO tbl_activities VALUES (3, 'Cycling', 1700500000000, 1700503600000, 20100.5, " +
+            "3600000, 5.5, 610.25, '[{\"latitude\":52.52,\"longitude\":13.405}]', " +
+            "'[{\"latitude\":52.52,\"longitude\":13.405},{\"latitude\":52.53,\"longitude\":13.41}]', " +
+            "'/snapshots/activity-3.png')",
+        // The in-progress session: paused, a speed set, a two-point path.
+        "INSERT INTO tbl_tracking_session VALUES (1, 'Paused', 754000, 9100000, 1843.75, 2.25, 1700600000000)",
+        "INSERT INTO tbl_tracking_session_points VALUES (1, 0, 48.2082, 16.3738)",
+        "INSERT INTO tbl_tracking_session_points VALUES (1, 1, 48.209, 16.375)",
+    ),
+)
+
 /** Every frozen fixture, oldest first; the host test checks each one against its schema file. */
-internal val frozenDatabaseVersions: List<FrozenDatabaseVersion> = listOf(databaseVersion1)
+internal val frozenDatabaseVersions: List<FrozenDatabaseVersion> = listOf(databaseVersion1, databaseVersion2)

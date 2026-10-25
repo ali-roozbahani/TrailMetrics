@@ -16,7 +16,9 @@ data class TrackingSessionEntity(
     val lastUpdateElapsedRealtimeMillis: Long,
     val distanceMeters: Double,
     val currentSpeedMetersPerSecond: Float?,
-    val savedAtEpochMillis: Long
+    val savedAtEpochMillis: Long,
+    /** The [dev.roozbahani.trailmetrics.domain.model.ActivityType] name; null when never known. */
+    val activityType: String? = null
 ) {
     companion object {
         const val TRACKING_SESSION_ID = 1

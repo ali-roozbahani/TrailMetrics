@@ -5,9 +5,11 @@ import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_FINISHED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_PAUSED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_TRACKING
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.util.Clock
 
@@ -17,7 +19,7 @@ class TrackingSessionStoreImpl(
     private val clock: Clock
 ) : TrackingSessionStore {
 
-    override suspend fun save(state: TrackingState) {
+    override suspend fun save(state: TrackingState, activityType: ActivityType?) {
         val (kind, metrics) = when (state) {
             TrackingState.Idle -> return
             is TrackingState.Tracking -> STATE_TRACKING to state.metrics
@@ -31,13 +33,14 @@ class TrackingSessionStoreImpl(
                 lastUpdateElapsedRealtimeMillis = metrics.lastUpdateElapsedRealtimeMillis,
                 distanceMeters = metrics.distanceMeters,
                 currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
-                savedAtEpochMillis = clock.nowMillis()
+                savedAtEpochMillis = clock.nowMillis(),
+                activityType = activityType?.name
             ),
             path = metrics.path
         )
     }
 
-    override suspend fun load(): TrackingState? {
+    override suspend fun load(): StoredTrackingSession? {
         val session = trackingSessionDao.getSession() ?: return null
         val metrics = TrackingMetrics(
             elapsedMillis = session.elapsedMillis,
@@ -46,12 +49,13 @@ class TrackingSessionStoreImpl(
             path = trackingSessionDao.getPoints().map { Coordinates(it.latitude, it.longitude) },
             currentSpeedMetersPerSecond = session.currentSpeedMetersPerSecond
         )
-        return when (session.stateKind) {
+        val state = when (session.stateKind) {
             STATE_TRACKING -> TrackingState.Tracking(metrics)
             STATE_PAUSED -> TrackingState.Paused(metrics)
             STATE_FINISHED -> TrackingState.Finished(metrics)
             else -> error("Unknown stored tracking session state '${session.stateKind}'")
         }
+        return StoredTrackingSession(state, session.activityType?.let(ActivityType::valueOf))
     }
 
     override suspend fun clear() {

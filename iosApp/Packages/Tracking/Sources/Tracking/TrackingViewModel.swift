@@ -214,7 +214,7 @@ public class TrackingViewModel: ObservableObject {
     public func onStartClicked() {
         isSessionSaved = false
         startedAtEpochMillis = clock.nowMillis()
-        trackingSessionManager.start(startPoint: startPoint)
+        trackingSessionManager.start(startPoint: startPoint, activityType: activityType)
         liveActivityController?.start(activityType: liveActivityTypeKey)
     }
 
