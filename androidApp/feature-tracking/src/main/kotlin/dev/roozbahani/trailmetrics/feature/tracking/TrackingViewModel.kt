@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +33,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 class TrackingViewModel(
@@ -195,13 +193,7 @@ class TrackingViewModel(
      * stopped by [withRouteCompletion] and stays stored until it is saved with Finish.
      */
     private fun stop() {
-        trackingSessionManager.stop()
-        viewModelScope.launch { clearStoredSession() }
-    }
-
-    /** Not cancelled with the ViewModel: the screen leaves right after, and a half-done clear keeps the session. */
-    private suspend fun clearStoredSession() {
-        withContext(NonCancellable) { trackingSessionManager.clearSession() }
+        viewModelScope.launch { trackingSessionManager.discard() }
     }
 
     private fun finish(snapshotFilePath: String?) {
@@ -241,7 +233,8 @@ class TrackingViewModel(
                     snapshotFilePath = path
                 )
                 // Only now is the recorded data safe elsewhere; a failed save above keeps the stored session.
-                clearStoredSession()
+                // The session is Finished, so discard() only clears it.
+                trackingSessionManager.discard()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
