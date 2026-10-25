@@ -102,7 +102,7 @@ A push is not the end of the task. After every push of a PR branch, read the CI 
 `gh pr checks`) and never cancels or re-runs anything. Run each as a background command
 (`run_in_background`, with a timeout above 90 minutes), because you are re-invoked when it exits;
 a foreground `sleep` is blocked or capped in the agent's shell, so the wait must be this command.
-While it runs, you do not end your turn, do not send a report and do not stop.
+While that command runs, you do not end your turn, do not send a report and do not stop.
 
 **Reviewer first.** The reviewer finishes in about 2 minutes, the other jobs in 20 to 40, and a
 green check run can still carry `[blocking]` findings (`ESCALATE_TO_HUMAN`,
