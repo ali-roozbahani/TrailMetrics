@@ -105,9 +105,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
-// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here,
-// on purpose. This module is the app shell (Application, Koin start, `MainActivity` with the nav
-// host, bottom bar and nav types) and has no unit tests of its own (no src/test; Kover doesn't
-// measure androidTest), so its own line coverage is 0% (0/107 lines, measured 2026-10-05). A floor
-// of 0 could never fail. Add one, set the way the feature modules' are, when its first unit test
-// lands.
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here
+// yet. This module is the app shell (Application, Koin start, `MainActivity` with the nav host, bottom
+// bar and nav types); its unit tests (src/test: the saved-session offer, the nav-host effect and the
+// notification Stop intent) cover 42.9% of its lines (measured 2026-10-25). A floor reads
+// config/kover-floors.properties the way the feature modules' do (board record app-kover-floor).

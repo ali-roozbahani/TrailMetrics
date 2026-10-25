@@ -54,6 +54,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
 - Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
 
+### app-kover-floor
+- Type: task
+- Area: androidApp
+- Order: 25
+- Source: PR offer-saved-session-at-app-start
+- Problem: `androidApp/app` has unit tests now (20, line coverage 42.9% measured 2026-10-25) but no `koverVerify` minimum: a floor needs an entry in `config/kover-floors.properties` and the module's Kover block reading it, and the build file was authorized for the test source set and its comment only.
+- Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
+- Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
+
 ### route-draft-lost-on-process-death
 - Type: task
 - Area: androidApp/feature-route, iosApp/Route
@@ -382,4 +391,3 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
-
