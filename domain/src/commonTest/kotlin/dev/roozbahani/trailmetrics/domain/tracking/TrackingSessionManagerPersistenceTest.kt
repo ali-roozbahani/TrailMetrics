@@ -15,6 +15,7 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
@@ -392,7 +393,7 @@ class TrackingSessionManagerPersistenceTest {
     }
 
     @Test
-    fun `resume after restore starts the location observation and no second service launch`() =
+    fun `resume after restore starts the location observation and the service once`() =
         runTest(testScheduler) {
             manager.start(point1, ActivityType.Running)
             testScheduler.runCurrent()
@@ -409,9 +410,104 @@ class TrackingSessionManagerPersistenceTest {
             assertEquals(1, secondLocationRepository.observeCallCount)
             val tracking = assertIs<TrackingState.Tracking>(restoredManager.currentState.value)
             assertEquals(listOf(point1, point2), tracking.metrics.path)
-            // resume() does not launch the service; a restored session has none until the service restore.
-            assertEquals(0, secondLauncher.startCallCount)
+            assertEquals(1, secondLauncher.startCallCount)
         }
+
+    @Test
+    fun `discard stops a Tracking session and clears the store and returns to Idle`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+
+        manager.discard()
+        testScheduler.runCurrent()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(manager.sessionDetails.value)
+        assertNull(store.stored)
+        assertEquals(1, launcher.stopCallCount)
+        assertEquals(1, store.clearCallCount)
+    }
+
+    @Test
+    fun `discard stops a Paused session and clears the store and returns to Idle`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.pause()
+        testScheduler.runCurrent()
+
+        manager.discard()
+        testScheduler.runCurrent()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(store.stored)
+        assertEquals(1, launcher.stopCallCount)
+    }
+
+    @Test
+    fun `discard of a Finished session skips the stop`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.stop()
+        testScheduler.runCurrent()
+        assertEquals(1, launcher.stopCallCount)
+
+        manager.discard()
+        testScheduler.runCurrent()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(store.stored)
+        assertEquals(1, launcher.stopCallCount)
+    }
+
+    @Test
+    fun `discard of a restored Finished session clears it without stopping a service`() = runTest(testScheduler) {
+        store.stored = TrackingState.Finished(metrics())
+        manager.restore()
+
+        manager.discard()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(store.stored)
+        assertEquals(0, launcher.stopCallCount)
+    }
+
+    @Test
+    fun `discard with a failing clear still ends Idle and does not throw`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+        store.clearFailure = IllegalStateException("disk full")
+
+        manager.discard()
+        testScheduler.runCurrent()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(manager.sessionDetails.value)
+        assertTrue(logger.loggedMessages.any { "disk full" in it.second })
+    }
+
+    @Test
+    fun `discard completes its clear when the caller is cancelled`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+        val gate = CompletableDeferred<Unit>()
+        store.clearGate = gate
+        val discarding = launch { manager.discard() }
+        testScheduler.runCurrent()
+
+        discarding.cancel()
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertNull(store.stored)
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+    }
+
+    @Test
+    fun `resume in a live session starts the launcher again`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.pause()
+        manager.resume()
+
+        assertEquals(2, launcher.startCallCount)
+    }
 
     @Test
     fun `a failing clear is logged and does not throw`() = runTest(testScheduler) {
