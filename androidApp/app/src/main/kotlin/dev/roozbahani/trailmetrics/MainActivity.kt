@@ -12,8 +12,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -37,6 +40,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.androidx.compose.koinViewModel
 
 private const val TAG = "MainActivity"
 
@@ -60,7 +64,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleStopTrackingIntent(intent)
         setContent {
             TrailMetricsTheme {
-                TrailMetricsNavHost(stopTrackingRequested = stopTrackingRequested)
+                TrailMetricsRoot(stopTrackingRequested = stopTrackingRequested)
             }
         }
     }
@@ -94,15 +98,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TrailMetricsNavHost(stopTrackingRequested: MutableState<Boolean> = mutableStateOf(false)) {
-    val navController: NavHostController = rememberNavController()
+private fun TrailMetricsRoot(
+    stopTrackingRequested: MutableState<Boolean>,
+    viewModel: SavedSessionOfferViewModel = koinViewModel()
+) {
+    val state: SavedSessionOfferState by viewModel.state.collectAsStateWithLifecycle()
+    TrailMetricsNavHost(
+        stopTrackingRequested = stopTrackingRequested,
+        savedSessionOffer = state.offer,
+        onSavedSessionOfferConsumed = { viewModel.onAction(SavedSessionOfferAction.OfferConsumed) }
+    )
+}
 
-    LaunchedEffect(stopTrackingRequested.value) {
-        if (stopTrackingRequested.value) {
-            navController.popBackStack(AppRoute.RoutePlanning, inclusive = false)
-            stopTrackingRequested.value = false
-        }
-    }
+@Composable
+fun TrailMetricsNavHost(
+    stopTrackingRequested: MutableState<Boolean> = mutableStateOf(false),
+    savedSessionOffer: AppRoute.Tracking? = null,
+    onSavedSessionOfferConsumed: () -> Unit = {}
+) {
+    val navController: NavHostController = rememberNavController()
 
     NavHost(
         navController = navController,
@@ -166,5 +180,40 @@ fun TrailMetricsNavHost(stopTrackingRequested: MutableState<Boolean> = mutableSt
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+    }
+    // After the NavHost call, so a back stack that Android restored is already in place. Before the Stop
+    // effect, which reads and resets the same flag.
+    SavedSessionOfferEffect(
+        navController = navController,
+        offer = savedSessionOffer,
+        stopTrackingRequested = stopTrackingRequested,
+        onConsumed = onSavedSessionOfferConsumed
+    )
+
+    LaunchedEffect(stopTrackingRequested.value) {
+        if (stopTrackingRequested.value) {
+            navController.popBackStack(AppRoute.RoutePlanning, inclusive = false)
+            stopTrackingRequested.value = false
+        }
+    }
+}
+
+/**
+ * Navigates to the saved session once and consumes it. Nothing is navigated when the current destination
+ * is already the Tracking screen (a back stack Android restored) or when the notification's Stop discards
+ * the session in this launch; the offer is consumed all the same, so it is never navigated twice.
+ */
+@Composable
+internal fun SavedSessionOfferEffect(
+    navController: NavHostController,
+    offer: AppRoute.Tracking?,
+    stopTrackingRequested: MutableState<Boolean>,
+    onConsumed: () -> Unit
+) {
+    LaunchedEffect(offer) {
+        if (offer == null) return@LaunchedEffect
+        val isOnTracking = navController.currentDestination?.hasRoute<AppRoute.Tracking>() == true
+        if (!isOnTracking && !stopTrackingRequested.value) navController.navigate(offer)
+        onConsumed()
     }
 }
