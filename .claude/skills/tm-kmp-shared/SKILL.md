@@ -105,6 +105,15 @@ looks safe even when the Kotlin side declares nothing.
    for them; Swift shows `RouteUiErrorGeneral`.
 4. Swift never drops an error: no `try?` hiding a failure, no `Task { try ... }` without `do/catch`.
 5. After a failure, state stays consistent (nothing half-updated, no navigation).
+6. New Swift-visible API that needs no policy change: a data class, an enum case or a read-only
+   `StateFlow`/`val` property on a domain type Swift already uses, and a parameter or return type
+   added to (or swapped on) a function that already declares its `@Throws` or cannot throw. Allowed
+   when (a) no existing `@Throws` is removed or changed, (b) a new function that can throw follows
+   rules 1 to 3, (c) a new `Flow` that Swift iterates and that can fail gets the
+   `ObserveActivitiesUseCase` treatment below (a `StateFlow` that never fails needs none), (d) the
+   Swift fakes and callers are updated in the same PR, and (e) the PR description lists each new
+   Swift-visible name under the heading `Swift-visible API`. Removing or changing a `@Throws`, a
+   new failing Flow Swift iterates, and any change to `KoinHelper` stay an escalation.
 
 Today: `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase` follow rule 2 (their
 repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileRepository` and
