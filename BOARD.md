@@ -54,16 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
 - Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
 
-### app-stop-intent-tests
-- Type: task
-- Area: androidApp
-- Order: 25
-- After: tracking-session-restore-android
-- Source: PR discard-and-service-restart-after-process-death
-- Problem: `MainActivity` handles the tracking notification's Stop intent (`handleStopTrackingIntent`): it calls `TrackingSessionManager.discard()` in the application scope, logs a failure of it instead of crashing, and does not replay the intent when the Activity is recreated (`savedInstanceState == null`). The `app` module has no test source set when this lands, so none of it is tested; adding the source set needs the module's build file, which is a protected path outside that PR. The app-start PR adds the source set for its nav-host test.
-- Done when: a Robolectric test in `androidApp/app` shows the Stop intent calling `discard()` once, a failing `discard()` being logged and not thrown, and a recreated Activity not calling it again.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt`; `tm-robustness` E4.
-
 ### route-draft-lost-on-process-death
 - Type: task
 - Area: androidApp/feature-route, iosApp/Route
