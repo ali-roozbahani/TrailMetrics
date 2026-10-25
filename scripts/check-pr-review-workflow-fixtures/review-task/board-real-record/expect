@@ -1,0 +1,5 @@
+contains: --- BOARD.md record real-slug on the base branch (resolved by this PR) ---
+contains: - Problem: first line of the real record.
+contains: --- end of record ---
+absent: other-slug
+absent: (no record with this slug

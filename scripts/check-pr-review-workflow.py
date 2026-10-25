@@ -42,11 +42,17 @@ What it does, per run:
      input/rule-changes (or that it is absent; a stale file is put there first), the workflow
      commands in the log, and that no line of the diff reaches the log.
 
+  5. Runs the TASK-building lines of the "Build review inputs" step (from the workflow file) and
+     scripts/review-task.sh on every fixture in fixtures/review-task/ in a scratch repository
+     and fails when their output differs by one byte, or lacks or holds what the fixture's
+     `expect` says. Fails when pr-reviewer.md's `model:` differs from REVIEW_MODEL.
+
 Nothing here prints a raw log line: log lines appear only after a `log> ` prefix, so a
 workflow command in a report can never be processed by the runner that runs this test.
 """
 
 import contextlib
+import difflib
 import errno
 import hashlib
 import json
@@ -64,6 +70,10 @@ RUN_STEP = "Run pr-reviewer"
 MAP_STEP = "Map verdict"
 STAGE_STEP = "Stage review report"
 UPLOAD_STEP = "Upload review report"
+BUILD_STEP = "Build review inputs"
+TASK_FIRST_LINE = 'body="$(printf \'%s\' "${PR_BODY:-}"'
+TASK_LAST_LINE = '} > "$W/message"'
+AGENT_FILE = ".claude/agents/pr-reviewer.md"
 ARTIFACT_NAME = "pr-review-report"
 ARTIFACT_PATH = "${{ runner.temp }}/review-report/"
 ARTIFACT_RETENTION_DAYS = "7"
@@ -920,6 +930,126 @@ def run_rule_fixture(fixture, extracted, bash, script_dir):
     return errors, desc, log_lines
 
 
+# --- The TASK text: the CI step's lines and scripts/review-task.sh on the same fixtures.
+
+def extract_task_lines(path):
+    """The lines of step 'Build review inputs' from the one that sets `body` to the one that
+    closes the `{ ... } > "$W/message"` group: the code that builds the TASK from PR_BODY."""
+    doc = parse_yaml(Path(path).read_text(encoding="utf-8"))
+    hits = [st for job in (doc.get("jobs") or {}).values() if isinstance(job, dict)
+            for st in (job.get("steps") or []) if isinstance(st, dict) and st.get("name") == BUILD_STEP]
+    if len(hits) != 1 or not isinstance(hits[0].get("run"), str):
+        raise ExtractError(f"step '{BUILD_STEP}' must appear once, with a run: script")
+    lines = hits[0]["run"].split("\n")
+    first = [i for i, l in enumerate(lines) if l.strip().startswith(TASK_FIRST_LINE)]
+    last = [i for i, l in enumerate(lines) if l.strip() == TASK_LAST_LINE]
+    if len(first) != 1 or len(last) != 1 or first[0] > last[0]:
+        raise ExtractError(f"step '{BUILD_STEP}': cannot find the TASK lines (from "
+                           f"{TASK_FIRST_LINE} to {TASK_LAST_LINE})")
+    return "\n".join(lines[first[0]:last[0] + 1]) + "\n"
+
+
+def load_task_expect(fixture):
+    """`expect`: `contains: <text>` and `absent: <text>` lines (substrings of the output), and
+    `no-cr: yes` (the output holds no carriage return)."""
+    expect = {"contains": [], "absent": [], "no_cr": False}
+    for line in (fixture / "expect").read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        key, _, value = line.partition(": ")
+        if key in ("contains", "absent"):
+            expect[key].append(value)
+        elif key == "no-cr" and value == "yes":
+            expect["no_cr"] = True
+        else:
+            raise ValueError(f"{fixture.name}/expect: unknown line '{line}'")
+    return expect
+
+
+def run_task_fixture(fixture, task_lines, bash, script_dir):
+    expect = load_task_expect(fixture)
+    board = (fixture / "BOARD.md").read_text(encoding="utf-8")
+    draft = (fixture / "draft").read_bytes()
+    pr_body = (fixture / "pr-body").read_bytes().decode("utf-8")
+    with scratch_dir("tm-review-task-") as tmp:
+        tmp = Path(os.path.realpath(tmp))
+        repo = tmp / "workspace"
+        repo.mkdir()
+        init_scratch_repo(repo)
+        _write(repo, "BOARD.md", board)
+        _write(repo, "README.md", "readme\n")
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-q", "-m", "A")
+        _git(repo, "branch", "-M", "main")
+        _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        _git(repo, "checkout", "-q", "-b", "pr")
+        _write(repo, "README.md", "readme, edited\n")
+        _write(repo, "BOARD.md", "# Board, edited on the head\n")
+        _git(repo, "commit", "-q", "-am", "head")
+        head_sha = _git(repo, "rev-parse", "HEAD")
+        merge_base = _git(repo, "merge-base", "HEAD", "origin/main")
+        input_dir = _git(repo, "rev-parse", "--path-format=absolute", "--git-path", "review-input")
+
+        work, trusted = tmp / "review", tmp / "base"
+        work.mkdir()
+        trusted.mkdir()
+        (trusted / "BOARD.md").write_text(board, encoding="utf-8")
+        ci_script = tmp / "ci.sh"
+        ci_script.write_text("set -euo pipefail\n" + task_lines, encoding="utf-8")
+        draft_file = tmp / "draft.md"
+        draft_file.write_bytes(draft)
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(tmp), "TMPDIR": str(tmp)}
+        ci_env = dict(env, HEAD_SHA=head_sha, MB=merge_base, IN=input_dir, W=str(work),
+                      TRUSTED=str(trusted), PR_BODY=pr_body)
+        errors = []
+        try:
+            ci = subprocess.run([bash, "-e", str(ci_script)], cwd=repo, env=ci_env,
+                                stdin=subprocess.DEVNULL, capture_output=True, timeout=STEP_TIMEOUT)
+            local = subprocess.run([bash, str(script_dir / "review-task.sh"), str(draft_file)],
+                                   cwd=repo, env=env, stdin=subprocess.DEVNULL,
+                                   capture_output=True, timeout=STEP_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return ["timeout"], ""
+        if ci.returncode != 0:
+            errors.append(f"the CI lines exited {ci.returncode}: {ci.stderr.decode(errors='replace')[:200]}")
+        if local.returncode != 0:
+            errors.append(f"review-task.sh exited {local.returncode}: {local.stderr.decode(errors='replace')[:200]}")
+        ci_out = (work / "message").read_bytes() if (work / "message").exists() else b""
+        local_out = local.stdout
+    if not errors and ci_out != local_out:
+        errors.append("review-task.sh output differs from the CI lines' output:\n"
+                      + "".join(difflib.unified_diff(ci_out.decode(errors="replace").splitlines(True),
+                                                      local_out.decode(errors="replace").splitlines(True),
+                                                      "ci", "review-task.sh")))
+    text = local_out.decode("utf-8", errors="replace")
+    for want in expect["contains"]:
+        if want not in text:
+            errors.append(f"output lacks: {want!r}")
+    for bad in expect["absent"]:
+        if bad in text:
+            errors.append(f"output holds: {bad!r}")
+    if expect["no_cr"] and "\r" in text:
+        errors.append("output holds a carriage return")
+    if not text.startswith(f"SHA: {head_sha}\nBASE: {merge_base}\nINPUT_DIR: {input_dir}\nTASK:\n"):
+        errors.append("output does not start with the SHA, BASE, INPUT_DIR and TASK lines")
+    return errors, ("" if errors else f"{len(local_out)} bytes, identical to the CI lines' output")
+
+
+def check_agent_model(extracted, repo_root):
+    """pr-reviewer.md's `model:` equals REVIEW_MODEL, so the local reviewer is the CI one."""
+    path = repo_root / AGENT_FILE
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        return [f"cannot read {AGENT_FILE}: {e}"]
+    front = text.split("---")[1] if text.startswith("---") else ""
+    models = [l.split(":", 1)[1].strip() for l in front.splitlines() if l.startswith("model:")]
+    want = extracted["env"]["REVIEW_MODEL"]
+    if models != [want]:
+        return [f"{AGENT_FILE} has model {models}, expected [{want!r}] (REVIEW_MODEL of the workflow)"]
+    return []
+
+
 def self_test(script_dir, workflow):
     fixtures = script_dir / "check-pr-review-workflow-fixtures"
     missing = [tool for tool in ("bash", "jq", "git", "tar") if shutil.which(tool) is None]
@@ -977,6 +1107,30 @@ def self_test(script_dir, workflow):
         except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as e:
             errors, desc, log_lines = [f"fixture error: {e}"], "", []
         failed += _report(f"rule-changes/{fixture.name}", errors, desc, log_lines)
+    print(f"--- reviewer model ({AGENT_FILE} against REVIEW_MODEL)")
+    total += 1
+    failed += _report("agent model", check_agent_model(extracted, script_dir.parent),
+                      f"model is {extracted['env']['REVIEW_MODEL']}")
+    print(f"--- review-task ({fixtures.name}/review-task), TASK lines of '{BUILD_STEP}' extracted "
+          f"from {shown_path} against {script_dir.name}/review-task.sh")
+    try:
+        task_lines = extract_task_lines(workflow)
+    except ExtractError as e:
+        task_lines = None
+        total += 1
+        failed += _report("review-task", [str(e)], "")
+    task_cases = sorted(p for p in (fixtures / "review-task").iterdir() if p.is_dir()) \
+        if (fixtures / "review-task").is_dir() else []
+    if task_lines is not None and not task_cases:
+        total += 1
+        failed += _report("review-task", ["no cases found"], "")
+    for fixture in task_cases if task_lines is not None else []:
+        total += 1
+        try:
+            errors, desc = run_task_fixture(fixture, task_lines, bash, script_dir)
+        except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as e:
+            errors, desc = [f"fixture error: {e}"], ""
+        failed += _report(f"review-task/{fixture.name}", errors, desc)
     print("--- scratch cleanup (injected rmtree and sleep)")
     total += 1
     failed += _report("remove_scratch", check_remove_scratch(), "retries ENOTEMPTY, then raises")

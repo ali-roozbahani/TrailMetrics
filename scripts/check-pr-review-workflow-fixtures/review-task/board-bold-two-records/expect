@@ -1,0 +1,4 @@
+contains: BOARD.md record real-slug
+contains: BOARD.md record missing-one
+contains: BOARD.md record other-slug
+contains: - Problem: a neighbour that must not be printed.

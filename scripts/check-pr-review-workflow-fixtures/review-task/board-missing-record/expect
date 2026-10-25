@@ -1,0 +1,3 @@
+contains: --- BOARD.md record gone-slug on the base branch (resolved by this PR) ---
+contains: (no record with this slug on the base branch)
+absent: new-slug on the base
