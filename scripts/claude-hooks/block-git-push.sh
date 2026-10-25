@@ -64,6 +64,26 @@ self_test() {
     # The verdict is recorded before the gate's final run, so it is older than the marker.
     mkrepo order gh;          verdict "$sha APPROVE"; sleep 1; marker; expect "verdict older than marker passes" 0 "git push"
 
+    # The shared corpus, in the state "nothing allowed yet" (no marker, no review): `push` lines must
+    # block, `nopush` lines must pass. require-local-review.sh runs the same file.
+    local corpus kind cmd line n=0
+    corpus="$(dirname "$hook")/push-commands-fixtures/corpus"
+    mkrepo corpus gh
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        kind="${line%% *}"; cmd="${line#* }"; n=$((n + 1))
+        if [ "$kind" = push ]; then want=2; else want=0; fi
+        rc=0
+        jq -n --arg c "$cmd" --arg d "$repo" '{tool_input:{command:$c},cwd:$d}' | bash "$hook" >/dev/null 2>&1 || rc=$?
+        if [ "$rc" = "$want" ]; then
+            echo "ok   corpus $kind: $cmd (exit $rc)"
+        else
+            echo "FAIL corpus $kind: $cmd: expected exit $want, got $rc" >&2
+            fails=$((fails + 1))
+        fi
+    done < "$corpus"
+    [ "$n" -gt 0 ] || { echo "FAIL the corpus $corpus is empty or missing" >&2; fails=$((fails + 1)); }
+
     if [ "$fails" -ne 0 ]; then
         echo "block-git-push.sh self-test: $fails failed" >&2
         return 1
@@ -87,8 +107,14 @@ else
     COMMAND="$INPUT"
 fi
 
-# Only act on git push (including `git -C <dir> push`); let every other command through untouched.
-if ! printf '%s\n' "$COMMAND" | grep -qE '(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push([^[:alnum:]_-]|$)'; then
+# Only act on git push and gh pr create; let every other command through untouched. Quotes are
+# dropped first (`git "push"`, `bash -c 'git push'`), and any run of global options (`-C <dir>`,
+# `-c k=v`, `--git-dir=<dir>`, `-R <repo>`) may sit before the subcommand, but another word may not
+# (`git log --grep push` is not a push). scripts/claude-hooks/push-commands-fixtures/corpus holds
+# the commands both this hook and require-local-review.sh must decide the same way.
+OPTS='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
+PUSH_RE="(^|[^[:alnum:]_-])(git${OPTS}[[:space:]]+push|gh${OPTS}[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|\$)"
+if ! printf '%s\n' "$COMMAND" | tr -d "\"'" | grep -qE "$PUSH_RE"; then
     exit 0
 fi
 

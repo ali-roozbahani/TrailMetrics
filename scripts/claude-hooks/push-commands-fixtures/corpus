@@ -1,0 +1,33 @@
+push git push
+push git push -u origin main
+push git push --force-with-lease origin HEAD
+push git -C . push
+push git -C ../other push origin HEAD
+push git -c k=v push
+push git -c user.name=x -c k=v push origin main
+push git --git-dir=.git push
+push git --git-dir .git push
+push env git push
+push bash -c 'git push'
+push bash -c "git push"
+push echo git push
+push git status && git push
+push git fetch && git push origin HEAD
+push git status; git push
+push true || git push
+push (git push)
+push cd . && git push
+push "git" push
+push git "push"
+push git 'push'
+push git --git-dir=/tmp/x/.git push
+push git --no-pager push
+push gh -R owner/repo pr create
+push gh pr create --base main --body-file b.md
+nopush git pushd
+nopush git status
+nopush git log --grep push
+nopush git commit -m "message without the word"
+nopush git fetch origin
+nopush gh pr view 12
+nopush ls

@@ -437,6 +437,15 @@ self_test() {
     expect "wrapped push blocks" 2 "bash -c 'git push'"
     expect "git alias that pushes blocks" 2 "git sneak"
     expect "git -c alias blocks" 2 "git -c alias.p=push p"
+    # The shared corpus, in the state "nothing allowed yet" (no review recorded): `push` lines must
+    # block, `nopush` lines must pass. block-git-push.sh runs the same file.
+    local line kind cmd cn=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        kind="${line%% *}"; cmd="${line#* }"; cn=$((cn + 1))
+        if [ "$kind" = push ]; then expect "corpus push: $cmd" 2 "$cmd"; else expect "corpus nopush: $cmd" 0 "$cmd"; fi
+    done < "$SCRIPT_DIR/push-commands-fixtures/corpus"
+    [ "$cn" -gt 0 ] || { echo "FAIL the push-commands corpus is empty" >&2; fails=$((fails + 1)); }
     review "$parent" APPROVE
     expect "review of the parent commit does not allow the push" 2 "git push"
     review "$sha" CHANGES "1. [blocking] a.kt (f): item 2: defect; fix"

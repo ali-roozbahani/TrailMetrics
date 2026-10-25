@@ -138,13 +138,13 @@ How it is enforced, and what that means for the order of operations:
 
 - A Claude Code `PreToolUse` hook (`.claude/settings.json` →
   `scripts/claude-hooks/block-git-push.sh`) blocks any Bash call containing `git push`
-  unless `.git/.pre-push-check-passed` is **newer than the last commit**. So the order is
+  or `gh pr create` unless `.git/.pre-push-check-passed` is **newer than the last commit**. So the order is
   always **commit → run the gate → push**. Any new commit (a fix, an amend, a review
   change) needs a fresh gate run before the next push.
 - The gate decides whether to run the iOS steps from **committed** changes only
   (`git diff --no-renames <merge-base with origin/main> HEAD`). Uncommitted iOS edits won't trigger
   them, which is one more reason to commit first.
-- The hook matches on command text. Any Bash call that merely *mentions* `git push` (a
+- The hook matches on command text. Any Bash call that merely *mentions* `git push` or `gh pr create` (a
   commit message or PR body passed inline) is blocked until the gate has passed. Pass long
   text through a file: `git commit -F <file>`, `gh pr create --body-file <file>`.
 - `./gradlew test` on its own runs zero tests. KMP tests only run under `allTests`. Use
