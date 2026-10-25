@@ -89,8 +89,8 @@ first. Stop after the gate, write the PR description to
 
 ## 6. After every push: watch CI
 
-A push is not the end of the task. After every push of a PR branch, wait for the checks of the
-head SHA with `scripts/wait-for-checks.sh`; it reads them through REST (GraphQL is refused here,
+A push is not the end of the task. After every push of a PR branch, first read the CI reviewer
+(below, "Reviewer first"), then wait for the checks of the head SHA with `scripts/wait-for-checks.sh`; it reads them through REST (GraphQL is refused here,
 so no `gh pr checks`) and never cancels or re-runs anything. Run it as a background command
 (`run_in_background`, with a timeout above 90 minutes), because you are re-invoked when it
 exits; a foreground `sleep` is blocked or capped in the agent's shell, so the wait must be this
@@ -112,7 +112,8 @@ to exist (the list is `REQUIRED_CHECKS` in the script) as well as every run comp
 `TIMEOUT` can end with `missing:` the names that never appeared. The maximum wait is 90 minutes
 for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report the checks still
 running and the missing ones, and stop. Exit 2: stop and report its message.
-A `FAILED Review — pr-reviewer; still running: ...` exit means the review failed early. Do not
+A `FAILED Review — pr-reviewer; still running: ...` exit means the review failed early (it is also what
+`--review-first` prints for a failed reviewer: the same case). Do not
 wait for the running jobs. Read the verdict with `scripts/read-ci-verdict.sh` (section 7) at once and
 go on as for `CHANGES` or `UNKNOWN`; after `CHANGES` the running jobs belong to a head that the fix will replace.
 When a finding (or `ESCALATE_TO_HUMAN` reason) contradicts a decision written in the task, a hard
@@ -120,6 +121,29 @@ rule or the owner's words, do not dispose it as `rejected`, do not override the 
 change files to satisfy it: stop, report the finding, the decision it contradicts and your
 recommended way out, and wait for the owner. Stopping means the report ends the turn; no more
 pushes for that PR.
+**Reviewer first.** The reviewer finishes in about 2 minutes, the other jobs in 20 to 40, and a green
+check run can still carry `[blocking]` findings (`ESCALATE_TO_HUMAN`, `APPROVE, <n> important`). So
+after a push run this first, in the background as above:
+
+```bash
+scripts/wait-for-checks.sh --review-first <PR number>
+```
+
+It waits only for `Review — pr-reviewer` of the head SHA to be completed and prints
+`REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]` (exit 0); a failed reviewer is
+the `FAILED Review — pr-reviewer; ...` exit above; `SUPERSEDED` and the timeouts are as above. When it
+returns, read the verdict (`scripts/read-ci-verdict.sh`, section 7). For `ESCALATE_TO_HUMAN`,
+`APPROVE, <n> important` with n above 0, or `CHANGES`, read the report as section 7 says. Then:
+
+- No `[blocking]` and no `[important]` that needs a fix (a bare `APPROVE`, or an `ESCALATE_TO_HUMAN`
+  only because of a protected path or a human check): go on with
+  `scripts/wait-for-checks.sh <PR number>` for the rest.
+- A `[blocking]`, or an `[important]` you will not dispose as `board record` or a justified `rejected`:
+  do not wait for the rest. Fix it as a new commit through the normal flow (local review, gate, push)
+  and start again with `--review-first` on the new head. These rounds count toward the 2 CI-fix
+  rounds below.
+- A finding that contradicts a task decision: stop and report, as below.
+
 `ALL_GREEN`: continue (sections 7 and 8). `FAILED` names a failed job for every
 conclusion other than `success` or `skipped`,
 except the check run `Review — pr-reviewer`: it also shows `failure` for `CHANGES` (seen on
