@@ -363,6 +363,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the tests in `TrackingViewModelFinishTests` wait on the state they assert without a fixed 2.0 s bound that depends on runner speed, or the record is deleted because #209 already did so.
 - Refs: CI run 39459833673; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md` entry `ios-tracking-finish-failed-save-wait`.
 
+### local-review-hook-shell-blind-spots
+- Type: task
+- Area: scripts/claude-hooks
+- Order: 250
+- Source: PR for local-review-gate (owner decision: audit 61)
+- Problem: `scripts/claude-hooks/require-local-review.sh` reads the command text, so it cannot see a push built by shell syntax it does not parse: `$'git'`, `\git`, a variable-built or `eval`ed command, a script the agent writes and runs, and a `cd` that may not run (`false && cd x; git push`, which the linear reading applies anyway). Other points the reviewers raised, left for audit 61 by the owner: a `fixed in <sha>` disposition is only checked to be a commit, not to contain the finding's fix; the `[blocking]`/`[important]` tag parsing is strict about the numbered finding line; `.claude/settings.json` itself is not guarded against edits by the hook; any command containing the word `local-reviews` or a `cd`/`pushd`/`popd` token before a push (a branch named `cd`) blocks even when harmless. A separate mechanism than command-text matching (for example the credential helper or a `pre-push` check the human installs) is the only complete fix; this is a human design decision.
+- Done when: the owner has decided in audit 61 which of these to close and how (a stronger mechanism, or accepting the limits in the hook header), and the chosen ones are done or the record is deleted.
+- Refs: `scripts/claude-hooks/require-local-review.sh` (header "Limits"); `scripts/local-review-gate.sh` (`valid_disposition`, `count_tag`); CI reviewer findings on PR #233.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -391,3 +400,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
+
+### pr-review-skill-omits-review-capture
+- Type: drift
+- Area: docs
+- Order: 249
+- Source: PR for local-review-gate
+- Problem: `.claude/skills/tm-pr-review/SKILL.md`, "Orchestrator's part", step 3 tells the session to record the verdict by writing `.review-verdict` itself and never mentions that `scripts/claude-hooks/require-local-review.sh` now captures the reviewer's own report (SubagentStop) or that `scripts/local-review-gate.sh disposition` records the `[important]` dispositions the push hook requires; step 5 says dispositions go in the PR description only. `tm-pr-review` is a protected path outside this PR's authorization.
+- Done when: step 3 and step 5 say what the capture hook records and that the dispositions are written with `scripts/local-review-gate.sh disposition` before the push, in a PR that may touch `tm-pr-review`.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", steps 3 and 5); `scripts/claude-hooks/require-local-review.sh`; `scripts/local-review-gate.sh`.
