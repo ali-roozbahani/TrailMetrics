@@ -9,9 +9,11 @@ import androidx.activity.result.contract.ActivityResultContracts.RequestMultiple
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.END
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.NEXT
@@ -100,6 +102,12 @@ class TrackingScreenTest {
         return robot.waitForIdle()
     }
 
+    private fun storeSession(state: TrackingState) {
+        fixture.store.stored = state
+        fixture.store.storedActivityType = ActivityType.Cycling
+        fixture.store.storedStartedAtEpochMillis = TrackingScreenFixture.STARTED_AT
+    }
+
     private fun trackingState(): TrackingState = fixture.sessionManager.currentState.value
 
     /** Two fixes short of the route's end, so the speed (it needs two) and the calories have values. */
@@ -129,6 +137,45 @@ class TrackingScreenTest {
             .assertIdleControls()
             .assertMetricsNotShown()
             .assertCompletedCardNotShown()
+    }
+
+    @Test
+    fun `a stored tracking session comes back Paused with Resume and Stop and no Start`() {
+        storeSession(TrackingState.Tracking(STORED_METRICS))
+
+        showScreen()
+            .assertPausedControls()
+            .assertDistanceShown(STORED_DISTANCE)
+            .assertCompletedCardNotShown()
+        assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `a stored paused session shows the paused UI with Resume and no Start`() {
+        storeSession(TrackingState.Paused(STORED_METRICS))
+
+        showScreen().assertPausedControls().assertDistanceShown(STORED_DISTANCE)
+        assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `a stored finished session shows the completed card with its distance and Finish`() {
+        storeSession(TrackingState.Finished(STORED_METRICS))
+
+        showScreen()
+            .assertCompletedCard()
+            .assertDistanceShown(STORED_DISTANCE)
+        assertIs<TrackingState.Finished>(trackingState())
+    }
+
+    @Test
+    fun `Back from a restored finished session leaves it stored`() {
+        storeSession(TrackingState.Finished(STORED_METRICS))
+
+        showScreen().clickBackButton()
+
+        assertEquals(1, navigateBackCalls)
+        assertIs<TrackingState.Finished>(fixture.store.stored)
     }
 
     @Test
@@ -163,7 +210,6 @@ class TrackingScreenTest {
     fun `reaching the end of the planned route shows the completed card with Finish`() {
         showReachedDestination()
             .assertCompletedCard()
-            .assertMetricsNotShown()
         assertIs<TrackingState.Finished>(trackingState())
     }
 
@@ -277,19 +323,19 @@ class TrackingScreenTest {
     }
 
     @Test
-    fun `Stop while tracking stops the session and navigates back once`() {
+    fun `Stop while tracking discards the session and navigates back once`() {
         showStartedSession().clickStop().waitForIdle()
 
-        assertIs<TrackingState.Finished>(trackingState())
+        assertEquals(TrackingState.Idle, trackingState())
         assertEquals(1, fixture.trackingServiceLauncher.stopCalls)
         assertEquals(1, navigateBackCalls)
     }
 
     @Test
-    fun `Stop while paused stops the session and navigates back once`() {
+    fun `Stop while paused discards the session and navigates back once`() {
         showStartedSession().clickPause().clickStop().waitForIdle()
 
-        assertIs<TrackingState.Finished>(trackingState())
+        assertEquals(TrackingState.Idle, trackingState())
         assertEquals(1, navigateBackCalls)
     }
 
@@ -332,14 +378,14 @@ class TrackingScreenTest {
     }
 
     @Test
-    fun `confirming the exit dialog stops the session and navigates back once`() {
+    fun `confirming the exit dialog discards the session and navigates back once`() {
         showStartedSession()
             .clickBackButton()
             .confirmExit()
             .waitForIdle()
             .assertExitDialogNotShown()
 
-        assertIs<TrackingState.Finished>(trackingState())
+        assertEquals(TrackingState.Idle, trackingState())
         assertEquals(1, fixture.trackingServiceLauncher.stopCalls)
         assertEquals(1, navigateBackCalls)
     }
@@ -496,6 +542,14 @@ class TrackingScreenTest {
     private companion object {
         /** ~56 m before the route's end: farther than the completion threshold (25 m). */
         val NEAR_END = Coordinates(latitude = 52.0015, longitude = 13.000)
+
+        val STORED_METRICS = TrackingMetrics(
+            elapsedMillis = 60_000L,
+            lastUpdateElapsedRealtimeMillis = 60_000L,
+            distanceMeters = 166.0,
+            path = listOf(START, NEXT)
+        )
+        const val STORED_DISTANCE = "166 m"
 
         // START -> NEXT -> NEAR_END is 0.0015 degrees of latitude (~166.8 m) in one minute.
         const val WALKED_DISTANCE = "166 m"

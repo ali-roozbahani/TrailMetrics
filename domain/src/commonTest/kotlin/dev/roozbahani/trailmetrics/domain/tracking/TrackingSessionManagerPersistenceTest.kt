@@ -275,6 +275,105 @@ class TrackingSessionManagerPersistenceTest {
     }
 
     @Test
+    fun `clearSession returns a Finished session to Idle and drops the details`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.stop()
+        testScheduler.runCurrent()
+        assertIs<TrackingState.Finished>(manager.currentState.value)
+
+        manager.clearSession()
+        testScheduler.runCurrent()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(manager.sessionDetails.value)
+        assertNull(store.stored)
+    }
+
+    @Test
+    fun `clearSession returns a restored Finished session to Idle`() = runTest(testScheduler) {
+        store.stored = TrackingState.Finished(metrics())
+        store.storedActivityType = ActivityType.Walking
+        store.storedStartedAtEpochMillis = STARTED_AT
+        manager.restore()
+
+        manager.clearSession()
+
+        assertEquals(TrackingState.Idle, manager.currentState.value)
+        assertNull(manager.sessionDetails.value)
+    }
+
+    @Test
+    fun `clearSession leaves a Tracking or Paused session alone`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+        val tracking = manager.currentState.value
+        val details = manager.sessionDetails.value
+
+        manager.clearSession()
+        assertEquals(tracking, manager.currentState.value)
+        assertEquals(details, manager.sessionDetails.value)
+
+        manager.pause()
+        testScheduler.runCurrent()
+        val paused = manager.currentState.value
+        manager.clearSession()
+
+        assertIs<TrackingState.Paused>(paused)
+        assertEquals(paused, manager.currentState.value)
+        assertEquals(details, manager.sessionDetails.value)
+    }
+
+    @Test
+    fun `a second session can start and is saved after the first was cleared`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.stop()
+        manager.clearSession()
+        testScheduler.runCurrent()
+
+        manager.start(point2, ActivityType.Cycling)
+        testScheduler.runCurrent()
+
+        assertIs<TrackingState.Tracking>(manager.currentState.value)
+        assertEquals(ActivityType.Cycling, manager.sessionDetails.value?.activityType)
+        assertEquals(ActivityType.Cycling, store.storedActivityType)
+    }
+
+    @Test
+    fun `a failing clear keeps the Finished session and its details`() = runTest(testScheduler) {
+        manager.start(point1, ActivityType.Running)
+        manager.stop()
+        testScheduler.runCurrent()
+        store.clearFailure = IllegalStateException("disk full")
+
+        manager.clearSession()
+
+        assertIs<TrackingState.Finished>(manager.currentState.value)
+        assertEquals(ActivityType.Running, manager.sessionDetails.value?.activityType)
+    }
+
+    @Test
+    fun `resume after restore starts the location observation and no second service launch`() =
+        runTest(testScheduler) {
+            manager.start(point1, ActivityType.Running)
+            testScheduler.runCurrent()
+            val secondLocationRepository = FakeLocationRepository().also { it.setUpdatesFlow(updates) }
+            val secondLauncher = FakeTrackingServiceLauncher()
+            val restoredManager = newManager(secondLocationRepository, secondLauncher)
+            restoredManager.restore()
+            assertEquals(0, secondLocationRepository.observeCallCount)
+
+            restoredManager.resume()
+            testScheduler.runCurrent()
+            emitFix(point2)
+
+            assertEquals(1, secondLocationRepository.observeCallCount)
+            val tracking = assertIs<TrackingState.Tracking>(restoredManager.currentState.value)
+            assertEquals(listOf(point1, point2), tracking.metrics.path)
+            // resume() does not launch the service; a restored session has none until the service restore.
+            assertEquals(0, secondLauncher.startCallCount)
+        }
+
+    @Test
     fun `a failing clear is logged and does not throw`() = runTest(testScheduler) {
         store.clearFailure = IllegalStateException("disk full")
 

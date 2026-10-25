@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
@@ -33,6 +34,31 @@ class RouteCompletionTrackerTest {
         assertEquals(25.0, ROUTE_COMPLETION_THRESHOLD_METERS)
         assertEquals(3, ROUTE_COMPLETION_INDEX_MARGIN)
     }
+
+    // region no planned route (a restored session)
+
+    @Test
+    fun `with an empty planned route a tracking fix neither completes nor crashes`() {
+        val emptyTracker = RouteCompletionTracker(emptyList())
+
+        val stop = emptyTracker.onUpdate(ROUTE[0], TrackingState.Tracking(metricsAt(ROUTE[0])))
+
+        assertFalse(stop)
+        assertFalse(emptyTracker.hasReachedDestination)
+        assertEquals(RouteProgress(emptyList(), emptyList(), 0), emptyTracker.progress)
+    }
+
+    @Test
+    fun `with an empty planned route a Finished or Paused state with a path neither completes nor crashes`() {
+        val emptyTracker = RouteCompletionTracker(emptyList())
+
+        listOf(TrackingState.Finished(metricsAt(ROUTE[1])), TrackingState.Paused(metricsAt(ROUTE[1]))).forEach {
+            assertFalse(emptyTracker.onUpdate(ROUTE[1], it))
+        }
+        assertFalse(emptyTracker.hasReachedDestination)
+    }
+
+    // endregion
 
     // region progress
 

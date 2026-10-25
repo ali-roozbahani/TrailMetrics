@@ -117,14 +117,24 @@ class TrackingSessionManager(
 
     /**
      * Removes the stored session once its data is safe elsewhere (saved as an activity) or the user
-     * discarded it. A failure is logged and not thrown: the session is then offered again by the next
-     * restore, which loses nothing.
+     * discarded it, and returns a [TrackingState.Finished] session to [TrackingState.Idle] (with no
+     * [sessionDetails]) so the next session can start. A running or paused session keeps its state. A
+     * failure is logged and not thrown: the session then stays as it is and is offered again by the
+     * next restore, which loses nothing.
      */
     suspend fun clearSession() {
         try {
             storeMutex.withLock {
-                clearedState = _state.value
+                val clearing = _state.value
+                clearedState = clearing
                 trackingSessionStore.clear()
+                // Compare-and-set: a session started while the clear ran is not touched.
+                if (clearing is TrackingState.Finished) {
+                    val details = _sessionDetails.value
+                    if (_state.compareAndSet(clearing, TrackingState.Idle)) {
+                        _sessionDetails.compareAndSet(details, null)
+                    }
+                }
             }
         } catch (e: CancellationException) {
             throw e
