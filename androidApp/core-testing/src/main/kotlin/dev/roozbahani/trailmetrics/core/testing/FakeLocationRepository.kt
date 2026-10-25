@@ -23,7 +23,13 @@ class FakeLocationRepository(
         return checkNotNull(currentLocationResult) { "currentLocationResult was not set" }
     }
 
-    override fun observeLocationUpdates(): Flow<LocationUpdate> = updates
+    var observeLocationUpdatesCalls: Int = 0
+        private set
+
+    override fun observeLocationUpdates(): Flow<LocationUpdate> {
+        observeLocationUpdatesCalls++
+        return updates
+    }
 
     fun emit(update: LocationUpdate) {
         check(updates.tryEmit(update)) { "location update buffer is full" }

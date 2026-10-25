@@ -132,6 +132,11 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         }
     }
 
+    fun assertDistanceShown(distance: String) = apply {
+        rule.onNodeWithText(string(CoreStrings.label_distance)).assertExists()
+        rule.onNodeWithText(distance).assertExists()
+    }
+
     fun assertMetricsNotShown() = apply {
         rule.onNodeWithText(string(CoreStrings.label_distance)).assertDoesNotExist()
         rule.onNodeWithText(string(CoreStrings.label_calories)).assertDoesNotExist()

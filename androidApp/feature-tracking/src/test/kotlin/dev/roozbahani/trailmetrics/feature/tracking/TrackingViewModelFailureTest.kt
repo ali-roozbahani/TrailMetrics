@@ -44,6 +44,8 @@ import kotlin.test.assertNull
  */
 class TrackingViewModelFailureTest {
 
+    private lateinit var sessionManager: TrackingSessionManager
+
     private val testScheduler = TestCoroutineScheduler()
 
     private val locationRepository = FakeLocationRepository()
@@ -66,7 +68,7 @@ class TrackingViewModelFailureTest {
     /** A real TrackingSessionManager built from fakes, with a state subscriber kept for the whole test. */
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private fun TestScope.createViewModel(): TrackingViewModel {
-        val sessionManager = TrackingSessionManager(
+        sessionManager = TrackingSessionManager(
             locationRepository = locationRepository,
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
             trackingServiceLauncher = FakeTrackingServiceLauncher(),
@@ -93,7 +95,7 @@ class TrackingViewModelFailureTest {
     private fun startAndStop(viewModel: TrackingViewModel) {
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        viewModel.onAction(TrackingAction.Stop)
+        sessionManager.stop()
         testScheduler.runCurrent()
     }
 

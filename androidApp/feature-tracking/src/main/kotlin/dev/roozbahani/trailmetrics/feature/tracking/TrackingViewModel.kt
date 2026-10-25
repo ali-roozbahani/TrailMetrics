@@ -55,8 +55,6 @@ class TrackingViewModel(
      */
     private val fileScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
-    private var startedAtEpochMillis: Long = 0L
-
     /**
      * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
      * can't save the session again. Cleared by [start] for a new session, and if the save fails.
@@ -71,7 +69,8 @@ class TrackingViewModel(
 
     /**
      * The snapshot file kept after a Finish that did not save, so the retry reuses it instead of
-     * writing a new one. Deleted by [start] and [onCleared] if no retry used it.
+     * writing a new one. Deleted by [onCleared] if no retry used it: after a failed save the session stays
+     * Finished, so no new session starts.
      */
     private val retainedSnapshotPath = MutableStateFlow<String?>(null)
 
@@ -80,6 +79,23 @@ class TrackingViewModel(
     private val routeCompletionTracker = RouteCompletionTracker(plannedRoutePoints)
 
     private val _events = Channel<TrackingEvent>(Channel.BUFFERED)
+
+    /** True until the stored session has been loaded (or the load failed): Start is not offered before. */
+    private val isRestoring = MutableStateFlow(true)
+
+    init {
+        viewModelScope.launch {
+            try {
+                // A live session (a new ViewModel over a running manager) is returned as it is, not replaced.
+                trackingSessionManager.restore()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _events.send(TrackingEvent.ShowError(RouteUiError.General))
+            }
+            isRestoring.value = false
+        }
+    }
 
     private val initialProfileLoad: Job = viewModelScope.launch {
         try {
@@ -95,13 +111,10 @@ class TrackingViewModel(
     val state: StateFlow<TrackingScreenState> = combine(
         trackingSessionManager.currentState,
         _userProfile,
-        retainedSnapshotPath
-    ) { trackingState, userProfile, retainedPath ->
-        val metrics: TrackingMetrics? = when (trackingState) {
-            is TrackingState.Tracking -> trackingState.metrics
-            is TrackingState.Paused -> trackingState.metrics
-            else -> null
-        }
+        retainedSnapshotPath,
+        isRestoring
+    ) { trackingState, userProfile, retainedPath, restoring ->
+        val metrics: TrackingMetrics? = trackingState.sessionMetrics()
 
         val calories: Double? = if (metrics != null && userProfile != null) {
             metrics.averageSpeedMetersPerSecond?.let { averageSpeed ->
@@ -118,12 +131,13 @@ class TrackingViewModel(
             trackingState = trackingState,
             calories = calories,
             plannedRoutePoints = plannedRoutePoints,
-            retainedSnapshotPath = retainedPath
+            retainedSnapshotPath = retainedPath,
+            isRestoring = restoring
         )
     }.map(::withRouteCompletion).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = TrackingScreenState(plannedRoutePoints = plannedRoutePoints)
+        initialValue = TrackingScreenState(plannedRoutePoints = plannedRoutePoints, isRestoring = true)
     )
 
     // Location issues keep the session manager's SharedFlow delivery (dropped while nothing
@@ -166,12 +180,10 @@ class TrackingViewModel(
     }
 
     private fun start(startCoordinates: Coordinates) {
-        startedAtEpochMillis = clock.nowMillis()
+        // A stored or unsaved session is never replaced: its first save would overwrite the stored one.
+        if (isRestoring.value || trackingSessionManager.currentState.value !is TrackingState.Idle) return
         isSessionSaved = false
         snapshotInUse = null
-        // The session whose save failed is discarded; nothing can retry with its file.
-        retainedSnapshotPath.value?.let(::deleteSnapshotFile)
-        retainedSnapshotPath.value = null
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates, activityType)
         }
@@ -206,6 +218,10 @@ class TrackingViewModel(
         snapshotInUse = path
         retainedSnapshotPath.value = null
         isSessionSaved = true
+        val startedAtEpochMillis = trackingSessionManager.sessionDetails.value?.startedAtEpochMillis
+            // A session stored by an older version has no start time: this is an estimate, the wall clock now
+            // minus the time the session ran.
+            ?: (clock.nowMillis() - finishedState.metrics.elapsedMillis)
         deleteIfUnreferenced(snapshotFilePath)
         viewModelScope.launch {
             try {
@@ -267,6 +283,14 @@ class TrackingViewModel(
         userProfileRepository.getUserProfile().also { _userProfile.value = it }
 }
 
+/** The metrics of a session that exists, running, paused or finished; null while idle. */
+private fun TrackingState.sessionMetrics(): TrackingMetrics? = when (this) {
+    is TrackingState.Tracking -> metrics
+    is TrackingState.Paused -> metrics
+    is TrackingState.Finished -> metrics
+    TrackingState.Idle -> null
+}
+
 /** Named to avoid colliding with the domain [TrackingState] it wraps. */
 data class TrackingScreenState(
     val trackingState: TrackingState = TrackingState.Idle,
@@ -275,24 +299,19 @@ data class TrackingScreenState(
     val routeProgress: RouteProgress? = null,
     val hasReachedDestination: Boolean = false,
     /** Set after a Finish that did not save: the screen sends this file again instead of a new one. */
-    val retainedSnapshotPath: String? = null
+    val retainedSnapshotPath: String? = null,
+    /** True until the stored session has been loaded; Start is not offered meanwhile. */
+    val isRestoring: Boolean = false
 ) {
     val currentPath: List<Coordinates>
-        get() = when (val state = trackingState) {
-            is TrackingState.Tracking -> state.metrics.path
-            is TrackingState.Paused -> state.metrics.path
-            else -> emptyList()
-        }
+        get() = trackingState.sessionMetrics()?.path.orEmpty()
 
     val currentMetrics: TrackingMetrics?
-        get() = when (trackingState) {
-            is TrackingState.Tracking -> trackingState.metrics
-            is TrackingState.Paused -> trackingState.metrics
-            else -> null
-        }
+        get() = trackingState.sessionMetrics()
 
+    /** Only in Idle, and once the stored session is loaded: Start must never replace a session that exists. */
     val canStart: Boolean
-        get() = (trackingState is TrackingState.Idle || trackingState is TrackingState.Finished)
+        get() = trackingState is TrackingState.Idle && !isRestoring
 
     val canPause: Boolean
         get() = trackingState is TrackingState.Tracking

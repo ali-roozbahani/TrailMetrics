@@ -50,6 +50,7 @@ class TrackingScreenFixture {
     val clock = FakeClock(nowMillis = STARTED_AT, elapsedRealtimeMillis = START_ELAPSED_REALTIME)
     val userProfileRepository = FakeUserProfileRepository(PROFILE)
     val activityHistoryRepository = FakeActivityHistoryRepository()
+    val store = FakeTrackingSessionStore()
     val sessionManager = TrackingSessionManager(
         locationRepository = locationRepository,
         updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
@@ -57,7 +58,7 @@ class TrackingScreenFixture {
         speedCalculator = SpeedCalculator(),
         clock = clock,
         logger = FakeLogger(),
-        trackingSessionStore = FakeTrackingSessionStore(),
+        trackingSessionStore = store,
         scope = sessionScope
     )
 

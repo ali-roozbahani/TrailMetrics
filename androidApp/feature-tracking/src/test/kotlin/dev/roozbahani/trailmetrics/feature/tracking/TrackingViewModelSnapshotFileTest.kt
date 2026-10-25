@@ -47,6 +47,8 @@ import kotlin.test.assertTrue
  */
 class TrackingViewModelSnapshotFileTest {
 
+    private lateinit var sessionManager: TrackingSessionManager
+
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
@@ -75,8 +77,8 @@ class TrackingViewModelSnapshotFileTest {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private fun TestScope.createFinishedSession(): TrackingViewModel {
-        val sessionManager = TrackingSessionManager(
+    private fun TestScope.createViewModel(): TrackingViewModel {
+        sessionManager = TrackingSessionManager(
             locationRepository = locationRepository,
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
             trackingServiceLauncher = FakeTrackingServiceLauncher(),
@@ -102,9 +104,15 @@ class TrackingViewModelSnapshotFileTest {
         })[TrackingViewModel::class]
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
         testScheduler.runCurrent()
+        return viewModel
+    }
+
+    /** Finished as the route's end leaves it: stopped by the manager and still stored. */
+    private fun TestScope.createFinishedSession(): TrackingViewModel {
+        val viewModel = createViewModel()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        viewModel.onAction(TrackingAction.Stop)
+        sessionManager.stop()
         testScheduler.runCurrent()
         return viewModel
     }
@@ -196,21 +204,6 @@ class TrackingViewModelSnapshotFileTest {
     }
 
     @Test
-    fun `a failed save then a new session without a retry deletes the file`() = runTest(testScheduler) {
-        val viewModel = createFinishedSession()
-        activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
-        finish(viewModel, newSnapshotFile())
-        assertEquals(1, filesInDir().size)
-
-        viewModel.onAction(TrackingAction.Start(START))
-        testScheduler.runCurrent()
-
-        assertEquals(emptyList(), filesInDir())
-        assertEquals(null, viewModel.state.value.retainedSnapshotPath)
-        assertTrue(activityHistoryRepository.savedActivities.isEmpty())
-    }
-
-    @Test
     fun `a failed save then the ViewModel is cleared without a retry deletes the file`() = runTest(testScheduler) {
         val viewModel = createFinishedSession()
         activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
@@ -224,7 +217,7 @@ class TrackingViewModelSnapshotFileTest {
 
     @Test
     fun `a Finish before the session is finished deletes its file`() = runTest(testScheduler) {
-        val viewModel = createFinishedSession()
+        val viewModel = createViewModel()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
 
@@ -238,7 +231,7 @@ class TrackingViewModelSnapshotFileTest {
         // Its own scheduler: nothing the main (test) scheduler runs executes this dispatcher's work.
         val ioScheduler = TestCoroutineScheduler()
         ioDispatcher = StandardTestDispatcher(ioScheduler)
-        val viewModel = createFinishedSession()
+        val viewModel = createViewModel()
         val file = newSnapshotFile()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()

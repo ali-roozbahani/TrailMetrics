@@ -86,7 +86,7 @@ class TrackingUiModuleTest {
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
             viewModel.onAction(TrackingAction.Start(PLANNED_ROUTE.first()))
             testScheduler.runCurrent()
-            viewModel.onAction(TrackingAction.Stop)
+            koin.get<TrackingSessionManager>().stop()
             testScheduler.runCurrent()
             viewModel.onAction(TrackingAction.Finish(snapshotFilePath = null))
             testScheduler.runCurrent()

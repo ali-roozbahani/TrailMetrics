@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 /** The derived properties of [TrackingScreenState], for every domain [TrackingState]. */
 class TrackingScreenStateTest {
@@ -17,22 +18,30 @@ class TrackingScreenStateTest {
     }
 
     @Test
-    fun `currentPath is the session path while tracking or paused and empty otherwise`() {
+    fun `currentPath is the session path once a session exists and empty while idle`() {
         assertForEveryState(
-            mapOf(IDLE to emptyList(), TRACKING to PATH, PAUSED to PATH, FINISHED to emptyList())
+            mapOf(IDLE to emptyList(), TRACKING to PATH, PAUSED to PATH, FINISHED to PATH)
         ) { it.currentPath }
     }
 
     @Test
-    fun `currentMetrics are the session metrics while tracking or paused and null otherwise`() {
+    fun `currentMetrics are the session metrics once a session exists and null while idle`() {
         assertForEveryState(
-            mapOf(IDLE to null, TRACKING to METRICS, PAUSED to METRICS, FINISHED to null)
+            mapOf(IDLE to null, TRACKING to METRICS, PAUSED to METRICS, FINISHED to METRICS)
         ) { it.currentMetrics }
     }
 
     @Test
-    fun `canStart is true only when idle or finished`() {
-        assertForEveryState(mapOf(IDLE to true, TRACKING to false, PAUSED to false, FINISHED to true)) { it.canStart }
+    fun `canStart is true only when idle`() {
+        assertForEveryState(mapOf(IDLE to true, TRACKING to false, PAUSED to false, FINISHED to false)) { it.canStart }
+    }
+
+    @Test
+    fun `canStart is false in every state while the stored session is loading`() {
+        ALL_STATES.forEach { trackingState ->
+            val state = TrackingScreenState(trackingState = trackingState, isRestoring = true)
+            assertFalse(state.canStart, "for $trackingState")
+        }
     }
 
     @Test
@@ -62,7 +71,6 @@ class TrackingScreenStateTest {
             path = PATH
         )
 
-        /** Finished carries metrics too, so an empty path there comes from the mapping, not the data. */
         val IDLE: TrackingState = TrackingState.Idle
         val TRACKING: TrackingState = TrackingState.Tracking(METRICS)
         val PAUSED: TrackingState = TrackingState.Paused(METRICS)
