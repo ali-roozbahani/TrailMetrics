@@ -28,7 +28,8 @@
 # Wire format: as block-git-push.sh (stdin JSON, command at `.tool_input.command`, session
 # directory at `.cwd`; exit 0 = no decision, exit 2 = block with stderr as the reason). Fail
 # closed: a PreToolUse input that mentions a push or a PR creation and cannot be read (no jq, no
-# gate script) blocks. Needs jq.
+# gate script) blocks. Without jq it blocks any input that mentions a push, a PR creation or the
+# review records.
 #
 # Limits: a guardrail, not a wall. It reads command text, so a push built by a variable or a
 # script is not seen (the push hook block-git-push.sh still needs the gate marker and a verdict
@@ -44,7 +45,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/../local-review-gate.sh"
-PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push|gh[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|$)'
+# A segment that has the words git ... push or gh ... pr ... create in order, whatever sits between
+# them (global options, option arguments): when its command is not git / gh itself it is a wrapper.
+PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git[[:space:]]([^|]*[[:space:]])?push|gh[[:space:]]([^|]*[[:space:]])?pr[[:space:]]+create)([^[:alnum:]_-]|$)'
 
 # git_in <dir> <args...>
 git_in() { local d="$1"; shift; git -C "$d" "$@"; }
@@ -123,6 +126,9 @@ targets() {
                     case "${tokens[$i]}" in
                         -C) dir2="${tokens[$((i + 1))]:-.}"; [ "${dir2#/}" != "$dir2" ] || dir2="$cur/$dir2"; i=$((i + 2)) ;;
                         -c) case "${tokens[$((i + 1))]:-}" in alias.*) echo "BLOCK git -c alias.* is not allowed"; found=1 ;; esac; i=$((i + 2)) ;;
+                        --git-dir | --work-tree | --namespace | --config-env | --exec-path | --super-prefix)
+                            echo "BLOCK git ${tokens[$i]} <path> changes the repository the push runs in, which this hook cannot follow; run the push from that directory as a plain git push"
+                            found=1; i=$((i + 2)) ;;
                         -*) i=$((i + 1)) ;;
                         *) break ;;
                     esac
@@ -394,6 +400,11 @@ self_test() {
     expect "bash -c push is blocked while HEAD is reviewed" 2 "bash -c 'git push'"
     expect "env git push of an unreviewed ref is blocked while HEAD is reviewed" 2 "env git push origin other:x"
     expect "xargs push is blocked while HEAD is reviewed" 2 "echo origin | xargs git push"
+    expect "bash -c push with a git global option blocks" 2 "bash -c 'git --no-pager push origin other:x'"
+    expect "env git --git-dir=x push blocks" 2 "env git --git-dir=x push origin other:x"
+    expect "sudo gh with options before pr create blocks" 2 "sudo gh -R o/r pr create --head other"
+    expect "git --git-dir with a separate argument blocks" 2 "git --git-dir x push origin other:x"
+    expect "git --no-pager push is a plain push and is checked" 0 "git --no-pager push origin HEAD"
     expect "a plain push followed by a wrapped push to an unreviewed ref blocks" 2 "git push && env git push origin other:x"
     expect "a plain push then bash -c push blocks" 2 "git push; bash -c 'git push origin other:x'"
     expect "a wrapped push then a plain push blocks" 2 "env git push origin other:x && git push"
