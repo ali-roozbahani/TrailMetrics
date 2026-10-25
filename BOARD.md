@@ -45,15 +45,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-session-restore-android
-- Type: task
-- Area: data, androidApp
-- Order: 21
-- Source: PR persist-tracking-session
-- Problem: `TrackingViewModel` restores the stored session when its screen is created (paused or finished, Start only in `Idle`), and the service restart (null intent) now restores it and leaves a "Paused"/"Finished" notification, whose tap opens the app. What is left: the app start does not offer that session. `MainActivity` starts at the route screen and nothing navigates to the Tracking screen with the stored `sessionDetails.activityType` (the screen still takes the type from its navigation argument and uses it for calories and the saved activity).
-- Done when: on app start a stored `Paused` or `Finished` session with a non-empty path is offered once, as a navigation to the Tracking screen with the stored `sessionDetails.activityType` (the default type when none is stored), and not when the back stack is already on that screen; tests cover the offer and the navigation.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `sessionDetails`); `androidApp/app/.../MainActivity.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-robustness` R2.
-
 ### tracking-session-restore-ios
 - Type: task
 - Area: iosApp
@@ -63,15 +54,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
 - Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
 
-### app-stop-intent-tests
+### app-kover-floor
 - Type: task
 - Area: androidApp
 - Order: 25
-- After: tracking-session-restore-android
-- Source: PR discard-and-service-restart-after-process-death
-- Problem: `MainActivity` handles the tracking notification's Stop intent (`handleStopTrackingIntent`): it calls `TrackingSessionManager.discard()` in the application scope, logs a failure of it instead of crashing, and does not replay the intent when the Activity is recreated (`savedInstanceState == null`). The `app` module has no test source set when this lands, so none of it is tested; adding the source set needs the module's build file, which is a protected path outside that PR. The app-start PR adds the source set for its nav-host test.
-- Done when: a Robolectric test in `androidApp/app` shows the Stop intent calling `discard()` once, a failing `discard()` being logged and not thrown, and a recreated Activity not calling it again.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt`; `tm-robustness` E4.
+- Source: PR offer-saved-session-at-app-start
+- Problem: `androidApp/app` has unit tests now (20, line coverage 42.9% measured 2026-10-25) but no `koverVerify` minimum: a floor needs an entry in `config/kover-floors.properties` and the module's Kover block reading it, and the build file was authorized for the test source set and its comment only.
+- Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
+- Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
 
 ### route-draft-lost-on-process-death
 - Type: task
@@ -401,12 +391,3 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
-
-### skill-koin-module-list-omits-app-module
-- Type: drift
-- Area: docs
-- Order: 250
-- Source: PR discard-and-service-restart-after-process-death
-- Problem: `tm-kmp-shared` ("Adding a dependency iOS needs") lists the Android-only modules passed to `initKoin { modules(...) }` as "currently: `routeModule`, `trackingUiModule`, `historyUiModule`". `TrailMetricsApplication` now also passes `appModule` (the `applicationScope` that `MainActivity` uses for the notification Stop). The PR that added it was told not to change skill lines.
-- Done when: the list in `tm-kmp-shared` names `appModule`, in a PR that may change skill lines.
-- Refs: `.claude/skills/tm-kmp-shared/SKILL.md`; `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`.

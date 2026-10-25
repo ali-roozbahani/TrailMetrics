@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.feature.tracking.fakes
+package dev.roozbahani.trailmetrics.core.testing
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
@@ -16,6 +16,8 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     var storedActivityType: ActivityType? = null
     var storedStartedAtEpochMillis: Long? = null
     var clearCallCount = 0
+        private set
+    var loadCallCount = 0
         private set
 
     /** When set, [save] throws it instead of storing the state. */
@@ -39,6 +41,7 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     }
 
     override suspend fun load(): StoredTrackingSession? {
+        loadCallCount++
         loadGate?.await()
         loadFailure?.let { throw it }
         return stored?.let { StoredTrackingSession(it, storedActivityType, storedStartedAtEpochMillis) }

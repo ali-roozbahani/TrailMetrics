@@ -72,7 +72,7 @@ the system time changes, so never subtract two `nowMillis()` reads.
 
 Android-only (Compose UI) Koin modules are NOT registered in `shared`; they're passed to
 `initKoin { modules(...) }` in `androidApp/app/TrailMetricsApplication.kt`
-(currently: `routeModule`, `trackingUiModule`, `historyUiModule`).
+(currently: `appModule`, `routeModule`, `trackingUiModule`, `historyUiModule`).
 
 ## SKIE and Swift-facing API design
 
@@ -219,5 +219,5 @@ Don't copy these as a pattern for new code.
 - `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
   because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries";
   `ios-launcher-depends-on-concrete-location-repository`).
-- The session state machine saves the in-progress session (`TrackingSessionStore`) but nothing
-  restores it yet (`tm-robustness`, R2 and R5).
+- The session state machine saves the in-progress session (`TrackingSessionStore`); Android restores
+  and offers it, iOS does not yet (`tm-robustness`, R5; `tracking-session-restore-ios`).

@@ -1,4 +1,4 @@
-package dev.roozbahani.trailmetrics.feature.tracking.fakes
+package dev.roozbahani.trailmetrics.core.testing
 
 import dev.roozbahani.trailmetrics.domain.util.Clock
 

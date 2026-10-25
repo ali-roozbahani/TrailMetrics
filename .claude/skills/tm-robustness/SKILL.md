@@ -104,8 +104,8 @@ rule that needs it never fires there (see "Mechanical rules").
 - **R2** Android: a foreground service restores or restarts the in-progress session after process
   death, or the app tells the user it is gone. Why: `START_STICKY` restarts the service with no
   state. Example: `TrackingService` restores the stored session on a restart with no intent and leaves
-  a notice for a paused or finished one (`handleRestart`); the app start does not offer it yet (see
-  deviations). Enforced: reviewer only. Severity: blocking
+  a notice for a paused or finished one (`handleRestart`); `SavedSessionOfferViewModel` offers it at
+  the app start. Enforced: reviewer only. Severity: blocking
   when the reviewer verifies in the files the loss of data the user recorded or entered (the
   session, the route draft, a saved activity), important for a likely gap the files cannot prove.
 - **R3** Collect flows in the owner's lifecycle: on Android in composition with
@@ -213,11 +213,8 @@ Don't copy these as a pattern for new code. Each names its board record.
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
   (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
   snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
-- The in-progress tracking session is saved by `TrackingSessionManager` (`TrackingSessionStore`,
-  Room) and, after Android process death, restored by `TrackingService`'s restart and by
-  `TrackingViewModel`, but the Android app start does not offer it yet, and after iOS termination the
-  app does not restore or offer it (R2, R5; `tracking-session-restore-android`,
-  `tracking-session-restore-ios`).
+- After iOS termination the app does not restore or offer the in-progress tracking session that
+  `TrackingSessionManager` saves (`TrackingSessionStore`, Room) (R5; `tracking-session-restore-ios`).
 - The route draft (start point, waypoints, generated route) lives only in `RouteViewModel` and its
   Swift twin (R1; `route-draft-lost-on-process-death`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)
