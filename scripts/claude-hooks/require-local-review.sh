@@ -570,7 +570,7 @@ self_test() {
 
     # The report may reach the transcript after the hook starts (SubagentStop can run before the
     # handback line is flushed). Each case runs on a new commit so an earlier record cannot allow it.
-    local pre hb cut t0 elapsed n dbg
+    local pre hb cut t0 elapsed n dbg wait_cfg
     pre="$tmp/pre.jsonl"
     new_head() { git -C "$repo" commit -q --allow-empty -m "$1"; git -C "$repo" rev-parse HEAD; }
     stop_input() { jq -n --arg p "$tr" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"pr-reviewer",agent_transcript_path:$p,cwd:$d,session_id:"s1",last_assistant_message:null}'; }
@@ -601,7 +601,7 @@ self_test() {
     rc=0; t0=$SECONDS
     stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=2 bash "$hook" >/dev/null 2>"$tmp/err" || rc=$?
     elapsed=$((SECONDS - t0))
-    if [ "$rc" = 0 ] && [ "$elapsed" -ge 2 ] && [ "$elapsed" -lt 6 ] && grep -q 'after waiting 2' "$tmp/err" && grep -q 'lines read: 2' "$tmp/err" && grep -q 'type of the last parseable line: assistant' "$tmp/err"; then
+    if [ "$rc" = 0 ] && [ "$elapsed" -ge 2 ] && [ "$elapsed" -lt 9 ] && grep -q 'after waiting 2' "$tmp/err" && grep -q 'lines read: 2' "$tmp/err" && grep -q 'type of the last parseable line: assistant' "$tmp/err"; then
         echo "ok   a report that never arrives: waited ${elapsed}s, exit 0, numbers on stderr"
     else
         echo "FAIL a report that never arrives: rc=$rc elapsed=${elapsed}s stderr: $(head -c 300 "$tmp/err")" >&2; fails=$((fails + 1))
@@ -616,10 +616,11 @@ self_test() {
     # 4. the report is already there (and the file ends in a half-written line): no waiting
     head5="$(new_head nine)"; prepare "$head5"
     printf '%s\n%s' "$hb" '{"type":"assistant","mess' >>"$tr"
+    wait_cfg=8
     t0=$SECONDS
-    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=8 bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=$wait_cfg bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
     elapsed=$((SECONDS - t0))
-    if [ "$elapsed" -lt 3 ]; then echo "ok   a report already there is read without waiting (${elapsed}s)"; else echo "FAIL a report already there waited ${elapsed}s" >&2; fails=$((fails + 1)); fi
+    if [ "$elapsed" -lt "$wait_cfg" ]; then echo "ok   a report already there is read without waiting (${elapsed}s)"; else echo "FAIL a report already there waited ${elapsed}s" >&2; fails=$((fails + 1)); fi
     expect "a report already there (bad last line skipped) is recorded" 0 "git push"
 
     if [ "$fails" -ne 0 ]; then

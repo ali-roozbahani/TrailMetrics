@@ -12,12 +12,15 @@
 # `REVIEWED_SHA: <full sha>` and that sha equals <run-on-sha> (the sha the reviewer was started on,
 # which the hook reads from the reviewer's own transcript) and names a commit of this repository.
 # The [blocking] and [important] counts are parsed here from the numbered finding lines
-# (`<n>. [blocking]`, `<n>. [important]`), never given by the caller.
+# (`<n>. [blocking]`, `<n>. [important]`), never given by the caller. `check` also counts every line
+# that has `[blocking]` or `[important]` anywhere; when that differs from the numbered lines it
+# blocks ("a finding line the gate cannot parse"), so a finding in another format never counts as zero.
 #
 # `check <sha>` allows when the recorded review of exactly that sha has verdict APPROVE, or
 # ESCALATE_TO_HUMAN, with zero [blocking] findings, and every [important] finding has a
-# disposition recorded for that report: `fixed in <sha>`, `board record <slug>` or
-# `rejected: <reason>` (`human check` is not one). A review of another commit never counts.
+# disposition recorded for that report: `fixed in <sha>` (the reviewed commit or an ancestor of it,
+# not on origin/main), `board record <slug>` or `rejected: <reason>` (`human check` is not one).
+# A review of another commit never counts.
 #
 # Records: ${LOCAL_REVIEWS_DIR:-$HOME/agent-workspace/local-reviews}/<sha>/report (latest report),
 # report.<n> (earlier reports of the same sha, kept), dispositions (first line `report <sha256>`,
@@ -68,10 +71,28 @@ cmd_record() {
     echo "recorded ${run_on:0:12}: $verdict, blocking $(count_tag "$dir/report" blocking), important $(count_tag "$dir/report" important)"
 }
 
+# count_loose <file>: lines with [blocking] or [important] anywhere in them.
+count_loose() {
+    local n
+    n="$(grep -cE '\[(blocking|important)\]' "$1" || true)"
+    echo "${n:-0}"
+}
+
+# fixed_in_ok <sha-or-prefix> <reviewed sha>: a commit that is the reviewed commit or its ancestor and
+# is not on origin/main. Without origin/main there is nothing to compare with: refused.
+fixed_in_ok() {
+    local full
+    full="$(git rev-parse --verify --quiet "$1^{commit}" 2>/dev/null)" || return 1
+    git rev-parse --verify --quiet origin/main >/dev/null 2>&1 || return 1
+    git merge-base --is-ancestor "$full" "$2" 2>/dev/null || return 1
+    ! git merge-base --is-ancestor "$full" origin/main 2>/dev/null
+}
+
+# valid_disposition <disposition> <reviewed sha>
 valid_disposition() {
     local d="$1"
     if [[ "$d" =~ ^fixed\ in\ ([0-9a-f]{7,40})$ ]]; then
-        git rev-parse --verify --quiet "${BASH_REMATCH[1]}^{commit}" >/dev/null 2>&1
+        fixed_in_ok "${BASH_REMATCH[1]}" "$2"
     elif [[ "$d" =~ ^board\ record\ [a-z0-9]+(-[a-z0-9]+)*$ ]]; then
         return 0
     elif [[ "$d" =~ ^rejected:\ .{15,}$ ]]; then
@@ -91,7 +112,7 @@ cmd_disposition() {
     [ "$#" -eq "$imp" ] || die "disposition: the review of ${sha:0:12} has $imp [important] finding(s), got $# disposition(s)"
     for d in "$@"; do
         i=$((i + 1))
-        valid_disposition "$d" || die "disposition $i is not 'fixed in <sha>' (an existing commit), 'board record <slug>' or 'rejected: <reason of 15+ characters>': $d"
+        valid_disposition "$d" "$sha" || die "disposition $i is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>' or 'rejected: <reason of 15+ characters>': $d"
     done
     {
         echo "report $(sha256_of "$dir/report")"
@@ -124,8 +145,10 @@ cmd_check() {
     [ "$reviewed" = "$sha" ] || block "the recorded review is of ${reviewed:0:12}, not of ${sha:0:12} (wrong SHA)."
     [ "$verdict" != CHANGES ] || block "the local review of ${sha:0:12} is CHANGES. Fix the findings as a new commit and review the new HEAD."
     blocking="$(count_tag "$report" blocking)"
-    [ "$blocking" -eq 0 ] || block "the local review of ${sha:0:12} has $blocking [blocking] finding(s). Fix them as a new commit and review the new HEAD."
     imp="$(count_tag "$report" important)"
+    [ "$(count_loose "$report")" -eq $((blocking + imp)) ] \
+        || block "the local review of ${sha:0:12} has a finding line the gate cannot parse: $(count_loose "$report") line(s) mention [blocking] or [important], $((blocking + imp)) are numbered '<n>. [tag]' findings. Ask the reviewer again, in the report format of tm-pr-review."
+    [ "$blocking" -eq 0 ] || block "the local review of ${sha:0:12} has $blocking [blocking] finding(s). Fix them as a new commit and review the new HEAD."
     if [ "$imp" -gt 0 ]; then
         [ -f "$dir/dispositions" ] || block "the local review of ${sha:0:12} has $imp [important] finding(s) and no dispositions are recorded. Run: scripts/local-review-gate.sh disposition ${sha} '<fixed in <sha> | board record <slug> | rejected: <reason>>' ... ($imp arguments, in report order)."
         want="report $(sha256_of "$report")"
@@ -134,7 +157,7 @@ cmd_check() {
         while IFS= read -r line; do
             [ -n "$line" ] || continue
             n=$((n + 1))
-            valid_disposition "$line" || block "disposition $n of ${sha:0:12} is not 'fixed in <sha>', 'board record <slug>' or 'rejected: <reason>': $line"
+            valid_disposition "$line" "$sha" || block "disposition $n of ${sha:0:12} is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>' or 'rejected: <reason>': $line"
         done <<<"$lines"
         got="$n"
         [ "$got" -eq "$imp" ] || block "the review of ${sha:0:12} has $imp [important] finding(s) but $got disposition(s) are recorded."
@@ -143,7 +166,7 @@ cmd_check() {
 }
 
 self_test() {
-    local fx tmp fails=0 repo sha parent unrelated rc name want out
+    local fx tmp fails=0 repo sha parent unrelated rc name want out mainc later orphan
     fx="$SCRIPT_DIR/local-review-gate-fixtures"
     tmp="$(mktemp -d)"
     trap 'rm -rf -- "$tmp"' RETURN
@@ -152,11 +175,16 @@ self_test() {
     git init -q "$repo"
     git -C "$repo" config user.email t@example.com
     git -C "$repo" config user.name t
+    git -C "$repo" commit -q --allow-empty -m zero
+    mainc="$(git -C "$repo" rev-parse HEAD)"
+    git -C "$repo" update-ref refs/remotes/origin/main "$mainc"
     git -C "$repo" commit -q --allow-empty -m one
     parent="$(git -C "$repo" rev-parse HEAD)"
     git -C "$repo" commit -q --allow-empty -m two
     sha="$(git -C "$repo" rev-parse HEAD)"
     unrelated="$(printf '%040d' 7)"
+    later="$(git -C "$repo" commit-tree -p "$sha" -m three "$sha^{tree}")"
+    orphan="$(git -C "$repo" commit-tree -m orphan "$sha^{tree}")"
     cd "$repo"
 
     # fixture <name> <sha>: the fixture report with @SHA@ replaced.
@@ -212,6 +240,22 @@ self_test() {
     run "three importants, three dispositions allows" 0 chk "$sha"
     reset; rec approve "$sha" "$sha" >/dev/null
     run "no importants: a disposition is refused" 1 disp "$sha" "board record x-y"
+    # fixed in <commit>: the reviewed commit or an ancestor of it, not on origin/main.
+    reset; rec two-important "$sha" "$sha" >/dev/null
+    run "fixed in the reviewed commit is recorded" 0 disp "$sha" "fixed in ${sha:0:7}" "board record some-slug"
+    run "fixed in a descendant of the reviewed commit is refused" 1 disp "$sha" "fixed in ${later:0:7}" "board record some-slug"
+    run "fixed in an unrelated commit is refused" 1 disp "$sha" "fixed in ${orphan:0:7}" "board record some-slug"
+    run "fixed in a commit on origin/main is refused" 1 disp "$sha" "fixed in ${mainc:0:7}" "board record some-slug"
+    # check re-validates hand-placed dispositions the same way.
+    forge() { { echo "report $(sha256_of "$LOCAL_REVIEWS_DIR/$sha/report")"; printf '%s\n' "$@"; } >"$LOCAL_REVIEWS_DIR/$sha/dispositions"; }
+    forge "fixed in ${parent:0:7}" "board record some-slug"; run "check: fixed in an ancestor allows" 0 chk "$sha"
+    forge "fixed in ${later:0:7}" "board record some-slug"; run "check: fixed in a descendant blocks" 1 chk "$sha"
+    forge "fixed in ${orphan:0:7}" "board record some-slug"; run "check: fixed in an unrelated commit blocks" 1 chk "$sha"
+    forge "fixed in ${mainc:0:7}" "board record some-slug"; run "check: fixed in a commit on origin/main blocks" 1 chk "$sha"
+    # Fail closed on finding lines the strict parser does not see.
+    reset; rec bullet-blocking "$sha" "$sha" >/dev/null; run "a bullet-formatted [blocking] finding blocks" 1 chk "$sha"
+    reset; rec bullet-important "$sha" "$sha" >/dev/null; run "a bullet-formatted [important] finding blocks" 1 chk "$sha"
+    reset; rec prose-mention "$sha" "$sha" >/dev/null; run "a prose line mentioning a tag blocks" 1 chk "$sha"
     [ -f "$LOCAL_REVIEWS_DIR/$sha/report" ] && echo "ok   records are kept" || { echo "FAIL records are kept" >&2; fails=$((fails + 1)); }
 
     if [ "$fails" -ne 0 ]; then
