@@ -13,6 +13,7 @@ import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 class TrackingSessionManager(
@@ -82,9 +84,14 @@ class TrackingSessionManager(
         dispatch(TrackingEvent.Pause(clock.elapsedRealtimeMillis()))
     }
 
+    /**
+     * Starts the service launcher as [start] does: a session restored after process death has no service,
+     * and in a live session the launcher is started a second time, which both launchers allow.
+     */
     fun resume() {
         dispatch(TrackingEvent.Resume(clock.elapsedRealtimeMillis()))
         observeLocation()
+        trackingServiceLauncher.start()
     }
 
     fun stop() {
@@ -148,6 +155,17 @@ class TrackingSessionManager(
                 _sessionDetails.compareAndSet(details, null)
             }
         }
+    }
+
+    /**
+     * Ends the session the user does not want: [stop] (skipped when it is already [TrackingState.Finished]),
+     * then [clearSession]. The clear is not cancelled with the caller, because a half-done clear keeps the
+     * session, and the caller (a screen that is left, an Activity that is recreated) is often gone by then.
+     */
+    @Throws(Exception::class, CancellationException::class)
+    suspend fun discard() {
+        if (_state.value !is TrackingState.Finished) stop()
+        withContext(NonCancellable) { clearSession() }
     }
 
     private suspend fun persist(state: TrackingState) {

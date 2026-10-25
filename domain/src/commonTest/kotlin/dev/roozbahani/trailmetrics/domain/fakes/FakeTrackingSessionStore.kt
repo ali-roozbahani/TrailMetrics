@@ -24,6 +24,9 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     /** When set, [clear] throws it instead of clearing. */
     var clearFailure: Exception? = null
 
+    /** When set, [clear] suspends until it is completed. */
+    var clearGate: CompletableDeferred<Unit>? = null
+
     /** When set, [load] suspends until it is completed. */
     var loadGate: CompletableDeferred<Unit>? = null
 
@@ -46,6 +49,7 @@ class FakeTrackingSessionStore : TrackingSessionStore {
 
     override suspend fun clear() {
         clearCallCount++
+        clearGate?.await()
         clearFailure?.let { throw it }
         stored = null
         storedActivityType = null

@@ -21,8 +21,10 @@ import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.navigation.AppRoute
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
+import dev.roozbahani.trailmetrics.di.APPLICATION_SCOPE
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.feature.history.DetailsScreen
 import dev.roozbahani.trailmetrics.feature.history.HistoryScreen
 import dev.roozbahani.trailmetrics.feature.route.RouteScreen
@@ -31,11 +33,20 @@ import dev.roozbahani.trailmetrics.navigation.CoordinatesNavType
 import dev.roozbahani.trailmetrics.navigation.PlannedRoutePointsNavType
 import dev.roozbahani.trailmetrics.navigation.TrailMetricsBottomBar
 import kotlin.reflect.typeOf
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
     private val trackingSessionManager: TrackingSessionManager by inject()
+
+    private val applicationScope: CoroutineScope by inject(APPLICATION_SCOPE)
+
+    private val logger: Logger by inject()
 
     // Set when the tracking notification's Stop action launches/resumes this Activity —
     // read once by TrailMetricsNavHost to pop back to Route, matching what tapping Stop
@@ -45,7 +56,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        handleStopTrackingIntent(intent)
+        // A recreated Activity (rotation) still holds the intent of the first launch: Stop is not replayed.
+        if (savedInstanceState == null) handleStopTrackingIntent(intent)
         setContent {
             TrailMetricsTheme {
                 TrailMetricsNavHost(stopTrackingRequested = stopTrackingRequested)
@@ -59,14 +71,23 @@ class MainActivity : ComponentActivity() {
         handleStopTrackingIntent(intent)
     }
 
-    // Stopping the session doesn't need Compose, so it happens immediately here rather
-    // than being deferred into the LaunchedEffect below — matching how promptly the
-    // previous Service-targeted PendingIntent stopped it. Only the resulting navigation
-    // (which needs the NavHostController) is deferred into Compose via
-    // `stopTrackingRequested`.
+    // Discarding the session doesn't need Compose, so it starts immediately here rather than being
+    // deferred into the LaunchedEffect below. It runs in the application scope, not in the Activity's:
+    // the Activity may be recreated or gone before the stored session is cleared. Only the resulting
+    // navigation (which needs the NavHostController) is deferred into Compose via `stopTrackingRequested`.
     private fun handleStopTrackingIntent(intent: Intent?) {
         if (intent?.action == TrackingService.ACTION_STOP_TRACKING) {
-            trackingSessionManager.stop()
+            applicationScope.launch {
+                try {
+                    trackingSessionManager.discard()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (expected: Exception) {
+                    // The scope has no handler, so an uncaught failure would end the process. The screen is
+                    // already on its way back to Route; the stored session is offered again by the next restore.
+                    logger.debug(TAG, "Discarding the session from the notification Stop failed: $expected")
+                }
+            }
             stopTrackingRequested.value = true
         }
     }

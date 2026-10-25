@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics
 
 import android.app.Application
+import dev.roozbahani.trailmetrics.di.appModule
 import dev.roozbahani.trailmetrics.feature.history.di.historyUiModule
 import dev.roozbahani.trailmetrics.feature.route.di.routeModule
 import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
@@ -12,7 +13,7 @@ class TrailMetricsApplication : Application() {
         super.onCreate()
         initKoin {
             androidContext(this@TrailMetricsApplication)
-            modules(routeModule, trackingUiModule, historyUiModule)
+            modules(appModule, routeModule, trackingUiModule, historyUiModule)
         }
     }
 }
