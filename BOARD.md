@@ -381,6 +381,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: audit 61 has compared the local and the CI reviewer on this diff and decided whether a concurrency-specific checklist item or a fixed `TASK` input (the local run got the PR title and description as of the commit, the CI run gets the final description) closes the gap, and the chosen change is done or the record is deleted.
 - Refs: `.claude/skills/tm-robustness/SKILL.md` (D7); `.claude/skills/tm-pr-review/SKILL.md` (item 15); PR #219.
 
+### local-review-capture-misses-headless-runs
+- Type: task
+- Area: scripts
+- Order: 280
+- Source: PR for tm-robustness-d7-main-actor-task (owner decision: audit 61)
+- Problem: The capture in `scripts/claude-hooks/require-local-review.sh` is a `SubagentStop` hook, so it sees only a reviewer run as a subagent. `tm-pr-review`, "Orchestrator's part", step 2 also allows a headless start (`claude -p --agent pr-reviewer`), which is a separate process: nothing is recorded, and the push hook then blocks a push that the owner meant to allow. Evidence reported by the owner: the failed captures on #233 (`e0531a7`, `f2ca579`). On this branch both reviews (`d8fca54`, `cf7cc7e`) were started with the Agent tool (`subagent_type: pr-reviewer`), came back as `APPROVE`, and `scripts/local-review-gate.sh check` still said "no local review is recorded" for both, so the headless start is not the only cause: why the subagent runs were not captured is not known (the hook's stderr was not visible to the session). `tm-pr-review` and the hook are protected paths.
+- Done when: one launch path records, either by making the Agent tool the only documented start or by a wrapper script that starts the headless reviewer and records its own stdout with the gate, decided in audit 61; and a reviewer started with the Agent tool is shown to be recorded, or the reason it was not is found.
+- Refs: `scripts/claude-hooks/require-local-review.sh` (header, SubagentStop); `scripts/local-review-gate.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", step 2); PR #233.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
