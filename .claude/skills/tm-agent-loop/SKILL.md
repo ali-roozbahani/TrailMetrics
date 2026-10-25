@@ -37,8 +37,9 @@ scripts/check-board.sh --next
 - An epic or `figma-design-system`: don't code. Write the plan for the human to approve
   (`tm-pr-workflow`, "Board", rule 0) and stop.
 - A record that is unclear, or whose Done when contradicts the code: stop and report.
-- Otherwise the record is the task. Its Problem and Done when, verbatim, are the `TASK` text
-  for the reviewer.
+- Otherwise the record is the task. Its Problem and Done when are what the PR description
+  must cover; the reviewer's `TASK` is that description (section 4), and the `Board: -slug`
+  line brings the record to it.
 
 ## 2. Implement
 
@@ -60,8 +61,9 @@ unrelated side effect.
 
 ## 4. Local review
 
-Run the `pr-reviewer` on the final HEAD as `tm-pr-review`, "Orchestrator's part" describes,
-and record the verdict. A hook (`scripts/claude-hooks/require-local-review.sh`) captures the
+Draft the PR description first (`tm-pr-workflow`, "PR description"; no `Reviewer findings`
+yet), then run the `pr-reviewer` on the final HEAD as `tm-pr-review`, "Orchestrator's part"
+describes, with `scripts/review-task.sh <draft>` as its message, and record the verdict. A hook (`scripts/claude-hooks/require-local-review.sh`) captures the
 reviewer's own report when it finishes and refuses `git push` and `gh pr create` unless the report
 of the commit that would be pushed has no `[blocking]` finding and a disposition for every
 `[important]` one: write them with `scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`

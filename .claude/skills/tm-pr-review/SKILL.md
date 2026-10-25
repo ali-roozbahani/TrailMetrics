@@ -17,8 +17,12 @@ output, no reasoning, no summary of the change):
 - `SHA`: the full commit SHA to review, which is HEAD.
 - `BASE`: `git merge-base HEAD origin/main`.
 - `INPUT_DIR`: the absolute review input directory the session filled.
-- `TASK`: the task text, verbatim: the board record's Problem and Done when, or the epic
-  subtask with its `allowed_paths`, or the task prompt's Task and Scope.
+- `TASK`: the PR description, as `scripts/review-task.sh <draft>` prints it, the same text
+  CI's reviewer gets: a fixed header, the description between its markers, and each board
+  record the description's `Board:` line removes, as it is on `origin/main`. The draft is
+  `~/agent-workspace/pr-body-<slug>.md`, written before the review without `Reviewer findings`.
+  An epic subtask's description carries its `allowed_paths`. Task text that is not in the
+  description is not in `TASK`.
 
 `INPUT_DIR` holds plain git output (commands under "Orchestrator's part"): `head`, `base`,
 `branch`, `status`, `commits` (oldest first, message and changed files per commit), `diff`
@@ -139,7 +143,7 @@ from memory.
     ViewModel state, a navigation, a notification text), each such behavior needs a test, in
     the diff or on `main`, that asserts it, at the level `tm-testing` gives it (a ViewModel
     test, a Compose UI test under Robolectric, a Swift unit test in the package, `kotlin.test`
-    in `domain`). When `TASK` holds the PR description (CI's reviewer gets it there), its
+    in `domain`). `TASK` is the PR description, locally as in CI; its
     Tier 2 must name that test for each behavior, or give a human check with a reason from
     that section. A behavior that no test asserts although one could, a bare "nothing to
     check on a device" for such a diff, a named test that does not exist, or a test that does
@@ -283,8 +287,9 @@ number. Nothing else: no summary of the change, no checklist walk-through.
 
 The implementing session runs this before every push, after its last commit and before the gate's final run.
 
-1. Commit everything (`git status --porcelain` must be empty), then fill the input
-   directory from git alone:
+1. Draft the PR description (`tm-pr-workflow`, "PR description") at
+   `~/agent-workspace/pr-body-<slug>.md`, without `Reviewer findings`. Commit everything
+   (`git status --porcelain` must be empty), then fill the input directory from git alone:
 
    ```bash
    SHA="$(git rev-parse HEAD)"; BASE="$(git merge-base HEAD origin/main)"
@@ -311,16 +316,22 @@ The implementing session runs this before every push, after its last commit and 
    fi
    ```
 
-2. Start the reviewer with the four Inputs and nothing else: the Agent tool with
-   `subagent_type: pr-reviewer`, or headless from the shell when the session doesn't list
-   the agent (a new `.claude/agents/` directory needs a restart to be picked up):
+2. Start the reviewer with the four Inputs and nothing else: the output of
+   `scripts/review-task.sh <draft>` is that message. The Agent tool with
+   `subagent_type: pr-reviewer` is the one documented start; its report is recorded (step 3).
+   Only for a session that doesn't list the agent (a new `.claude/agents/` directory needs a
+   restart to be picked up) start it headless from the shell:
    `claude -p --agent pr-reviewer --add-dir "$IN" < <message file>`. `--add-dir` lets it
    read `$IN` when the git dir is outside the working directory (a linked worktree);
    without it the reviewer returns `NO_VERDICT`. It takes several values, so the message
-   goes on stdin, not after it. Don't add the gate output, your reasoning or a description
-   of the change.
-3. Record the verdict only if the report's first line is `VERDICT: ` with one of the three
-   values, `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
+   goes on stdin, not after it. A headless run is not recorded, so the push gate blocks it
+   and the owner pushes. Don't add the gate output, your reasoning or a description of the
+   change.
+3. The `SubagentStop` hook (`scripts/claude-hooks/require-local-review.sh`) records the
+   reviewer's own report when the Agent tool run finishes; `scripts/local-review-gate.sh check
+   <sha>` says what it holds. `.review-verdict` is still written, as the older push hook
+   requires, only if the report's first line is `VERDICT: ` with one of the three values,
+   `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
 
    ```bash
    printf '%s %s\n' "$SHA" "$VERDICT" \
@@ -337,4 +348,6 @@ The implementing session runs this before every push, after its last commit and 
    and of the CI report gets one disposition, one line each, under the heading `Reviewer
    findings` (`tm-pr-workflow`, "PR description"), before the PR is merged: `fixed in <sha>` |
    `board record <slug>` (the record has its reason line) | `rejected: <reason a human can
-   check>`.
+   check>`. Before the push, write the local ones with `scripts/local-review-gate.sh disposition
+   <sha> '<disposition>' ...` (one argument per finding, in report order); the push hook needs
+   them.
