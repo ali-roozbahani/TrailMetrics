@@ -13,7 +13,7 @@ import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 
 @Database(
     entities = [ActivityEntity::class, TrackingSessionEntity::class, TrackingSessionPointEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @ColumnTypeConverters(Converters::class)

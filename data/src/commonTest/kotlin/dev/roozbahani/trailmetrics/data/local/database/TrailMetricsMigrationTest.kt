@@ -2,11 +2,14 @@ package dev.roozbahani.trailmetrics.data.local.database
 
 import androidx.sqlite.SQLiteDriver
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.data.local.repository.TrackingSessionStoreImpl
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -93,11 +96,54 @@ abstract class TrailMetricsMigrationTest {
                 )
             )
             val store = TrackingSessionStoreImpl(dao, FixedClock)
-            store.save(state)
-            assertEquals(state, store.load())
+            val session = StoredTrackingSession(state, ActivityType.Running, 1_700_299_000_000)
+            store.save(session)
+            assertEquals(session, store.load())
         } finally {
             database.close()
         }
+    }
+
+    @Test
+    fun `MIGRATION_2_3 keeps the activity and the session and gives the session no type or start time`() = runTest {
+        databaseVersion2.writeTo(fixtureDriver, databasePath)
+        val database = openWithAppPipeline(databasePath)
+        try {
+            assertEquals(version2Activity, database.activityDao().getById(version2Activity.id))
+            val dao = database.trackingSessionDao()
+            assertEquals(
+                TrackingSessionEntity(
+                    id = 1,
+                    stateKind = "Paused",
+                    elapsedMillis = 754_000,
+                    lastUpdateElapsedRealtimeMillis = 9_100_000,
+                    distanceMeters = 1843.75,
+                    currentSpeedMetersPerSecond = 2.25f,
+                    savedAtEpochMillis = 1_700_600_000_000,
+                    activityType = null,
+                    startedAtEpochMillis = null,
+                ),
+                dao.getSession()
+            )
+            assertEquals(
+                listOf(
+                    TrackingSessionPointEntity(1, 0, 48.2082, 16.3738),
+                    TrackingSessionPointEntity(1, 1, 48.209, 16.375),
+                ),
+                dao.getPoints()
+            )
+
+            val store = TrackingSessionStoreImpl(dao, FixedClock)
+            val loaded = store.load()
+            assertEquals(null, loaded?.activityType)
+            assertEquals(null, loaded?.startedAtEpochMillis)
+            val resumed = StoredTrackingSession(checkNotNull(loaded).state, ActivityType.Walking, 1_700_599_000_000)
+            store.save(resumed)
+            assertEquals(resumed, store.load())
+        } finally {
+            database.close()
+        }
+        assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
     }
 
     /**
@@ -136,6 +182,22 @@ abstract class TrailMetricsMigrationTest {
             connection.close()
         }
     }
+
+    // The activity row of databaseVersion2 as the app reads it at the current version.
+    private val version2Activity =
+        ActivityEntity(
+            id = 3,
+            activityType = ActivityType.Cycling,
+            startedAtEpochMillis = 1_700_500_000_000,
+            endedAtEpochMillis = 1_700_503_600_000,
+            distanceMeters = 20100.5,
+            durationMillis = 3_600_000,
+            averageSpeedMetersPerSecond = 5.5f,
+            calories = 610.25,
+            plannedRoutePoints = listOf(Coordinates(52.52, 13.405)),
+            actualPath = listOf(Coordinates(52.52, 13.405), Coordinates(52.53, 13.41)),
+            snapshotFilePath = "/snapshots/activity-3.png"
+        )
 
     // The rows of databaseVersion1 as the app reads them at the current version, newest first.
     private val version1RowsAtCurrentVersion = listOf(

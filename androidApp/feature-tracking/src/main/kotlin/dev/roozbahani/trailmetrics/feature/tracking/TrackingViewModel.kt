@@ -173,7 +173,7 @@ class TrackingViewModel(
         retainedSnapshotPath.value?.let(::deleteSnapshotFile)
         retainedSnapshotPath.value = null
         viewModelScope.launch {
-            trackingSessionManager.start(startCoordinates)
+            trackingSessionManager.start(startCoordinates, activityType)
         }
     }
 

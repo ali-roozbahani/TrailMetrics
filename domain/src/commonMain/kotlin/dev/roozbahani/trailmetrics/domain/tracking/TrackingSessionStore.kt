@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.domain.tracking
 
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -8,14 +9,28 @@ import kotlin.coroutines.cancellation.CancellationException
  * and elapsed time survive until the session is saved as an activity or discarded.
  */
 interface TrackingSessionStore {
-    /** Stores [state] as the session. [TrackingState.Idle] is not a session and is ignored. */
+    /** Stores [session]. A session whose state is [TrackingState.Idle] is not a session and is ignored. */
     @Throws(Exception::class, CancellationException::class)
-    suspend fun save(state: TrackingState)
+    suspend fun save(session: StoredTrackingSession)
 
-    /** The stored session as [TrackingState.Tracking], [TrackingState.Paused] or [TrackingState.Finished], or null. */
+    /**
+     * The stored session, or null. Its state is [TrackingState.Tracking], [TrackingState.Paused] or
+     * [TrackingState.Finished].
+     */
     @Throws(Exception::class, CancellationException::class)
-    suspend fun load(): TrackingState?
+    suspend fun load(): StoredTrackingSession?
 
     @Throws(Exception::class, CancellationException::class)
     suspend fun clear()
 }
+
+/**
+ * A session as stored: its [state], the [activityType] it was started with and the wall-clock time it
+ * started ([startedAtEpochMillis]). Both are null only when unknown: a session stored before they were
+ * kept, or a stored type this version does not know.
+ */
+data class StoredTrackingSession(
+    val state: TrackingState,
+    val activityType: ActivityType?,
+    val startedAtEpochMillis: Long?
+)

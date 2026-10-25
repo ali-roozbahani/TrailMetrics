@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.fakes.FakeLocationRepository
 import dev.roozbahani.trailmetrics.domain.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
@@ -64,7 +65,7 @@ class TrackingSessionManagerTest {
         clock.setElapsedRealtimeValues(0L, 100L)
 
         // Act
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         assertIs<TrackingState.Tracking>(manager.currentState.value)
@@ -84,8 +85,8 @@ class TrackingSessionManagerTest {
         clock.setElapsedRealtimeValues(0L)
 
         // Act
-        manager.start(point1)
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         assertIs<TrackingState.Tracking>(manager.currentState.value)
@@ -103,7 +104,7 @@ class TrackingSessionManagerTest {
         clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         assertIs<TrackingState.Tracking>(manager.currentState.value)
@@ -134,7 +135,7 @@ class TrackingSessionManagerTest {
         clock.setElapsedRealtimeValues(0L, 100L, 200L)
 
         // Act Start
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         assertIs<TrackingState.Tracking>(manager.currentState.value)
@@ -166,7 +167,7 @@ class TrackingSessionManagerTest {
         locationRepository.setUpdatesFlow(updates)
         clock.setElapsedRealtimeValues(0L)
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         assertEquals(1, updates.subscriptionCount.value)
 
@@ -194,7 +195,7 @@ class TrackingSessionManagerTest {
         locationRepository.setUpdatesFlow(updates)
         val issues = collectLocationIssues()
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         repeat(2) { updates.emit(unavailable) }
@@ -212,7 +213,7 @@ class TrackingSessionManagerTest {
         locationRepository.setUpdatesFlow(updates)
         val issues = collectLocationIssues()
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         repeat(2) { updates.emit(unavailable) }
@@ -232,13 +233,13 @@ class TrackingSessionManagerTest {
         locationRepository.setUpdatesFlow(updates)
         val issues = collectLocationIssues()
 
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         repeat(2) { updates.emit(unavailable) }
         testScheduler.advanceUntilIdle()
 
         manager.stop()
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
         repeat(2) { updates.emit(unavailable) }
@@ -295,7 +296,7 @@ class TrackingSessionManagerTest {
                 1_000_000L, 1_010_000L, 1_010_000L, 1_015_000L, 1_075_000L, 400_000L, 400_000L, 405_000L
             )
 
-            manager.start(point1)
+            manager.start(point1, ActivityType.Running)
             testScheduler.runCurrent()
             emitFix(updates, point2)
             manager.pause()
@@ -314,7 +315,7 @@ class TrackingSessionManagerTest {
 
     /** Start at [point1], deliver [fixes] Success updates alternating point2/point1, then Stop. */
     private suspend fun trackSession(updates: MutableSharedFlow<LocationUpdate>, fixes: Int): TrackingState.Finished {
-        manager.start(point1)
+        manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
         repeat(fixes) { index -> emitFix(updates, if (index % 2 == 0) point2 else point1) }
         manager.stop()

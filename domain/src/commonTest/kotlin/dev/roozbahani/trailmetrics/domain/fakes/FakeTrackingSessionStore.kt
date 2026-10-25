@@ -1,13 +1,20 @@
 package dev.roozbahani.trailmetrics.domain.fakes
 
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import kotlinx.coroutines.CompletableDeferred
 
-/** In-memory [TrackingSessionStore]. Every state passed to [save] is kept in [savedStates], in order. */
+/**
+ * In-memory [TrackingSessionStore]. Every state passed to [save] is kept in [savedStates], in order, and the
+ * type and start time of the last save in [storedActivityType] and [storedStartedAtEpochMillis].
+ */
 class FakeTrackingSessionStore : TrackingSessionStore {
     val savedStates = mutableListOf<TrackingState>()
     var stored: TrackingState? = null
+    var storedActivityType: ActivityType? = null
+    var storedStartedAtEpochMillis: Long? = null
     var clearCallCount = 0
         private set
 
@@ -23,21 +30,25 @@ class FakeTrackingSessionStore : TrackingSessionStore {
     /** When set, [load] throws it. */
     var loadFailure: Exception? = null
 
-    override suspend fun save(state: TrackingState) {
+    override suspend fun save(session: StoredTrackingSession) {
         saveFailure?.let { throw it }
-        savedStates += state
-        stored = state
+        savedStates += session.state
+        stored = session.state
+        storedActivityType = session.activityType
+        storedStartedAtEpochMillis = session.startedAtEpochMillis
     }
 
-    override suspend fun load(): TrackingState? {
+    override suspend fun load(): StoredTrackingSession? {
         loadGate?.await()
         loadFailure?.let { throw it }
-        return stored
+        return stored?.let { StoredTrackingSession(it, storedActivityType, storedStartedAtEpochMillis) }
     }
 
     override suspend fun clear() {
         clearCallCount++
         clearFailure?.let { throw it }
         stored = null
+        storedActivityType = null
+        storedStartedAtEpochMillis = null
     }
 }
