@@ -30,10 +30,23 @@
 # then one summary line, and the exit code:
 #   ALL_GREEN                       every run completed, all success or skipped          exit 0
 #   FAILED <names>                  every run completed, others had another conclusion   exit 1
+#   FAILED Review — pr-reviewer[; still running: <names>][; missing: <names>]
+#                                   the reviewer's check run is completed with a conclusion
+#                                   other than success or skipped (`failure` for CHANGES and for
+#                                   a run with no verdict) while other runs are still running
+#                                   or not started: the wait ends early, those runs are listed
+#                                   (running ones show their status and `-` in their row).
+#                                   Required runs that do not exist yet are named after
+#                                   "missing:". When nothing is left to wait for, the plain FAILED line
+#                                   above is printed instead                             exit 1
 #   TIMEOUT <names still running>[; missing: <names>]
 #                                   the maximum wait ran out; "(none running)" when only
 #                                   required runs are missing                            exit 1
 #   SUPERSEDED <new sha>            the PR head is no longer the SHA being watched       exit 1
+# The early exit is only for the reviewer: it finishes in about 2 minutes, the Android and iOS jobs
+# in 15 to 40, and its verdict is read with scripts/read-ci-verdict.sh. Any other failed check
+# keeps the wait until every run is completed (scripts/rerun-failed-once.sh refuses a run that is
+# not completed). A reviewer still running, with another check failed, is waited for.
 # Names are joined with "; ". Exit 2 is a usage error, a missing tool, unreadable data, or a `gh`
 # call that failed 4 times in a row.
 #
@@ -60,6 +73,7 @@ REQUIRED_CHECKS="Android — Lint, Detekt, Tests, Build
 iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
+REVIEWER_CHECK="Review — pr-reviewer"
 USAGE="usage: scripts/wait-for-checks.sh [--ci-only] <PR number | head SHA> | --self-test"
 
 die() {
@@ -125,6 +139,15 @@ wait_for_checks() {
                 exit 0
             fi
             echo "FAILED $names"
+            exit 1
+        fi
+
+        reviewer_failed="$(jq -r --arg name "$REVIEWER_CHECK" '[.check_runs[] | select(.name == $name and .status == "completed"
+            and (.conclusion as $c | ["success", "skipped"] | index($c) | not))] | length' "$d/runs.json")"
+        if [ "$reviewer_failed" != 0 ]; then
+            print_rows "$d/runs.json"
+            names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
+            echo "FAILED $REVIEWER_CHECK${names:+; still running: $names}${missing:+; missing: $missing}"
             exit 1
         fi
 
