@@ -950,7 +950,9 @@ def extract_task_lines(path):
 
 
 def load_task_expect(fixture):
-    """`expect`: `contains: <text>` and `absent: <text>` lines (substrings of the output), and
+    """A fixture holds BOARD.md (origin/main's), `draft` (the draft description file), `pr-body`
+    (the PR body GitHub gives the CI step) and `expect`; a `to-crlf` file turns the line ends of
+    draft and pr-body to CRLF. `expect`: `contains: <text>` and `absent: <text>` lines (substrings of the output), and
     `no-cr: yes` (the output holds no carriage return)."""
     expect = {"contains": [], "absent": [], "no_cr": False}
     for line in (fixture / "expect").read_text(encoding="utf-8").splitlines():
@@ -971,6 +973,9 @@ def run_task_fixture(fixture, task_lines, bash, script_dir):
     board = (fixture / "BOARD.md").read_text(encoding="utf-8")
     draft = (fixture / "draft").read_bytes()
     pr_body = (fixture / "pr-body").read_bytes().decode("utf-8")
+    if (fixture / "to-crlf").exists():  # git normalizes CRLF in committed files, so it is made here
+        draft = draft.replace(b"\n", b"\r\n")
+        pr_body = pr_body.replace("\n", "\r\n")
     with scratch_dir("tm-review-task-") as tmp:
         tmp = Path(os.path.realpath(tmp))
         repo = tmp / "workspace"
