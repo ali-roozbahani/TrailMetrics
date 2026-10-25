@@ -69,7 +69,8 @@ class TrackingViewModel(
 
     /**
      * The snapshot file kept after a Finish that did not save, so the retry reuses it instead of
-     * writing a new one. Deleted by [onCleared] if no retry used it: after a failed save the session stays Finished, so no new session starts.
+     * writing a new one. Deleted by [onCleared] if no retry used it: after a failed save the session stays
+     * Finished, so no new session starts.
      */
     private val retainedSnapshotPath = MutableStateFlow<String?>(null)
 

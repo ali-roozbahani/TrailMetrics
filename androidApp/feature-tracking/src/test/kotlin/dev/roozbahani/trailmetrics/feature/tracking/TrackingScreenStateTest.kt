@@ -39,7 +39,8 @@ class TrackingScreenStateTest {
     @Test
     fun `canStart is false in every state while the stored session is loading`() {
         ALL_STATES.forEach { trackingState ->
-            assertFalse(TrackingScreenState(trackingState = trackingState, isRestoring = true).canStart, "for $trackingState")
+            val state = TrackingScreenState(trackingState = trackingState, isRestoring = true)
+            assertFalse(state.canStart, "for $trackingState")
         }
     }
 
