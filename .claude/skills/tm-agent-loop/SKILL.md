@@ -114,7 +114,7 @@ for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report t
 running and the missing ones, and stop. Exit 2: stop and report its message.
 A `FAILED Review — pr-reviewer; still running: ...` exit means the review failed early. Do not
 wait for the running jobs. Read the verdict with `scripts/read-ci-verdict.sh` (section 7) at once and
-go on as for `CHANGES` or `UNKNOWN`; the running jobs belong to a head that the fix will replace.
+go on as for `CHANGES` or `UNKNOWN`; after `CHANGES` the running jobs belong to a head that the fix will replace.
 When a finding (or `ESCALATE_TO_HUMAN` reason) contradicts a decision written in the task, a hard
 rule or the owner's words, do not dispose it as `rejected`, do not override the decision and do not
 change files to satisfy it: stop, report the finding, the decision it contradicts and your

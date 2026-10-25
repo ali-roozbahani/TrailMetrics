@@ -1,5 +1,6 @@
 #!/bin/bash
-# Waits until every check run of a commit is completed (tm-agent-loop, section 6).
+# Waits until every check run of a commit is completed, or until the reviewer's check has failed
+# (tm-agent-loop, section 6).
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
@@ -22,7 +23,7 @@
 # The check runs of a push appear one after another (jobs of ci.yml, `Review — pr-reviewer` of
 # another workflow, a job that needs another one), so "every run I see is completed" is not enough:
 # the run is finished only when every check run in REQUIRED_CHECKS (below) exists and all runs are
-# completed. A SHA with no check run yet (CI not started) is not finished; it waits until the timeout.
+# completed (the reviewer's failure ends it early, see the output below). A SHA with no check run yet (CI not started) is not finished; it waits until the timeout.
 # A failed `gh` call is retried: up to 3 failed reads in a row (one step of sleep between them, the
 # count resets on a success); the 4th in a row exits 2.
 #
