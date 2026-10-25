@@ -102,8 +102,8 @@ scripts/wait-for-checks.sh <PR number>
 
 While that command runs, you do not end your turn, do not send a report and do not stop.
 It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
-check run of the head SHA is `completed`, and exits with one line per check run (name, status,
-conclusion) and a last line: `ALL_GREEN` (exit 0), `FAILED <names>`, `TIMEOUT <names still
+check run of the head SHA is `completed` (or `Review — pr-reviewer` has failed, below), and exits with one line per check run (name, status,
+conclusion) and a last line: `ALL_GREEN` (exit 0), `FAILED <names>`, `FAILED Review — pr-reviewer[; still running: <names>]`, `TIMEOUT <names still
 running>[; missing: <names>]` or `SUPERSEDED <new sha>` (exit 1; a newer push changed the PR
 head, so watch that SHA instead), exit 2 for a usage error or a `gh` call that failed 4 times in
 a row (it retries up to 3 times, one step apart). A check run that does not exist yet counts as
@@ -112,6 +112,14 @@ to exist (the list is `REQUIRED_CHECKS` in the script) as well as every run comp
 `TIMEOUT` can end with `missing:` the names that never appeared. The maximum wait is 90 minutes
 for a SHA (90 more after its one re-run); when it runs out (`TIMEOUT`), report the checks still
 running and the missing ones, and stop. Exit 2: stop and report its message.
+A `FAILED Review — pr-reviewer; still running: ...` exit means the review failed early. Do not
+wait for the running jobs. Read the verdict with `scripts/read-ci-verdict.sh` (section 7) at once and
+go on as for `CHANGES` or `UNKNOWN`; after `CHANGES` the running jobs belong to a head that the fix will replace.
+When a finding (or `ESCALATE_TO_HUMAN` reason) contradicts a decision written in the task, a hard
+rule or the owner's words, do not dispose it as `rejected`, do not override the decision and do not
+change files to satisfy it: stop, report the finding, the decision it contradicts and your
+recommended way out, and wait for the owner. Stopping means the report ends the turn; no more
+pushes for that PR.
 `ALL_GREEN`: continue (sections 7 and 8). `FAILED` names a failed job for every
 conclusion other than `success` or `skipped`,
 except the check run `Review — pr-reviewer`: it also shows `failure` for `CHANGES` (seen on
@@ -162,6 +170,10 @@ means zero:
 - `UNKNOWN <reason>`: anything else (exit 1): no or several check runs or annotations with
   that title, a level and message that disagree, a check run that is not completed, an
   annotation from a different SHA, a PR head that is no longer `$SHA`, a failed `gh` call.
+
+A `rejected: <reason>` for an `[important]` finding needs a reason that shows the finding is
+wrong, not only that the task did not ask for it; otherwise the disposition is `fixed in <sha>` or
+`board record <slug>`.
 
 Fail closed: only the line `APPROVE` or `APPROVE, <n> important` counts as an approval.
 `ESCALATE_TO_HUMAN`, `CHANGES` and `UNKNOWN <reason>` are not an approval.
