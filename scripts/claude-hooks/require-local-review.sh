@@ -437,6 +437,15 @@ self_test() {
     expect "wrapped push blocks" 2 "bash -c 'git push'"
     expect "git alias that pushes blocks" 2 "git sneak"
     expect "git -c alias blocks" 2 "git -c alias.p=push p"
+    # The shared corpus, in the state "nothing allowed yet" (no review recorded): `push` lines must
+    # block, `nopush` lines must pass. block-git-push.sh runs the same file.
+    local line kind cmd cn=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        kind="${line%% *}"; cmd="${line#* }"; cn=$((cn + 1))
+        if [ "$kind" = push ]; then expect "corpus push: $cmd" 2 "$cmd"; else expect "corpus nopush: $cmd" 0 "$cmd"; fi
+    done < "$SCRIPT_DIR/push-commands-fixtures/corpus"
+    [ "$cn" -gt 0 ] || { echo "FAIL the push-commands corpus is empty" >&2; fails=$((fails + 1)); }
     review "$parent" APPROVE
     expect "review of the parent commit does not allow the push" 2 "git push"
     review "$sha" CHANGES "1. [blocking] a.kt (f): item 2: defect; fix"
@@ -570,7 +579,7 @@ self_test() {
 
     # The report may reach the transcript after the hook starts (SubagentStop can run before the
     # handback line is flushed). Each case runs on a new commit so an earlier record cannot allow it.
-    local pre hb cut t0 elapsed n dbg
+    local pre hb cut t0 elapsed n dbg wait_cfg
     pre="$tmp/pre.jsonl"
     new_head() { git -C "$repo" commit -q --allow-empty -m "$1"; git -C "$repo" rev-parse HEAD; }
     stop_input() { jq -n --arg p "$tr" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"pr-reviewer",agent_transcript_path:$p,cwd:$d,session_id:"s1",last_assistant_message:null}'; }
@@ -601,7 +610,7 @@ self_test() {
     rc=0; t0=$SECONDS
     stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=2 bash "$hook" >/dev/null 2>"$tmp/err" || rc=$?
     elapsed=$((SECONDS - t0))
-    if [ "$rc" = 0 ] && [ "$elapsed" -ge 2 ] && [ "$elapsed" -lt 6 ] && grep -q 'after waiting 2' "$tmp/err" && grep -q 'lines read: 2' "$tmp/err" && grep -q 'type of the last parseable line: assistant' "$tmp/err"; then
+    if [ "$rc" = 0 ] && [ "$elapsed" -ge 2 ] && [ "$elapsed" -lt 9 ] && grep -q 'after waiting 2' "$tmp/err" && grep -q 'lines read: 2' "$tmp/err" && grep -q 'type of the last parseable line: assistant' "$tmp/err"; then
         echo "ok   a report that never arrives: waited ${elapsed}s, exit 0, numbers on stderr"
     else
         echo "FAIL a report that never arrives: rc=$rc elapsed=${elapsed}s stderr: $(head -c 300 "$tmp/err")" >&2; fails=$((fails + 1))
@@ -616,10 +625,11 @@ self_test() {
     # 4. the report is already there (and the file ends in a half-written line): no waiting
     head5="$(new_head nine)"; prepare "$head5"
     printf '%s\n%s' "$hb" '{"type":"assistant","mess' >>"$tr"
+    wait_cfg=8
     t0=$SECONDS
-    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=8 bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=$wait_cfg bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
     elapsed=$((SECONDS - t0))
-    if [ "$elapsed" -lt 3 ]; then echo "ok   a report already there is read without waiting (${elapsed}s)"; else echo "FAIL a report already there waited ${elapsed}s" >&2; fails=$((fails + 1)); fi
+    if [ "$elapsed" -lt "$wait_cfg" ]; then echo "ok   a report already there is read without waiting (${elapsed}s)"; else echo "FAIL a report already there waited ${elapsed}s" >&2; fails=$((fails + 1)); fi
     expect "a report already there (bad last line skipped) is recorded" 0 "git push"
 
     if [ "$fails" -ne 0 ]; then

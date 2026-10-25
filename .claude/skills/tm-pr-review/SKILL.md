@@ -283,6 +283,9 @@ Under `ESCALATE_TO_HUMAN`, the escalation reasons are findings that start with a
 "Verdict rules". Locate a finding by its file and a symbol or a short quote, never by line
 number. Nothing else: no summary of the change, no checklist walk-through.
 
+No line other than a numbered finding may contain `[blocking]` or `[important]`, and a `[note]`
+that needs to refer to a severity says the word without brackets (blocking, important).
+
 ## Orchestrator's part
 
 The implementing session runs this before every push, after its last commit and before the gate's final run.
