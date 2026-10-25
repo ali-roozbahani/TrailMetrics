@@ -146,18 +146,14 @@ wait_for_checks() {
             | [$required | split("\n")[] | select(. != "") | select(. as $n | ($have | index($n)) == null)] | join("; ")' "$d/runs.json")"
 
         if [ -n "${REVIEW_FIRST:-}" ]; then
-            rconc="$(jq -r --arg name "$REVIEWER_CHECK" '[.check_runs[] | select(.name == $name and .status == "completed")] | if length > 0 then (.[0].conclusion // "-") else empty end' "$d/runs.json")"
+            # A failed reviewer falls through to the reviewer_failed block below (same FAILED line).
+            rconc="$(jq -r --arg name "$REVIEWER_CHECK" '[.check_runs[] | select(.name == $name and .status == "completed"
+                and (.conclusion as $c | ["success", "skipped"] | index($c)))] | if length > 0 then .[0].conclusion else empty end' "$d/runs.json")"
             if [ -n "$rconc" ]; then
                 print_rows "$d/runs.json"
                 names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
-                case "$rconc" in
-                    success | skipped)
-                        echo "REVIEW_DONE $rconc; still running: ${names:-(none)}${missing:+; missing: $missing}"
-                        exit 0 ;;
-                    *)
-                        echo "FAILED $REVIEWER_CHECK${names:+; still running: $names}${missing:+; missing: $missing}"
-                        exit 1 ;;
-                esac
+                echo "REVIEW_DONE $rconc; still running: ${names:-(none)}${missing:+; missing: $missing}"
+                exit 0
             fi
         elif [ "$total" -gt 0 ] && [ "$pending" = 0 ] && [ -z "$missing" ]; then
             print_rows "$d/runs.json"
