@@ -76,6 +76,8 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/skill-changes-digest-fixtures/     @ali-roozbahani
 /scripts/read-ci-verdict.sh                 @ali-roozbahani
 /scripts/read-ci-verdict-fixtures/          @ali-roozbahani
+/scripts/local-review-gate.sh               @ali-roozbahani
+/scripts/local-review-gate-fixtures/        @ali-roozbahani
 /scripts/rerun-failed-once.sh               @ali-roozbahani
 /scripts/rerun-failed-once-fixtures/        @ali-roozbahani
 /scripts/wait-for-checks.sh                 @ali-roozbahani

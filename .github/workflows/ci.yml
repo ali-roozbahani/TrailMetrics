@@ -187,6 +187,12 @@ jobs:
       - name: CI re-run guard self-test
         run: scripts/rerun-failed-once.sh --self-test
 
+      - name: Local review gate self-test
+        run: scripts/local-review-gate.sh --self-test
+
+      - name: Local review hook self-test
+        run: scripts/claude-hooks/require-local-review.sh --self-test
+
       - name: CI wait self-test
         run: scripts/wait-for-checks.sh --self-test
 

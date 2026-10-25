@@ -61,7 +61,12 @@ unrelated side effect.
 ## 4. Local review
 
 Run the `pr-reviewer` on the final HEAD as `tm-pr-review`, "Orchestrator's part" describes,
-and record the verdict.
+and record the verdict. A hook (`scripts/claude-hooks/require-local-review.sh`) captures the
+reviewer's own report when it finishes and refuses `git push` and `gh pr create` unless the report
+of the commit that would be pushed has no `[blocking]` finding and a disposition for every
+`[important]` one: write them with `scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`
+(one per finding, `fixed in <sha>` | `board record <slug>` | `rejected: <reason>`, section 7's reason
+rule) before the push. A new commit needs a new review. A blocked push is reported with the hook's reason.
 
 - `APPROVE`: continue.
 - `CHANGES`, or blocking findings under `ESCALATE_TO_HUMAN`: fix them as a new commit and
