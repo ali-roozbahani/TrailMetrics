@@ -11,8 +11,8 @@
 # the review of HEAD. It also blocks the main session from calling `local-review-gate.sh record`
 # or touching the review records through the shell: the records come from the reviewer itself.
 #
-# SubagentStop (matcher "pr-reviewer"): records the reviewer's final message
-# (`.last_assistant_message`) with `local-review-gate.sh record`, keyed by the SHA the reviewer was
+# SubagentStop (matcher "pr-reviewer"): records the reviewer's final report (the `message` of its
+# last SubagentHandback call in `.agent_transcript_path`) with `local-review-gate.sh record`, keyed by the SHA the reviewer was
 # started on (the `SHA:` line of its first message, read from `.agent_transcript_path`); the gate
 # refuses a report whose REVIEWED_SHA differs. It never blocks the subagent (exit 0) and says on
 # stderr what it did.
@@ -30,8 +30,9 @@
 # Limits: a guardrail, not a wall. It reads command text, so a push built by a variable or a
 # script is not seen (the push hook block-git-push.sh still needs the gate marker and a verdict
 # for HEAD). The agent can still run `local-review-gate.sh disposition` (it supplies text there;
-# the gate checks form and count, not truth). Anything that writes to the records outside the
-# shell tool is out of reach of a hook.
+# the gate checks form and count, not truth). The records are guarded against the shell tool and
+# the Write/Edit/MultiEdit/NotebookEdit tools; a process the agent starts that writes there
+# (a script it wrote and runs) is out of reach of a hook.
 #
 # BREAK-GLASS (human only): remove this hook's entries from .claude/settings.json. There is
 # deliberately no environment-variable or flag bypass.
@@ -190,9 +191,21 @@ touches_records() {
 }
 
 handle_pre_tool_use() {
-    local input="$1" command cwd root target reason out rc=0
-    command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
+    local input="$1" command cwd root target reason out rc=0 tool fpath
+    tool="$(printf '%s' "$input" | jq -r '.tool_name // empty')"
     cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
+    case "$tool" in
+        Write | Edit | MultiEdit | NotebookEdit)
+            # The file tools must not write the records either.
+            fpath="$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty')"
+            if touches_records "$fpath"; then
+                echo "Blocked: the local review records are written by the reviewer's own report only (SubagentStop hook), not by file tools." >&2
+                return 2
+            fi
+            return 0
+            ;;
+    esac
+    command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
     if touches_records "$command"; then
         echo "Blocked: the local review records are written by the reviewer's own report only (SubagentStop hook). Do not call 'local-review-gate.sh record' or touch the local-reviews directory; run the pr-reviewer instead. 'local-review-gate.sh disposition' and 'check' are allowed." >&2
         # disposition/check are the allowed uses of the script; they do not mention the directory.
@@ -329,6 +342,15 @@ self_test() {
     expect "push of another branch with its review allowed" 0 "git push origin other:branch"
     expect "calling record from the shell blocks" 2 "scripts/local-review-gate.sh record $sha"
     expect "touching the records directory blocks" 2 "echo x > $tmp/reviews/$sha/report"
+    for tool in Write Edit MultiEdit NotebookEdit; do
+        rc=0
+        jq -n --arg t "$tool" --arg f "$tmp/reviews/$sha/report" --arg d "$repo" '{hook_event_name:"PreToolUse",tool_name:$t,tool_input:{file_path:$f,notebook_path:$f},cwd:$d}' \
+            | bash "$hook" >/dev/null 2>&1 || rc=$?
+        if [ "$rc" = 2 ]; then echo "ok   $tool of a record blocks (exit 2)"; else echo "FAIL $tool of a record: expected exit 2, got $rc" >&2; fails=$((fails + 1)); fi
+    done
+    rc=0
+    jq -n --arg f "$repo/README.md" --arg d "$repo" '{hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$f},cwd:$d}' | bash "$hook" >/dev/null 2>&1 || rc=$?
+    if [ "$rc" = 0 ]; then echo "ok   Write of another file passes (exit 0)"; else echo "FAIL Write of another file: got $rc" >&2; fails=$((fails + 1)); fi
     review "$sha" ESCALATE_TO_HUMAN "1. [important] a.kt (f): item 13: suspicion; fix"
     expect "important without disposition blocks" 2 "git push"
     (cd "$repo" && "$GATE" disposition "$sha" "board record some-slug") >/dev/null 2>&1
