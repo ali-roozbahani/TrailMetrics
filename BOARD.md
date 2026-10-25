@@ -363,6 +363,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the tests in `TrackingViewModelFinishTests` wait on the state they assert without a fixed 2.0 s bound that depends on runner speed, or the record is deleted because #209 already did so.
 - Refs: CI run 39459833673; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md` entry `ios-tracking-finish-failed-save-wait`.
 
+### local-review-hook-shell-blind-spots
+- Type: task
+- Area: scripts/claude-hooks
+- Order: 250
+- Source: PR for local-review-gate (owner decision: audit 61)
+- Problem: `scripts/claude-hooks/require-local-review.sh` reads the command text, so it cannot see a push built by shell syntax it does not parse: `$'git'`, `\git`, a variable-built or `eval`ed command, a script the agent writes and runs, and a `cd` that may not run (`false && cd x; git push`, which the linear reading applies anyway). Other points the reviewers raised, left for audit 61 by the owner: a `fixed in <sha>` disposition is only checked to be a commit, not to contain the finding's fix; the `[blocking]`/`[important]` tag parsing is strict about the numbered finding line; `.claude/settings.json` itself is not guarded against edits by the hook; any command containing the word `local-reviews` or a `cd`/`pushd`/`popd` token before a push (a branch named `cd`) blocks even when harmless. A separate mechanism than command-text matching (for example the credential helper or a `pre-push` check the human installs) is the only complete fix; this is a human design decision.
+- Done when: the owner has decided in audit 61 which of these to close and how (a stronger mechanism, or accepting the limits in the hook header), and the chosen ones are done or the record is deleted.
+- Refs: `scripts/claude-hooks/require-local-review.sh` (header "Limits"); `scripts/local-review-gate.sh` (`valid_disposition`, `count_tag`); CI reviewer findings on PR #233.
+
 ## Drift
 
 ### data-kover-comment-stale-figure

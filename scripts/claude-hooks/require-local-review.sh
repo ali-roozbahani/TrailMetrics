@@ -74,6 +74,8 @@ resolve_commit() {
 targets() {
     local dir="$1" text="$2" segment i k sub word dir2 found=0 cur="$1" cdunknown=0 grouped=0 target
     local -a tokens
+    # Backslash-newline continues a command: join the lines before splitting into segments.
+    text="${text//\\$'\n'/ }"
     # A cd inside a group, a command substitution or an `||` list does not change the directory of
     # the following segments the way a linear reading says, so it counts as unreadable.
     case "$text" in *[\(\)\`]* | *"||"*) grouped=1 ;; esac
@@ -81,6 +83,7 @@ targets() {
     # xargs, sudo, echo "..."): the pushed ref is hidden from this parser, so it is blocked, whatever
     # plain pushes the rest of the command has.
     while IFS= read -r segment; do
+        segment="${segment//[\"\']/}" # quotes do not change which command runs
         read -ra tokens <<<"$segment" || true
         i=0
         while [ "$i" -lt "${#tokens[@]}" ] && [[ "${tokens[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do i=$((i + 1)); done
@@ -94,6 +97,7 @@ targets() {
         esac
     done < <(split_segments "$text")
     while IFS= read -r segment; do
+        segment="${segment//[\"\']/}"
         read -ra tokens <<<"$segment" || true
         i=0
         while [ "$i" -lt "${#tokens[@]}" ] && [[ "${tokens[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do i=$((i + 1)); done
@@ -117,10 +121,6 @@ targets() {
                     cdunknown=1
                     continue
                 fi
-                case "$target" in
-                    \"*\" | \'*\') target="${target:1:${#target}-2}" ;;
-                    \"* | \'*) cdunknown=1; continue ;;
-                esac
                 [ "${target#/}" != "$target" ] || target="$cur/$target"
                 if [ -d "$target" ]; then
                     cur="$(cd "$target" && pwd)"
@@ -414,6 +414,11 @@ self_test() {
     expect "sudo gh with options before pr create blocks" 2 "sudo gh -R o/r pr create --head other"
     expect "git --git-dir with a separate argument blocks" 2 "git --git-dir x push origin other:x"
     expect "git --no-pager push is a plain push and is checked" 0 "git --no-pager push origin HEAD"
+    expect "a refspec on a continuation line is resolved" 2 "$(printf 'git push origin \\\nother:x')"
+    expect "a continuation line with HEAD is a plain push" 0 "$(printf 'git push origin \\\nHEAD')"
+    expect "a quoted command word is still a push" 2 '"git" push origin other:x'
+    expect "a quoted subcommand is still a push" 2 "git 'push' origin other:x"
+    expect "a split quoted command word is still a push" 2 'g"i"t push origin other:x'
     expect "a plain push followed by a wrapped push to an unreviewed ref blocks" 2 "git push && env git push origin other:x"
     expect "a plain push then bash -c push blocks" 2 "git push; bash -c 'git push origin other:x'"
     expect "a wrapped push then a plain push blocks" 2 "env git push origin other:x && git push"
