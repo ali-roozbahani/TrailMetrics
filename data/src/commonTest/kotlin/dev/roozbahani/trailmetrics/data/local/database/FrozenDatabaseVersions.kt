@@ -7,7 +7,7 @@ import androidx.sqlite.execSQL
  * The `version` of `@Database` in [TrailMetricsDatabase]. A version bump changes it here too, in
  * the same change that adds `N.json`, `MIGRATION_M_N` and its harness case.
  */
-internal const val CURRENT_DATABASE_VERSION = 1
+internal const val CURRENT_DATABASE_VERSION = 2
 
 /**
  * A database at an old version, written with plain SQL outside Room, the way Room itself wrote a

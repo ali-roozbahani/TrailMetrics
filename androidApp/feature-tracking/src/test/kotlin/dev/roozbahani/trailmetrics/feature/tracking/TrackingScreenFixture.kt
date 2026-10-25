@@ -18,6 +18,7 @@ import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingSessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +57,7 @@ class TrackingScreenFixture {
         speedCalculator = SpeedCalculator(),
         clock = clock,
         logger = FakeLogger(),
+        trackingSessionStore = FakeTrackingSessionStore(),
         scope = sessionScope
     )
 

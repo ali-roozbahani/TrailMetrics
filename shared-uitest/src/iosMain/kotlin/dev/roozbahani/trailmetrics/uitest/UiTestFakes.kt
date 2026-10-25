@@ -4,12 +4,14 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.Route
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +49,15 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
     override fun start() = Unit
 
     override fun stop() = Unit
+}
+
+/** Keeps nothing, so no UI test opens the Room database through the session store. */
+internal class UiTestTrackingSessionStore : TrackingSessionStore {
+    override suspend fun save(state: TrackingState) = Unit
+
+    override suspend fun load(): TrackingState? = null
+
+    override suspend fun clear() = Unit
 }
 
 /** Ignores the waypoints and returns [UiTestFixtures.route], counting requests and completions. */

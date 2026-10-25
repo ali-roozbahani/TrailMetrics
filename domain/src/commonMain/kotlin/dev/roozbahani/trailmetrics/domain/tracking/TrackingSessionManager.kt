@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.cancellation.CancellationException
 
 class TrackingSessionManager(
     private val locationRepository: LocationRepository,
@@ -28,6 +31,7 @@ class TrackingSessionManager(
     private val speedCalculator: SpeedCalculator,
     private val clock: Clock,
     private val logger: Logger,
+    private val trackingSessionStore: TrackingSessionStore,
     private val scope: CoroutineScope
 ) {
     private val _state = MutableStateFlow<TrackingState>(TrackingState.Idle)
@@ -38,6 +42,18 @@ class TrackingSessionManager(
 
     private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
+
+    // Serializes the store's writes, and guards [clearedState].
+    private val storeMutex = Mutex()
+
+    // The state that was current when the stored session was cleared: a save of it still pending
+    // in the collector below must not bring the cleared session back.
+    private var clearedState: TrackingState? = null
+
+    init {
+        // Conflation is fine: the path is cumulative, so the latest state holds everything.
+        scope.launch { _state.collect { persist(it) } }
+    }
 
     fun start(startPoint: Coordinates) {
         consecutiveUnavailableCount = 0
@@ -61,6 +77,59 @@ class TrackingSessionManager(
         locationObservationJob?.cancel()
         dispatch(TrackingEvent.Stop(clock.elapsedRealtimeMillis()))
         trackingServiceLauncher.stop()
+    }
+
+    /**
+     * Loads the stored session after the process died and makes it the state: a session that was
+     * [TrackingState.Tracking] or [TrackingState.Paused] comes back [TrackingState.Paused], because a
+     * restored session never records by itself (the gap is not counted and no GPS starts without the
+     * user); a [TrackingState.Finished] one stays finished. No location observation and no service
+     * launch. With no stored session, or when a session is already running, the state is not replaced.
+     */
+    @Throws(Exception::class, CancellationException::class)
+    suspend fun restore(): TrackingState {
+        if (_state.value !is TrackingState.Idle) return _state.value
+        val restored = when (val stored = storeMutex.withLock { trackingSessionStore.load() }) {
+            null, TrackingState.Idle -> TrackingState.Idle
+            is TrackingState.Tracking -> TrackingState.Paused(stored.metrics)
+            is TrackingState.Paused -> stored
+            is TrackingState.Finished -> stored
+        }
+        // A session the user started while the load ran is not replaced.
+        return if (_state.compareAndSet(TrackingState.Idle, restored)) restored else _state.value
+    }
+
+    /**
+     * Removes the stored session once its data is safe elsewhere (saved as an activity) or the user
+     * discarded it. A failure is logged and not thrown: the session is then offered again by the next
+     * restore, which loses nothing.
+     */
+    suspend fun clearSession() {
+        try {
+            storeMutex.withLock {
+                clearedState = _state.value
+                trackingSessionStore.clear()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (expected: Exception) {
+            logger.debug(TAG, "Clearing the stored session failed: $expected")
+        }
+    }
+
+    private suspend fun persist(state: TrackingState) {
+        if (state is TrackingState.Idle) return
+        try {
+            storeMutex.withLock {
+                if (state != clearedState) trackingSessionStore.save(state)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (expected: Exception) {
+            // No user action can fix a failed write, so it is not a locationIssues-style event; the
+            // next state is saved again and tracking goes on.
+            logger.debug(TAG, "Saving the session failed: $expected")
+        }
     }
 
     private fun observeLocation() {

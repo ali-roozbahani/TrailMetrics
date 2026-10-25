@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.fakes.FakeClock
 import dev.roozbahani.trailmetrics.domain.fakes.FakeLocationRepository
 import dev.roozbahani.trailmetrics.domain.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
@@ -32,6 +33,7 @@ class TrackingSessionManagerTest {
     private val clock = FakeClock()
     private val logger = FakeLogger()
     private val trackingService = FakeTrackingServiceLauncher()
+    private val trackingSessionStore = FakeTrackingSessionStore()
     private val point1 = Coordinates(51.336, 12.388)
     private val point2 = Coordinates(51.327, 12.394)
     private val testScheduler = TestCoroutineScheduler()
@@ -48,6 +50,7 @@ class TrackingSessionManagerTest {
             speedCalculator = SpeedCalculator(),
             clock = clock,
             logger = logger,
+            trackingSessionStore = trackingSessionStore,
             scope = testScope
         )
     }

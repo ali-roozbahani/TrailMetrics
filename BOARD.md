@@ -45,14 +45,23 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-session-lost-on-process-death
+### tracking-session-restore-android
 - Type: task
-- Area: domain, data, androidApp, iosApp
-- Order: 20
-- Source: PR for tm-robustness-skill
-- Problem: The in-progress session exists only in `TrackingSessionManager`'s in-memory `MutableStateFlow`. After Android process death `TrackingService` (`START_STICKY`) restarts with a null intent, shows the "Setting up..." notification and observes an `Idle` state with no location collection, so a foreground service runs with nothing to track and the recorded path is gone. After iOS termination the session is gone as well (no persistence, no `scenePhase` handling). Persisting a session needs a design decision (what is stored, how often, restore or discard) that only the owner can make.
-- Done when: the decision is recorded, an in-progress session is restored or ended visibly after process death on Android and termination on iOS, the restarted service never idles with an empty notification, and tests cover the restore path.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt`; `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `tm-robustness` R2, R5.
+- Area: data, androidApp
+- Order: 21
+- Source: PR persist-tracking-session
+- Problem: The in-progress session is now saved (`TrackingSessionStore`, written by `TrackingSessionManager`), but nothing reads it back: after Android process death `TrackingService` (`START_STICKY`) restarts with a null intent, shows the "Setting up..." notification and observes an `Idle` state, so a foreground service runs with nothing to track and the saved session is never offered. Two paths also leave a stopped session stored that the user meant to drop: the notification Stop (`MainActivity.handleStopTrackingIntent` calls `stop()` and pops back, with no `clearSession()`).
+- Done when: on a null-intent restart the service calls `TrackingSessionManager.restore()`; a `Paused` result shows the paused notification and the in-app screen offers resume or finish; with no stored session the service stops itself and never idles with an empty notification; the Tracking screen restores a `Finished` or `Paused` session; the notification Stop clears the stored session; tests cover the restore path.
+- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/app/.../MainActivity.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-robustness` R2.
+
+### tracking-session-restore-ios
+- Type: task
+- Area: iosApp
+- Order: 22
+- Source: PR persist-tracking-session
+- Problem: The in-progress session is now saved by `TrackingSessionManager`, but after iOS termination nothing reads it back (no `scenePhase` handling, no call of `restore()`). The Swift `TrackingViewModel` also saves the activity itself and never calls `clearSession()`, so a session saved as an activity stays stored and would be offered again.
+- Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
+- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
 
 ### route-draft-lost-on-process-death
 - Type: task

@@ -50,6 +50,7 @@ struct TrackingSubject {
             // average speed.
             clock: FakeClock(nowMillis: 0, elapsedRealtimeMillis: 0, stepMillis: 10_000),
             logger: FakeLogger(),
+            trackingSessionStore: FakeTrackingSessionStore(),
             scope: scope
         )
         self.viewModel = TrackingViewModel(

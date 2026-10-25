@@ -19,6 +19,7 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingSessionStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -82,6 +83,7 @@ class TrackingViewModelTest {
             speedCalculator = SpeedCalculator(),
             clock = clock,
             logger = FakeLogger(),
+            trackingSessionStore = FakeTrackingSessionStore(),
             scope = backgroundScope
         )
         val viewModel = TrackingViewModel(

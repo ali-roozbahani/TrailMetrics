@@ -1,8 +1,11 @@
 package dev.roozbahani.trailmetrics.shared.di
 
 import dev.roozbahani.trailmetrics.data.local.dao.ActivityDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
@@ -53,6 +56,17 @@ internal class FakeActivityDao : ActivityDao {
     override suspend fun delete(id: Long) = Unit
 }
 
+internal class FakeTrackingSessionDao : TrackingSessionDao {
+    override suspend fun upsertSession(session: TrackingSessionEntity) = Unit
+    override suspend fun insertPoints(points: List<TrackingSessionPointEntity>) = Unit
+    override suspend fun getSession(): TrackingSessionEntity? = null
+    override suspend fun getPoints(): List<TrackingSessionPointEntity> = emptyList()
+    override suspend fun getPoint(sequence: Int): TrackingSessionPointEntity? = null
+    override suspend fun countPoints(): Int = 0
+    override suspend fun deletePointsFrom(fromSequence: Int) = Unit
+    override suspend fun deleteSession() = Unit
+}
+
 internal class FakeLocationRepository : LocationRepository {
     override suspend fun getCurrentLocation(): Result<Coordinates> = Result.success(Coordinates(0.0, 0.0))
     override fun observeLocationUpdates(): Flow<LocationUpdate> = emptyFlow()
@@ -66,6 +80,7 @@ internal class FakeTrackingServiceLauncher : TrackingServiceLauncher {
 /** The fakes of the pieces both platforms replace: the DAO, the location source and the tracking service. */
 internal val commonFakesModule = module {
     single<ActivityDao> { FakeActivityDao() }
+    single<TrackingSessionDao> { FakeTrackingSessionDao() }
     single<LocationRepository> { FakeLocationRepository() }
     single<TrackingServiceLauncher> { FakeTrackingServiceLauncher() }
 }

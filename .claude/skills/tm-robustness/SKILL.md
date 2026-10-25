@@ -103,8 +103,8 @@ rule that needs it never fires there (see "Mechanical rules").
   prove.
 - **R2** Android: a foreground service restores or restarts the in-progress session after process
   death, or the app tells the user it is gone. Why: `START_STICKY` restarts the service with no
-  state. Example: no example yet; `TrackingSessionManager` keeps the session only in memory and
-  `TrackingService` restarts empty (see deviations). Enforced: reviewer only. Severity: blocking
+  state. Example: no example yet; `TrackingSessionManager` saves the session but nothing restores it
+  yet, and `TrackingService` restarts empty (see deviations). Enforced: reviewer only. Severity: blocking
   when the reviewer verifies in the files the loss of data the user recorded or entered (the
   session, the route draft, a saved activity), important for a likely gap the files cannot prove.
 - **R3** Collect flows in the owner's lifecycle: on Android in composition with
@@ -212,10 +212,11 @@ Don't copy these as a pattern for new code. Each names its board record.
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
   (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
   snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
-- The in-progress tracking session lives only in `TrackingSessionManager`'s in-memory
-  `MutableStateFlow`: after Android process death `TrackingService` (`START_STICKY`) restarts with
-  `Idle` state and no location collection, and after iOS termination the session is gone (R2, R5;
-  `tracking-session-lost-on-process-death`).
+- The in-progress tracking session is saved by `TrackingSessionManager` (`TrackingSessionStore`,
+  Room), but nothing restores it yet: after Android process death `TrackingService`
+  (`START_STICKY`) restarts with `Idle` state and no location collection, and after iOS termination
+  the app does not offer the saved session (R2, R5; `tracking-session-restore-android`,
+  `tracking-session-restore-ios`).
 - The route draft (start point, waypoints, generated route) lives only in `RouteViewModel` and its
   Swift twin (R1; `route-draft-lost-on-process-death`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)
