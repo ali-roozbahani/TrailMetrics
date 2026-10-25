@@ -44,6 +44,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/../local-review-gate.sh"
+PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push|gh[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|$)'
 
 # git_in <dir> <args...>
 git_in() { local d="$1"; shift; git -C "$d" "$@"; }
@@ -70,6 +71,22 @@ targets() {
     # A cd inside a group, a command substitution or an `||` list does not change the directory of
     # the following segments the way a linear reading says, so it counts as unreadable.
     case "$text" in *[\(\)\`]* | *"||"*) grouped=1 ;; esac
+    # A segment that mentions a push or PR creation but whose command is not git / gh (env, bash -c,
+    # xargs, sudo, echo "..."): the pushed ref is hidden from this parser, so it is blocked, whatever
+    # plain pushes the rest of the command has.
+    while IFS= read -r segment; do
+        read -ra tokens <<<"$segment" || true
+        i=0
+        while [ "$i" -lt "${#tokens[@]}" ] && [[ "${tokens[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do i=$((i + 1)); done
+        printf '%s\n' "$segment" | grep -qE "$PUSH_OR_PR_RE" || continue
+        case "${tokens[$i]:-}" in
+            git | */git | gh | */gh) ;;
+            *)
+                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, a quoted string) hides the pushed ref from the local review check; use git push / gh pr create as a plain command"
+                found=1
+                ;;
+        esac
+    done < <(split_segments "$text")
     while IFS= read -r segment; do
         read -ra tokens <<<"$segment" || true
         i=0
@@ -104,7 +121,7 @@ targets() {
                 i=$((i + 1))
                 while [ "$i" -lt "${#tokens[@]}" ]; do
                     case "${tokens[$i]}" in
-                        -C) dir2="${tokens[$((i + 1))]:-.}"; [ "${dir2#/}" != "$dir2" ] || dir2="$dir/$dir2"; i=$((i + 2)) ;;
+                        -C) dir2="${tokens[$((i + 1))]:-.}"; [ "${dir2#/}" != "$dir2" ] || dir2="$cur/$dir2"; i=$((i + 2)) ;;
                         -c) case "${tokens[$((i + 1))]:-}" in alias.*) echo "BLOCK git -c alias.* is not allowed"; found=1 ;; esac; i=$((i + 2)) ;;
                         -*) i=$((i + 1)) ;;
                         *) break ;;
@@ -155,11 +172,6 @@ targets() {
                 ;;
         esac
     done < <(split_segments "$text")
-    # A push or PR creation this parser did not see as a command (env, bash -c, xargs, a quoted
-    # mention): the pushed ref cannot be resolved there, so it is blocked.
-    if [ "$found" = 0 ] && printf '%s\n' "$text" | grep -qE '(^|[^[:alnum:]_-])(git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push|gh[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|$)'; then
-        echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, a quoted string) hides the pushed ref from the local review check; use git push / gh pr create as a plain command"
-    fi
 }
 
 push_targets() {
@@ -382,10 +394,16 @@ self_test() {
     expect "bash -c push is blocked while HEAD is reviewed" 2 "bash -c 'git push'"
     expect "env git push of an unreviewed ref is blocked while HEAD is reviewed" 2 "env git push origin other:x"
     expect "xargs push is blocked while HEAD is reviewed" 2 "echo origin | xargs git push"
+    expect "a plain push followed by a wrapped push to an unreviewed ref blocks" 2 "git push && env git push origin other:x"
+    expect "a plain push then bash -c push blocks" 2 "git push; bash -c 'git push origin other:x'"
+    expect "a wrapped push then a plain push blocks" 2 "env git push origin other:x && git push"
     expect "a mention of gh pr create is blocked while HEAD is reviewed" 2 "env gh pr create --head other"
     # cd / pushd change the directory the refs are resolved in.
     expect "cd to another checkout: its HEAD has no review, blocked" 2 "cd $repo2 && git push"
     expect "cd to a relative checkout: blocked without its review" 2 "cd ../repo2 && git push"
+    expect "cd then git -C . resolves in the new directory: blocked without its review" 2 "cd $repo2 && git -C . push"
+    expect "cd then a relative git -C resolves against the new directory" 2 "cd $tmp && git -C repo2 push"
+    expect "git -C with an absolute path" 2 "git -C $repo2 push"
     expect "pushd to another checkout: blocked without its review" 2 "pushd $repo2 && git push"
     expect "cd to a variable target blocks" 2 'cd "$X" && git push'
     expect "cd ~ blocks" 2 "cd ~ && git push"
@@ -397,6 +415,9 @@ self_test() {
     expect "cd back to the reviewed checkout allows" 0 "cd $repo2 && cd $repo && git push"
     review_in "$repo2" "$sha2"
     expect "cd to another checkout with its review allows" 0 "cd $repo2 && git push"
+    expect "cd then git -C . with the review of that directory allows" 0 "cd $repo2 && git -C . push"
+    expect "cd then a relative git -C with the review allows" 0 "cd $tmp && git -C repo2 push"
+    expect "git -C with an absolute path with its review allows" 0 "git -C $repo2 push"
     expect "cd to a relative checkout with its review allows" 0 "cd ../repo2 && gh pr create"
     expect "push of a ref that does not resolve blocks" 2 "git push origin nosuch:branch"
     expect "push --all blocks" 2 "git push --all origin"
