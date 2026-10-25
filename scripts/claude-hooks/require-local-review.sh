@@ -17,6 +17,11 @@
 # refuses a report whose REVIEWED_SHA differs. It never blocks the subagent (exit 0) and says on
 # stderr what it did.
 #
+# After a reviewer run, `scripts/local-review-gate.sh check <sha>` shows whether its report was
+# recorded (the capture reads the transcript format of Claude Code 2.1.310; if a later version
+# changes it, nothing is recorded and every push is blocked, which is the safe failure: the hook
+# prints why on stderr, and a SubagentStop that records nothing is the first thing to look at).
+#
 # Wire format: as block-git-push.sh (stdin JSON, command at `.tool_input.command`, session
 # directory at `.cwd`; exit 0 = no decision, exit 2 = block with stderr as the reason). Fail
 # closed: a PreToolUse input that mentions a push or a PR creation and cannot be read (no jq, no
@@ -193,7 +198,14 @@ handle_pre_tool_use() {
         # disposition/check are the allowed uses of the script; they do not mention the directory.
         return 2
     fi
-    out="$(targets "${cwd:-$PWD}" "$command")" || true
+    # targets ends its output with END; a run that died before that (unbound variable, bash 3.2
+    # quirk) is a block, not "no push in this command".
+    out="$(targets "${cwd:-$PWD}" "$command"; echo END)" || out=""
+    if [ "$(printf '%s\n' "$out" | tail -n1)" != END ]; then
+        echo "Blocked: could not parse this command to check the local review (internal error in $(basename "${BASH_SOURCE[0]}"))." >&2
+        return 2
+    fi
+    out="$(printf '%s\n' "$out" | sed '$d')"
     [ -n "$out" ] || return 0
     root="$(git -C "${cwd:-$PWD}" rev-parse --show-toplevel 2>/dev/null)" || {
         echo "Blocked: this command pushes or opens a PR but the session directory is not a git work tree, so the local review cannot be checked." >&2
@@ -221,16 +233,31 @@ handle_subagent_stop() {
     local input="$1" agent msg transcript cwd root sha
     agent="$(printf '%s' "$input" | jq -r '.agent_type // empty')"
     [ "$agent" = pr-reviewer ] || return 0
-    msg="$(printf '%s' "$input" | jq -r '.last_assistant_message // empty')"
     transcript="$(printf '%s' "$input" | jq -r '.agent_transcript_path // empty')"
     cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
-    if [ -z "$msg" ] || [ ! -f "$transcript" ]; then
-        echo "local review not recorded: the reviewer's final message or its transcript is missing" >&2
+    if [ ! -f "$transcript" ]; then
+        echo "local review not recorded: the reviewer's transcript is missing" >&2
         return 0
     fi
-    # The SHA the reviewer was started on: the first `SHA: <full sha>` of its transcript is the
-    # first message (the session's four inputs), before anything the reviewer read.
-    sha="$(grep -oE -m1 '(\\n|")SHA: [0-9a-f]{40}([0-9a-f]{24})?' "$transcript" 2>/dev/null | grep -oE '[0-9a-f]{40}([0-9a-f]{24})?$' | head -n1 || true)"
+    # Verified on Claude Code 2.1.310 (2026-10-25): the SubagentStop input has no
+    # `last_assistant_message` for a reviewer that hands its report back; the report is the `message`
+    # input of its last SubagentHandback tool call in the transcript (JSONL). A final plain-text
+    # message is used when that call is absent.
+    msg="$(jq -rs '
+        ([.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use" and .name == "SubagentHandback") | .input.message] | last)
+        // ([.[] | select(.type == "assistant") | .message.content | if type == "array" then map(select(.type == "text") | .text) | join("") else . end] | last)
+        // empty' "$transcript" 2>/dev/null || true)"
+    if [ -z "$msg" ]; then
+        msg="$(printf '%s' "$input" | jq -r '.last_assistant_message // empty')"
+    fi
+    if [ -z "$msg" ]; then
+        echo "local review not recorded: no final report in the reviewer's transcript" >&2
+        return 0
+    fi
+    # The SHA the reviewer was started on: the `SHA: <full sha>` line of the first user message
+    # of its transcript (the session's four inputs), before anything the reviewer read.
+    sha="$(jq -rs '[.[] | select(.type == "user")][0] | .message.content | if type == "array" then map(.text // "") | join("\n") else . end // empty' "$transcript" 2>/dev/null \
+        | grep -E -m1 '^SHA: ([0-9a-f]{40}|[0-9a-f]{64})$' | sed 's/^SHA: //' || true)"
     if [ -z "$sha" ]; then
         echo "local review not recorded: no 'SHA: <full sha>' line in the reviewer's first message" >&2
         return 0
@@ -309,28 +336,38 @@ self_test() {
     git -C "$repo" commit -q --allow-empty -m three
     expect "a new commit needs a new review" 2 "git push"
 
-    # SubagentStop: capture the reviewer's own message.
-    local tr="$tmp/transcript.jsonl" head3
+    # SubagentStop: capture the reviewer's own report. The transcript has the format of Claude Code
+    # 2.1.310: the first user entry holds the session's inputs, the report is the `message` input of
+    # the last SubagentHandback tool call.
+    local tr="$tmp/transcript.jsonl" head3 head4 head5
     head3="$(git -C "$repo" rev-parse HEAD)"
-    printf '{"message":{"role":"user","content":"SHA: %s\\nBASE: %s\\nINPUT_DIR: /x"}}\n' "$head3" "$parent" >"$tr"
-    capture() { # capture <agent_type> <message> <transcript>
-        jq -n --arg t "$1" --arg m "$2" --arg p "$3" --arg d "$repo" \
-            '{hook_event_name:"SubagentStop",agent_type:$t,last_assistant_message:$m,agent_transcript_path:$p,cwd:$d}' | bash "$hook" >/dev/null 2>"$tmp/err"
+    capture() { # capture <agent_type> <run-on sha> <report>
+        jq -nc --arg s "$2" --arg m "$3" \
+            '{type:"user",message:{role:"user",content:("SHA: " + $s + "\nBASE: x\nINPUT_DIR: /x\nTASK: t")}},
+             {type:"assistant",message:{role:"assistant",content:[{type:"tool_use",name:"SubagentHandback",input:{message:$m}}]}}' >"$tr"
+        jq -n --arg t "$1" --arg p "$tr" --arg d "$repo" \
+            '{hook_event_name:"SubagentStop",agent_type:$t,agent_transcript_path:$p,cwd:$d}' | bash "$hook" >/dev/null 2>"$tmp/err"
     }
-    capture pr-reviewer "$(printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nPROTECTED: none\nNo findings.' "$head3")" "$tr" || fails=$((fails + 1))
+    report() { printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nPROTECTED: none\nNo findings.' "$1"; }
+    capture pr-reviewer "$head3" "$(report "$head3")" || fails=$((fails + 1))
     expect "reviewer report captured by SubagentStop allows the push" 0 "git push"
     git -C "$repo" commit -q --allow-empty -m four
-    local head4
     head4="$(git -C "$repo" rev-parse HEAD)"
-    capture pr-reviewer "$(printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nPROTECTED: none\nNo findings.' "$head4")" "$tr" || fails=$((fails + 1))
+    capture pr-reviewer "$head3" "$(report "$head4")" || fails=$((fails + 1))
     expect "forged REVIEWED_SHA (reviewer ran on another commit) is not recorded" 2 "git push"
-    capture pr-reviewer "NO_VERDICT: TREE_NOT_CLEAN" "$tr" || fails=$((fails + 1))
+    capture pr-reviewer "$head4" "NO_VERDICT: TREE_NOT_CLEAN" || fails=$((fails + 1))
     expect "NO_VERDICT is not recorded" 2 "git push"
-    printf '{"message":{"content":"SHA: %s\\n"}}\n' "$head4" >"$tr"
-    capture general-purpose "$(printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nNo findings.' "$head4")" "$tr" || fails=$((fails + 1))
+    capture general-purpose "$head4" "$(report "$head4")" || fails=$((fails + 1))
     expect "another agent type is not recorded" 2 "git push"
-    capture pr-reviewer "$(printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nPROTECTED: none\nNo findings.' "$head4")" "$tr" || fails=$((fails + 1))
+    capture pr-reviewer "$head4" "$(report "$head4")" || fails=$((fails + 1))
     expect "reviewer report on the new commit allows the push" 0 "git push"
+    # A reviewer that ends with plain text instead of a handback call.
+    git -C "$repo" commit -q --allow-empty -m five
+    head5="$(git -C "$repo" rev-parse HEAD)"
+    jq -nc --arg s "$head5" --arg m "$(report "$head5")" \
+        '{type:"user",message:{role:"user",content:("SHA: " + $s + "\nBASE: x")}},{type:"assistant",message:{role:"assistant",content:[{type:"text",text:$m}]}}' >"$tr"
+    jq -n --arg p "$tr" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"pr-reviewer",agent_transcript_path:$p,cwd:$d}' | bash "$hook" >/dev/null 2>&1 || fails=$((fails + 1))
+    expect "a plain final message is recorded too" 0 "git push"
 
     if [ "$fails" -ne 0 ]; then
         echo "require-local-review.sh self-test: $fails failed" >&2

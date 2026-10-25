@@ -391,3 +391,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
+
+### pr-review-skill-omits-review-capture
+- Type: drift
+- Area: docs
+- Order: 249
+- Source: PR for local-review-gate
+- Problem: `.claude/skills/tm-pr-review/SKILL.md`, "Orchestrator's part", step 3 tells the session to record the verdict by writing `.review-verdict` itself and never mentions that `scripts/claude-hooks/require-local-review.sh` now captures the reviewer's own report (SubagentStop) or that `scripts/local-review-gate.sh disposition` records the `[important]` dispositions the push hook requires; step 5 says dispositions go in the PR description only. `tm-pr-review` is a protected path outside this PR's authorization.
+- Done when: step 3 and step 5 say what the capture hook records and that the dispositions are written with `scripts/local-review-gate.sh disposition` before the push, in a PR that may touch `tm-pr-review`.
+- Refs: `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", steps 3 and 5); `scripts/claude-hooks/require-local-review.sh`; `scripts/local-review-gate.sh`.

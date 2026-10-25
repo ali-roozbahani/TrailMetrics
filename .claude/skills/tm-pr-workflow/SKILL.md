@@ -131,9 +131,7 @@ here. Run the script itself, not a hand-picked command.
   run it: go back. A second hook, `scripts/claude-hooks/require-local-review.sh`, also blocks
   `git push` and `gh pr create` unless the reviewer's own report for the commit that would be
   pushed (the pushed ref resolved to a SHA: `git push origin other:branch` needs the review of
-  `other`) was captured when the reviewer finished, has no `[blocking]` finding and has a
-  disposition for every `[important]` one (`scripts/local-review-gate.sh check <sha>` says why
-  not). A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
+  `other`) allows it; "Push and PR" says how to satisfy it. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
   every new commit) is in `tm-pr-review`, "Orchestrator's part".
 
 How it is enforced, and what that means for the order of operations:
@@ -234,9 +232,11 @@ user-visible changes (see #32, #35).
 
 - Before the push: run the reviewer on the final commit, fix, review again, then write the
   dispositions (`scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`, one
-  argument per `[important]` finding in report order). `require-local-review.sh` refuses the push
-  and `gh pr create` otherwise and prints the reason; report that reason, never work around the
-  hook (no `git -c`, no alias, no editing the settings).
+  argument per `[important]` finding in report order). The hook allows the push and
+  `gh pr create` only for a report of exactly that commit with no `[blocking]` finding (verdict
+  `APPROVE`, or `ESCALATE_TO_HUMAN`) and a disposition for every `[important]` one;
+  `scripts/local-review-gate.sh check <sha>` says why not. Report the hook's reason when it
+  blocks, never work around it (no `git -c`, no alias, no editing the settings).
 - Push the branch you created (`git push -u origin <branch>`), then open the PR against
   `main` with `gh pr create --base main`. `gh` must be logged in as an account with write
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
