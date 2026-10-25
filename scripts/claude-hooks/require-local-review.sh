@@ -20,7 +20,12 @@
 # SubagentStop (matcher "pr-reviewer"): records the reviewer's final report (the `message` of its
 # last SubagentHandback call in `.agent_transcript_path`) with `local-review-gate.sh record`, keyed by the SHA the reviewer was
 # started on (the `SHA:` line of its first message, read from `.agent_transcript_path`); the gate
-# refuses a report whose REVIEWED_SHA differs. It never blocks the subagent (exit 0) and says on
+# refuses a report whose REVIEWED_SHA differs. The transcript is read line by line (a line that is
+# not valid JSON is skipped) and polled every 0.25 s until the report appears or
+# LOCAL_REVIEW_CAPTURE_WAIT_SECONDS (default 10) are over, because the hook can run before the
+# handback line is flushed; a wait that ends with no report says the lines read, the type of the last
+# parseable line and the time waited, and writes the input's keys and paths to
+# ~/agent-workspace/hook-debug (newest 10 kept). It never blocks the subagent (exit 0) and says on
 # stderr what it did.
 #
 # After a reviewer run, `scripts/local-review-gate.sh check <sha>` shows whether its report was
@@ -306,6 +311,30 @@ handle_pre_tool_use() {
     return 0
 }
 
+# The transcript is read line by line: a line that is not valid JSON (a half-written last line) is
+# skipped, so it cannot empty the result.
+transcript_entries() { jq -R 'fromjson? // empty' "$1" 2>/dev/null || true; }
+
+transcript_report() {
+    transcript_entries "$1" | jq -rs '
+        ([.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use" and .name == "SubagentHandback") | .input.message] | last)
+        // ([.[] | select(.type == "assistant") | .message.content | if type == "array" then map(select(.type == "text") | .text) | join("") else . end | select(type == "string" and test("^(NO_)?VERDICT: "))] | last)
+        // empty' 2>/dev/null || true
+}
+
+# The hook input (keys and paths, never the report text) for a capture that found no report, in
+# ~/agent-workspace/hook-debug (not the records directory); the newest 10 files are kept.
+write_capture_debug() { # write_capture_debug <input> <transcript> <lines> <last type> <waited>
+    local dir="$HOME/agent-workspace/hook-debug" f
+    f="$dir/subagent-stop-$(date +%Y%m%dT%H%M%S)-$$.json"
+    {
+        mkdir -p "$dir" \
+            && printf '%s' "$1" | jq --arg lines "$3" --arg last "$4" --arg waited "$5" \
+                '{keys: keys, paths: (to_entries | map(select(.key | test("path|cwd|dir"; "i"))) | from_entries), transcript_lines: ($lines | tonumber? // 0), last_parseable_type: $last, waited_seconds: ($waited | tonumber? // 0)}' > "$f" \
+            && { ls -1t "$dir"/subagent-stop-*.json 2>/dev/null | tail -n +11 | while IFS= read -r old; do rm -f -- "$old"; done; }
+    } 2>/dev/null || true
+}
+
 handle_subagent_stop() {
     local input="$1" agent msg transcript cwd root sha
     agent="$(printf '%s' "$input" | jq -r '.agent_type // empty')"
@@ -319,12 +348,25 @@ handle_subagent_stop() {
     # Verified on Claude Code 2.1.310 (2026-10-25): the SubagentStop input has no
     # `last_assistant_message` for a reviewer that hands its report back; the report is the `message`
     # input of its last SubagentHandback tool call in the transcript (JSONL). A final plain-text
-    # message is used when that call is absent.
-    msg="$(jq -rs '
-        ([.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use" and .name == "SubagentHandback") | .input.message] | last)
-        // ([.[] | select(.type == "assistant") | .message.content | if type == "array" then map(select(.type == "text") | .text) | join("") else . end] | last)
-        // empty' "$transcript" 2>/dev/null || true)"
+    # message that starts like a report is used when that call is absent. The hook can run before
+    # the handback line is flushed, so it polls the transcript until a report appears or the wait
+    # (LOCAL_REVIEW_CAPTURE_WAIT_SECONDS, default 10; it only sets the wait) is over.
+    local wait_s polls=0 max_polls waited lines last_type
+    wait_s="${LOCAL_REVIEW_CAPTURE_WAIT_SECONDS:-10}"
+    case "$wait_s" in ''|*[!0-9.]*|*.*.*) wait_s=10 ;; esac
+    max_polls="$(awk -v w="$wait_s" 'BEGIN { printf "%d", w * 4 }')"
+    msg="$(transcript_report "$transcript")"
+    while [ -z "$msg" ] && [ "$polls" -lt "$max_polls" ]; do
+        sleep 0.25
+        polls=$((polls + 1))
+        msg="$(transcript_report "$transcript")"
+    done
     if [ -z "$msg" ]; then
+        waited="$(awk -v n="$polls" 'BEGIN { printf "%.2f", n * 0.25 }')"
+        lines="$(grep -c '' "$transcript" 2>/dev/null || true)"
+        last_type="$(transcript_entries "$transcript" | jq -r '.type // "none"' 2>/dev/null | tail -n 1)"
+        echo "local review: no report in the reviewer's transcript after waiting ${waited}s (lines read: ${lines:-0}, type of the last parseable line: ${last_type:-none})" >&2
+        write_capture_debug "$input" "$transcript" "${lines:-0}" "${last_type:-none}" "$waited"
         msg="$(printf '%s' "$input" | jq -r '.last_assistant_message // empty')"
     fi
     if [ -z "$msg" ]; then
@@ -333,7 +375,7 @@ handle_subagent_stop() {
     fi
     # The SHA the reviewer was started on: the `SHA: <full sha>` line of the first user message
     # of its transcript (the session's four inputs), before anything the reviewer read.
-    sha="$(jq -rs '[.[] | select(.type == "user")][0] | .message.content | if type == "array" then map(.text // "") | join("\n") else . end // empty' "$transcript" 2>/dev/null \
+    sha="$(transcript_entries "$transcript" | jq -rs '[.[] | select(.type == "user")][0] | .message.content | if type == "array" then map(.text // "") | join("\n") else . end // empty' 2>/dev/null \
         | grep -E -m1 '^SHA: ([0-9a-f]{40}|[0-9a-f]{64})$' | sed 's/^SHA: //' || true)"
     if [ -z "$sha" ]; then
         echo "local review not recorded: no 'SHA: <full sha>' line in the reviewer's first message" >&2
@@ -525,6 +567,60 @@ self_test() {
         '{type:"user",message:{role:"user",content:("SHA: " + $s + "\nBASE: x")}},{type:"assistant",message:{role:"assistant",content:[{type:"text",text:$m}]}}' >"$tr"
     jq -n --arg p "$tr" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"pr-reviewer",agent_transcript_path:$p,cwd:$d}' | bash "$hook" >/dev/null 2>&1 || fails=$((fails + 1))
     expect "a plain final message is recorded too" 0 "git push"
+
+    # The report may reach the transcript after the hook starts (SubagentStop can run before the
+    # handback line is flushed). Each case runs on a new commit so an earlier record cannot allow it.
+    local pre hb cut t0 elapsed n dbg
+    pre="$tmp/pre.jsonl"
+    new_head() { git -C "$repo" commit -q --allow-empty -m "$1"; git -C "$repo" rev-parse HEAD; }
+    stop_input() { jq -n --arg p "$tr" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"pr-reviewer",agent_transcript_path:$p,cwd:$d,session_id:"s1",last_assistant_message:null}'; }
+    prepare() { # prepare <sha>: the transcript so far (the first user entry and a tool call), no report; hb = the handback line
+        jq -nc --arg s "$1" '{type:"user",message:{role:"user",content:("SHA: " + $s + "\nBASE: x\nINPUT_DIR: /x\nTASK: t")}},
+            {type:"assistant",message:{role:"assistant",content:[{type:"tool_use",name:"Read",input:{file_path:"/x"}}]}}' >"$tr"
+        hb="$(jq -nc --arg m "$(report "$1")" '{type:"assistant",message:{role:"assistant",content:[{type:"tool_use",name:"SubagentHandback",input:{message:$m}}]}}')"
+    }
+    # 1. the handback line is appended 1.5 s after the hook starts
+    head5="$(new_head six)"; prepare "$head5"
+    ( sleep 1.5; printf '%s\n' "$hb" >>"$tr" ) &
+    t0=$SECONDS
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=8 bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
+    wait
+    expect "a handback appended 1.5 s after the hook starts is recorded" 0 "git push"
+    # 2. the file ends in a half-written line that is completed after 1 s
+    head5="$(new_head seven)"; prepare "$head5"
+    cut=$((${#hb} / 2))
+    printf '%s' "${hb:0:cut}" >>"$tr"
+    ( sleep 1; printf '%s\n' "${hb:cut}" >>"$tr" ) &
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=8 bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
+    wait
+    expect "a half-written last line that is completed later is recorded" 0 "git push"
+    # 3. the report never arrives: the hook waits the configured time, exits 0, records nothing, says the numbers
+    head5="$(new_head eight)"; prepare "$head5"
+    mkdir -p "$tmp/agent-workspace/hook-debug"
+    for n in 1 2 3 4 5 6 7 8 9 10 11 12; do echo '{}' > "$tmp/agent-workspace/hook-debug/subagent-stop-2000010${n}T000000-$n.json"; touch -t "20000101000$((n % 10))" "$tmp/agent-workspace/hook-debug/subagent-stop-2000010${n}T000000-$n.json"; done
+    rc=0; t0=$SECONDS
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=2 bash "$hook" >/dev/null 2>"$tmp/err" || rc=$?
+    elapsed=$((SECONDS - t0))
+    if [ "$rc" = 0 ] && [ "$elapsed" -ge 2 ] && [ "$elapsed" -lt 6 ] && grep -q 'after waiting 2' "$tmp/err" && grep -q 'lines read: 2' "$tmp/err" && grep -q 'type of the last parseable line: assistant' "$tmp/err"; then
+        echo "ok   a report that never arrives: waited ${elapsed}s, exit 0, numbers on stderr"
+    else
+        echo "FAIL a report that never arrives: rc=$rc elapsed=${elapsed}s stderr: $(head -c 300 "$tmp/err")" >&2; fails=$((fails + 1))
+    fi
+    expect "a report that never arrives records nothing" 2 "git push"
+    dbg="$(ls -1 "$tmp"/agent-workspace/hook-debug/subagent-stop-*.json 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "$dbg" = 10 ] && ! grep -rq 'VERDICT' "$tmp/agent-workspace/hook-debug" && grep -lq '"keys"' "$tmp"/agent-workspace/hook-debug/*.json; then
+        echo "ok   the debug file is written without report text and the newest 10 are kept"
+    else
+        echo "FAIL the debug file: $dbg files kept, expected 10 with keys and no report text" >&2; fails=$((fails + 1))
+    fi
+    # 4. the report is already there (and the file ends in a half-written line): no waiting
+    head5="$(new_head nine)"; prepare "$head5"
+    printf '%s\n%s' "$hb" '{"type":"assistant","mess' >>"$tr"
+    t0=$SECONDS
+    stop_input | LOCAL_REVIEW_CAPTURE_WAIT_SECONDS=8 bash "$hook" >/dev/null 2>"$tmp/err" || fails=$((fails + 1))
+    elapsed=$((SECONDS - t0))
+    if [ "$elapsed" -lt 3 ]; then echo "ok   a report already there is read without waiting (${elapsed}s)"; else echo "FAIL a report already there waited ${elapsed}s" >&2; fails=$((fails + 1)); fi
+    expect "a report already there (bad last line skipped) is recorded" 0 "git push"
 
     if [ "$fails" -ne 0 ]; then
         echo "require-local-review.sh self-test: $fails failed" >&2
