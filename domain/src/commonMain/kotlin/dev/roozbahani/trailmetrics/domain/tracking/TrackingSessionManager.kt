@@ -162,6 +162,7 @@ class TrackingSessionManager(
      * then [clearSession]. The clear is not cancelled with the caller, because a half-done clear keeps the
      * session, and the caller (a screen that is left, an Activity that is recreated) is often gone by then.
      */
+    @Throws(Exception::class, CancellationException::class)
     suspend fun discard() {
         if (_state.value !is TrackingState.Finished) stop()
         withContext(NonCancellable) { clearSession() }
