@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import dev.roozbahani.trailmetrics.data.R
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,8 @@ class TrackingService : Service(), KoinComponent {
 
     private val trackingSessionManager by inject<TrackingSessionManager>()
 
+    private val logger by inject<Logger>()
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var trackingStateObservationJob: Job? = null
@@ -36,19 +39,51 @@ class TrackingService : Service(), KoinComponent {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, buildNotification(TrackingState.Idle))
-        observeTrackingState()
+        if (intent == null) {
+            // The system restarted the service after the process died: there is nothing to observe until
+            // the stored session is restored, and it may turn out there is nothing at all.
+            restoreAfterRestart()
+        } else {
+            getSystemService(NotificationManager::class.java).cancel(RESTORED_NOTIFICATION_ID)
+            observeTrackingState()
+        }
 
         return START_STICKY
     }
 
-    private fun observeTrackingState() {
+    private fun restoreAfterRestart() {
         trackingStateObservationJob?.cancel()
         trackingStateObservationJob = serviceScope.launch {
-            trackingSessionManager.currentState.collect { state ->
-                val notification = buildNotification(state)
-                val notificationManager = getSystemService(NotificationManager::class.java)
-                notificationManager.notify(NOTIFICATION_ID, notification)
-            }
+            handleRestart(trackingSessionManager::restore, logger, restartEffects)
+        }
+    }
+
+    private val restartEffects = object : RestartEffects {
+        override fun stopService() {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+
+        override fun leaveNotice(text: String) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            getSystemService(NotificationManager::class.java)
+                .notify(RESTORED_NOTIFICATION_ID, buildRestoredNotification(text))
+            stopSelf()
+        }
+
+        override suspend fun keepTracking() = collectTrackingState()
+    }
+
+    private fun observeTrackingState() {
+        trackingStateObservationJob?.cancel()
+        trackingStateObservationJob = serviceScope.launch { collectTrackingState() }
+    }
+
+    private suspend fun collectTrackingState() {
+        trackingSessionManager.currentState.collect { state ->
+            val notification = buildNotification(state)
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.notify(NOTIFICATION_ID, notification)
         }
     }
 
@@ -56,6 +91,8 @@ class TrackingService : Service(), KoinComponent {
         super.onDestroy()
         serviceScope.cancel()
 
+        // Only the foreground notification: RESTORED_NOTIFICATION_ID outlives the service on purpose, it is
+        // the one a restart leaves for the user to tap.
         // Explicitly cancel the notification to guard against a race condition
         // where a state update calls notify() right around service teardown,
         // leaving a stale notification behind that the system doesn't auto-remove.
@@ -98,10 +135,7 @@ class TrackingService : Service(), KoinComponent {
     // backgrounded, or not running at all. MainActivity looks for ACTION_STOP_TRACKING to
     // drive both the stop call and the navigation.
     private fun buildStopPendingIntent(): PendingIntent {
-        val launchIntent = checkNotNull(packageManager.getLaunchIntentForPackage(packageName)) {
-            "No launcher Activity found for $packageName"
-        }
-        val stopIntent = launchIntent.apply {
+        val stopIntent = launchIntent().apply {
             action = ACTION_STOP_TRACKING
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -112,9 +146,31 @@ class TrackingService : Service(), KoinComponent {
         )
     }
 
+    // The notice a restart leaves behind: a normal notification that opens the app through its launcher
+    // intent, where the stored session is offered. It is not ongoing and goes away when tapped.
+    private fun buildRestoredNotification(text: String): Notification {
+        val openApp = PendingIntent.getActivity(
+            this, 1, launchIntent(), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("TrailMetrics")
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_notif_location)
+            .setContentIntent(openApp)
+            .setAutoCancel(true)
+            .build()
+    }
+
+    private fun launchIntent(): Intent = checkNotNull(packageManager.getLaunchIntentForPackage(packageName)) {
+        "No launcher Activity found for $packageName"
+    }
+
     companion object {
         const val ACTION_STOP_TRACKING = "dev.roozbahani.trailmetrics.action.STOP_TRACKING"
         private const val NOTIFICATION_ID: Int = 1
+
+        // Different from NOTIFICATION_ID, so onDestroy's cancel of the foreground notification cannot remove it.
+        internal const val RESTORED_NOTIFICATION_ID: Int = 2
         private const val CHANNEL_ID = "tracking_channel"
     }
 }

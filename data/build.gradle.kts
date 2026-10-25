@@ -34,7 +34,9 @@ kotlin {
         androidResources {
             enable = true
         }
-        withHostTestBuilder {}.configure {}
+        withHostTestBuilder {}.configure {
+            isIncludeAndroidResources = true
+        }
     }
 
     iosArm64()
