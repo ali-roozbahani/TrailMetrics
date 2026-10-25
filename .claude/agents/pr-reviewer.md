@@ -2,7 +2,7 @@
 name: pr-reviewer
 description: Read-only pre-push reviewer for TrailMetrics. Judges one committed HEAD against its task and the repo rules and returns APPROVE, CHANGES, ESCALATE_TO_HUMAN or NO_VERDICT. Started by the implementing session as described in the tm-pr-review skill, never for anything else.
 tools: Read, Grep, Glob
-model: inherit
+model: claude-sonnet-5-5
 skills:
   - tm-pr-review
   - tm-pr-workflow

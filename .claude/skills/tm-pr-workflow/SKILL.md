@@ -230,7 +230,7 @@ user-visible changes (see #32, #35).
 
 ## Push and PR
 
-- Before the push: run the reviewer on the final commit, fix, review again, then write the
+- Before the push: draft the PR description, run the reviewer on the final commit, fix, review again, then write the
   dispositions (`scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`, one
   argument per `[important]` finding in report order). The hook allows the push and
   `gh pr create` only for a report of exactly that commit with no `[blocking]` finding (verdict
@@ -254,7 +254,12 @@ user-visible changes (see #32, #35).
 
 ### PR description
 
-Required. Use these headings, and keep all four even when one is
+Required. Draft it at `~/agent-workspace/pr-body-<slug>.md` before the local review, without
+`Reviewer findings`: it is the local reviewer's `TASK` (`scripts/review-task.sh <draft>`), as it
+is CI's, and it is the file the PR is created with (an optional `Title:` first line and the blank
+line below it are dropped). A `Board: -slug` line brings that record's Problem and Done when to the
+reviewer; a task with no record states its Task and Scope in "What changed". `Reviewer findings` is
+added after the reviews. Use these headings, and keep all four even when one is
 "nothing to check":
 
 1. **What changed**: the diff in reviewer terms, including what was deliberately *not*

@@ -3,7 +3,10 @@
 # .github/workflows/pr-review.yml, taken from the committed file, against a stub `claude` CLI,
 # one scenario per fixture in scripts/check-pr-review-workflow-fixtures/scenarios/, and its
 # "Rule changes from the base" script in scratch git repositories, one case per fixture in
-# scripts/check-pr-review-workflow-fixtures/rule-changes/. Gate and CI step.
+# scripts/check-pr-review-workflow-fixtures/rule-changes/. It also runs the TASK-building lines of
+# its "Build review inputs" script and scripts/review-task.sh on the fixtures in
+# scripts/check-pr-review-workflow-fixtures/review-task/ and fails when their output differs, and
+# fails when .claude/agents/pr-reviewer.md names another model than REVIEW_MODEL. Gate and CI step.
 #
 #   scripts/check-pr-review-workflow.sh --self-test                    the committed workflow
 #   scripts/check-pr-review-workflow.sh --self-test --workflow <file>  another copy of it

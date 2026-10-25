@@ -381,14 +381,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: audit 61 has compared the local and the CI reviewer on this diff and decided whether a concurrency-specific checklist item or a fixed `TASK` input (the local run got the PR title and description as of the commit, the CI run gets the final description) closes the gap, and the chosen change is done or the record is deleted.
 - Refs: `.claude/skills/tm-robustness/SKILL.md` (D7); `.claude/skills/tm-pr-review/SKILL.md` (item 15); PR #219.
 
-### local-review-capture-misses-headless-runs
+### local-reviewer-reads-working-tree-rules
 - Type: task
-- Area: scripts
+- Area: skills
 - Order: 280
-- Source: PR for tm-robustness-d7-main-actor-task (owner decision: audit 61)
-- Problem: The capture in `scripts/claude-hooks/require-local-review.sh` is a `SubagentStop` hook, so it sees only a reviewer run as a subagent. `tm-pr-review`, "Orchestrator's part", step 2 also allows a headless start (`claude -p --agent pr-reviewer`), which is a separate process: nothing is recorded, and the push hook then blocks a push that the owner meant to allow. The earlier failures of reviewers started with the Agent tool (#233 `e0531a7` and `f2ca579`; `d8fca54` and `cf7cc7e` on `chore/robustness-d7-main-actor-task`; three more runs on 2.1.310) had another cause, now fixed by PR for review-capture-wait-for-report: the hook read the transcript before the `SubagentHandback` line was flushed (or while the last line was half written, which made `jq -s` fail) and found no report. The hook now polls the transcript until the report appears (`LOCAL_REVIEW_CAPTURE_WAIT_SECONDS`, default 10), skips a line that is not valid JSON, and on a miss says the lines read, the last line type and the wait, and writes its input to `~/agent-workspace/hook-debug`. What remains is the headless start, which nothing records. `tm-pr-review` and the hook are protected paths.
-- Done when: one launch path records, either by making the Agent tool the only documented start or by a wrapper script that starts the headless reviewer and records its own stdout with the gate, decided in audit 61.
-- Refs: `scripts/claude-hooks/require-local-review.sh` (header, SubagentStop); `scripts/local-review-gate.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", step 2); PR #233.
+- Source: PR for review-task-rehearsal (task 61a, decision 5)
+- Problem: The local `pr-reviewer` reads the PR's own `.claude/` and `CLAUDE.md` files from the working tree, while CI's reviewer reads the base's copies (the "Build review inputs" step replaces them), so a PR that edits a skill is judged by the edited skill locally and by the old one in CI. It showed on #234: rule D7 was visible only locally. The `TASK` header that `scripts/review-task.sh` prints repeats CI's sentence that the working tree holds the base's copies, which is not true for a local run. This is an owner decision, not a same-subject fix.
+- Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
+- Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
 ## Drift
 
@@ -418,15 +418,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two lists of the skills do not name them all. `README.md` ("`.claude/skills/`") and `docs/architecture/OVERVIEW.md` ("`.claude/skills/`") list `tm-kmp-shared`, `tm-android`, `tm-ios`, `tm-testing`, `tm-pr-workflow` and `epic-orchestration`, and omit `tm-agent-loop`, `tm-pr-review` and `tm-robustness`. `docs/architecture/` is protected and outside this PR's authorization, and the omission of the first two predates it.
 - Done when: both lists name every skill folder under `.claude/skills/`, in a PR that may touch `docs/architecture/`.
 - Refs: `README.md` (documentation list); `docs/architecture/OVERVIEW.md` (`.claude/skills/` line).
-
-### pr-review-skill-omits-review-capture
-- Type: drift
-- Area: docs
-- Order: 249
-- Source: PR for local-review-gate
-- Problem: `.claude/skills/tm-pr-review/SKILL.md`, "Orchestrator's part", step 3 tells the session to record the verdict by writing `.review-verdict` itself and never mentions that `scripts/claude-hooks/require-local-review.sh` now captures the reviewer's own report (SubagentStop) or that `scripts/local-review-gate.sh disposition` records the `[important]` dispositions the push hook requires; step 5 says dispositions go in the PR description only. `tm-pr-review` is a protected path outside this PR's authorization.
-- Done when: step 3 and step 5 say what the capture hook records and that the dispositions are written with `scripts/local-review-gate.sh disposition` before the push, in a PR that may touch `tm-pr-review`.
-- Refs: `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part", steps 3 and 5); `scripts/claude-hooks/require-local-review.sh`; `scripts/local-review-gate.sh`.
 
 ### snapshot-saver-doc-claims-wrong-isolation
 - Type: drift
