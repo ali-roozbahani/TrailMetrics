@@ -12,9 +12,12 @@
 # `REVIEWED_SHA: <full sha>` and that sha equals <run-on-sha> (the sha the reviewer was started on,
 # which the hook reads from the reviewer's own transcript) and names a commit of this repository.
 # The [blocking] and [important] counts are parsed here from the numbered finding lines
-# (`<n>. [blocking]`, `<n>. [important]`), never given by the caller. `check` also counts every line
-# that has `[blocking]` or `[important]` anywhere; when that differs from the numbered lines it
-# blocks ("a finding line the gate cannot parse"), so a finding in another format never counts as zero.
+# (`<n>. [blocking]`, `<n>. [important]`), never given by the caller. `check` also blocks on any line
+# that mentions `[blocking]` or `[important]` and is not a numbered finding line (`<n>. [blocking]`,
+# `<n>. [important]` or `<n>. [note]` at the start, leading spaces allowed): a bullet, a heading or
+# prose ("a finding line the gate cannot parse"), so a finding in another format never counts as
+# zero. A numbered `[note]` that quotes a tag in its text is fine; a numbered `[blocking]` line that
+# quotes `[important]` is one blocking finding.
 #
 # `check <sha>` allows when the recorded review of exactly that sha has verdict APPROVE, or
 # ESCALATE_TO_HUMAN, with zero [blocking] findings, and every [important] finding has a
@@ -71,10 +74,10 @@ cmd_record() {
     echo "recorded ${run_on:0:12}: $verdict, blocking $(count_tag "$dir/report" blocking), important $(count_tag "$dir/report" important)"
 }
 
-# count_loose <file>: lines with [blocking] or [important] anywhere in them.
-count_loose() {
+# count_unparsed <file>: lines that mention [blocking] or [important] and are not a numbered finding line.
+count_unparsed() {
     local n
-    n="$(grep -cE '\[(blocking|important)\]' "$1" || true)"
+    n="$(grep -E '\[(blocking|important)\]' "$1" | grep -vcE '^[[:space:]]*[0-9]+\.[[:space:]]+\[(blocking|important|note)\]' || true)"
     echo "${n:-0}"
 }
 
@@ -130,7 +133,7 @@ cmd_disposition() {
 block() { echo "Blocked: $*" >&2; exit 1; }
 
 cmd_check() {
-    local sha="${1:-}" dir report verdict reviewed blocking imp lines want got line n=0
+    local sha="${1:-}" dir report verdict reviewed blocking imp unparsed lines want got line n=0
     [[ "$sha" =~ $SHA_RE ]] || die "check: usage: check <full sha>"
     dir="$REVIEWS_DIR/$sha"
     report="$dir/report"
@@ -146,8 +149,9 @@ cmd_check() {
     [ "$verdict" != CHANGES ] || block "the local review of ${sha:0:12} is CHANGES. Fix the findings as a new commit and review the new HEAD."
     blocking="$(count_tag "$report" blocking)"
     imp="$(count_tag "$report" important)"
-    [ "$(count_loose "$report")" -eq $((blocking + imp)) ] \
-        || block "the local review of ${sha:0:12} has a finding line the gate cannot parse: $(count_loose "$report") line(s) mention [blocking] or [important], $((blocking + imp)) are numbered '<n>. [tag]' findings. Ask the reviewer again, in the report format of tm-pr-review."
+    unparsed="$(count_unparsed "$report")"
+    [ "$unparsed" -eq 0 ] \
+        || block "the local review of ${sha:0:12} has a finding line the gate cannot parse: $unparsed line(s) mention [blocking] or [important] without being a numbered finding line ('<n>. [blocking]', '<n>. [important]' or '<n>. [note]'). Ask the reviewer again, in the report format of tm-pr-review."
     [ "$blocking" -eq 0 ] || block "the local review of ${sha:0:12} has $blocking [blocking] finding(s). Fix them as a new commit and review the new HEAD."
     if [ "$imp" -gt 0 ]; then
         [ -f "$dir/dispositions" ] || block "the local review of ${sha:0:12} has $imp [important] finding(s) and no dispositions are recorded. Run: scripts/local-review-gate.sh disposition ${sha} '<fixed in <sha> | board record <slug> | rejected: <reason>>' ... ($imp arguments, in report order)."
@@ -256,6 +260,10 @@ self_test() {
     reset; rec bullet-blocking "$sha" "$sha" >/dev/null; run "a bullet-formatted [blocking] finding blocks" 1 chk "$sha"
     reset; rec bullet-important "$sha" "$sha" >/dev/null; run "a bullet-formatted [important] finding blocks" 1 chk "$sha"
     reset; rec prose-mention "$sha" "$sha" >/dev/null; run "a prose line mentioning a tag blocks" 1 chk "$sha"
+    reset; rec prose-no-findings "$sha" "$sha" >/dev/null; run "the prose line 'No [blocking] findings.' blocks" 1 chk "$sha"
+    reset; rec note-quotes-blocking "$sha" "$sha" >/dev/null; run "a numbered [note] that quotes [blocking] allows" 0 chk "$sha"
+    reset; out="$(rec blocking-quotes-important "$sha" "$sha")"
+    case "$out" in *"blocking 1, important 0") echo "ok   a numbered [blocking] line that quotes [important] is counted once, as blocking" ;; *) echo "FAIL blocking line quoting [important] is not counted once: $out" >&2; fails=$((fails + 1)) ;; esac
     [ -f "$LOCAL_REVIEWS_DIR/$sha/report" ] && echo "ok   records are kept" || { echo "FAIL records are kept" >&2; fails=$((fails + 1)); }
 
     if [ "$fails" -ne 0 ]; then
