@@ -45,15 +45,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-session-restore-android
-- Type: task
-- Area: data, androidApp
-- Order: 21
-- Source: PR persist-tracking-session
-- Problem: `TrackingViewModel` restores the stored session when its screen is created (paused or finished, Start only in `Idle`), and the service restart (null intent) now restores it and leaves a "Paused"/"Finished" notification, whose tap opens the app. What is left: the app start does not offer that session. `MainActivity` starts at the route screen and nothing navigates to the Tracking screen with the stored `sessionDetails.activityType` (the screen still takes the type from its navigation argument and uses it for calories and the saved activity).
-- Done when: on app start a stored `Paused` or `Finished` session with a non-empty path is offered once, as a navigation to the Tracking screen with the stored `sessionDetails.activityType` (the default type when none is stored), and not when the back stack is already on that screen; tests cover the offer and the navigation.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `sessionDetails`); `androidApp/app/.../MainActivity.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-robustness` R2.
-
 ### tracking-session-restore-ios
 - Type: task
 - Area: iosApp
