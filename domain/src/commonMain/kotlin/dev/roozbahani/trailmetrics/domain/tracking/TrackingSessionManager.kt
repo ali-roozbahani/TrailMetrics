@@ -59,6 +59,10 @@ class TrackingSessionManager(
     // in the collector below must not bring the cleared session back.
     private var clearedState: TrackingState? = null
 
+    // Set when a Finished session was discarded from memory: a row left behind by a failed clear is for
+    // the next process to restore, not this one, or the saved session would come back as a Finished card.
+    private val isSessionDiscarded = MutableStateFlow(false)
+
     init {
         // Conflation is fine: the path is cumulative, so the latest state holds everything.
         scope.launch { _state.collect { persist(it) } }
@@ -99,7 +103,7 @@ class TrackingSessionManager(
      */
     @Throws(Exception::class, CancellationException::class)
     suspend fun restore(): TrackingState {
-        if (_state.value !is TrackingState.Idle) return _state.value
+        if (_state.value !is TrackingState.Idle || isSessionDiscarded.value) return _state.value
         val stored = storeMutex.withLock { trackingSessionStore.load() }
         val restored = when (val storedState = stored?.state) {
             null, TrackingState.Idle -> TrackingState.Idle
@@ -118,28 +122,31 @@ class TrackingSessionManager(
     /**
      * Removes the stored session once its data is safe elsewhere (saved as an activity) or the user
      * discarded it, and returns a [TrackingState.Finished] session to [TrackingState.Idle] (with no
-     * [sessionDetails]) so the next session can start. A running or paused session keeps its state. A
-     * failure is logged and not thrown: the session then stays as it is and is offered again by the
-     * next restore, which loses nothing.
+     * [sessionDetails]) so the next session can start. A running or paused session keeps its state.
+     * The in-memory session is discarded even when the store fails: that failure is logged and not
+     * thrown, and the next process's restore offers the stored row again, which loses nothing; this
+     * manager's own [restore] no longer does.
      */
     suspend fun clearSession() {
+        var clearing: TrackingState = TrackingState.Idle
         try {
             storeMutex.withLock {
-                val clearing = _state.value
+                clearing = _state.value
                 clearedState = clearing
                 trackingSessionStore.clear()
-                // Compare-and-set: a session started while the clear ran is not touched.
-                if (clearing is TrackingState.Finished) {
-                    val details = _sessionDetails.value
-                    if (_state.compareAndSet(clearing, TrackingState.Idle)) {
-                        _sessionDetails.compareAndSet(details, null)
-                    }
-                }
             }
         } catch (e: CancellationException) {
             throw e
         } catch (expected: Exception) {
             logger.debug(TAG, "Clearing the stored session failed: $expected")
+        }
+        // Compare-and-set: a session started while the clear ran is not touched.
+        if (clearing is TrackingState.Finished) {
+            val details = _sessionDetails.value
+            if (_state.compareAndSet(clearing, TrackingState.Idle)) {
+                isSessionDiscarded.value = true
+                _sessionDetails.compareAndSet(details, null)
+            }
         }
     }
 

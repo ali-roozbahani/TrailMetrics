@@ -339,15 +339,55 @@ class TrackingSessionManagerPersistenceTest {
     }
 
     @Test
-    fun `a failing clear keeps the Finished session and its details`() = runTest(testScheduler) {
+    fun `a failing clear still returns a Finished session to Idle and a second session can start`() =
+        runTest(testScheduler) {
+            manager.start(point1, ActivityType.Running)
+            manager.stop()
+            testScheduler.runCurrent()
+            store.clearFailure = IllegalStateException("disk full")
+
+            manager.clearSession()
+            testScheduler.runCurrent()
+
+            assertEquals(TrackingState.Idle, manager.currentState.value)
+            assertNull(manager.sessionDetails.value)
+            assertTrue(logger.loggedMessages.any { "disk full" in it.second })
+            // The stored row stays, to be offered again by the next restore.
+            assertIs<TrackingState.Finished>(store.stored)
+
+            store.clearFailure = null
+            manager.start(point2, ActivityType.Cycling)
+            testScheduler.runCurrent()
+            assertIs<TrackingState.Tracking>(manager.currentState.value)
+            assertEquals(ActivityType.Cycling, manager.sessionDetails.value?.activityType)
+        }
+
+    @Test
+    fun `after a failing clear this manager does not restore the row but the next process does`() =
+        runTest(testScheduler) {
+            manager.start(point1, ActivityType.Running)
+            manager.stop()
+            testScheduler.runCurrent()
+            store.clearFailure = IllegalStateException("disk full")
+            manager.clearSession()
+
+            assertEquals(TrackingState.Idle, manager.restore())
+            assertEquals(TrackingState.Idle, manager.currentState.value)
+
+            val nextProcess = newManager(FakeLocationRepository(), FakeTrackingServiceLauncher())
+            assertIs<TrackingState.Finished>(nextProcess.restore())
+        }
+
+    @Test
+    fun `a failing clear leaves a Tracking session alone`() = runTest(testScheduler) {
         manager.start(point1, ActivityType.Running)
-        manager.stop()
         testScheduler.runCurrent()
+        val tracking = manager.currentState.value
         store.clearFailure = IllegalStateException("disk full")
 
         manager.clearSession()
 
-        assertIs<TrackingState.Finished>(manager.currentState.value)
+        assertEquals(tracking, manager.currentState.value)
         assertEquals(ActivityType.Running, manager.sessionDetails.value?.activityType)
     }
 

@@ -357,6 +357,28 @@ class TrackingViewModelRestoreTest {
         }
 
     @Test
+    fun `Finish with a failing clear still sends Saved and a new ViewModel over the same manager offers Start`() =
+        runTest(testScheduler) {
+            val manager = newSessionManager()
+            val first = createViewModel(manager)
+            val events = collectEvents(first)
+            first.onAction(TrackingAction.Start(START))
+            testScheduler.runCurrent()
+            manager.stop()
+            testScheduler.runCurrent()
+            store.clearFailure = IllegalStateException("disk full")
+
+            first.onAction(TrackingAction.Finish(snapshotFilePath = null))
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events)
+            assertEquals(1, activityHistoryRepository.savedActivities.size)
+            val second = createViewModel(manager)
+            assertEquals(TrackingState.Idle, second.state.value.trackingState)
+            assertTrue(second.state.value.canStart)
+        }
+
+    @Test
     fun `a restored session left with Back and reopened is still offered`() = runTest(testScheduler) {
         storeSession(TrackingState.Finished(METRICS))
         val manager = newSessionManager()
