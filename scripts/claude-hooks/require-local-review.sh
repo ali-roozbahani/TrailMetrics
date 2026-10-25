@@ -7,8 +7,11 @@
 # `git push origin other:branch` needs the review of `other`. `--all`, `--mirror`, `--tags`, a
 # ref that does not resolve and a `gh pr create --head owner:branch` block (nothing to resolve).
 # A push that only deletes a remote ref pushes no commit and passes. A command that mentions
-# `git push` or `gh pr create` where this script finds no such command (`bash -c "git push"`) needs
-# the review of HEAD. It also blocks the main session from calling `local-review-gate.sh record`
+# `git push` or `gh pr create` where this script finds no such command (`env git push`,
+# `bash -c "git push"`, `xargs git push`) is blocked: the pushed ref cannot be resolved there. A
+# `cd <dir>` or `pushd <dir>` earlier in the same command moves the directory the refs are resolved
+# in; one whose target cannot be read (variable, ~, -, none, a missing directory, or any cd in a
+# group or `||` list) blocks a later push or PR creation. It also blocks the main session from calling `local-review-gate.sh record`
 # or touching the review records through the shell: the records come from the reviewer itself.
 #
 # SubagentStop (matcher "pr-reviewer"): records the reviewer's final report (the `message` of its
@@ -62,15 +65,41 @@ resolve_commit() {
 # targets <dir> <command text>: print one line per needed review: a SHA, "BLOCK <reason>", or
 # nothing when no push / PR creation is in the command.
 targets() {
-    local dir="$1" text="$2" segment i sub word dir2 found=0
+    local dir="$1" text="$2" segment i sub word dir2 found=0 cur="$1" cdunknown=0 grouped=0 target
     local -a tokens
+    # A cd inside a group, a command substitution or an `||` list does not change the directory of
+    # the following segments the way a linear reading says, so it counts as unreadable.
+    case "$text" in *[\(\)\`]* | *"||"*) grouped=1 ;; esac
     while IFS= read -r segment; do
         read -ra tokens <<<"$segment" || true
         i=0
         while [ "$i" -lt "${#tokens[@]}" ] && [[ "${tokens[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do i=$((i + 1)); done
         [ "$i" -lt "${#tokens[@]}" ] || continue
-        dir2="$dir"
+        dir2="$cur"
         case "${tokens[$i]##*/}" in
+            cd | pushd)
+                # The refs of the later segments are resolved in the directory this changes to.
+                # A target that cannot be read from the text (variable, ~, -, none, a directory that
+                # does not exist) makes a later push or PR creation in this command a block.
+                i=$((i + 1))
+                [ "${tokens[$i]:-}" != -- ] || i=$((i + 1))
+                target="${tokens[$i]:-}"
+                if [ "$grouped" = 1 ] || [ -z "$target" ] || [[ "$target" == -* ]] || [[ "$target" == *[\$~\`\*\?\[]* ]]; then
+                    cdunknown=1
+                    continue
+                fi
+                case "$target" in
+                    \"*\" | \'*\') target="${target:1:${#target}-2}" ;;
+                    \"* | \'*) cdunknown=1; continue ;;
+                esac
+                [ "${target#/}" != "$target" ] || target="$cur/$target"
+                if [ -d "$target" ]; then
+                    cur="$(cd "$target" && pwd)"
+                else
+                    cdunknown=1
+                fi
+                ;;
+            popd) cdunknown=1 ;;
             git)
                 i=$((i + 1))
                 while [ "$i" -lt "${#tokens[@]}" ]; do
@@ -93,7 +122,11 @@ targets() {
                     continue
                 fi
                 found=1
-                push_targets "$dir2" "${tokens[@]:$i}"
+                if [ "$cdunknown" = 1 ]; then
+                    echo "BLOCK a cd with a target this hook cannot read comes before this push; run the push in its own command, from the directory it pushes"
+                else
+                    push_targets "$dir2" "${tokens[@]:$i}"
+                fi
                 ;;
             gh)
                 i=$((i + 1))
@@ -102,7 +135,11 @@ targets() {
                 done
                 if [ "${tokens[$i]:-}" = pr ] && [ "${tokens[$((i + 1))]:-}" = create ]; then
                     found=1
-                    pr_targets "$dir2" "${tokens[@]:$((i + 2))}"
+                    if [ "$cdunknown" = 1 ]; then
+                        echo "BLOCK a cd with a target this hook cannot read comes before this PR creation; run it in its own command, from the directory it belongs to"
+                    else
+                        pr_targets "$dir2" "${tokens[@]:$((i + 2))}"
+                    fi
                 elif [ "${tokens[$i]:-}" = api ]; then
                     # A PR created through the API: POST to .../pulls.
                     case " ${tokens[*]:$i} " in
@@ -118,10 +155,10 @@ targets() {
                 ;;
         esac
     done < <(split_segments "$text")
-    # Mentions of a push or PR creation this parser did not see as a command (a wrapper such as
-    # bash -c): the review of HEAD is required.
+    # A push or PR creation this parser did not see as a command (env, bash -c, xargs, a quoted
+    # mention): the pushed ref cannot be resolved there, so it is blocked.
     if [ "$found" = 0 ] && printf '%s\n' "$text" | grep -qE '(^|[^[:alnum:]_-])(git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push|gh[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|$)'; then
-        resolve_commit "$dir" HEAD
+        echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, a quoted string) hides the pushed ref from the local review check; use git push / gh pr create as a plain command"
     fi
 }
 
@@ -299,11 +336,22 @@ self_test() {
     sha="$(git -C "$repo" rev-parse HEAD)"
     other="$(git -C "$repo" rev-parse other)"
     git -C "$repo" config alias.sneak 'push origin HEAD'
+    # A second checkout (stands for a linked worktree or another repo) with its own commit.
+    local repo2 sha2
+    repo2="$tmp/repo2"
+    git init -q -b main "$repo2"
+    git -C "$repo2" config user.email t@example.com
+    git -C "$repo2" config user.name t
+    git -C "$repo2" commit -q --allow-empty -m "other checkout"
+    sha2="$(git -C "$repo2" rev-parse HEAD)"
 
     review() { # review <sha> <verdict> [extra report lines...]
         local s="$1" v="$2"
         shift 2
         { printf 'VERDICT: %s\nREVIEWED_SHA: %s\nPROTECTED: none\n' "$v" "$s"; printf '%s\n' "$@"; } | (cd "$repo" && "$GATE" record "$s") >/dev/null 2>&1 || true
+    }
+    review_in() { # review_in <dir> <sha> (an APPROVE report recorded from that checkout)
+        printf 'VERDICT: APPROVE\nREVIEWED_SHA: %s\nPROTECTED: none\nNo findings.\n' "$2" | (cd "$1" && "$GATE" record "$2") >/dev/null 2>&1 || true
     }
     # expect <name> <want exit> <command>
     expect() {
@@ -314,10 +362,10 @@ self_test() {
     }
 
     expect "non-push command passes" 0 "git status"
-    expect "a mention of git push needs the review of HEAD" 2 "echo git push"
+    expect "a mention of git push is blocked (wrapped push)" 2 "echo git push"
     expect "push with no review blocks" 2 "git push -u origin main"
     expect "gh pr create with no review blocks" 2 "gh pr create --base main --body-file b.md"
-    expect "wrapped push with no review blocks" 2 "bash -c 'git push'"
+    expect "wrapped push blocks" 2 "bash -c 'git push'"
     expect "git alias that pushes blocks" 2 "git sneak"
     expect "git -c alias blocks" 2 "git -c alias.p=push p"
     review "$parent" APPROVE
@@ -330,6 +378,26 @@ self_test() {
     expect "APPROVE allows gh pr create" 0 "gh pr create --base main --body-file b.md"
     expect "APPROVE allows a chained push" 0 "git fetch && git push origin HEAD"
     expect "push of another branch needs its review" 2 "git push origin other:branch"
+    # A push the parser does not see as a command is blocked, even though HEAD has an allowing review.
+    expect "bash -c push is blocked while HEAD is reviewed" 2 "bash -c 'git push'"
+    expect "env git push of an unreviewed ref is blocked while HEAD is reviewed" 2 "env git push origin other:x"
+    expect "xargs push is blocked while HEAD is reviewed" 2 "echo origin | xargs git push"
+    expect "a mention of gh pr create is blocked while HEAD is reviewed" 2 "env gh pr create --head other"
+    # cd / pushd change the directory the refs are resolved in.
+    expect "cd to another checkout: its HEAD has no review, blocked" 2 "cd $repo2 && git push"
+    expect "cd to a relative checkout: blocked without its review" 2 "cd ../repo2 && git push"
+    expect "pushd to another checkout: blocked without its review" 2 "pushd $repo2 && git push"
+    expect "cd to a variable target blocks" 2 'cd "$X" && git push'
+    expect "cd ~ blocks" 2 "cd ~ && git push"
+    expect "cd - blocks" 2 "cd - && git push"
+    expect "cd with no argument blocks" 2 "cd && git push"
+    expect "cd to a missing directory blocks" 2 "cd $tmp/nosuch && git push"
+    expect "cd in a subshell then push blocks" 2 "(cd $repo2); git push"
+    expect "cd without a push passes" 0 "cd $repo2 && git status"
+    expect "cd back to the reviewed checkout allows" 0 "cd $repo2 && cd $repo && git push"
+    review_in "$repo2" "$sha2"
+    expect "cd to another checkout with its review allows" 0 "cd $repo2 && git push"
+    expect "cd to a relative checkout with its review allows" 0 "cd ../repo2 && gh pr create"
     expect "push of a ref that does not resolve blocks" 2 "git push origin nosuch:branch"
     expect "push --all blocks" 2 "git push --all origin"
     expect "push --tags blocks" 2 "git push --tags"
@@ -357,6 +425,22 @@ self_test() {
     expect "important with disposition allows" 0 "git push"
     git -C "$repo" commit -q --allow-empty -m three
     expect "a new commit needs a new review" 2 "git push"
+
+    # Without jq the input cannot be read: a push, a PR creation or the records directory blocks.
+    local nojq="$tmp/nojq" t
+    mkdir -p "$nojq"
+    for t in dirname basename grep cat sed tr head tail; do ln -sf "$(command -v "$t")" "$nojq/$t"; done
+    nojq_expect() { # nojq_expect <name> <want exit> <json>
+        name="$1"; want="$2"; rc=0
+        printf '%s' "$3" | PATH="$nojq" "$BASH" "$hook" >/dev/null 2>"$tmp/err" || rc=$?
+        if [ "$rc" = "$want" ]; then echo "ok   $name (exit $rc)"; else echo "FAIL $name: expected exit $want, got $rc: $(head -c 300 "$tmp/err")" >&2; fails=$((fails + 1)); fi
+    }
+    nojq_expect "no jq: a Write naming the records directory blocks" 2 "$(jq -n --arg f "$tmp/reviews/$sha/report" '{hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$f}}')"
+    nojq_expect "no jq: a command naming the records directory blocks" 2 "$(jq -n --arg c "cat $tmp/reviews/$sha/report" '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:$c}}')"
+    nojq_expect "no jq: a push blocks" 2 "$(jq -n '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"git push"}}')"
+    nojq_expect "no jq: a PR creation blocks" 2 "$(jq -n '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"gh pr create"}}')"
+    nojq_expect "no jq: an unrelated command passes" 0 "$(jq -n '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:"git status"}}')"
+    nojq_expect "no jq: a Write of another file passes" 0 "$(jq -n --arg f "$repo/README.md" '{hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$f}}')"
 
     # SubagentStop: capture the reviewer's own report. The transcript has the format of Claude Code
     # 2.1.310: the first user entry holds the session's inputs, the report is the `message` input of
@@ -406,9 +490,11 @@ fi
 INPUT="$(cat)"
 
 if ! command -v jq >/dev/null 2>&1; then
-    # Without jq the input cannot be read: block anything that mentions a push or a PR creation.
-    if printf '%s' "$INPUT" | grep -qE 'git.*push|gh.*pr.*create'; then
-        echo "Blocked: jq is needed to check the local review before a push or PR and is not installed." >&2
+    # Without jq the input cannot be read: block anything that mentions a push, a PR creation or the
+    # review records (any tool, so the file-tool guard holds too).
+    if printf '%s' "$INPUT" | grep -qE 'git.*push|gh.*pr.*create|local-reviews' \
+        || printf '%s' "$INPUT" | grep -qF -e "${LOCAL_REVIEWS_DIR:-$HOME/agent-workspace/local-reviews}"; then
+        echo "Blocked: jq is needed to check the local review before a push or PR, or a write to the review records, and is not installed." >&2
         exit 2
     fi
     exit 0
