@@ -15,10 +15,10 @@ import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeClock
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeLogger
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingServiceLauncher
-import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.core.testing.FakeClock
+import dev.roozbahani.trailmetrics.core.testing.FakeLogger
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

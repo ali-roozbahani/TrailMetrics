@@ -1,8 +1,8 @@
-package dev.roozbahani.trailmetrics.fakes
+package dev.roozbahani.trailmetrics.core.testing
 
 import dev.roozbahani.trailmetrics.domain.util.Logger
 
-/** Keeps every message passed to [debug]. */
+/** Keeps every message passed to [debug] in [messages]. */
 class FakeLogger : Logger {
     val messages = mutableListOf<String>()
 

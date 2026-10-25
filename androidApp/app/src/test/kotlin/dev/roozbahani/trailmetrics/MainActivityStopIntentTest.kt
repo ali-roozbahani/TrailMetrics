@@ -12,10 +12,10 @@ import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
-import dev.roozbahani.trailmetrics.fakes.FakeClock
-import dev.roozbahani.trailmetrics.fakes.FakeLogger
-import dev.roozbahani.trailmetrics.fakes.FakeTrackingServiceLauncher
-import dev.roozbahani.trailmetrics.fakes.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.core.testing.FakeClock
+import dev.roozbahani.trailmetrics.core.testing.FakeLogger
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,7 +92,7 @@ class MainActivityStopIntentTest {
         scheduler.advanceUntilIdle()
 
         assertEquals(1, launcher.stopCalls)
-        assertEquals(1, store.clearCalls)
+        assertEquals(1, store.clearCallCount)
         assertTrue(uncaught.isEmpty())
     }
 
@@ -106,7 +106,7 @@ class MainActivityStopIntentTest {
         scheduler.advanceUntilIdle()
 
         assertEquals(1, launcher.stopCalls)
-        assertEquals(1, store.clearCalls)
+        assertEquals(1, store.clearCallCount)
     }
 
     @Test
@@ -137,7 +137,7 @@ class MainActivityStopIntentTest {
         scheduler.advanceUntilIdle()
 
         assertEquals(1, launcher.stopCalls)
-        assertEquals(1, store.clearCalls)
+        assertEquals(1, store.clearCallCount)
     }
 
     @Test
@@ -146,6 +146,6 @@ class MainActivityStopIntentTest {
         scheduler.advanceUntilIdle()
 
         assertEquals(0, launcher.stopCalls)
-        assertEquals(0, store.clearCalls)
+        assertEquals(0, store.clearCallCount)
     }
 }

@@ -9,10 +9,10 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
-import dev.roozbahani.trailmetrics.fakes.FakeClock
-import dev.roozbahani.trailmetrics.fakes.FakeLogger
-import dev.roozbahani.trailmetrics.fakes.FakeTrackingServiceLauncher
-import dev.roozbahani.trailmetrics.fakes.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.core.testing.FakeClock
+import dev.roozbahani.trailmetrics.core.testing.FakeLogger
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
+import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.feature.route.RouteState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -110,7 +110,7 @@ class SavedSessionOfferViewModelTest {
         val viewModel = createViewModel()
 
         assertNull(viewModel.state.value.offer)
-        assertEquals(1, store.loadCalls)
+        assertEquals(1, store.loadCallCount)
     }
 
     @Test
@@ -140,7 +140,7 @@ class SavedSessionOfferViewModelTest {
         testScheduler.runCurrent()
 
         assertNull(viewModel.state.value.offer)
-        assertEquals(1, store.loadCalls)
+        assertEquals(1, store.loadCallCount)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
