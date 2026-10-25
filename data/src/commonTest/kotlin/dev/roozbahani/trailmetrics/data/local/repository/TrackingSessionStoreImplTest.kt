@@ -151,32 +151,52 @@ abstract class TrackingSessionStoreImplTest {
     }
 
     @Test
-    fun `every activity type comes back with the session`() = runTest {
+    fun `every activity type and the start time come back with the session`() = runTest {
         ActivityType.entries.forEach { type ->
-            save(TrackingState.Paused(metrics(a, b)), type)
+            val session = StoredTrackingSession(TrackingState.Paused(metrics(a, b)), type, STARTED_AT)
+            store.save(session)
 
-            assertEquals(StoredTrackingSession(TrackingState.Paused(metrics(a, b)), type), store.load())
+            assertEquals(session, store.load())
         }
     }
 
     @Test
-    fun `a session saved without a type loads with a null type`() = runTest {
-        save(TrackingState.Paused(metrics(a)), activityType = null)
+    fun `a session saved without a type and start time loads with both null`() = runTest {
+        store.save(StoredTrackingSession(TrackingState.Paused(metrics(a)), null, null))
 
-        assertNull(store.load()?.activityType)
-        assertNull(database.trackingSessionDao().getSession()?.activityType)
+        val loaded = checkNotNull(store.load())
+        assertNull(loaded.activityType)
+        assertNull(loaded.startedAtEpochMillis)
+        val row = database.trackingSessionDao().getSession()
+        assertNull(row?.activityType)
+        assertNull(row?.startedAtEpochMillis)
     }
 
     @Test
-    fun `saving again replaces the stored type`() = runTest {
-        save(TrackingState.Tracking(metrics(a)), ActivityType.Running)
-        save(TrackingState.Tracking(metrics(a, b)), ActivityType.Cycling)
+    fun `saving again replaces the stored type and start time`() = runTest {
+        store.save(StoredTrackingSession(TrackingState.Tracking(metrics(a)), ActivityType.Running, STARTED_AT))
+        store.save(StoredTrackingSession(TrackingState.Tracking(metrics(a, b)), ActivityType.Cycling, STARTED_AT + 1))
 
-        assertEquals(ActivityType.Cycling, store.load()?.activityType)
+        val loaded = checkNotNull(store.load())
+        assertEquals(ActivityType.Cycling, loaded.activityType)
+        assertEquals(STARTED_AT + 1, loaded.startedAtEpochMillis)
     }
 
-    private suspend fun save(state: TrackingState, activityType: ActivityType? = ActivityType.Running) =
-        store.save(state, activityType)
+    @Test
+    fun `a stored type this version does not know loads as unknown`() = runTest {
+        store.save(StoredTrackingSession(TrackingState.Paused(metrics(a)), ActivityType.Running, STARTED_AT))
+        val dao = database.trackingSessionDao()
+        dao.upsertSession(checkNotNull(dao.getSession()).copy(activityType = "Skiing"))
+
+        val loaded = checkNotNull(store.load())
+
+        assertEquals(TrackingState.Paused(metrics(a)), loaded.state)
+        assertNull(loaded.activityType)
+        assertEquals(STARTED_AT, loaded.startedAtEpochMillis)
+    }
+
+    private suspend fun save(state: TrackingState) =
+        store.save(StoredTrackingSession(state, ActivityType.Running, STARTED_AT))
 
     private suspend fun loadState(): TrackingState? = store.load()?.state
 
@@ -198,5 +218,6 @@ abstract class TrackingSessionStoreImplTest {
 
     private companion object {
         const val SAVED_AT = 1_700_000_000_000L
+        const val STARTED_AT = 1_699_999_000_000L
     }
 }

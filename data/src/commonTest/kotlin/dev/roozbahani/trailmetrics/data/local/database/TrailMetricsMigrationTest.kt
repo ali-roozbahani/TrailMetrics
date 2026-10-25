@@ -96,15 +96,16 @@ abstract class TrailMetricsMigrationTest {
                 )
             )
             val store = TrackingSessionStoreImpl(dao, FixedClock)
-            store.save(state, ActivityType.Running)
-            assertEquals(StoredTrackingSession(state, ActivityType.Running), store.load())
+            val session = StoredTrackingSession(state, ActivityType.Running, 1_700_299_000_000)
+            store.save(session)
+            assertEquals(session, store.load())
         } finally {
             database.close()
         }
     }
 
     @Test
-    fun `MIGRATION_2_3 keeps the activity and the session and gives the session no type`() = runTest {
+    fun `MIGRATION_2_3 keeps the activity and the session and gives the session no type or start time`() = runTest {
         databaseVersion2.writeTo(fixtureDriver, databasePath)
         val database = openWithAppPipeline(databasePath)
         try {
@@ -120,6 +121,7 @@ abstract class TrailMetricsMigrationTest {
                     currentSpeedMetersPerSecond = 2.25f,
                     savedAtEpochMillis = 1_700_600_000_000,
                     activityType = null,
+                    startedAtEpochMillis = null,
                 ),
                 dao.getSession()
             )
@@ -134,8 +136,10 @@ abstract class TrailMetricsMigrationTest {
             val store = TrackingSessionStoreImpl(dao, FixedClock)
             val loaded = store.load()
             assertEquals(null, loaded?.activityType)
-            store.save(checkNotNull(loaded).state, ActivityType.Walking)
-            assertEquals(ActivityType.Walking, store.load()?.activityType)
+            assertEquals(null, loaded?.startedAtEpochMillis)
+            val resumed = StoredTrackingSession(checkNotNull(loaded).state, ActivityType.Walking, 1_700_599_000_000)
+            store.save(resumed)
+            assertEquals(resumed, store.load())
         } finally {
             database.close()
         }
@@ -179,7 +183,7 @@ abstract class TrailMetricsMigrationTest {
         }
     }
 
-    // The rows of databaseVersion1 as the app reads them at the current version, newest first.
+    // The activity row of databaseVersion2 as the app reads it at the current version.
     private val version2Activity =
         ActivityEntity(
             id = 3,
@@ -195,6 +199,7 @@ abstract class TrailMetricsMigrationTest {
             snapshotFilePath = "/snapshots/activity-3.png"
         )
 
+    // The rows of databaseVersion1 as the app reads them at the current version, newest first.
     private val version1RowsAtCurrentVersion = listOf(
         ActivityEntity(
             id = 7,

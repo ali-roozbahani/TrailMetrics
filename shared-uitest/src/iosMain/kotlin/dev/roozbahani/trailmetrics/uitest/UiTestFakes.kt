@@ -1,11 +1,9 @@
 package dev.roozbahani.trailmetrics.uitest
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
-import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.Route
-import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
@@ -55,7 +53,7 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
 
 /** Keeps nothing, so no UI test opens the Room database through the session store. */
 internal class UiTestTrackingSessionStore : TrackingSessionStore {
-    override suspend fun save(state: TrackingState, activityType: ActivityType?) = Unit
+    override suspend fun save(session: StoredTrackingSession) = Unit
 
     override suspend fun load(): StoredTrackingSession? = null
 

@@ -35,6 +35,7 @@ class TrackingSessionManagerPersistenceTest {
     private val testScope = TestScope(StandardTestDispatcher(testScheduler))
     private val store = FakeTrackingSessionStore()
     private val logger = FakeLogger()
+    private val clock = FakeClock().also { it.setElapsedRealtimeValues(0L, 1_000L, 2_000L, 3_000L, 4_000L) }
     private val locationRepository = FakeLocationRepository()
     private val launcher = FakeTrackingServiceLauncher()
     private val updates = MutableSharedFlow<LocationUpdate>()
@@ -48,7 +49,7 @@ class TrackingSessionManagerPersistenceTest {
         updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
         trackingServiceLauncher = launcher,
         speedCalculator = SpeedCalculator(),
-        clock = FakeClock().also { it.setElapsedRealtimeValues(0L, 1_000L, 2_000L, 3_000L, 4_000L) },
+        clock = clock,
         logger = logger,
         trackingSessionStore = store,
         scope = testScope
@@ -106,8 +107,9 @@ class TrackingSessionManagerPersistenceTest {
         }
 
     @Test
-    fun `start saves the activity type with every state`() = runTest(testScheduler) {
+    fun `start saves the activity type and the start time with every state`() = runTest(testScheduler) {
         locationRepository.setUpdatesFlow(updates)
+        clock.setWallClockValues(STARTED_AT)
 
         manager.start(point1, ActivityType.Cycling)
         testScheduler.runCurrent()
@@ -115,48 +117,55 @@ class TrackingSessionManagerPersistenceTest {
         manager.pause()
         testScheduler.runCurrent()
 
-        assertEquals(ActivityType.Cycling, manager.activityType.value)
+        assertEquals(SessionDetails(ActivityType.Cycling, STARTED_AT), manager.sessionDetails.value)
         assertEquals(ActivityType.Cycling, store.storedActivityType)
+        assertEquals(STARTED_AT, store.storedStartedAtEpochMillis)
         assertEquals(3, store.savedStates.size)
     }
 
     @Test
-    fun `restore returns the stored activity type and a second manager saves it again`() =
+    fun `restore returns the stored type and start time and a second manager saves them again`() =
         runTest(testScheduler) {
             locationRepository.setUpdatesFlow(updates)
+            clock.setWallClockValues(STARTED_AT)
             manager.start(point1, ActivityType.Walking)
             testScheduler.runCurrent()
+            // The restored manager must take the start time from the store, not read the clock again.
+            clock.setWallClockValues(STARTED_AT + 3_600_000)
             val restoredManager = newManager(FakeLocationRepository(), FakeTrackingServiceLauncher())
 
             restoredManager.restore()
             restoredManager.resume()
             testScheduler.runCurrent()
 
-            assertEquals(ActivityType.Walking, restoredManager.activityType.value)
+            assertEquals(SessionDetails(ActivityType.Walking, STARTED_AT), restoredManager.sessionDetails.value)
             assertIs<TrackingState.Tracking>(store.stored)
             assertEquals(ActivityType.Walking, store.storedActivityType)
+            assertEquals(STARTED_AT, store.storedStartedAtEpochMillis)
         }
 
     @Test
-    fun `a stored session without a type restores with a null type`() = runTest(testScheduler) {
+    fun `a stored session without a type or start time restores with both null`() = runTest(testScheduler) {
         store.stored = TrackingState.Paused(metrics())
 
         manager.restore()
 
-        assertNull(manager.activityType.value)
+        assertEquals(SessionDetails(null, null), manager.sessionDetails.value)
     }
 
     @Test
-    fun `restore without a stored session leaves the type null`() = runTest(testScheduler) {
+    fun `restore without a stored session leaves the details null`() = runTest(testScheduler) {
         manager.restore()
 
-        assertNull(manager.activityType.value)
+        assertNull(manager.sessionDetails.value)
     }
 
     @Test
-    fun `restore does not replace the type of a session started while it loads`() = runTest(testScheduler) {
+    fun `restore does not replace the details of a session started while it loads`() = runTest(testScheduler) {
         store.stored = TrackingState.Paused(metrics())
         store.storedActivityType = ActivityType.Walking
+        store.storedStartedAtEpochMillis = STARTED_AT
+        clock.setWallClockValues(STARTED_AT + 5)
         val gate = CompletableDeferred<Unit>()
         store.loadGate = gate
         val restoring = async { manager.restore() }
@@ -166,7 +175,7 @@ class TrackingSessionManagerPersistenceTest {
         gate.complete(Unit)
         restoring.await()
 
-        assertEquals(ActivityType.Running, manager.activityType.value)
+        assertEquals(SessionDetails(ActivityType.Running, STARTED_AT + 5), manager.sessionDetails.value)
     }
 
     @Test
@@ -307,4 +316,8 @@ class TrackingSessionManagerPersistenceTest {
         path = listOf(point1, point2),
         currentSpeedMetersPerSecond = 1.5f
     )
+
+    private companion object {
+        const val STARTED_AT = 1_700_000_000_000L
+    }
 }

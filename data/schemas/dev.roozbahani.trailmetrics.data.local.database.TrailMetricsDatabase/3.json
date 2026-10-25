@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "73daa4aad020a3cef7fd7a62b86922b7",
+    "identityHash": "2243e8f2a2f53329380c1d06074d1aaf",
     "entities": [
       {
         "tableName": "tbl_activities",
@@ -81,7 +81,7 @@
       },
       {
         "tableName": "tbl_tracking_session",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `stateKind` TEXT NOT NULL, `elapsedMillis` INTEGER NOT NULL, `lastUpdateElapsedRealtimeMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, `currentSpeedMetersPerSecond` REAL, `savedAtEpochMillis` INTEGER NOT NULL, `activityType` TEXT, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `stateKind` TEXT NOT NULL, `elapsedMillis` INTEGER NOT NULL, `lastUpdateElapsedRealtimeMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, `currentSpeedMetersPerSecond` REAL, `savedAtEpochMillis` INTEGER NOT NULL, `activityType` TEXT, `startedAtEpochMillis` INTEGER, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -128,6 +128,11 @@
             "fieldPath": "activityType",
             "columnName": "activityType",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startedAtEpochMillis",
+            "columnName": "startedAtEpochMillis",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -177,7 +182,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '73daa4aad020a3cef7fd7a62b86922b7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2243e8f2a2f53329380c1d06074d1aaf')"
     ]
   }
 }

@@ -9,13 +9,9 @@ import kotlin.coroutines.cancellation.CancellationException
  * and elapsed time survive until the session is saved as an activity or discarded.
  */
 interface TrackingSessionStore {
-    /**
-     * Stores [state] and its [activityType] as the session. [TrackingState.Idle] is not a session and
-     * is ignored. The type is null only for a session whose type was never known (a restored one
-     * stored before the type was kept).
-     */
+    /** Stores [session]. A session whose state is [TrackingState.Idle] is not a session and is ignored. */
     @Throws(Exception::class, CancellationException::class)
-    suspend fun save(state: TrackingState, activityType: ActivityType?)
+    suspend fun save(session: StoredTrackingSession)
 
     /**
      * The stored session, or null. Its state is [TrackingState.Tracking], [TrackingState.Paused] or
@@ -28,5 +24,13 @@ interface TrackingSessionStore {
     suspend fun clear()
 }
 
-/** A session as stored: its [state] and the [activityType] it was started with, null when unknown. */
-data class StoredTrackingSession(val state: TrackingState, val activityType: ActivityType?)
+/**
+ * A session as stored: its [state], the [activityType] it was started with and the wall-clock time it
+ * started ([startedAtEpochMillis]). Both are null only when unknown: a session stored before they were
+ * kept, or a stored type this version does not know.
+ */
+data class StoredTrackingSession(
+    val state: TrackingState,
+    val activityType: ActivityType?,
+    val startedAtEpochMillis: Long?
+)

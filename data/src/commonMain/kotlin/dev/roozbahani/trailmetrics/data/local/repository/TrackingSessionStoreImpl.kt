@@ -19,8 +19,8 @@ class TrackingSessionStoreImpl(
     private val clock: Clock
 ) : TrackingSessionStore {
 
-    override suspend fun save(state: TrackingState, activityType: ActivityType?) {
-        val (kind, metrics) = when (state) {
+    override suspend fun save(session: StoredTrackingSession) {
+        val (kind, metrics) = when (val state = session.state) {
             TrackingState.Idle -> return
             is TrackingState.Tracking -> STATE_TRACKING to state.metrics
             is TrackingState.Paused -> STATE_PAUSED to state.metrics
@@ -34,7 +34,8 @@ class TrackingSessionStoreImpl(
                 distanceMeters = metrics.distanceMeters,
                 currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
                 savedAtEpochMillis = clock.nowMillis(),
-                activityType = activityType?.name
+                activityType = session.activityType?.name,
+                startedAtEpochMillis = session.startedAtEpochMillis
             ),
             path = metrics.path
         )
@@ -55,7 +56,10 @@ class TrackingSessionStoreImpl(
             STATE_FINISHED -> TrackingState.Finished(metrics)
             else -> error("Unknown stored tracking session state '${session.stateKind}'")
         }
-        return StoredTrackingSession(state, session.activityType?.let(ActivityType::valueOf))
+        // A name this version does not know (written by a newer one) loads as "type unknown", not as a
+        // failure that would keep the session from ever being restored.
+        val activityType = ActivityType.entries.firstOrNull { it.name == session.activityType }
+        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis)
     }
 
     override suspend fun clear() {

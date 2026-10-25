@@ -18,9 +18,10 @@ internal val MIGRATION_1_2: Migration = Migration(1, 2) { connection ->
     )
 }
 
-/** Adds the activity type of the in-progress session; the stored rows get NULL (type unknown). */
+/** Adds the activity type and start time of the in-progress session; the stored rows get NULL (unknown). */
 internal val MIGRATION_2_3: Migration = Migration(2, 3) { connection ->
     connection.execSQL("ALTER TABLE `tbl_tracking_session` ADD COLUMN `activityType` TEXT")
+    connection.execSQL("ALTER TABLE `tbl_tracking_session` ADD COLUMN `startedAtEpochMillis` INTEGER")
 }
 
 /**

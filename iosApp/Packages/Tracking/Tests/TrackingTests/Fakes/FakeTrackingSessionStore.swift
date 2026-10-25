@@ -10,7 +10,7 @@ import SharedKit
 final class FakeTrackingSessionStore: NSObject, TrackingSessionStore {
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun save`
-    func __save(state: TrackingState, activityType: ActivityType?) async throws {}
+    func __save(session: StoredTrackingSession) async throws {}
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun load`
     func __load() async throws -> StoredTrackingSession? { nil }
