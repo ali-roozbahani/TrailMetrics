@@ -39,7 +39,8 @@ public struct TrackingView: View {
                 startPoint: viewModel.startPoint,
                 plannedRoutePoints: viewModel.plannedRoutePoints,
                 traveledSegment: routeProgress?.traveledSegment ?? [],
-                currentLocation: viewModel.currentPath.last,
+                recordedPath: viewModel.recordedPath,
+                currentLocation: viewModel.recordedPath.last,
                 snapshotRequestID: $snapshotRequestID,
                 onSnapshotReady: handleSnapshotReady
             )
@@ -52,7 +53,7 @@ public struct TrackingView: View {
                         MetricsDisplay(metrics: metrics, calories: viewModel.calories)
                     }
 
-                    if hasReachedDestination {
+                    if hasReachedDestination || viewModel.canFinish {
                         finishCard
                     } else {
                         controlsRow
@@ -77,7 +78,7 @@ public struct TrackingView: View {
         }
         .alert(Text("Stop tracking?", bundle: .module), isPresented: $showExitConfirmation) {
             Button(role: .destructive) {
-                viewModel.onStopClicked()
+                viewModel.onDiscardClicked()
                 dismiss()
             } label: {
                 Text("Stop & Exit", bundle: .module)
@@ -177,7 +178,7 @@ public struct TrackingView: View {
             }
             if viewModel.canStop {
                 Button {
-                    viewModel.onStopClicked()
+                    viewModel.onDiscardClicked()
                     dismiss()
                 } label: {
                     Label { Text("Stop", bundle: .module) } icon: { Image(systemName: "stop.fill") }

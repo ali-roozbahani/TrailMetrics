@@ -124,8 +124,9 @@ rule that needs it never fires there (see "Mechanical rules").
   it in the repo today). Severity: important.
 - **R5** iOS: a scene-phase change or app termination while tracking persists or restores the
   in-progress session; no work assumes the app stays in the foreground. Why: iOS suspends and
-  terminates apps without a callback you can rely on. Example: no example yet (no `scenePhase` use;
-  background location is enabled by `IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`).
+  terminates apps without a callback you can rely on. Example: `SavedSessionOfferModel` restores the
+  stored session once per launch and offers it (no `scenePhase` use; background location is enabled by
+  `IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`).
   Enforced: reviewer only. Severity: blocking when the reviewer verifies in the files the loss of
   data the user recorded or entered (the session, the route draft, a saved activity), important
   for a likely gap the files cannot prove.
@@ -221,8 +222,6 @@ Don't copy these as a pattern for new code. Each names its board record.
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
   (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
   snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
-- After iOS termination the app does not restore or offer the in-progress tracking session that
-  `TrackingSessionManager` saves (`TrackingSessionStore`, Room) (R5; `tracking-session-restore-ios`).
 - The route draft (start point, waypoints, generated route) lives only in `RouteViewModel` and its
   Swift twin (R1; `route-draft-lost-on-process-death`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)

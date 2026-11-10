@@ -45,15 +45,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-session-restore-ios
-- Type: task
-- Area: iosApp
-- Order: 22
-- Source: PR persist-tracking-session
-- Problem: The in-progress session is now saved by `TrackingSessionManager`, but after iOS termination nothing reads it back (no `scenePhase` handling, no call of `restore()`). The Swift `TrackingViewModel` also saves the activity itself and never calls `clearSession()`, so a session saved as an activity stays stored and would be offered again.
-- Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
-
 ### app-kover-floor
 - Type: task
 - Area: androidApp
@@ -363,15 +354,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the tests in `TrackingViewModelFinishTests` wait on the state they assert without a fixed 2.0 s bound that depends on runner speed, or the record is deleted because #209 already did so.
 - Refs: CI run 39459833673; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md` entry `ios-tracking-finish-failed-save-wait`.
 
-### ios-tracking-map-draws-recorded-path
-- Type: task
-- Area: iosApp/Tracking
-- Order: 249
-- Source: PR bugfix/tracking-map-draws-recorded-path
-- Problem: The iOS tracking map has the gap that the Android one had: `TrackingMapView.updateUIView` draws only `plannedRoutePoints` (gray) and `traveledSegment` (green), and `TrackingView` passes `routeProgress?.traveledSegment ?? []` (the `TrackingMapView(...)` call in `TrackingView`); `viewModel.currentPath`, the GPS points of the session, is used only for the marker (`currentLocation`) and the camera. A session with no planned route draws no line, and so does the snapshot Finish saves from the map. Not fixed here: the PR is Android-only by the owner's decision, and iOS does not restore a session after termination yet (`tracking-session-restore-ios`), so the live case is the one that shows today.
-- Done when: `TrackingMapView` draws `currentPath` (at least 2 points) as a polyline above the planned route and traveled segment, with a Swift test or UI-test seam covering the points chosen, and the owner decides whether the camera also fits a restored path once `tracking-session-restore-ios` lands.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift` (`updateUIView`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift` (the `TrackingMapView` call); `tracking-session-restore-ios`.
-
 ### local-review-hook-shell-blind-spots
 - Type: task
 - Area: scripts/claude-hooks
@@ -569,6 +551,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-testing` fixes the wait rules of the XCUITests (D5: `waitForExistence(timeout: 10)`, no fixed delay; D6: a red run is logged, not retried) and states no bound for the Swift package tests' own wait helper. That helper, `waitUntil` in `TestSupport` (and `waitUntilOnlyReference`, which calls it), gives every wait a default `timeout` of two seconds; only the first wait of a test process gets 120 seconds (`coldStartTimeout`). No call site passes another timeout. Count: 123 `await waitUntil { ... }` and 14 `waitUntilOnlyReference(&...)` calls in 14 test files of the History, Route and Tracking packages. It has failed twice on CI with "Condition not met within 2.0 seconds" on a loaded runner: `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain` (flake-log entry `ios-tracking-finish-failed-save-wait`, board record `ios-tracking-finish-test-fixed-wait`) and `RouteViewModelPendingEventsTests.test_eventAfterConsumerCancelled_isDeliveredOnceToNextStreamOnly` (flake-log entry `ios-route-pending-events-wait`, run 42813382887, a red push run of `main` on unchanged Swift sources). The older board record names only the Tracking Finish tests. Recorded, not fixed: the bound lives in `TestSupport`, which three packages share, and the right value or mechanism (a longer or scaled default, or waiting without a bound) is a decision; this sweep changes no code.
 - Done when: `grep -n 'seconds(2)' iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` returns nothing (or the default is a value the owner chose, with a comment saying why), the package tests pass, the two flake-log entries are set to `fixed` with this fix, and `ios-tracking-finish-test-fixed-wait` is deleted in the same PR.
 - Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` (`waitUntil`, `waitUntilOnlyReference`, `coldStartTimeout`); `iosApp/Packages/Route/Tests/RouteTests/RouteViewModelPendingEventsTests.swift`; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md`; `ios-tracking-finish-test-fixed-wait`; `wait-until-cancellation-spin`; `tm-testing` ("XCUITest", D5, D6).
+
+### pause-resume-joins-path-with-a-straight-segment
+- Type: task
+- Area: domain, androidApp, iosApp
+- Order: 540
+- Source: PR persist-tracking-restore-ios
+- Problem: The owner saw, on an Android device, that after Pause and Resume the recorded line joins the last point before the Pause to the first point after the Resume with a straight segment (a chord across a circle). What the code does, read in the files: `UpdateTrackingStateUseCase` handles `Pause` and `Resume` without touching the path, and the first `LocationReceived` after the Resume adds `path.last().distanceTo(newCoordinates)` to `distanceMeters`, so the jump is counted as distance, while the time of the pause is not counted (`Resume` sets `lastUpdateElapsedRealtimeMillis`); the path is a plain `List<Coordinates>`, so it has no gap marker and the Pause leaves no trace in it. Android draws the whole path as one `Polyline` (`RoutePolyline` in `TrackingScreen`), and iOS draws it as one `GMSPolyline` (`TrackingMapView`, `recordedPathToDraw`), so both show the chord; the saved activity keeps the same list. A restored session adds one more such jump (it comes back Paused, and its Resume continues from the last stored point). Not changed here: whether a pause splits the line and whether the jump counts as distance is a product decision with a model change in `domain`, both maps and the stored form.
+- Done when: the owner decides whether a pause splits the line and whether the jump counts as distance.
+- Refs: `domain/.../usecase/UpdateTrackingStateUseCase.kt` (`handleResume`, `handleLocationReceived`); `androidApp/core-ui/.../map/RoutePolyline.kt`; `androidApp/feature-tracking/.../TrackingScreen.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`; `domain/.../model/TrackingMetrics.kt` (`path`).
 
 ## Drift
 
