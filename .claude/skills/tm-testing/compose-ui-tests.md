@@ -60,8 +60,8 @@ second tap hits nothing: the test passes with or without the guard. The check in
     at once with a real `GoogleMap` over `FakeGoogleMap`'s `Proxy` delegate.
   - The test sets `FakeGoogleMap.current` before composing and composes with `LocalInspectionMode`
     false.
-  - Every delegate call returns a default except `snapshot`, whose callback the test delivers with
-    `deliverSnapshot(...)`.
+  - Every delegate call returns a default except `snapshot` (its callback is delivered with
+    `deliverSnapshot(...)`) and `addPolyline` (its points are recorded in `polylinePoints`).
   - A polyline is asserted through `FakeGoogleMap.polylinePoints` (the points of each `addPolyline`
     call); markers and the camera are not asserted. The camera and bitmap-descriptor factories are fakes
     installed by `FakeGoogleMap.installFactories()`; they are static, so a test that renders no map
