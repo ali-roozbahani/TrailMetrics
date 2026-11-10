@@ -4,11 +4,14 @@ import androidx.sqlite.SQLiteDriver
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
+import dev.roozbahani.trailmetrics.data.local.repository.RouteDraftStoreImpl
 import dev.roozbahani.trailmetrics.data.local.repository.TrackingSessionStoreImpl
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.flow.first
@@ -146,6 +149,48 @@ abstract class TrailMetricsMigrationTest {
         assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
     }
 
+    @Test
+    fun `MIGRATION_3_4 keeps the activity and the session and adds an empty route draft table the store can use`() =
+        runTest {
+            databaseVersion3.writeTo(fixtureDriver, databasePath)
+            val database = openWithAppPipeline(databasePath)
+            try {
+                assertEquals(listOf(version3Activity), database.activityDao().observeAll().first())
+                assertEquals(version3Activity, database.activityDao().getById(version3Activity.id))
+                val sessionDao = database.trackingSessionDao()
+                assertEquals(
+                    TrackingSessionEntity(
+                        id = 1,
+                        stateKind = "Tracking",
+                        elapsedMillis = 120_000,
+                        lastUpdateElapsedRealtimeMillis = 9_500_000,
+                        distanceMeters = 210.5,
+                        currentSpeedMetersPerSecond = null,
+                        savedAtEpochMillis = 1_700_800_000_000,
+                        activityType = "Walking",
+                        startedAtEpochMillis = 1_700_799_880_000,
+                    ),
+                    sessionDao.getSession()
+                )
+                assertEquals(listOf(TrackingSessionPointEntity(1, 0, 47.3769, 8.5417)), sessionDao.getPoints())
+
+                val draftDao = database.routeDraftDao()
+                assertNull(draftDao.get())
+                val store = RouteDraftStoreImpl(draftDao)
+                val draft = StoredRouteDraft(
+                    startPoint = Coordinates(47.3769, 8.5417),
+                    waypoints = listOf(RoutePoint(Coordinates(47.38, 8.55), 0)),
+                    generatedRoute = null,
+                    activityType = ActivityType.Cycling
+                )
+                store.save(draft)
+                assertEquals(draft, store.load())
+            } finally {
+                database.close()
+            }
+            assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
+        }
+
     /**
      * Writes [fixture] to the file, opens it through the app's pipeline (which runs the app's
      * migrations), and returns every row through the DAO, newest first, each also read by id.
@@ -197,6 +242,22 @@ abstract class TrailMetricsMigrationTest {
             plannedRoutePoints = listOf(Coordinates(52.52, 13.405)),
             actualPath = listOf(Coordinates(52.52, 13.405), Coordinates(52.53, 13.41)),
             snapshotFilePath = "/snapshots/activity-3.png"
+        )
+
+    // The activity row of databaseVersion3 as the app reads it at the current version.
+    private val version3Activity =
+        ActivityEntity(
+            id = 4,
+            activityType = ActivityType.Running,
+            startedAtEpochMillis = 1_700_700_000_000,
+            endedAtEpochMillis = 1_700_707_200_000,
+            distanceMeters = 8400.0,
+            durationMillis = 7_200_000,
+            averageSpeedMetersPerSecond = null,
+            calories = null,
+            plannedRoutePoints = emptyList(),
+            actualPath = listOf(Coordinates(46.5197, 6.6323), Coordinates(46.52, 6.633)),
+            snapshotFilePath = null
         )
 
     // The rows of databaseVersion1 as the app reads them at the current version, newest first.

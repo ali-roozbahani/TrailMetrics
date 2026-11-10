@@ -23,6 +23,8 @@ Compose, or any platform framework.
 - **Tracking orchestration** (`tracking/`): `TrackingSessionManager`, the
   state machine driving Start/Pause/Resume/Stop, and `TrackingSessionStore`,
   the port that keeps the in-progress session across process death.
+- **Route planning** (`route/`): `RouteDraftStore`, the port that keeps the
+  route being planned across process death.
 - **Utilities** (`util/`): `CalorieCalculator`, `Clock` (injectable time
   source for testability: `nowMillis()` is wall-clock epoch time for stored or
   shown timestamps, `elapsedRealtimeMillis()` is the monotonic clock that

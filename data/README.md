@@ -10,7 +10,7 @@ does not publish that target yet).
   `user/`): `ActivityHistoryRepositoryImpl` (Room), `DirectionsRepositoryImpl`
   (Ktor), `UserProfileRepositoryImpl` (built on the `KeyValueStorage`
   expect/actual), `TrackingSessionStoreImpl` (Room: the in-progress tracking
-  session).
+  session), `RouteDraftStoreImpl` (Room: the route being planned).
 - **Room persistence** (`local/`): `TrailMetricsDatabase`, DAOs, entities,
   converters. Fully shared in `commonMain` — Room 3.x provides a
   context-free, Kotlin/Native-compatible builder.

@@ -1,9 +1,11 @@
 package dev.roozbahani.trailmetrics.shared.di
 
 import dev.roozbahani.trailmetrics.data.local.dao.ActivityDao
+import dev.roozbahani.trailmetrics.data.local.dao.RouteDraftDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -67,6 +69,12 @@ internal class FakeTrackingSessionDao : TrackingSessionDao {
     override suspend fun deleteSession() = Unit
 }
 
+internal class FakeRouteDraftDao : RouteDraftDao {
+    override suspend fun upsert(draft: RouteDraftEntity) = Unit
+    override suspend fun get(): RouteDraftEntity? = null
+    override suspend fun clear() = Unit
+}
+
 internal class FakeLocationRepository : LocationRepository {
     override suspend fun getCurrentLocation(): Result<Coordinates> = Result.success(Coordinates(0.0, 0.0))
     override fun observeLocationUpdates(): Flow<LocationUpdate> = emptyFlow()
@@ -77,10 +85,11 @@ internal class FakeTrackingServiceLauncher : TrackingServiceLauncher {
     override fun stop() = Unit
 }
 
-/** The fakes of the pieces both platforms replace: the DAO, the location source and the tracking service. */
+/** The fakes of the pieces both platforms replace: the DAOs, the location source and the tracking service. */
 internal val commonFakesModule = module {
     single<ActivityDao> { FakeActivityDao() }
     single<TrackingSessionDao> { FakeTrackingSessionDao() }
+    single<RouteDraftDao> { FakeRouteDraftDao() }
     single<LocationRepository> { FakeLocationRepository() }
     single<TrackingServiceLauncher> { FakeTrackingServiceLauncher() }
 }

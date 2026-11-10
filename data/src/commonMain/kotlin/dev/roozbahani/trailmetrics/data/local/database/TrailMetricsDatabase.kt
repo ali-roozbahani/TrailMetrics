@@ -6,14 +6,21 @@ import androidx.room3.RoomDatabase
 import androidx.room3.RoomDatabaseConstructor
 import androidx.room3.ColumnTypeConverters
 import dev.roozbahani.trailmetrics.data.local.dao.ActivityDao
+import dev.roozbahani.trailmetrics.data.local.dao.RouteDraftDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 
 @Database(
-    entities = [ActivityEntity::class, TrackingSessionEntity::class, TrackingSessionPointEntity::class],
-    version = 3,
+    entities = [
+        ActivityEntity::class,
+        TrackingSessionEntity::class,
+        TrackingSessionPointEntity::class,
+        RouteDraftEntity::class,
+    ],
+    version = 4,
     exportSchema = true
 )
 @ColumnTypeConverters(Converters::class)
@@ -21,6 +28,7 @@ import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 abstract class TrailMetricsDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
     abstract fun trackingSessionDao(): TrackingSessionDao
+    abstract fun routeDraftDao(): RouteDraftDao
 }
 
 expect object TrailMetricsDatabaseConstructor : RoomDatabaseConstructor<TrailMetricsDatabase> {

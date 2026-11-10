@@ -6,6 +6,7 @@ import dev.roozbahani.trailmetrics.data.di.commonTrackingModule
 import dev.roozbahani.trailmetrics.data.di.databaseModule
 import dev.roozbahani.trailmetrics.data.di.directionsModule
 import dev.roozbahani.trailmetrics.data.di.networkModule
+import dev.roozbahani.trailmetrics.data.di.routeDraftModule
 import dev.roozbahani.trailmetrics.data.di.useCaseModule
 import dev.roozbahani.trailmetrics.data.di.userProfileModule
 import org.koin.core.KoinApplication
@@ -28,6 +29,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}): KoinApplication {
                 userProfileModule,
                 activityHistoryModule,
                 directionsModule,
+                routeDraftModule,
             ) + platformModules,
         )
     }
