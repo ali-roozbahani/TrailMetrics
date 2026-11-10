@@ -114,4 +114,23 @@ final class SavedSessionOfferTests: TrackingTestCase {
         XCTAssertEqual(store.loadCount, 1)
         XCTAssertNil(model.offer, "A consumed offer is not offered a second time")
     }
+
+    func test_restoreOnce_endsOrphanedLiveActivitiesBeforeTheOfferIsPublished() async {
+        let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
+        let subject = makeSubject(sessionStore: FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused)))
+        var offerWhenEnded: AppRouteTracking?
+        var endCount = 0
+        var model: SavedSessionOfferModel?
+        model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager) {
+            endCount += 1
+            offerWhenEnded = model?.offer
+        }
+
+        await model?.restoreOnce()
+        await model?.restoreOnce()
+
+        XCTAssertEqual(endCount, 1, "Once per launch")
+        XCTAssertNil(offerWhenEnded, "The orphans are gone before the offer exists")
+        XCTAssertNotNil(model?.offer)
+    }
 }
