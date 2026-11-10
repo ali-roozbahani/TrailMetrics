@@ -13,6 +13,7 @@ import dev.roozbahani.trailmetrics.feature.route.RouteAction
 import dev.roozbahani.trailmetrics.feature.route.RouteState
 import dev.roozbahani.trailmetrics.feature.route.RouteViewModel
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
+import dev.roozbahani.trailmetrics.feature.route.fakes.inMemoryRouteDraftKeeper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -39,6 +40,7 @@ class RouteModuleTest {
         single { GetCurrentLocationUseCase(locationRepository) }
         single { GenerateClosedRouteUseCase(directionsRepository) }
         single<UserProfileRepository> { userProfileRepository }
+        single { inMemoryRouteDraftKeeper(testScheduler) }
     }
 
     private val koin = koinApplication { modules(routeModule, collaboratorsModule) }.koin

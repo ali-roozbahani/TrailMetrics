@@ -12,6 +12,7 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
+import dev.roozbahani.trailmetrics.feature.route.fakes.inMemoryRouteDraftKeeper
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -58,7 +59,8 @@ class RouteViewModelRepeatedStartTrackingTest {
     private fun createViewModel() = RouteViewModel(
         getCurrentLocationUseCase = GetCurrentLocationUseCase(locationRepository),
         generateClosedRouteUseCase = GenerateClosedRouteUseCase(directionsRepository),
-        userProfileRepository = userProfileRepository
+        userProfileRepository = userProfileRepository,
+        routeDraftKeeper = inMemoryRouteDraftKeeper(testScheduler)
     )
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement

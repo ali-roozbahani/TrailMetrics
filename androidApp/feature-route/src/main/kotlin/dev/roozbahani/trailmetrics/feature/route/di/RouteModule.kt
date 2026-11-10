@@ -9,7 +9,8 @@ val routeModule = module {
         RouteViewModel(
             getCurrentLocationUseCase = get(),
             generateClosedRouteUseCase = get(),
-            userProfileRepository = get()
+            userProfileRepository = get(),
+            routeDraftKeeper = get()
         )
     }
 }

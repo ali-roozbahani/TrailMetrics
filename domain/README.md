@@ -24,7 +24,10 @@ Compose, or any platform framework.
   state machine driving Start/Pause/Resume/Stop, and `TrackingSessionStore`,
   the port that keeps the in-progress session across process death.
 - **Route planning** (`route/`): `RouteDraftStore`, the port that keeps the
-  route being planned across process death.
+  route being planned across process death; `RouteDraftSaver` (one per app:
+  restore, and conflated writes off the caller's thread) and `RouteDraftKeeper`
+  (one per route screen: when the plan is written and when a restored one is
+  dropped), which both platforms' route screens use.
 - **Utilities** (`util/`): `CalorieCalculator`, `Clock` (injectable time
   source for testability: `nowMillis()` is wall-clock epoch time for stored or
   shown timestamps, `elapsedRealtimeMillis()` is the monotonic clock that
