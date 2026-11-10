@@ -45,15 +45,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-session-restore-ios
-- Type: task
-- Area: iosApp
-- Order: 22
-- Source: PR persist-tracking-session
-- Problem: The in-progress session is now saved by `TrackingSessionManager`, but after iOS termination nothing reads it back (no `scenePhase` handling, no call of `restore()`). The Swift `TrackingViewModel` also saves the activity itself and never calls `clearSession()`, so a session saved as an activity stays stored and would be offered again.
-- Done when: on launch an unfinished stored session is offered (continue, save as is, discard); saving as an activity and discarding call `clearSession()`; tests cover the restore path.
-- Refs: `domain/.../tracking/TrackingSessionManager.kt` (`restore`, `clearSession`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `shared/src/iosMain/.../KoinHelper.kt`; `tm-robustness` R5.
-
 ### app-kover-floor
 - Type: task
 - Area: androidApp
@@ -368,9 +359,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp/Tracking
 - Order: 249
 - Source: PR bugfix/tracking-map-draws-recorded-path
-- Problem: The iOS tracking map has the gap that the Android one had: `TrackingMapView.updateUIView` draws only `plannedRoutePoints` (gray) and `traveledSegment` (green), and `TrackingView` passes `routeProgress?.traveledSegment ?? []` (the `TrackingMapView(...)` call in `TrackingView`); `viewModel.currentPath`, the GPS points of the session, is used only for the marker (`currentLocation`) and the camera. A session with no planned route draws no line, and so does the snapshot Finish saves from the map. Not fixed here: the PR is Android-only by the owner's decision, and iOS does not restore a session after termination yet (`tracking-session-restore-ios`), so the live case is the one that shows today.
-- Done when: `TrackingMapView` draws `currentPath` (at least 2 points) as a polyline above the planned route and traveled segment, with a Swift test or UI-test seam covering the points chosen, and the owner decides whether the camera also fits a restored path once `tracking-session-restore-ios` lands.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift` (`updateUIView`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift` (the `TrackingMapView` call); `tracking-session-restore-ios`.
+- Problem: The iOS tracking map has the gap that the Android one had: `TrackingMapView.updateUIView` draws only `plannedRoutePoints` (gray) and `traveledSegment` (green), and `TrackingView` passes `routeProgress?.traveledSegment ?? []` (the `TrackingMapView(...)` call in `TrackingView`); `viewModel.currentPath`, the GPS points of the session, is used only for the marker (`currentLocation`) and the camera. A session with no planned route draws no line, and so does the snapshot Finish saves from the map. Not fixed here: the PR is Android-only by the owner's decision, and iOS did not restore a session after termination then, so the live case was the one that showed.
+- Done when: `TrackingMapView` draws `currentPath` (at least 2 points) as a polyline above the planned route and traveled segment, with a Swift test or UI-test seam covering the points chosen, and a restored session fits the camera to the path once.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift` (`updateUIView`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift` (the `TrackingMapView` call).
 
 ### local-review-hook-shell-blind-spots
 - Type: task
