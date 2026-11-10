@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
 - Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
 
-### route-draft-lost-on-process-death
-- Type: task
-- Area: androidApp/feature-route, iosApp/Route
-- Order: 30
-- Source: PR for tm-robustness-skill
-- Problem: The route being planned (start point, waypoints, generated route, chosen activity type) lives only in `RouteViewModel` (`RouteState`) and its Swift twin; there is no `SavedStateHandle`, `rememberSaveable` or `@SceneStorage` anywhere in the app, so process death on either platform drops the plan. Whether the draft is worth persisting is a product decision.
-- Done when: the owner decides; if yes, the draft survives process death on both platforms with a test each, if no, `tm-robustness` R1 records the screen as accepted.
-- Refs: `androidApp/feature-route/.../RouteViewModel.kt` (`RouteState`); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `tm-robustness` R1.
-
 ### inject-dispatchers-from-di
 - Type: task
 - Area: androidApp/feature-tracking, data
