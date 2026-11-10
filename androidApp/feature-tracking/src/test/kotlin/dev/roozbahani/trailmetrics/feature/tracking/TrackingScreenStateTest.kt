@@ -27,7 +27,8 @@ class TrackingScreenStateTest {
     @Test
     fun `recordedPathToDraw is empty for an empty path and for a one-point path`() {
         assertEquals(emptyList(), TrackingScreenState().recordedPathToDraw)
-        assertEquals(emptyList(), TrackingScreenState(trackingState = TrackingState.Tracking(metricsOf(PATH.take(1)))).recordedPathToDraw)
+        val onePoint = TrackingScreenState(trackingState = TrackingState.Tracking(metricsOf(PATH.take(1))))
+        assertEquals(emptyList(), onePoint.recordedPathToDraw)
     }
 
     @Test
