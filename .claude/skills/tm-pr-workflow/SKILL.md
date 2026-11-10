@@ -388,7 +388,7 @@ step of the gate and of CI's `tooling` job.
    "What changed" that the owner's sweep task names it. The reviewer checks the Source lines
    and that sentence; nothing else about such a PR is exempt. The owner removes a name from
    the line when its stage is done, and the line when the sweep ends.
-   Open sweeps (the owner edits this line, in a protected PR): tm-kmp-shared, tm-android, tm-ios, tm-testing.
+   Open sweeps (the owner edits this line, in a protected PR): none.
 5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
    conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
    description. Once every subtask is merged into the epic branch, the orchestrator opens
