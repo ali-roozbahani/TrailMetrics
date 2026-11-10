@@ -498,6 +498,60 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `git grep -n -E 'Purple80|PurpleGrey80|Pink80|Purple40|PurpleGrey40|Pink40' -- . ':!BOARD.md'` returns nothing and the "Default template colors" comment is gone.
 - Refs: `androidApp/core-ui/src/main/kotlin/dev/roozbahani/trailmetrics/core/designsystem/theme/Color.kt`; `tm-android` ("No dead code").
 
+### ios-viewmodels-delete-snapshot-files
+- Type: task
+- Area: iosApp/History
+- Order: 450
+- Source: sweep tm-ios
+- Problem: `tm-ios` "Architecture" (Violation: `blocking` for data access): a ViewModel holds presentation state only, with no file, database or HTTP access of its own. `HistoryViewModel.onDeleteActivity` and `DetailsViewModel.onDeleteConfirmed` call `deleteSnapshotFile(forStoredPath:)`, a free function in `SnapshotFile.swift` that resolves the path against Application Support and calls `FileManager.default.removeItem`. Count 2, one cause. This is the architecture side of `ios-history-details-snapshot-delete-on-main-actor` (rule `tm-robustness` D7/C1, the thread it runs on): a `Task.detached` there would fix the thread and leave the ViewModels touching files. Android's twin is `tracking-viewmodel-snapshot-file-access`. Recorded, not fixed: the fix adds an injected deleter (a protocol with a default-parameter `init`, and a fake for the package tests), a design that belongs with the two records above.
+- Done when: `grep -n 'deleteSnapshotFile\|FileManager' iosApp/Packages/History/Sources/History/HistoryViewModel.swift iosApp/Packages/History/Sources/History/DetailsViewModel.swift` returns nothing, the deletion sits behind an injected type the package tests fake, and it runs off the main actor (so `ios-history-details-snapshot-delete-on-main-actor` is also done).
+- Refs: `iosApp/Packages/History/Sources/History/HistoryViewModel.swift`, `.../DetailsViewModel.swift`, `.../SnapshotFile.swift`; `iosApp/Packages/History/Tests/HistoryTests/`; `tm-ios` ("Architecture"); `ios-history-details-snapshot-delete-on-main-actor`; `tracking-viewmodel-snapshot-file-access`.
+
+### ios-tracking-viewmodel-switch-default-on-kotlin-enum
+- Type: task
+- Area: iosApp/Tracking
+- Order: 460
+- Source: sweep tm-ios
+- Problem: `tm-ios` "SKIE interop": keep the `switch onEnum(of: value)` exhaustive so a new Kotlin case breaks the Swift build (no severity given; read as `important`). In `TrackingViewModel`, `canStop`, `currentPath` and `currentMetrics` switch on `onEnum(of: trackingState)` and end in `default:`, so a new `TrackingState` case would compile and silently fall into the default (not stoppable, empty path, no metrics). Count 3, one file. The other switches on `onEnum(of:)` (`ContentView`, `HistoryViewModel`, `RouteUiError+Message`, `onStopClicked`) list every case. Recorded, not fixed: this sweep changes no code; it overlaps with `tracking-control-rules-to-domain`, which may move these rules to `domain`.
+- Done when: `grep -n 'default:' iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` returns nothing and each of the three properties lists all `TrackingState` cases (or is replaced by the shared domain rule).
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStop`, `currentPath`, `currentMetrics`); `tm-ios` ("SKIE interop from Swift"); `tracking-control-rules-to-domain`.
+
+### ios-contentview-calls-koinhelper
+- Type: task
+- Area: iosApp
+- Order: 470
+- Source: sweep tm-ios
+- Problem: `tm-ios` "Koin / KoinHelper" and "ViewModel shape": never call `KoinHelper()` anywhere except in a default argument or the composition root (no severity given; read as `important`). `ContentView.handleOpenURL` calls `KoinHelper().trackingSessionManager().currentState.value` and switches on it to decide whether to select the Route tab. `ContentView` is a View, not the composition root (`TrailMetricsApp.init`), so the read bypasses injection and no test can fake it. Count 1. Recorded, not fixed: the fix (the app-level state or a small ViewModel for the tab selection, injected with a default parameter) is a design choice for the app target.
+- Done when: `grep -n 'KoinHelper()' iosApp/TrailMetrics/ContentView.swift` returns nothing and the open-URL handling reads the session state through an injected dependency, with a test or a UI-test scenario for the tab switch.
+- Refs: `iosApp/TrailMetrics/ContentView.swift` (`handleOpenURL`); `iosApp/TrailMetrics/TrailMetricsApp.swift`; `tm-ios` ("Koin / KoinHelper").
+
+### ios-viewmodel-state-not-private-set
+- Type: task
+- Area: iosApp/Route, iosApp/History
+- Order: 480
+- Source: sweep tm-ios
+- Problem: `tm-ios` "ViewModel shape": use `public private(set)` for state the View must not write (no severity given; read as `important`). Ten `@Published public var` properties are never written by a View (`grep` finds no `viewModel.<name> =` and no `$viewModel` binding anywhere): `RouteViewModel` `startPoint`, `waypoints`, `generatedRoute`, `userProfile`, `selectedActivityType`, `isLoading`; `HistoryViewModel` `activities`, `isLoading`; `DetailsViewModel` `activity`, `isLoading`. Count 10 in 3 files. `TrackingViewModel` and the two `errorMessage` properties already use `private(set)`. The skill's own ViewModel example also shows `@Published public var activities` and `isLoading`, so the example must change with the code. Recorded, not fixed: this sweep changes no code; package tests that assign the properties would need the setter back or a different seam.
+- Done when: `grep -rn '@Published public var' iosApp/Packages/*/Sources` returns nothing, the package tests pass, and the example in `tm-ios` ("ViewModel shape") shows `public private(set)`.
+- Refs: `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `iosApp/Packages/History/Sources/History/HistoryViewModel.swift`, `.../DetailsViewModel.swift`; `tm-ios` ("ViewModel shape").
+
+### ios-design-system-unused-colors
+- Type: task
+- Area: iosApp/DesignSystem
+- Order: 490
+- Source: sweep tm-ios
+- Problem: `tm-ios` "No dead code": no unused declarations (`tm-android`, "No dead code", which it refers to, notes that unused public code is not caught by a linter). `Color+TrailMetrics.swift` in `DesignSystem` declares `trailGreenLight`, `trailBlue` and `trailBlueLight`; `git grep` finds each name only in its own declaration, so no package, target or test uses them (`trailGreen`, `trailRed` and `trailAmber` are used). Count 3, one file. They mirror Android's brand colors and may be wanted for the Figma design system epic, so whether to delete or keep them is a decision. Recorded, not fixed.
+- Done when: `git grep -n -E 'trailGreenLight|trailBlueLight|trailBlue\b' -- iosApp` returns nothing, or each is used by a view, or the owner records that the tokens are kept for the design system.
+- Refs: `iosApp/Packages/DesignSystem/Sources/DesignSystem/Color+TrailMetrics.swift`; `tm-ios` ("No dead code"); `figma-design-system`.
+
+### swiftlint-unused-import-never-runs
+- Type: task
+- Area: iosApp, scripts
+- Order: 500
+- Source: sweep tm-ios
+- Problem: `tm-ios` "No dead code" says "No unused imports (`unused_import` is enabled)". `iosApp/.swiftlint.yml` lists `unused_import` under `opt_in_rules`, but it is an analyzer rule that only `swiftlint analyze` runs: `swiftlint lint --strict` exits 0 while printing "'unused_import' should be listed in the 'analyzer_rules' configuration section ... only run by 'swiftlint analyze'", and no script or workflow runs `swiftlint analyze` (the gate and CI run `lint`). So the rule is inert and unused imports are not checked by any tool. Count 1 rule. A mechanical rule that no tool runs is not a pass. Recorded, not fixed: SwiftLint config and CI are protected, and `analyze` needs a compiler log from an `xcodebuild` run, so adding it is a decision about the gate's cost.
+- Done when: `swiftlint analyze` runs on the iOS sources in the gate and CI with `unused_import` under `analyzer_rules` and passes, or the line is removed from `opt_in_rules` and `tm-ios` no longer claims the rule is enabled.
+- Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml` (`ios-main`); `tm-ios` ("No dead code", "SwiftLint").
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -571,3 +625,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Two statements in `tm-android` ("Koin") disagree with the code. (1) "Today every module uses the lambda form, including `HistoryViewModel` and `RouteViewModel`": `androidApp/app`'s `appModule` registers `SavedSessionOfferViewModel` with `viewModelOf(::SavedSessionOfferViewModel)`, so the lambda form is not used by every module. (2) "Existing exception: `MainActivity` field-injects `TrackingSessionManager` with `by inject()`": `MainActivity` field-injects three dependencies (`trackingSessionManager`, `applicationScope`, `logger`), so the exception line names one of three. Count 2 lines. The "four ViewModels" count of the same skill is already `android-viewmodel-count-stale`. Not fixed: this sweep changes no skill.
 - Done when: the lambda-form sentence names the modules that still use it (`routeModule`, `historyUiModule`, `trackingUiModule`) and the `MainActivity` exception lists the three injected fields, or both lines are removed with the code fixes `android-viewmodels-koin-lambda-form` and `android-mainactivity-field-injection`.
 - Refs: `.claude/skills/tm-android/SKILL.md` ("Koin", "Known deviations"); `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/di/AppModule.kt`; `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt`; `android-viewmodel-count-stale`.
+
+### ios-skill-cast-exception-too-narrow
+- Type: drift
+- Area: .claude/skills/tm-ios
+- Order: 510
+- Source: sweep tm-ios
+- Problem: `tm-ios` "Architecture" says: never an `as?`/`is` cast on an abstraction to reach a concrete type, and "decoding a bridged Kotlin exception, as `RouteViewModel`'s `underlyingRouteError` does, is the one exception". Three more casts in production Swift are not that: `RouteViewModel` tests `error is CancellationError` in a `catch` (Swift concurrency cancellation), `RouteMapView` casts `marker.userData as? RoutePoint` (the Google Maps API stores `Any?`), and `RouteMapConfiguration` casts the Info.plist value `as? String`. Count 3, all forced by an Apple or Google API returning an abstraction. Read as not violations of the rule's intent, so the text is wrong, not the code. Not fixed: this sweep changes no skill.
+- Done when: the sentence lists these kinds of cast (a cast required by a system or SDK API that returns `Any`, and Swift's `CancellationError` check) or says "unless the API returns an abstraction", matching `grep -rn -E ' as\? | is [A-Z]' iosApp/Packages/*/Sources`.
+- Refs: `.claude/skills/tm-ios/SKILL.md` ("Architecture"); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`, `.../RouteMapView.swift`, `.../RouteMapConfiguration.swift`.
