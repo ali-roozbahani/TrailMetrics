@@ -423,7 +423,7 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   `swiftlint:disable:next optional_try - <reason>` comment on the line above, allowed only for a
   best-effort side effect whose failure the user can't act on, the reason saying why the error can
   be dropped there. The only two in production code are `deleteSnapshotFile` (an orphaned image
-  file after the record is gone) and `TrackingLiveActivityController`'s `Activity.request` (Live
+  file after the record is gone) and `ActivityKitLiveActivityClient`'s `Activity.request` (Live
   Activities can be turned off); the test helpers `waitUntil` (TestSupport) and
   `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no other `try?` is left
   under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
