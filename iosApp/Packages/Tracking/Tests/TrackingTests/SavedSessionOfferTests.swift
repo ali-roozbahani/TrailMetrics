@@ -117,7 +117,8 @@ final class SavedSessionOfferTests: TrackingTestCase {
 
     func test_restoreOnce_endsOrphanedLiveActivitiesBeforeTheOfferIsPublished() async {
         let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
-        let subject = makeSubject(sessionStore: FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused)))
+        let store = FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused))
+        let subject = makeSubject(sessionStore: store)
         var offerWhenEnded: AppRouteTracking?
         var endCount = 0
         var model: SavedSessionOfferModel?
