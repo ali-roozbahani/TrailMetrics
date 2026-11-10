@@ -108,11 +108,14 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
+    /// The numbers the metrics panel shows: in every state that has a session, Finished included, so the panel
+    /// stays above the Finish card after Stop and after a restore of a Finished session (as on Android).
     public var currentMetrics: TrackingMetrics? {
         switch onEnum(of: trackingState) {
         case .tracking(let data): return data.metrics
         case .paused(let data): return data.metrics
-        default: return nil
+        case .finished(let data): return data.metrics
+        case .idle: return nil
         }
     }
 
@@ -267,17 +270,9 @@ public class TrackingViewModel: ObservableObject {
         trackingState = trackingSessionManager.currentState.value
         recomputeCalories()
 
-        // Reads final metrics straight from `trackingState` (just advanced to
-        // `.finished` above) rather than through `currentMetrics` (which only
-        // covers .tracking/.paused), so the Live Activity's last-shown content
+        // `trackingState` was just advanced to `.finished` above, so the Live Activity's last-shown content
         // reflects the session's actual final distance/time.
-        let finalMetrics: TrackingMetrics?
-        switch onEnum(of: trackingState) {
-        case .tracking(let data): finalMetrics = data.metrics
-        case .paused(let data): finalMetrics = data.metrics
-        case .finished(let data): finalMetrics = data.metrics
-        case .idle: finalMetrics = nil
-        }
+        let finalMetrics = currentMetrics
         liveActivityController?.end(
             distanceMeters: finalMetrics?.distanceMeters ?? 0,
             elapsedMillis: finalMetrics?.elapsedMillis ?? 0,

@@ -96,7 +96,9 @@ final class TrackingViewModelClearSessionTests: TrackingTestCase {
         } catch {
             return XCTFail("restore() must not fail: \(error)")
         }
-        await waitUntil { viewModel.canFinish && viewModel.calories == nil }
+        // The restored Finished session shows its numbers, calories included once the profile is loaded.
+        await waitUntil { viewModel.canFinish && viewModel.calories != nil }
+        XCTAssertEqual(viewModel.currentMetrics?.path, TrackingFixtures.movingPath)
         var onSavedCallCount = 0
         viewModel.onFinishClicked(snapshotFilePath: nil) { onSavedCallCount += 1 }
         await waitUntil { onSavedCallCount > 0 }
