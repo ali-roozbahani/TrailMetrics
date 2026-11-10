@@ -383,9 +383,12 @@ step of the gate and of CI's `tooling` job.
 4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
    passes items found outside a PR into the next task's prompt; add them in that PR. The
    only exceptions are an epic's final board PR (rule 5) and a sweep PR: a PR that changes
-   only `BOARD.md` is allowed when every record it adds has `Source: sweep <skill>` and its
-   description says under "What changed" that the owner's sweep task names it. The reviewer
-   checks the Source lines and that sentence; nothing else about such a PR is exempt.
+   only `BOARD.md` is allowed when every record it adds has `Source: sweep <skill>`, the
+   `<skill>` of each is on the "Open sweeps" line below, and its description says under
+   "What changed" that the owner's sweep task names it. The reviewer checks the Source lines
+   and that sentence; nothing else about such a PR is exempt. The owner removes a name from
+   the line when its stage is done, and the line when the sweep ends.
+   Open sweeps (the owner edits this line, in a protected PR): tm-kmp-shared, tm-android, tm-ios, tm-testing.
 5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
    conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
    description. Once every subtask is merged into the epic branch, the orchestrator opens
