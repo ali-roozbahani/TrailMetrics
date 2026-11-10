@@ -390,6 +390,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
 - Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
+### ios-history-details-snapshot-delete-on-main-actor
+- Type: task
+- Area: iosApp/History
+- Order: 290
+- Source: sweep tm-robustness
+- Problem: `tm-robustness` D7 (blocking when it blocks the main actor) and C1 (blocking). `HistoryViewModel.onDeleteActivity` and `DetailsViewModel.onDeleteConfirmed` are `@MainActor` and call `deleteSnapshotFile(forStoredPath:)` (`FileManager.default.removeItem`) inside a plain `Task { }`. That task inherits the main actor, so the file delete runs on the main thread. Count 2 (one cause, the shared helper in `SnapshotFile.swift`). The Android twin is `history-details-snapshot-delete-on-main`, which names only the Kotlin ViewModels. Recorded, not fixed: this sweep changes no code, and the fix (`Task.detached` or an injected deleter) should be chosen together with that record's design.
+- Done when: in `iosApp/Packages/History/Sources/History/`, `grep -n 'deleteSnapshotFile' HistoryViewModel.swift DetailsViewModel.swift` shows each call inside `Task.detached` or behind an injected deleter that is not on the main actor; a package test covers the delete after a successful repository delete.
+- Refs: `iosApp/Packages/History/Sources/History/HistoryViewModel.swift` (`onDeleteActivity`), `.../DetailsViewModel.swift` (`onDeleteConfirmed`), `.../SnapshotFile.swift` (`deleteSnapshotFile`); `iosApp/Packages/History/Tests/HistoryTests/`; `tm-robustness` C1, D7; `history-details-snapshot-delete-on-main`.
+
+### tracking-session-store-failures-not-surfaced
+- Type: task
+- Area: domain, data
+- Order: 300
+- Source: sweep tm-robustness
+- Problem: `tm-robustness` E4 (blocking). A failed write or restore of the in-progress tracking session is only logged. `TrackingSessionManager.persist` catches the store's exception and calls `logger.debug` ("Saving the session failed"), and tracking goes on; if every write fails, process death loses the recorded path and the user was never told. `handleRestart` (`RestartAction.kt`) turns a `restore()` that throws after a `START_STICKY` restart into `StopSilently`: the service stops, recording ends, no notice. Count 2. Both code comments state the choice ("No user action can fix a failed write"; "A restore that throws is logged and ends like an empty one"), so whether to surface these failures (an event like `locationIssues`, a notice) is the owner's decision; recorded, not fixed.
+- Done when: the owner decides. If surfaced: a failing `TrackingSessionStore.save` reaches the UI as an event or state, and a throwing restore in `handleRestart` leaves a notice, each asserted in `TrackingSessionManagerTest` and `RestartActionTest`. If not: `tm-robustness` E4 names these two paths as accepted exceptions.
+- Refs: `domain/src/commonMain/.../tracking/TrackingSessionManager.kt` (`persist`); `data/src/androidMain/.../tracking/RestartAction.kt` (`handleRestart`); `domain/src/commonTest/.../tracking/TrackingSessionManagerTest.kt`; `data/src/androidHostTest/.../tracking/RestartActionTest.kt`; `tm-robustness` E4.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -427,3 +445,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The doc comment of `writeMapSnapshot` in `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift` says the app target builds with `NonisolatedNonsendingByDefault`, so the function runs on its caller's actor. The function is defined in the `Tracking` package, whose `Package.swift` (swift-tools-version 5.9, no `swiftSettings`) does not set it; only the app target sets `SWIFT_APPROACHABLE_CONCURRENCY = YES` (`project.pbxproj`). So the original statement (a nonisolated `async` function runs on the global executor) may have been right for that module. Read from the files, not compiled. Changing the comment is a Swift change and would start the iOS jobs, so it is not done in the PR that found it.
 - Done when: the comment says what is true for that module (the call site's `Task.detached` stays), in a PR that may touch iOS code.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/MapSnapshotSaver.swift` (`writeMapSnapshot`); `iosApp/Packages/Tracking/Package.swift`; `iosApp/TrailMetrics.xcodeproj/project.pbxproj`; `tm-robustness` D7.
+
+### detekt-exception-name-exemption-undocumented
+- Type: drift
+- Area: .claude/skills/tm-robustness, config
+- Order: 310
+- Source: sweep tm-robustness
+- Problem: `tm-robustness` E2's Enforced line says detekt `SwallowedException` does not check "an exception named `_`", and E1's names `TooGenericExceptionCaught` with no exemption. detekt 1.23.8's default for both rules is `allowedExceptionNameRegex: '_|(ignore|expected).*'`, and `config/detekt/detekt.yml` (`buildUponDefaultConfig = true`) does not override it. So a catch whose variable starts with `expected` or `ignore` is checked by neither rule. Five production `catch (expected: Exception)` blocks rely on it: `TrackingSessionManager` (`clearSession`, `persist`), `RestartAction.kt` (`handleRestart`), `MainActivity` (`handleStopTrackingIntent`), `SavedSessionOfferViewModel` (`init`). Each was read: each handles its failure on purpose, so none is an E1 or E2 violation (the E4 side is `tracking-session-store-failures-not-surfaced`). Only the rule text is wrong. Not fixed: this sweep changes no skill or config, and narrowing the regex (lint config, protected) or documenting it is a decision.
+- Done when: E1's and E2's Enforced lines name the `expected`/`ignore` name exemption, or `config/detekt/detekt.yml` sets `allowedExceptionNameRegex: '_'` for both rules and the five catches are renamed or suppressed with approval.
+- Refs: `.claude/skills/tm-robustness/SKILL.md` (E1, E2); `config/detekt/detekt.yml`; `build.gradle.kts` (`buildUponDefaultConfig`); the five files above.
