@@ -13,11 +13,12 @@ import UIKit
 /// A dedicated map view rather than reusing `Route`'s `RouteMapView`: that type is
 /// internal to the `Route` package (not reusable across SPM package boundaries) and is
 /// shaped around Route-specific concerns (waypoint tap handling, a single generated
-/// route polyline) that don't apply here — Tracking instead needs two independent
-/// polylines (planned vs. traveled) plus a moving current-location marker, with no tap
+/// route polyline) that don't apply here — Tracking instead needs three independent
+/// polylines (planned, traveled, recorded) plus a moving current-location marker, with no tap
 /// handling at all.
 struct TrackingMapView: UIViewRepresentable {
     private static let defaultZoom: Float = 15
+    private static let fitPadding: CGFloat = 64
 
     /// A plain circular dot, matching Android's `CurrentLocationMarker` (20dp circle,
     /// trailGreen fill, 3dp white border, centered on the coordinate) — rather than
@@ -42,6 +43,8 @@ struct TrackingMapView: UIViewRepresentable {
     let startPoint: Coordinates
     let plannedRoutePoints: [Coordinates]
     let traveledSegment: [Coordinates]
+    /// The GPS points of the session, drawn above the planned route and the traveled segment.
+    let recordedPath: [Coordinates]
     let currentLocation: Coordinates?
 
     // Inversion of control for the Finish-snapshot flow: TrackingView never holds a
@@ -72,27 +75,9 @@ struct TrackingMapView: UIViewRepresentable {
     func updateUIView(_ mapView: GMSMapView, context: Context) {
         mapView.clear()
 
-        if !plannedRoutePoints.isEmpty {
-            let path = GMSMutablePath()
-            for point in plannedRoutePoints {
-                path.add(point.locationCoordinate)
-            }
-            let polyline = GMSPolyline(path: path)
-            polyline.strokeWidth = 4
-            polyline.strokeColor = .systemGray
-            polyline.map = mapView
-        }
-
-        if !traveledSegment.isEmpty {
-            let path = GMSMutablePath()
-            for point in traveledSegment {
-                path.add(point.locationCoordinate)
-            }
-            let polyline = GMSPolyline(path: path)
-            polyline.strokeWidth = 4
-            polyline.strokeColor = UIColor(Color.trailGreen)
-            polyline.map = mapView
-        }
+        addPolyline(plannedRoutePoints, color: .systemGray, to: mapView)
+        addPolyline(traveledSegment, color: UIColor(Color.trailGreen), to: mapView)
+        addPolyline(recordedPathToDraw(recordedPath), color: UIColor(Color.trailGreen), to: mapView)
 
         let markerCoordinates = currentLocation ?? startPoint
         let marker = GMSMarker(position: markerCoordinates.locationCoordinate)
@@ -100,10 +85,7 @@ struct TrackingMapView: UIViewRepresentable {
         marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
         marker.map = mapView
 
-        if context.coordinator.lastCameraCoordinates != markerCoordinates {
-            mapView.animate(toLocation: markerCoordinates.locationCoordinate)
-            context.coordinator.lastCameraCoordinates = markerCoordinates
-        }
+        updateCamera(mapView, markerCoordinates: markerCoordinates, coordinator: context.coordinator)
 
         if let requestID = snapshotRequestID, requestID != context.coordinator.handledSnapshotRequestID {
             context.coordinator.handledSnapshotRequestID = requestID
@@ -134,6 +116,38 @@ struct TrackingMapView: UIViewRepresentable {
         }
     }
 
+    private func addPolyline(_ points: [Coordinates], color: UIColor, to mapView: GMSMapView) {
+        guard !points.isEmpty else { return }
+        let path = GMSMutablePath()
+        for point in points {
+            path.add(point.locationCoordinate)
+        }
+        let polyline = GMSPolyline(path: path)
+        polyline.strokeWidth = 4
+        polyline.strokeColor = color
+        polyline.map = mapView
+    }
+
+    private func updateCamera(_ mapView: GMSMapView, markerCoordinates: Coordinates, coordinator: Coordinator) {
+        let plan = cameraPlan(for: recordedPath, pathAlreadySeen: coordinator.pathAlreadySeen)
+        if !recordedPath.isEmpty { coordinator.pathAlreadySeen = true }
+        if plan == .fitPath {
+            // A restored session: all of its path in view, once. The map has no size before its first
+            // layout, so the fit runs on the next main-actor turn.
+            var bounds = GMSCoordinateBounds()
+            for point in recordedPath {
+                bounds = bounds.includingCoordinate(point.locationCoordinate)
+            }
+            Task { @MainActor [weak mapView] in
+                mapView?.moveCamera(GMSCameraUpdate.fit(bounds, withPadding: Self.fitPadding))
+            }
+            coordinator.lastCameraCoordinates = markerCoordinates
+        } else if coordinator.lastCameraCoordinates != markerCoordinates {
+            mapView.animate(toLocation: markerCoordinates.locationCoordinate)
+            coordinator.lastCameraCoordinates = markerCoordinates
+        }
+    }
+
     static func dismantleUIView(_ mapView: GMSMapView, coordinator: Coordinator) {
         coordinator.snapshotTask?.cancel()
     }
@@ -144,6 +158,8 @@ struct TrackingMapView: UIViewRepresentable {
 
     final class Coordinator {
         var lastCameraCoordinates: Coordinates?
+        /// True once a non-empty recorded path was handled (`cameraPlan(for:pathAlreadySeen:)`).
+        var pathAlreadySeen = false
         var handledSnapshotRequestID: UUID?
         var snapshotTask: Task<Void, Never>?
     }

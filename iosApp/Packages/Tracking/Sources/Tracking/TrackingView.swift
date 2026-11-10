@@ -39,7 +39,8 @@ public struct TrackingView: View {
                 startPoint: viewModel.startPoint,
                 plannedRoutePoints: viewModel.plannedRoutePoints,
                 traveledSegment: routeProgress?.traveledSegment ?? [],
-                currentLocation: viewModel.currentPath.last,
+                recordedPath: viewModel.recordedPath,
+                currentLocation: viewModel.recordedPath.last,
                 snapshotRequestID: $snapshotRequestID,
                 onSnapshotReady: handleSnapshotReady
             )

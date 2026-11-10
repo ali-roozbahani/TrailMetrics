@@ -104,4 +104,29 @@ final class TrackingViewModelClearSessionTests: TrackingTestCase {
         XCTAssertEqual(subject.activityHistoryRepository.savedActivities.first?.startedAtEpochMillis, storedStart)
         XCTAssertEqual(store.clearCount, 1)
     }
+
+    // MARK: - Recorded path
+
+    func test_recordedPath_coversFinishedUnlikeCurrentPath() async {
+        let subject = await makeFinishedSubject()
+
+        XCTAssertEqual(subject.viewModel.recordedPath, TrackingFixtures.movingPath)
+        XCTAssertTrue(subject.viewModel.currentPath.isEmpty, "currentPath stays Tracking and Paused only")
+    }
+
+    func test_recordedPath_ofARestoredPausedSession_isTheStoredPath() async {
+        let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
+        let store = FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused))
+        let subject = makeSubject(sessionStore: store)
+        let viewModel = subject.viewModel
+
+        do {
+            _ = try await subject.trackingSessionManager.restore()
+        } catch {
+            return XCTFail("restore() must not fail: \(error)")
+        }
+        await waitUntil { viewModel.canResume }
+
+        XCTAssertEqual(viewModel.recordedPath, TrackingFixtures.movingPath)
+    }
 }

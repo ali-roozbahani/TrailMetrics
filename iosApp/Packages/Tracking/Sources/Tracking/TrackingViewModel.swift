@@ -97,6 +97,17 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
+    /// The GPS points of the session in every state that has them, Finished included (`currentPath` stops at
+    /// Tracking and Paused): the map draws it, and the snapshot Finish saves is taken in Finished.
+    public var recordedPath: [Coordinates] {
+        switch onEnum(of: trackingState) {
+        case .tracking(let data): return data.metrics.path
+        case .paused(let data): return data.metrics.path
+        case .finished(let data): return data.metrics.path
+        case .idle: return []
+        }
+    }
+
     public var currentMetrics: TrackingMetrics? {
         switch onEnum(of: trackingState) {
         case .tracking(let data): return data.metrics
