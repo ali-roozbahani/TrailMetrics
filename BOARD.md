@@ -552,6 +552,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `swiftlint analyze` runs on the iOS sources in the gate and CI with `unused_import` under `analyzer_rules` and passes, or the line is removed from `opt_in_rules` and `tm-ios` no longer claims the rule is enabled.
 - Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml` (`ios-main`); `tm-ios` ("No dead code", "SwiftLint").
 
+### swift-test-wait-until-fixed-two-second-bound
+- Type: task
+- Area: iosApp/Packages/TestSupport, iosApp package tests
+- Order: 520
+- Source: sweep tm-testing
+- Problem: `tm-testing` fixes the wait rules of the XCUITests (D5: `waitForExistence(timeout: 10)`, no fixed delay; D6: a red run is logged, not retried) and states no bound for the Swift package tests' own wait helper. That helper, `waitUntil` in `TestSupport` (and `waitUntilOnlyReference`, which calls it), gives every wait a default `timeout` of two seconds; only the first wait of a test process gets 120 seconds (`coldStartTimeout`). No call site passes another timeout. Count: 123 `await waitUntil { ... }` and 14 `waitUntilOnlyReference(&...)` calls in 14 test files of the History, Route and Tracking packages. It has failed twice on CI with "Condition not met within 2.0 seconds" on a loaded runner: `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain` (flake-log entry `ios-tracking-finish-failed-save-wait`, board record `ios-tracking-finish-test-fixed-wait`) and `RouteViewModelPendingEventsTests.test_eventAfterConsumerCancelled_isDeliveredOnceToNextStreamOnly` (flake-log entry `ios-route-pending-events-wait`, run 42813382887, a red push run of `main` on unchanged Swift sources). The older board record names only the Tracking Finish tests. Recorded, not fixed: the bound lives in `TestSupport`, which three packages share, and the right value or mechanism (a longer or scaled default, or waiting without a bound) is a decision; this sweep changes no code.
+- Done when: `grep -n 'seconds(2)' iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` returns nothing (or the default is a value the owner chose, with a comment saying why), the package tests pass, the two flake-log entries are set to `fixed` with this fix, and `ios-tracking-finish-test-fixed-wait` is deleted in the same PR.
+- Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` (`waitUntil`, `waitUntilOnlyReference`, `coldStartTimeout`); `iosApp/Packages/Route/Tests/RouteTests/RouteViewModelPendingEventsTests.swift`; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md`; `ios-tracking-finish-test-fixed-wait`; `wait-until-cancellation-spin`; `tm-testing` ("XCUITest", D5, D6).
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -634,3 +643,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-ios` "Architecture" says: never an `as?`/`is` cast on an abstraction to reach a concrete type, and "decoding a bridged Kotlin exception, as `RouteViewModel`'s `underlyingRouteError` does, is the one exception". Three more casts in production Swift are not that: `RouteViewModel` tests `error is CancellationError` in a `catch` (Swift concurrency cancellation), `RouteMapView` casts `marker.userData as? RoutePoint` (the Google Maps API stores `Any?`), and `RouteMapConfiguration` casts the Info.plist value `as? String`. Count 3, all forced by an Apple or Google API returning an abstraction. Read as not violations of the rule's intent, so the text is wrong, not the code. Not fixed: this sweep changes no skill.
 - Done when: the sentence lists these kinds of cast (a cast required by a system or SDK API that returns `Any`, and Swift's `CancellationError` check) or says "unless the API returns an abstraction", matching `grep -rn -E ' as\? | is [A-Z]' iosApp/Packages/*/Sources`.
 - Refs: `.claude/skills/tm-ios/SKILL.md` ("Architecture"); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`, `.../RouteMapView.swift`, `.../RouteMapConfiguration.swift`.
+
+### tm-testing-junit5-decision-not-in-docs
+- Type: drift
+- Area: .claude/skills/tm-testing
+- Order: 530
+- Source: sweep tm-testing
+- Problem: `tm-testing` ("Stack") says "No JUnit5 anywhere in this project (evaluated and rejected, see `docs/architecture`)". `docs/architecture` (`ADR-001`, `ADR-002`, `ADR-003`, `OVERVIEW.md`) has no mention of JUnit, JUnit 5 or Jupiter (`grep -rni junit docs/architecture` returns nothing); the only docs that name JUnit4 are in `docs/epics/mvi-presentation-migration.md`. The rule itself holds in the code (no Jupiter import, no Jupiter entry in the version catalog), so only the pointer is wrong. Count 1 line. Not fixed: this sweep changes no skill, and `docs/architecture` is protected (an ADR that records the decision would be a new document).
+- Done when: the sentence drops "evaluated and rejected, see `docs/architecture`" or points at an ADR that records the decision, so that `grep -rni junit docs/architecture` agrees with the skill text.
+- Refs: `.claude/skills/tm-testing/SKILL.md` ("Stack"); `docs/architecture/`; `CLAUDE.md` ("Testing stack").
