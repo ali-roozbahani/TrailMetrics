@@ -338,13 +338,14 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
+    /// The manager's `discard()`: the session is already Finished here, so it only clears, and the clear runs
+    /// non-cancellable (the caller, a screen that is left, is often gone by then), as on Android. The manager
+    /// logs a failing store and discards in memory; what reaches here is anything else it throws.
     private func clearStoredSession() async {
         do {
-            try await trackingSessionManager.clearSession()
+            try await trackingSessionManager.discard()
         } catch {
-            // Only a cancelled task reaches here (`clearSession` logs every other failure). After a save the
-            // activity is safe and the screen still closes; after a discard the next launch offers the stored
-            // copy again, which loses nothing.
+            emit(.showError(RouteUiErrorGeneral.shared))
         }
     }
 
