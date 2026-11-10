@@ -111,12 +111,16 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   `:androidApp:app:packageDebug`, first error line "A failure occurred while executing
   com.android.build.gradle.tasks.PackageAndroidArtifact$IncrementalSplitterRunnable" (24 s, no cause
   line in the log)
-- Count: 1
+- Count: 2
 - Status: open
 - Occurrences:
   - 2026-10-21, run 39606497367 (push to `main`, head 90a0f7d), re-run: no
+  - 2026-11-10, run 42835745551 (push to `main`, merge of #246, head 79fb11b), re-run: no
 - Notes: class infra (runner or restored Gradle cache), not shown. `androidApp` and the Gradle files
   did not change between 90a0f7d and 184beba, and run 39598565016 (184beba) was green.
+  Occurrence 2: the build failed in 15 s with the same first error line and no cause line in the log.
+  #246 changed no `androidApp/app` file (only `androidApp/feature-tracking`, a skill doc and
+  `BOARD.md`), and the previous run on `main` (42828048444, #245) was green.
 
 ## ios-route-pending-events-wait
 
