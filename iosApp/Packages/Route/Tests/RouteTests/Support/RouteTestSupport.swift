@@ -9,16 +9,31 @@ import Route
 import SharedKit
 import TestSupport
 
+/// The scope of the route draft writes of the tests that do not look at the draft. Never cancelled: each
+/// saver's collector only waits for its own requests, and the test process ends after the tests.
+let unobservedDraftScope = SwiftTestScope()
+
+/// The real keeper and saver over `store`, writing in `scope`.
+func makeRouteDraftKeeper(
+    store: FakeRouteDraftStore = FakeRouteDraftStore(),
+    logger: FakeLogger = FakeLogger(),
+    scope: SwiftTestScope = unobservedDraftScope
+) -> RouteDraftKeeper {
+    RouteDraftKeeper(saver: RouteDraftSaver(store: store, logger: logger, scope: scope))
+}
+
 @MainActor
 func makeViewModel(
     locationRepository: FakeLocationRepository = FakeLocationRepository(location: RouteFixtures.startPoint),
     directionsRepository: FakeDirectionsRepository = FakeDirectionsRepository(route: RouteFixtures.route),
-    userProfileRepository: FakeUserProfileRepository = FakeUserProfileRepository()
+    userProfileRepository: FakeUserProfileRepository = FakeUserProfileRepository(),
+    routeDraftKeeper: RouteDraftKeeper = makeRouteDraftKeeper()
 ) -> RouteViewModel {
     RouteViewModel(
         getCurrentLocationUseCase: GetCurrentLocationUseCase(locationRepository: locationRepository),
         generateClosedRouteUseCase: GenerateClosedRouteUseCase(directionsRepository: directionsRepository),
-        userProfileRepository: userProfileRepository
+        userProfileRepository: userProfileRepository,
+        routeDraftKeeper: routeDraftKeeper
     )
 }
 

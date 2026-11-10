@@ -49,18 +49,56 @@ public class RouteViewModel: ObservableObject {
     private let getCurrentLocationUseCase: GetCurrentLocationUseCase
     private let generateClosedRouteUseCase: GenerateClosedRouteUseCase
     private let userProfileRepository: UserProfileRepository
+    private let routeDraftKeeper: RouteDraftKeeper
 
     public init(
         getCurrentLocationUseCase: GetCurrentLocationUseCase = KoinHelper().getCurrentLocationUseCase(),
         generateClosedRouteUseCase: GenerateClosedRouteUseCase = KoinHelper().generateClosedRouteUseCase(),
-        userProfileRepository: UserProfileRepository = KoinHelper().userProfileRepository()
+        userProfileRepository: UserProfileRepository = KoinHelper().userProfileRepository(),
+        routeDraftKeeper: RouteDraftKeeper = KoinHelper().routeDraftKeeper()
     ) {
         self.getCurrentLocationUseCase = getCurrentLocationUseCase
         self.generateClosedRouteUseCase = generateClosedRouteUseCase
         self.userProfileRepository = userProfileRepository
+        self.routeDraftKeeper = routeDraftKeeper
 
+        restorePlan()
         loadCurrentLocation()
         getAndUpdateUserProfile()
+    }
+
+    /// Once, at creation: the stored plan, unless the user changed the plan first (RouteDraftKeeper).
+    private func restorePlan() {
+        Task {
+            let draft: StoredRouteDraft?
+            do {
+                draft = try await routeDraftKeeper.loadStoredPlan()
+            } catch {
+                // Only a cancellation reaches here: loadStoredPlan() logs a failed read and returns nil.
+                return
+            }
+            // Kept and shown in one main-actor step, so no location result saves in between.
+            guard let draft, routeDraftKeeper.keepRestoredPlan() else { return }
+            startPoint = draft.startPointToShow(currentLocation: startPoint)
+            waypoints = draft.waypoints
+            generatedRoute = draft.generatedRoute
+            selectedActivityType = draft.activityType
+        }
+    }
+
+    /// The plan on screen as it is stored: not the profile, not `isLoading`.
+    private var plan: StoredRouteDraft {
+        StoredRouteDraft(
+            startPoint: startPoint,
+            waypoints: waypoints,
+            generatedRoute: generatedRoute,
+            activityType: selectedActivityType
+        )
+    }
+
+    /// Writes the plan on screen (off the main actor, latest wins); an empty plan clears the stored one.
+    private func savePlan() {
+        routeDraftKeeper.save(draft: plan)
     }
 
     public func makeEventsStream() -> AsyncStream<RouteUiEvent> {
@@ -88,7 +126,12 @@ public class RouteViewModel: ObservableObject {
     private func loadCurrentLocation() {
         Task {
             do {
-                startPoint = try await getCurrentLocationUseCase.invoke()
+                let location = try await getCurrentLocationUseCase.invoke()
+                // The start point of a plan with waypoints or a route stays (a restored one): they were
+                // planned from it.
+                guard !plan.isPlannedFromStart, startPoint != location else { return }
+                startPoint = location
+                savePlan()
             } catch {
                 emitError(error)
             }
@@ -96,13 +139,16 @@ public class RouteViewModel: ObservableObject {
     }
 
     public func onMapTapped(_ coordinates: Coordinates) {
+        routeDraftKeeper.onUserChange()
         cancelGeneration()
         let waypoint = RoutePoint(coordinates: coordinates, order: Int32(waypoints.count))
         waypoints.append(waypoint)
         generatedRoute = nil
+        savePlan()
     }
 
     public func onGenerateRouteClicked() {
+        routeDraftKeeper.onUserChange()
         // A tap while a generation runs would only repeat the (paid) directions call.
         guard generationTask == nil, let startPoint else { return }
 
@@ -135,6 +181,7 @@ public class RouteViewModel: ObservableObject {
             generationTask = nil
             generatedRoute = route
             isLoading = false
+            savePlan()
         }
     }
 
@@ -146,17 +193,20 @@ public class RouteViewModel: ObservableObject {
     }
 
     public func onResetClicked() {
+        routeDraftKeeper.onUserChange()
         cancelGeneration()
         startPoint = nil
         waypoints = []
         generatedRoute = nil
         userProfile = nil
         selectedActivityType = .running
+        savePlan()
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
     public func onWaypointRemoved(_ removeCandidate: RoutePoint) {
+        routeDraftKeeper.onUserChange()
         cancelGeneration()
         let updatedWaypoints = waypoints
             .filter { $0 != removeCandidate }
@@ -165,10 +215,13 @@ public class RouteViewModel: ObservableObject {
 
         waypoints = updatedWaypoints
         generatedRoute = nil
+        savePlan()
     }
 
     public func onActivityTypeSelected(_ activityType: ActivityType) {
+        routeDraftKeeper.onUserChange()
         selectedActivityType = activityType
+        savePlan()
     }
 
     public func saveUserProfile(weightKg: Double) {
@@ -184,6 +237,7 @@ public class RouteViewModel: ObservableObject {
     }
 
     public func onStartTrackingClicked() {
+        routeDraftKeeper.onUserChange()
         // A tap while one runs would emit a second event: a second `.navigateToTracking` pushes
         // Tracking twice, or is kept while Tracking covers RouteView and opens it again on return.
         guard startTrackingTask == nil else { return }
@@ -213,6 +267,8 @@ public class RouteViewModel: ObservableObject {
                 return
             }
 
+            // The plan is used up; the screen keeps showing it.
+            routeDraftKeeper.clear()
             emit(
                 .navigateToTracking(
                     startPoint: startPoint,

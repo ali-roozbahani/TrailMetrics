@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.shared.di
 
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
+import dev.roozbahani.trailmetrics.domain.route.RouteDraftKeeper
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
@@ -22,6 +23,7 @@ class KoinHelper : KoinComponent {
     private val observeActivitiesUseCaseDep: ObserveActivitiesUseCase by inject()
     private val calorieCalculatorDep: CalorieCalculator by inject()
     private val clockDep: Clock by inject()
+    private val routeDraftKeeperDep: RouteDraftKeeper by inject()
 
     fun getActivityHistoryRepository(): ActivityHistoryRepository = activityHistoryRepository
     fun getCurrentLocationUseCase(): GetCurrentLocationUseCase = currentLocationUseCase
@@ -32,4 +34,7 @@ class KoinHelper : KoinComponent {
     fun observeActivitiesUseCase(): ObserveActivitiesUseCase = observeActivitiesUseCaseDep
     fun calorieCalculator(): CalorieCalculator = calorieCalculatorDep
     fun clock(): Clock = clockDep
+
+    /** A new keeper for each KoinHelper (a factory binding): one per route screen. */
+    fun routeDraftKeeper(): RouteDraftKeeper = routeDraftKeeperDep
 }
