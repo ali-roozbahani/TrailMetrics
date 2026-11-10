@@ -426,6 +426,78 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `grep -n 'Date()' iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` shows no read used for the throttle, and a package test drives the throttle through an injected clock, including a clock that goes back.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`update`, `minimumUpdateInterval`); `tm-kmp-shared` ("Time"); `ios-live-activity-ticker`.
 
+### android-mainactivity-field-injection
+- Type: task
+- Area: androidApp/app
+- Order: 360
+- Source: sweep tm-android
+- Problem: `tm-android` "Koin" forbids field injection and `KoinComponent` in application code (no severity given; read as `important`). `MainActivity` field-injects three dependencies with `by inject()`: `trackingSessionManager`, `applicationScope` (`inject(APPLICATION_SCOPE)`) and `logger`. Count 3, one file. The skill's own exception names only `TrackingSessionManager`, so two of the three are not even listed (see `android-skill-koin-and-count-text-stale`). Known deviation of `tm-android` with no board record until now. Recorded, not fixed: an Activity is not constructed by Koin, so the replacement (a ViewModel that holds the Stop handling, or `koinInject()`/`get()` at the composition root) is a design choice and changes `MainActivity` and its tests.
+- Done when: `grep -n 'by inject' androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt` returns nothing, the Stop-intent handling still discards the session in the application scope, and `tm-android`'s Koin exception line is removed.
+- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt` (`trackingSessionManager`, `applicationScope`, `logger`, `handleStopTrackingIntent`); `androidApp/app/src/test/`; `tm-android` ("Koin", "Known deviations").
+
+### android-viewmodels-koin-lambda-form
+- Type: task
+- Area: androidApp/feature-route, androidApp/feature-history
+- Order: 370
+- Source: sweep tm-android
+- Problem: `tm-android` "Koin" prefers `viewModelOf(::X)` and allows the lambda form only for a factory method, a qualifier, runtime parameters or post-construction setup (no severity given; read as `important`). `routeModule` registers `RouteViewModel` and `historyUiModule` registers `HistoryViewModel` with `viewModel { X(a = get(), b = get()) }`: only plain constructor arguments, none of the four reasons. Count 2. `DetailsViewModel` and `TrackingViewModel` take runtime parameters and keep the lambda form correctly. Recorded, not fixed: a change to Koin files, small but of another subject than this sweep.
+- Done when: `grep -n 'viewModel {' androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/di/RouteModule.kt` returns nothing and `HistoryUiModule.kt` uses `viewModelOf(::HistoryViewModel)` for `HistoryViewModel`; the module's Koin graph tests still pass.
+- Refs: `androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/di/RouteModule.kt`; `androidApp/feature-history/src/main/kotlin/dev/roozbahani/trailmetrics/feature/history/di/HistoryUiModule.kt`; `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/di/AppModule.kt` (the `viewModelOf` pattern); `tm-android` ("Koin").
+
+### android-screen-overload-delegates-to-root
+- Type: task
+- Area: androidApp/feature-route, androidApp/feature-tracking, androidApp/feature-history, androidApp/app
+- Order: 380
+- Source: sweep tm-android
+- Problem: `tm-android` "Presentation layer" names `<Screen>Screen` the stateless composable (`state` + `onAction`, no ViewModel reference) and `<Screen>Root` the one holding the ViewModel. Each of the four screen files also has a public `<X>Screen(...)` overload that only calls `<X>Root`, so every screen name is declared twice with different meanings (`RouteScreen`, `TrackingScreen`, `HistoryScreen`, `DetailsScreen`). Count 4. It is a known deviation of `tm-android` ("kept so MainActivity's NavHost call sites didn't change") with no board record until now. Recorded, not fixed: the fix changes the four NavHost call sites in `MainActivity` and the UI tests that call the overloads.
+- Done when: `grep -rn 'NavHost entry point' androidApp/feature-route/src/main androidApp/feature-tracking/src/main androidApp/feature-history/src/main` returns nothing, `MainActivity`'s NavHost calls the Root composables, each `<X>Screen` name is declared once, and the "Known deviations" bullet of `tm-android` is removed.
+- Refs: `androidApp/feature-route/.../RouteScreen.kt`, `androidApp/feature-tracking/.../TrackingScreen.kt`, `androidApp/feature-history/.../HistoryScreen.kt` and `.../DetailsScreen.kt` (the doc comment "NavHost entry point"); `androidApp/app/.../MainActivity.kt` (`TrailMetricsNavHost`); `tm-android` ("Presentation layer", "Known deviations").
+
+### route-waypoint-marker-ad-hoc-color
+- Type: task
+- Area: androidApp/feature-route
+- Order: 390
+- Source: sweep tm-android
+- Problem: `tm-android` "Compose": colors come from `core-ui`'s `designsystem/theme`, with no ad-hoc color literals in features (no severity given; read as `important`). The waypoint marker icon in `RouteScreen` is tinted with `Color.Red`, not a theme color (`TrailRed` or `MaterialTheme.colorScheme.error`). Count 1. The other `Color.*` uses are in the theme files themselves and in `core-ui`'s `CurrentLocationMarker` (white border), which is not a feature and was read as not a violation. Recorded, not fixed: this sweep changes no code, and which theme color the marker should use is a design choice.
+- Done when: `grep -n 'Color\.Red' androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt` returns nothing and the marker tint is a theme color.
+- Refs: `androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt` (the `MarkerComposable` of the waypoints); `androidApp/core-ui/src/main/kotlin/dev/roozbahani/trailmetrics/core/designsystem/theme/Color.kt`; `tm-android` ("Compose").
+
+### route-waypoint-marker-no-content-description
+- Type: task
+- Area: androidApp/feature-route
+- Order: 400
+- Source: sweep tm-android
+- Problem: `tm-android` "Compose": meaningful `contentDescription` (string resource, `cd_*` key) on interactive or informational elements, `null` only for decorative ones (no severity given; read as `important`). The waypoint marker in `RouteScreen` is a `MarkerComposable` whose `onClick` removes the waypoint, and its `Icon` has `contentDescription = null`. Count 1. The other `null` descriptions were read: they are icons next to a text label, a decorative snapshot image and the bottom bar items, and are decorative. Whether a map marker is reachable by a screen reader at all depends on the Maps Compose version, so the fix needs a decision. Recorded, not fixed.
+- Done when: the waypoint marker's `Icon` has a `contentDescription` from a `cd_*` string resource (or the owner records that map markers are exempt in `tm-android`), and `grep -n 'cd_' androidApp/core-ui/src/main/res/values/strings.xml` lists it.
+- Refs: `androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt` (`MarkerComposable`); `androidApp/core-ui/src/main/res/values/strings.xml`; `tm-android` ("Compose").
+
+### composables-transform-data-in-composition
+- Type: task
+- Area: androidApp/feature-route, androidApp/feature-history
+- Order: 410
+- Source: sweep tm-android
+- Problem: `tm-android` "Compose": composables render `state`, with zero business logic and zero data transformation (no severity given; read as `important`). Two composables transform data in composition: `RouteScreen` maps `route.points` to coordinates (`route.points.map { it.coordinates }`) for `RoutePolyline` on every recomposition, and `ActivityRow` in `HistoryScreen` builds a `DateFormat` with `DateFormat.getDateTimeInstance(...)` and formats the start time for every row on every recomposition. Count 2. The second also breaks `tm-robustness` P2 (no allocation in composition; `remember` a derived value), which the stage 1 sweep (#238) did not find. Recorded, not fixed: the fix moves the mapping into the state (`RouteState`) and the date into a display value or a `remember`ed formatter, which changes state classes and tests.
+- Done when: `grep -n 'points.map' androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt` returns nothing, `grep -n 'getDateTimeInstance' androidApp/feature-history/src/main/kotlin/dev/roozbahani/trailmetrics/feature/history/HistoryScreen.kt` returns nothing or the formatter is created once per screen, and the existing UI tests pass.
+- Refs: `androidApp/feature-route/.../RouteScreen.kt` (`RoutePolyline(points = ...)`); `androidApp/feature-history/.../HistoryScreen.kt` (`ActivityRow`); `tm-android` ("Compose"); `tm-robustness` P2.
+
+### opt-in-without-reason-or-too-wide
+- Type: task
+- Area: androidApp/feature-route, data
+- Order: 420
+- Source: sweep tm-android
+- Problem: `tm-android` "No deprecated APIs (Kotlin)": opt in as narrowly as possible, at the call expression or the smallest enclosing declaration, with a comment saying why (no severity given; read as `important`; `tm-kmp-shared` applies the Kotlin rules to `data`). Three of five `@OptIn` annotations have no comment: `UserProfileBottomSheet` in `RouteScreen` (`ExperimentalMaterial3Api`), `getDatabaseBuilder` in `DatabaseBuilder.ios.kt` and `IosLocationRepositoryImpl` (both `ExperimentalForeignApi`). The last is on the whole class, wider than the members that use the cinterop API. Count 3 (one of them also too wide). The `MapEffect` opt-in in `TrackingScreen` and the one in `SystemClock.ios.kt` give their reason and are narrow. Recorded, not fixed: this sweep changes no code.
+- Done when: every `@OptIn` in production Kotlin has a comment line saying why, and `IosLocationRepositoryImpl` opts in on the members that need it; `grep -rn -B1 '@OptIn' androidApp data --include=*.kt` shows a comment above each.
+- Refs: `androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt` (`UserProfileBottomSheet`); `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/DatabaseBuilder.ios.kt`; `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/location/IosLocationRepositoryImpl.kt`; `tm-android` ("No deprecated APIs (Kotlin)").
+
+### unused-template-colors-in-core-ui
+- Type: task
+- Area: androidApp/core-ui
+- Order: 430
+- Source: sweep tm-android
+- Problem: `tm-android` "No dead code": unused `internal`/`public` code is not caught by detekt, so check it yourself (no severity given; read as `important`). `core-ui`'s `Color.kt` keeps six default-template colors (`Purple80`, `PurpleGrey80`, `Pink80`, `Purple40`, `PurpleGrey40`, `Pink40`) under "Default template colors". `git grep` finds each name only in its own declaration, so none is used by any module, test or resource. Count 6, one file. Recorded, not fixed: this sweep changes no code (and `UnusedPrivateProperty` would not flag a public `val`).
+- Done when: `git grep -n -E 'Purple80|PurpleGrey80|Pink80|Purple40|PurpleGrey40|Pink40' -- . ':!BOARD.md'` returns nothing and the "Default template colors" comment is gone.
+- Refs: `androidApp/core-ui/src/main/kotlin/dev/roozbahani/trailmetrics/core/designsystem/theme/Color.kt`; `tm-android` ("No dead code").
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -490,3 +562,12 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Four texts count the Android ViewModels as four: `CLAUDE.md` ("Presentation layer: MVI": "All four Android ViewModels"), `tm-android` (MVI "Current code: all four ViewModels follow this shape"), `tm-robustness` M2 ("the four ViewModels hold none") and `tm-pr-workflow` Boundaries ("All four Android ViewModels are on MVI since #54"). There are five: `SavedSessionOfferViewModel` (`androidApp/app`) was added later, with `state`, `onAction` and `events`. The claims still hold for it as read here (MVI shape, no `Context`), only the count and the lists of names are stale. Not fixed: this sweep changes no skill and no `CLAUDE.md`.
 - Done when: the four texts name all five ViewModels or drop the count, matching `grep -rn 'class .*ViewModel' androidApp/*/src/main`.
 - Refs: `CLAUDE.md`; `.claude/skills/tm-android/SKILL.md`; `.claude/skills/tm-robustness/SKILL.md`; `.claude/skills/tm-pr-workflow/SKILL.md`; `androidApp/app/.../SavedSessionOfferViewModel.kt`.
+
+### android-skill-koin-and-count-text-stale
+- Type: drift
+- Area: .claude/skills/tm-android
+- Order: 440
+- Source: sweep tm-android
+- Problem: Two statements in `tm-android` ("Koin") disagree with the code. (1) "Today every module uses the lambda form, including `HistoryViewModel` and `RouteViewModel`": `androidApp/app`'s `appModule` registers `SavedSessionOfferViewModel` with `viewModelOf(::SavedSessionOfferViewModel)`, so the lambda form is not used by every module. (2) "Existing exception: `MainActivity` field-injects `TrackingSessionManager` with `by inject()`": `MainActivity` field-injects three dependencies (`trackingSessionManager`, `applicationScope`, `logger`), so the exception line names one of three. Count 2 lines. The "four ViewModels" count of the same skill is already `android-viewmodel-count-stale`. Not fixed: this sweep changes no skill.
+- Done when: the lambda-form sentence names the modules that still use it (`routeModule`, `historyUiModule`, `trackingUiModule`) and the `MainActivity` exception lists the three injected fields, or both lines are removed with the code fixes `android-viewmodels-koin-lambda-form` and `android-mainactivity-field-injection`.
+- Refs: `.claude/skills/tm-android/SKILL.md` ("Koin", "Known deviations"); `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/di/AppModule.kt`; `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/MainActivity.kt`; `android-viewmodel-count-stale`.
