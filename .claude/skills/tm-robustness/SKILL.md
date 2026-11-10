@@ -67,6 +67,8 @@ rule that needs it never fires there (see "Mechanical rules").
 - **E4** The failure of a background job (a coroutine, a `Task`, a service) is observable as state
   or an event, not lost. Why: a failed save or sync the user never hears about is data loss.
   Example: `ObserveActivitiesUseCase` emits `Failed`. Enforced: reviewer only. Severity: blocking.
+  Accepted exception (owner, PR #250): the route draft. `RouteDraftSaver` logs a failed save or read,
+  planning goes on, no notice; the plan is cheap to make again, not data the user recorded.
 
 ## Dispatchers and threads
 
