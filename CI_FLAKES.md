@@ -117,3 +117,20 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   - 2026-10-21, run 39606497367 (push to `main`, head 90a0f7d), re-run: no
 - Notes: class infra (runner or restored Gradle cache), not shown. `androidApp` and the Gradle files
   did not change between 90a0f7d and 184beba, and run 39598565016 (184beba) was green.
+
+## ios-route-pending-events-wait
+
+- Signature: job `iOS 2b — lint, app build, package tests`, step `Run iOS package tests`, test
+  `RouteViewModelPendingEventsTests.test_eventAfterConsumerCancelled_isDeliveredOnceToNextStreamOnly`,
+  first error line "failed - Condition not met within 2.0 seconds" (`RouteViewModelPendingEventsTests.swift`,
+  the last `waitUntil` of the test; two assertion failures follow from it)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-10, run 42813382887 (push to `main`, merge of #240), re-run: no
+- Notes: the test ran 29.9 s; the other 42 Route tests and the History and Tracking packages passed in
+  the same run. The Swift sources are those of run 42812119886 (#239, green): the diff from 43be50a to
+  267e720 is `BOARD.md` only. Cause class: the wait is `waitUntil`'s default fixed 2.0 s bound on a loaded
+  runner, with the same first error line and cause as `ios-tracking-finish-failed-save-wait` (another test
+  and package) and the board record `ios-tracking-finish-test-fixed-wait`, which names only the Tracking
+  Finish test. Why the runner was slow is not shown.
