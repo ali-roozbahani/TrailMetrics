@@ -302,6 +302,10 @@ data class TrackingScreenState(
     val currentMetrics: TrackingMetrics?
         get() = trackingState.sessionMetrics()
 
+    /** The recorded path the map draws: a line needs two points, so fewer draws nothing. */
+    val recordedPathToDraw: List<Coordinates>
+        get() = currentPath.takeIf { it.size >= MIN_POINTS_FOR_LINE }.orEmpty()
+
     /** Only in Idle, and once the stored session is loaded: Start must never replace a session that exists. */
     val canStart: Boolean
         get() = trackingState is TrackingState.Idle && !isRestoring
@@ -314,6 +318,23 @@ data class TrackingScreenState(
 
     val canStop: Boolean
         get() = trackingState is TrackingState.Tracking || trackingState is TrackingState.Paused
+}
+
+private const val MIN_POINTS_FOR_LINE = 2
+
+/** What the camera does when the recorded path changes. */
+enum class CameraPlan { None, FitPath, FollowLastPoint }
+
+/**
+ * Decides the camera for [path]. [pathAlreadySeen] is true once a non-empty path has been handled.
+ * A restored session arrives with a path of two or more points as its first non-empty path: fit
+ * it once. A live session starts with one point, so it is never fitted and follows the last point,
+ * as does every later change.
+ */
+fun cameraPlanFor(path: List<Coordinates>, pathAlreadySeen: Boolean): CameraPlan = when {
+    path.isEmpty() -> CameraPlan.None
+    !pathAlreadySeen && path.size >= MIN_POINTS_FOR_LINE -> CameraPlan.FitPath
+    else -> CameraPlan.FollowLastPoint
 }
 
 sealed interface TrackingAction {

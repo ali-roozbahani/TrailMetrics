@@ -67,6 +67,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -252,11 +253,34 @@ fun TrackingScreen(
 
     // CameraUpdateFactory throws until the Maps SDK is initialized, which a map existing proves, so the
     // update is built only once googleMapRef is set (and again for the latest path when it is).
+    // Not saveable on purpose: after process death the flag must be false again, so the restored
+    // session is fitted. A recreated screen (rotation) fits a path of 2+ points once more.
+    var pathAlreadySeen by remember { mutableStateOf(false) }
+    val displayMetrics = context.resources.displayMetrics
+
     LaunchedEffect(state.currentPath, googleMapRef) {
         if (googleMapRef == null) return@LaunchedEffect
-        state.currentPath.lastOrNull()?.let { coordinates ->
-            cameraPositionState.animate(
-                CameraUpdateFactory.newLatLng(LatLng(coordinates.latitude, coordinates.longitude))
+        val path = state.currentPath
+        val plan = cameraPlanFor(path, pathAlreadySeen)
+        if (path.isNotEmpty()) pathAlreadySeen = true
+        when (plan) {
+            CameraPlan.None -> Unit
+            CameraPlan.FollowLastPoint -> path.last().let { coordinates ->
+                cameraPositionState.animate(
+                    CameraUpdateFactory.newLatLng(LatLng(coordinates.latitude, coordinates.longitude))
+                )
+            }
+            // The screen size stands in for the map's, which may not be laid out yet (the size-less
+            // newLatLngBounds overload throws then).
+            CameraPlan.FitPath -> cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngBounds(
+                    LatLngBounds.builder().apply {
+                        path.forEach { include(LatLng(it.latitude, it.longitude)) }
+                    }.build(),
+                    displayMetrics.widthPixels,
+                    displayMetrics.heightPixels,
+                    FIT_PADDING_PX
+                )
             )
         }
     }
@@ -284,6 +308,11 @@ fun TrackingScreen(
 
                 state.routeProgress?.traveledSegment?.let { traveled ->
                     RoutePolyline(points = traveled, color = MaterialTheme.colorScheme.primary)
+                }
+
+                // Last, so the recorded line is on top; a restored session has no planned route.
+                if (state.recordedPathToDraw.isNotEmpty()) {
+                    RoutePolyline(points = state.recordedPathToDraw, color = MaterialTheme.colorScheme.primary)
                 }
 
                 CurrentLocationMarker(coordinates = currentLocation ?: initialStartPoint)
@@ -549,6 +578,9 @@ private fun TrackingScreenPreview() {
 private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string
 
 private const val DEFAULT_ZOOM = 15f
+
+// Keeps the fitted path off the screen edge; well under half of any phone's width.
+private const val FIT_PADDING_PX = 120
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION
