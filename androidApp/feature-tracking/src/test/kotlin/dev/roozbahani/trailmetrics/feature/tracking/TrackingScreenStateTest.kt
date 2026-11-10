@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import org.junit.Test
@@ -44,6 +45,33 @@ class TrackingScreenStateTest {
     fun `recordedPathToDraw does not depend on a planned route`() {
         val state = TrackingScreenState(trackingState = PAUSED, plannedRoutePoints = emptyList(), routeProgress = null)
         assertEquals(PATH, state.recordedPathToDraw)
+    }
+
+    @Test
+    fun `traveledSegmentToDraw is the segment while the recorded path is not drawn`() {
+        val segment = RouteProgress(traveledSegment = PATH, remainingSegment = emptyList(), lastIndex = 1)
+        assertEquals(PATH, TrackingScreenState(routeProgress = segment).traveledSegmentToDraw)
+        val onePoint = TrackingScreenState(
+            trackingState = TrackingState.Tracking(metricsOf(PATH.take(1))),
+            routeProgress = segment
+        )
+        assertEquals(PATH, onePoint.traveledSegmentToDraw)
+    }
+
+    @Test
+    fun `traveledSegmentToDraw is empty once the recorded path is drawn`() {
+        val segment = RouteProgress(traveledSegment = PATH, remainingSegment = emptyList(), lastIndex = 1)
+        val twoPoints = TrackingScreenState(
+            trackingState = TrackingState.Tracking(metricsOf(PATH)),
+            routeProgress = segment
+        )
+        assertEquals(emptyList(), twoPoints.traveledSegmentToDraw)
+    }
+
+    @Test
+    fun `traveledSegmentToDraw is empty without a segment`() {
+        assertEquals(emptyList(), TrackingScreenState().traveledSegmentToDraw)
+        assertEquals(emptyList(), TrackingScreenState(trackingState = PAUSED).traveledSegmentToDraw)
     }
 
     @Test

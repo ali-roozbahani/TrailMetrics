@@ -306,6 +306,14 @@ data class TrackingScreenState(
     val recordedPathToDraw: List<Coordinates>
         get() = currentPath.takeIf { it.size >= MIN_POINTS_FOR_LINE }.orEmpty()
 
+    /**
+     * The traveled segment of the planned route the map draws: only while the recorded path is not drawn
+     * (fewer than two points). Once it is, the recorded line alone shows the way travelled, and the planned
+     * route stays gray under it; drawing both gave a doubled ring, as the two lines differ a little.
+     */
+    val traveledSegmentToDraw: List<Coordinates>
+        get() = if (recordedPathToDraw.isNotEmpty()) emptyList() else routeProgress?.traveledSegment.orEmpty()
+
     /** Only in Idle, and once the stored session is loaded: Start must never replace a session that exists. */
     val canStart: Boolean
         get() = trackingState is TrackingState.Idle && !isRestoring
