@@ -109,7 +109,7 @@ final class TrackingViewModelTests: TrackingTestCase {
         XCTAssertFalse(viewModel.canResume)
         XCTAssertFalse(viewModel.canStop)
         XCTAssertTrue(viewModel.currentPath.isEmpty, "currentPath only covers Tracking and Paused")
-        XCTAssertNil(viewModel.currentMetrics, "currentMetrics only covers Tracking and Paused")
+        XCTAssertEqual(viewModel.currentMetrics?.path, TrackingFixtures.movingPath, "The numbers stay after Stop")
         XCTAssertEqual(subject.serviceLauncher.stopCount, 1)
     }
 
@@ -193,7 +193,7 @@ final class TrackingViewModelTests: TrackingTestCase {
         XCTAssertNotEqual(viewModel.calories, caloriesBeforePause)
     }
 
-    func test_calories_afterStop_areNil() async {
+    func test_calories_afterStop_stayForTheFinishedSession() async {
         let viewModel = makeSubject(
             updates: TrackingFixtures.movingUpdates,
             profile: UserProfile(weightKg: Self.weightKg)
@@ -203,8 +203,9 @@ final class TrackingViewModelTests: TrackingTestCase {
 
         viewModel.onStopClicked()
 
-        // Today's behavior: recomputeCalories() reads currentMetrics, which excludes Finished.
-        XCTAssertNil(viewModel.calories)
+        // recomputeCalories() reads currentMetrics, which includes Finished (the panel above Finish shows them).
+        XCTAssertNotNil(viewModel.calories)
+        XCTAssertEqual(viewModel.calories, expectedCalories(for: viewModel))
     }
 
     // MARK: - Finish

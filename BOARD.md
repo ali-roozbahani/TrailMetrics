@@ -503,9 +503,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp/Tracking
 - Order: 460
 - Source: sweep tm-ios
-- Problem: `tm-ios` "SKIE interop": keep the `switch onEnum(of: value)` exhaustive so a new Kotlin case breaks the Swift build (no severity given; read as `important`). In `TrackingViewModel`, `canStop`, `currentPath` and `currentMetrics` switch on `onEnum(of: trackingState)` and end in `default:`, so a new `TrackingState` case would compile and silently fall into the default (not stoppable, empty path, no metrics). Count 3, one file. The other switches on `onEnum(of:)` (`ContentView`, `HistoryViewModel`, `RouteUiError+Message`, `onStopClicked`) list every case. Recorded, not fixed: this sweep changes no code; it overlaps with `tracking-control-rules-to-domain`, which may move these rules to `domain`.
-- Done when: `grep -n 'default:' iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` returns nothing and each of the three properties lists all `TrackingState` cases (or is replaced by the shared domain rule).
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStop`, `currentPath`, `currentMetrics`); `tm-ios` ("SKIE interop from Swift"); `tracking-control-rules-to-domain`.
+- Problem: `tm-ios` "SKIE interop": keep the `switch onEnum(of: value)` exhaustive so a new Kotlin case breaks the Swift build (no severity given; read as `important`). In `TrackingViewModel`, `canStop` and `currentPath` switch on `onEnum(of: trackingState)` and end in `default:`, so a new `TrackingState` case would compile and silently fall into the default (not stoppable, empty path). Count 2, one file (`currentMetrics` lists every case since PR restore-fixes). The other switches on `onEnum(of:)` (`ContentView`, `HistoryViewModel`, `RouteUiError+Message`, `onStopClicked`) list every case. Recorded, not fixed: this sweep changes no code; it overlaps with `tracking-control-rules-to-domain`, which may move these rules to `domain`.
+- Done when: `grep -n 'default:' iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` returns nothing and each of the two properties lists all `TrackingState` cases (or is replaced by the shared domain rule).
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStop`, `currentPath`); `tm-ios` ("SKIE interop from Swift"); `tracking-control-rules-to-domain`.
 
 ### ios-contentview-calls-koinhelper
 - Type: task

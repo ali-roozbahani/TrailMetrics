@@ -7,12 +7,14 @@
 //  so that class stays focused on tracking state itself.
 //
 
-import ActivityKit
 import Foundation
 
 @MainActor
 final class TrackingLiveActivityController {
-    private var liveActivity: Activity<TrackingActivityAttributes>?
+    // The id of the Activity this controller requested. Every other Activity of the attributes type is an
+    // orphan of a killed process: `start` and `end` end those too.
+    private var ownActivityID: String?
+    private let client: LiveActivityClient
     private let onStopRequested: () -> Void
 
     // Timestamp of the last `Activity.update()` call actually dispatched, used
@@ -21,7 +23,8 @@ final class TrackingLiveActivityController {
     // `update(...)` call (the first one of a new session) is never throttled.
     private var lastUpdateDate: Date?
 
-    init(onStopRequested: @escaping () -> Void) {
+    init(client: LiveActivityClient = ActivityKitLiveActivityClient(), onStopRequested: @escaping () -> Void) {
+        self.client = client
         self.onStopRequested = onStopRequested
         registerStopNotificationObserver()
     }
@@ -30,26 +33,22 @@ final class TrackingLiveActivityController {
         unregisterStopNotificationObserver()
     }
 
+    /// Starts the session's Live Activity and ends every other one the system holds for the app (the one of
+    /// a killed process after a restore). The existing ids are read before the request, so the new Activity
+    /// is never among those ended.
     func start(activityType: String) {
-        guard liveActivity == nil else { return }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        if let ownActivityID, client.existingIDs.contains(ownActivityID) { return }
+        guard client.areActivitiesEnabled else { return }
 
-        let attributes = TrackingActivityAttributes(activityType: activityType)
-        let initialState = TrackingActivityAttributes.ContentState(
-            distanceMeters: 0,
-            elapsedMillis: 0,
-            currentSpeedMetersPerSecond: nil
-        )
-
-        // Silent on purpose: the Live Activity is an optional extra (the user can turn Live
-        // Activities off, or the system can refuse one), and tracking works without it.
-        // An exception to `tm-ios`'s "never drop an error" rule.
-        // swiftlint:disable:next optional_try - the Live Activity is optional; nil leaves tracking running without it
-        liveActivity = try? Activity.request(
-            attributes: attributes,
-            content: ActivityContent(state: initialState, staleDate: nil)
-        )
+        let orphanIDs = client.existingIDs
+        ownActivityID = client.request(activityType: activityType)
         lastUpdateDate = nil
+
+        Task { [client] in
+            for id in orphanIDs {
+                await client.end(id: id, finalState: nil, dismissal: .immediate)
+            }
+        }
     }
 
     // ActivityKit documents a Live Activity update budget of roughly once per
@@ -68,7 +67,7 @@ final class TrackingLiveActivityController {
     private static let minimumUpdateInterval: TimeInterval = 1
 
     func update(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?) {
-        guard let liveActivity else { return }
+        guard let ownActivityID else { return }
 
         let now = Date()
         if let lastUpdateDate, now.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
@@ -82,8 +81,8 @@ final class TrackingLiveActivityController {
             currentSpeedMetersPerSecond: currentSpeedMetersPerSecond
         )
 
-        Task {
-            await liveActivity.update(ActivityContent(state: contentState, staleDate: nil))
+        Task { [client] in
+            await client.update(id: ownActivityID, state: contentState)
         }
     }
 
@@ -91,8 +90,9 @@ final class TrackingLiveActivityController {
     // advanced to `.finished` — with that state's final metrics, so the Live
     // Activity's last-shown content reflects the session's actual totals.
     func end(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?) {
-        guard let liveActivity else { return }
-        self.liveActivity = nil
+        let ownID = ownActivityID
+        ownActivityID = nil
+        let ids = client.existingIDs
 
         let finalState = TrackingActivityAttributes.ContentState(
             distanceMeters: distanceMeters,
@@ -100,11 +100,20 @@ final class TrackingLiveActivityController {
             currentSpeedMetersPerSecond: currentSpeedMetersPerSecond
         )
 
-        Task {
-            await liveActivity.end(
-                ActivityContent(state: finalState, staleDate: nil),
-                dismissalPolicy: .after(Date(timeIntervalSinceNow: Self.dismissalDelaySeconds))
-            )
+        // This controller's Activity keeps the final totals for a few seconds; any other one (an orphan of
+        // a killed process) goes at once.
+        Task { [client] in
+            for id in ids {
+                if id == ownID {
+                    await client.end(
+                        id: id,
+                        finalState: finalState,
+                        dismissal: .afterDelay(Self.dismissalDelaySeconds)
+                    )
+                } else {
+                    await client.end(id: id, finalState: nil, dismissal: .immediate)
+                }
+            }
         }
     }
 

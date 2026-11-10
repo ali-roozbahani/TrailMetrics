@@ -15,6 +15,13 @@ func recordedPathToDraw(_ path: [Coordinates]) -> [Coordinates] {
     path.count >= minimumPointsForLine ? path : []
 }
 
+/// The traveled segment of the planned route is drawn only while the recorded path is not (fewer than two
+/// points). Once it is, the recorded line alone shows the way travelled and the planned route stays gray
+/// under it: drawing both gave a doubled ring, as the two lines differ a little.
+func traveledSegmentToDraw(_ traveledSegment: [Coordinates], recordedPath: [Coordinates]) -> [Coordinates] {
+    recordedPathToDraw(recordedPath).isEmpty ? traveledSegment : []
+}
+
 /// What the camera does when the recorded path changes.
 enum CameraPlan: Equatable {
     case none

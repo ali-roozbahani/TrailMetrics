@@ -76,7 +76,11 @@ struct TrackingMapView: UIViewRepresentable {
         mapView.clear()
 
         addPolyline(plannedRoutePoints, color: .systemGray, to: mapView)
-        addPolyline(traveledSegment, color: UIColor(Color.trailGreen), to: mapView)
+        addPolyline(
+            traveledSegmentToDraw(traveledSegment, recordedPath: recordedPath),
+            color: UIColor(Color.trailGreen),
+            to: mapView
+        )
         addPolyline(recordedPathToDraw(recordedPath), color: UIColor(Color.trailGreen), to: mapView)
 
         let markerCoordinates = currentLocation ?? startPoint

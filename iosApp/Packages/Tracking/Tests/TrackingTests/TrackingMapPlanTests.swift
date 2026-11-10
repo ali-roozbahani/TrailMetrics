@@ -31,6 +31,25 @@ final class TrackingMapPlanTests: XCTestCase {
         XCTAssertEqual(recordedPathToDraw(points), points)
     }
 
+    // MARK: - Traveled segment
+
+    func test_traveledSegmentToDraw_withNoRecordedPoint_drawsTheSegment() {
+        XCTAssertEqual(traveledSegmentToDraw(points, recordedPath: []), points)
+    }
+
+    func test_traveledSegmentToDraw_withOneRecordedPoint_drawsTheSegment() {
+        XCTAssertEqual(traveledSegmentToDraw(points, recordedPath: [points[0]]), points)
+    }
+
+    func test_traveledSegmentToDraw_withTwoRecordedPoints_drawsNothing() {
+        XCTAssertEqual(traveledSegmentToDraw(points, recordedPath: Array(points.prefix(2))), [])
+    }
+
+    func test_traveledSegmentToDraw_withoutASegment_drawsNothing() {
+        XCTAssertEqual(traveledSegmentToDraw([], recordedPath: []), [])
+        XCTAssertEqual(traveledSegmentToDraw([], recordedPath: points), [])
+    }
+
     // MARK: - Camera
 
     func test_cameraPlan_withNoPoint_doesNothing() {

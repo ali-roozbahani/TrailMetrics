@@ -306,8 +306,8 @@ fun TrackingScreen(
                     )
                 }
 
-                state.routeProgress?.traveledSegment?.let { traveled ->
-                    RoutePolyline(points = traveled, color = MaterialTheme.colorScheme.primary)
+                if (state.traveledSegmentToDraw.isNotEmpty()) {
+                    RoutePolyline(points = state.traveledSegmentToDraw, color = MaterialTheme.colorScheme.primary)
                 }
 
                 // Last, so the recorded line is on top; a restored session has no planned route.

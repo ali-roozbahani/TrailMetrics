@@ -41,10 +41,21 @@ public final class SavedSessionOfferModel: ObservableObject {
     @Published public private(set) var restoreFailed = false
 
     private let trackingSessionManager: TrackingSessionManager
+    private let endOrphanedLiveActivities: () async -> Void
     private var hasRestored = false
 
-    public init(trackingSessionManager: TrackingSessionManager = KoinHelper().trackingSessionManager()) {
+    public convenience init(trackingSessionManager: TrackingSessionManager = KoinHelper().trackingSessionManager()) {
+        self.init(trackingSessionManager: trackingSessionManager) {
+            await Tracking.endOrphanedLiveActivities()
+        }
+    }
+
+    init(
+        trackingSessionManager: TrackingSessionManager,
+        endOrphanedLiveActivities: @escaping () async -> Void
+    ) {
         self.trackingSessionManager = trackingSessionManager
+        self.endOrphanedLiveActivities = endOrphanedLiveActivities
     }
 
     /// Does nothing after the first call. `restore()` is a Kotlin suspend function: the store read runs
@@ -52,6 +63,9 @@ public final class SavedSessionOfferModel: ObservableObject {
     public func restoreOnce() async {
         guard !hasRestored else { return }
         hasRestored = true
+        // No session is live in a freshly started process, so a Live Activity that exists belongs to a killed
+        // one: end it before the restored session is offered, so a Resume does not leave two on the lock screen.
+        await endOrphanedLiveActivities()
         do {
             let restored = try await trackingSessionManager.restore()
             offer = savedSessionOffer(
