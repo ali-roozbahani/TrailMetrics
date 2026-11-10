@@ -52,7 +52,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -254,8 +253,9 @@ fun TrackingScreen(
 
     // CameraUpdateFactory throws until the Maps SDK is initialized, which a map existing proves, so the
     // update is built only once googleMapRef is set (and again for the latest path when it is).
-    // Survives rotation, so a live session is never fitted after it was first followed.
-    var pathAlreadySeen by rememberSaveable { mutableStateOf(false) }
+    // Not saveable on purpose: after process death the flag must be false again, so the restored
+    // session is fitted. A recreated screen (rotation) fits a path of 2+ points once more.
+    var pathAlreadySeen by remember { mutableStateOf(false) }
     val displayMetrics = context.resources.displayMetrics
 
     LaunchedEffect(state.currentPath, googleMapRef) {
