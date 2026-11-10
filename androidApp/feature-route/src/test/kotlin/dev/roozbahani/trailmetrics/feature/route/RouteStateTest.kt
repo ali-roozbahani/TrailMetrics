@@ -4,6 +4,8 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
+import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -62,13 +64,18 @@ class RouteStateTest {
     }
 
     @Test
-    fun `a new location keeps the start point only when something was planned from it`() {
-        assertFalse(RouteState().hasPlannedFromStart, "nothing planned")
-        assertFalse(RouteState(startPoint = START).hasPlannedFromStart, "only a start point")
-        assertFalse(RouteState(waypoints = waypoints(2)).hasPlannedFromStart, "no start point")
-        assertTrue(RouteState(startPoint = START, waypoints = waypoints(1)).hasPlannedFromStart, "a waypoint")
+    fun `toStoredDraft holds the plan and not the profile or loading`() {
         val route = Route(points = emptyList(), distanceMeters = 0.0)
-        assertTrue(RouteState(startPoint = START, generatedRoute = route).hasPlannedFromStart, "a route")
+        val state = RouteState(
+            startPoint = START,
+            waypoints = waypoints(2),
+            generatedRoute = route,
+            userProfile = UserProfile(weightKg = 70.0),
+            selectedActivityType = ActivityType.Cycling,
+            isLoading = true
+        )
+
+        assertEquals(StoredRouteDraft(START, waypoints(2), route, ActivityType.Cycling), state.toStoredDraft())
     }
 
     @Test

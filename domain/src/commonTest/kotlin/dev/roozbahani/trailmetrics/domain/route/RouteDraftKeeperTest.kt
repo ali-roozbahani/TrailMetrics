@@ -11,7 +11,9 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class RouteDraftKeeperTest {
 
@@ -39,10 +41,22 @@ class RouteDraftKeeperTest {
     }
 
     @Test
-    fun `a restored plan is returned and keeps the plan`() = runTest(testScheduler) {
+    fun `a loaded plan is not kept until the screen keeps it`() = runTest(testScheduler) {
         store.stored = draftA
 
-        assertEquals(draftA, keeper.restore())
+        assertEquals(draftA, keeper.loadStoredPlan())
+        keeper.save(draftB)
+        testScheduler.runCurrent()
+
+        assertEquals(emptyList(), store.writes, "a save between the load and keeping the plan was written")
+    }
+
+    @Test
+    fun `a kept restored plan is written from then on`() = runTest(testScheduler) {
+        store.stored = draftA
+
+        assertEquals(draftA, keeper.loadStoredPlan())
+        assertTrue(keeper.keepRestoredPlan())
         keeper.save(draftB)
         testScheduler.runCurrent()
 
@@ -55,15 +69,25 @@ class RouteDraftKeeperTest {
 
         keeper.onUserChange()
 
-        assertNull(keeper.restore())
+        assertNull(keeper.loadStoredPlan())
+    }
+
+    @Test
+    fun `a user change between the load and keeping it drops the loaded plan`() = runTest(testScheduler) {
+        store.stored = draftA
+        assertEquals(draftA, keeper.loadStoredPlan())
+
+        keeper.onUserChange()
+
+        assertFalse(keeper.keepRestoredPlan())
     }
 
     @Test
     fun `nothing stored or a failing read does not keep the plan`() = runTest(testScheduler) {
-        assertNull(keeper.restore())
+        assertNull(keeper.loadStoredPlan())
         store.stored = draftA
         store.loadFailure = IllegalStateException("corrupt row")
-        assertNull(keeper.restore())
+        assertNull(keeper.loadStoredPlan())
 
         keeper.save(draftB)
         testScheduler.runCurrent()

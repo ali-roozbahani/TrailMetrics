@@ -128,6 +128,21 @@ class RouteViewModelDraftTest {
     }
 
     @Test
+    fun `a stored start point alone does not replace a location that arrived first`() = runTest(testScheduler) {
+        store.stored = StoredRouteDraft(STORED_START, emptyList(), null, ActivityType.Walking)
+        val gate = CompletableDeferred<Unit>()
+        store.loadGate = gate
+        val viewModel = createViewModel()
+        testScheduler.runCurrent()
+
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+
+        assertEquals(CURRENT_LOCATION, viewModel.state.value.startPoint)
+        assertEquals(ActivityType.Walking, viewModel.state.value.selectedActivityType)
+    }
+
+    @Test
     fun `a waypoint tapped before the plan loads wins and the loaded plan is dropped`() = runTest(testScheduler) {
         store.stored = STORED_PLAN
         val gate = CompletableDeferred<Unit>()

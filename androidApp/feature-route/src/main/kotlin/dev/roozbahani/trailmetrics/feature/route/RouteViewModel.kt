@@ -50,11 +50,11 @@ class RouteViewModel(
     init {
         // Once, at creation: the stored plan, unless the user changed the plan first (RouteDraftKeeper).
         viewModelScope.launch {
-            val draft = routeDraftKeeper.restore() ?: return@launch
+            val draft = routeDraftKeeper.loadStoredPlan() ?: return@launch
+            if (!routeDraftKeeper.keepRestoredPlan()) return@launch
             _state.update { state ->
                 state.copy(
-                    // A plan stored before any location was known has no start point.
-                    startPoint = draft.startPoint ?: state.startPoint,
+                    startPoint = draft.startPointToShow(currentLocation = state.startPoint),
                     waypoints = draft.waypoints,
                     generatedRoute = draft.generatedRoute,
                     selectedActivityType = draft.activityType
@@ -89,7 +89,7 @@ class RouteViewModel(
                 // The start point of a plan with waypoints or a route stays (a restored one): they were
                 // planned from it.
                 val previous = _state.value.startPoint
-                _state.update { if (it.hasPlannedFromStart) it else it.copy(startPoint = coordinates) }
+                _state.update { if (it.toStoredDraft().isPlannedFromStart) it else it.copy(startPoint = coordinates) }
                 if (_state.value.startPoint != previous) routeDraftKeeper.save(_state.value.toStoredDraft())
             } catch (error: RouteError) {
                 handleCurrentLocationErrors(error)
@@ -248,10 +248,6 @@ data class RouteState(
 ) {
     val canGenerateRoute: Boolean
         get() = startPoint != null && waypoints.size >= MIN_WAYPOINTS && !isLoading
-
-    /** Waypoints or a route were planned from [startPoint], so a new location does not replace it. */
-    internal val hasPlannedFromStart: Boolean
-        get() = startPoint != null && (waypoints.isNotEmpty() || generatedRoute != null)
 
     internal fun toStoredDraft() = StoredRouteDraft(startPoint, waypoints, generatedRoute, selectedActivityType)
 

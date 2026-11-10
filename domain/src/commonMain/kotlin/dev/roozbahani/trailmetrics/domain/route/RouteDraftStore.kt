@@ -37,4 +37,15 @@ data class StoredRouteDraft(
     /** No start point and no waypoints: nothing worth keeping. */
     val isEmpty: Boolean
         get() = startPoint == null && waypoints.isEmpty()
+
+    /** Waypoints or a route were planned from [startPoint], so a new current location does not replace it. */
+    val isPlannedFromStart: Boolean
+        get() = startPoint != null && (waypoints.isNotEmpty() || generatedRoute != null)
+
+    /**
+     * The start point a restored plan shows when the screen already knows [currentLocation]: the plan's own
+     * when something was planned from it, otherwise the current location (the plan's when none is known).
+     */
+    fun startPointToShow(currentLocation: Coordinates?): Coordinates? =
+        if (isPlannedFromStart) startPoint else currentLocation ?: startPoint
 }
