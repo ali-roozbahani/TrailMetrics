@@ -552,6 +552,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `grep -n 'seconds(2)' iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` returns nothing (or the default is a value the owner chose, with a comment saying why), the package tests pass, the two flake-log entries are set to `fixed` with this fix, and `ios-tracking-finish-test-fixed-wait` is deleted in the same PR.
 - Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` (`waitUntil`, `waitUntilOnlyReference`, `coldStartTimeout`); `iosApp/Packages/Route/Tests/RouteTests/RouteViewModelPendingEventsTests.swift`; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md`; `ios-tracking-finish-test-fixed-wait`; `wait-until-cancellation-spin`; `tm-testing` ("XCUITest", D5, D6).
 
+### pause-resume-joins-path-with-a-straight-segment
+- Type: task
+- Area: domain, androidApp, iosApp
+- Order: 540
+- Source: PR persist-tracking-restore-ios
+- Problem: The owner saw, on an Android device, that after Pause and Resume the recorded line joins the last point before the Pause to the first point after the Resume with a straight segment (a chord across a circle). What the code does, read in the files: `UpdateTrackingStateUseCase` handles `Pause` and `Resume` without touching the path, and the first `LocationReceived` after the Resume adds `path.last().distanceTo(newCoordinates)` to `distanceMeters`, so the jump is counted as distance, while the time of the pause is not counted (`Resume` sets `lastUpdateElapsedRealtimeMillis`); the path is a plain `List<Coordinates>`, so it has no gap marker and the Pause leaves no trace in it. Android draws the whole path as one `Polyline` (`RoutePolyline` in `TrackingScreen`), and iOS draws it as one `GMSPolyline` (`TrackingMapView`, `recordedPathToDraw`), so both show the chord; the saved activity keeps the same list. A restored session adds one more such jump (it comes back Paused, and its Resume continues from the last stored point). Not changed here: whether a pause splits the line and whether the jump counts as distance is a product decision with a model change in `domain`, both maps and the stored form.
+- Done when: the owner decides whether a pause splits the line and whether the jump counts as distance.
+- Refs: `domain/.../usecase/UpdateTrackingStateUseCase.kt` (`handleResume`, `handleLocationReceived`); `androidApp/core-ui/.../map/RoutePolyline.kt`; `androidApp/feature-tracking/.../TrackingScreen.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`; `domain/.../model/TrackingMetrics.kt` (`path`).
+
 ## Drift
 
 ### data-kover-comment-stale-figure
