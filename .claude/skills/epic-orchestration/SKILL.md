@@ -550,7 +550,7 @@ The orchestrator reports readiness. The human merges only when all of these hold
 3. CI is green on the epic PR for every required check, on its current head.
 4. **The final board PR is merged into the epic branch, and only then** has the
    orchestrator marked the epic PR ready for review (`gh pr ready <n>`). The final board
-   PR is the one board-only PR allowed (`tm-pr-workflow` → Board, rule 5). The
+   PR is the one board-only PR an epic uses (`tm-pr-workflow` → Board, rule 5). The
    orchestrator opens it into the epic branch after every subtask is merged. It is not a
    plan subtask. It adds `BOARD.md` records for the drift and follow-ups the subtasks
    reported, and deletes the epic's own record if the epic started from one. The
