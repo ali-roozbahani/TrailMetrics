@@ -408,6 +408,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides. If surfaced: a failing `TrackingSessionStore.save` reaches the UI as an event or state, and a throwing restore in `handleRestart` leaves a notice, each asserted in `TrackingSessionManagerTest` and `RestartActionTest`. If not: `tm-robustness` E4 names these two paths as accepted exceptions.
 - Refs: `domain/src/commonMain/.../tracking/TrackingSessionManager.kt` (`persist`); `data/src/androidMain/.../tracking/RestartAction.kt` (`handleRestart`); `domain/src/commonTest/.../tracking/TrackingSessionManagerTest.kt`; `data/src/androidHostTest/.../tracking/RestartActionTest.kt`; `tm-robustness` E4.
 
+### tracking-control-rules-to-domain
+- Type: task
+- Area: domain, androidApp/feature-tracking, iosApp/Tracking
+- Order: 320
+- Source: sweep tm-kmp-shared
+- Problem: `tm-kmp-shared` "Where logic lives" puts the can-start/can-pause rules in `domain` ("Do not re-implement it separately in an Android ViewModel and a Swift ViewModel"); the skill gives the rule no severity, read here as `important`. The four rules (`canStart`, `canPause`, `canResume`, `canStop`) are hand-written twice: in Android `TrackingScreenState` and in iOS `TrackingViewModel`. The two copies already disagree. On Android `canStart` is `Idle` and not restoring; on iOS it is `idle` or `finished`, so iOS offers Start over a finished, unsaved session and Android does not. Count 1 cause, 4 rules on each platform. Not the `tracking-metrics-calories-to-domain` record, which names only the metrics extraction and the calorie recompute. Recorded, not fixed: which `canStart` is right is a product decision, and the move changes `domain`, both ViewModels and their tests.
+- Done when: `domain` has the four rules as a pure function or property of `TrackingState` with `kotlin.test` cases, and `grep -n -E 'var canStart|val canStart' androidApp/feature-tracking/src/main iosApp/Packages/Tracking/Sources -r` shows each platform only delegating to it; the `Finished` case of `canStart` is the owner's decision, the same on both platforms.
+- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`TrackingScreenState`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `canPause`, `canResume`, `canStop`); `domain/.../model/TrackingState.kt`; `tm-kmp-shared` ("Where logic lives"); `tracking-metrics-calories-to-domain`.
+
+### live-activity-throttle-uses-wall-clock
+- Type: task
+- Area: iosApp/Tracking
+- Order: 330
+- Source: sweep tm-kmp-shared
+- Problem: `tm-kmp-shared` "Time": durations are measured with the monotonic clock, and two wall-clock reads are never subtracted (the skill gives no severity, read here as `important`). `TrackingLiveActivityController.update` throttles with `Date()` and `now.timeIntervalSince(lastUpdateDate)`. If the system time moves back (a manual change, a network time correction), the difference stays below `minimumUpdateInterval` and the Live Activity drops every update until the wall clock catches up. Count 1. Recorded, not fixed: this sweep changes no code, and the fix (the shared `Clock.elapsedRealtimeMillis()`, or `ContinuousClock` in Swift) is a choice for the iOS change.
+- Done when: `grep -n 'Date()' iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` shows no read used for the throttle, and a package test drives the throttle through an injected clock, including a clock that goes back.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`update`, `minimumUpdateInterval`); `tm-kmp-shared` ("Time"); `ios-live-activity-ticker`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
@@ -454,3 +472,21 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-robustness` E2's Enforced line says detekt `SwallowedException` does not check "an exception named `_`", and E1's names `TooGenericExceptionCaught` with no exemption. detekt 1.23.8's default for both rules is `allowedExceptionNameRegex: '_|(ignore|expected).*'`, and `config/detekt/detekt.yml` (`buildUponDefaultConfig = true`) does not override it. So a catch whose variable starts with `expected` or `ignore` is checked by neither rule. Five production `catch (expected: Exception)` blocks rely on it: `TrackingSessionManager` (`clearSession`, `persist`), `RestartAction.kt` (`handleRestart`), `MainActivity` (`handleStopTrackingIntent`), `SavedSessionOfferViewModel` (`init`). Each was read: each handles its failure on purpose, so none is an E1 or E2 violation (the E4 side is `tracking-session-store-failures-not-surfaced`). Only the rule text is wrong. Not fixed: this sweep changes no skill or config, and narrowing the regex (lint config, protected) or documenting it is a decision.
 - Done when: E1's and E2's Enforced lines name the `expected`/`ignore` name exemption, or `config/detekt/detekt.yml` sets `allowedExceptionNameRegex: '_'` for both rules and the five catches are renamed or suppressed with approval.
 - Refs: `.claude/skills/tm-robustness/SKILL.md` (E1, E2); `config/detekt/detekt.yml`; `build.gradle.kts` (`buildUponDefaultConfig`); the five files above.
+
+### route-error-module-stated-as-core
+- Type: drift
+- Area: CLAUDE.md, .claude/skills/tm-kmp-shared
+- Order: 340
+- Source: sweep tm-kmp-shared
+- Problem: `CLAUDE.md` ("Map": "`core` commonMain only: `AppRoute`, `RouteError`/`RouteUiError`") and `tm-kmp-shared` ("Module boundaries": "`core` (commonMain only): `AppRoute`, `RouteError`/`RouteUiError`") say `RouteError` is in `core`. It is in `domain` (`domain/src/commonMain/.../domain/model/RouteError.kt`); `core` holds only `AppRoute.kt` and `RouteUiError.kt`. The same skill's "Existing error model" and `core/README.md` call it domain-level, so the texts also disagree with each other. Not fixed: this sweep changes no skill and no `CLAUDE.md`.
+- Done when: both lines name only `AppRoute` and `RouteUiError` for `core` (and `RouteError` under `domain`), matching `find core/src -name '*.kt'`.
+- Refs: `CLAUDE.md` ("Map"); `.claude/skills/tm-kmp-shared/SKILL.md` ("Module boundaries"); `core/README.md`; `domain/.../model/RouteError.kt`.
+
+### android-viewmodel-count-stale
+- Type: drift
+- Area: CLAUDE.md, .claude/skills
+- Order: 350
+- Source: sweep tm-kmp-shared
+- Problem: Four texts count the Android ViewModels as four: `CLAUDE.md` ("Presentation layer: MVI": "All four Android ViewModels"), `tm-android` (MVI "Current code: all four ViewModels follow this shape"), `tm-robustness` M2 ("the four ViewModels hold none") and `tm-pr-workflow` Boundaries ("All four Android ViewModels are on MVI since #54"). There are five: `SavedSessionOfferViewModel` (`androidApp/app`) was added later, with `state`, `onAction` and `events`. The claims still hold for it as read here (MVI shape, no `Context`), only the count and the lists of names are stale. Not fixed: this sweep changes no skill and no `CLAUDE.md`.
+- Done when: the four texts name all five ViewModels or drop the count, matching `grep -rn 'class .*ViewModel' androidApp/*/src/main`.
+- Refs: `CLAUDE.md`; `.claude/skills/tm-android/SKILL.md`; `.claude/skills/tm-robustness/SKILL.md`; `.claude/skills/tm-pr-workflow/SKILL.md`; `androidApp/app/.../SavedSessionOfferViewModel.kt`.
