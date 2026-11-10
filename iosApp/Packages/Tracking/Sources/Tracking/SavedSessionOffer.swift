@@ -58,6 +58,10 @@ public final class SavedSessionOfferModel: ObservableObject {
                 for: restored,
                 activityType: trackingSessionManager.sessionDetails.value?.activityType
             )
+        } catch is CancellationError {
+            // The launch task was cancelled before the read finished: nothing failed, so no alert, and
+            // the next run of the task restores.
+            hasRestored = false
         } catch {
             restoreFailed = true
         }
