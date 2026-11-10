@@ -5,7 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import com.google.android.gms.maps.model.LatLng
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.END
+import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.NEXT
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.START
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Companion.WALKED_ROUTE
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeGoogleMap
@@ -78,6 +84,50 @@ class TrackingScreenSnapshotTest {
         ).clickStart()
         fixture.receiveLocation(END, millisAfterStart = 60_000L)
         return robot.waitForIdle().assertCompletedCard()
+    }
+
+    private fun grantPermissions() = shadowOf(composeRule.activity.application).grantPermissions(
+        Manifest.permission.POST_NOTIFICATIONS,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    private fun showMap() = robot.setContent(
+        startPoint = START,
+        plannedRoutePoints = emptyList(),
+        onNavigateBack = { navigateBackCalls++ },
+        inspectionMode = false,
+        snapshotDispatcher = snapshotDispatcher
+    )
+
+    private fun List<Coordinates>.asLatLngs() = map { LatLng(it.latitude, it.longitude) }
+
+    @Test
+    fun `a live session with no planned route draws the recorded path as a line`() {
+        grantPermissions()
+        showMap().clickStart()
+        fixture.receiveLocation(NEXT, millisAfterStart = 30_000L)
+        robot.waitForIdle()
+
+        assertEquals(listOf(listOf(START, NEXT).asLatLngs()), fakeMap.polylinePoints.takeLast(1))
+    }
+
+    @Test
+    fun `a restored paused session draws its recorded path as a line`() {
+        grantPermissions()
+        fixture.store.stored = TrackingState.Paused(
+            TrackingMetrics(
+                elapsedMillis = 30_000L,
+                lastUpdateElapsedRealtimeMillis = TrackingScreenFixture.START_ELAPSED_REALTIME,
+                distanceMeters = 111.0,
+                path = WALKED_ROUTE
+            )
+        )
+        fixture.store.storedActivityType = ActivityType.Cycling
+        fixture.store.storedStartedAtEpochMillis = TrackingScreenFixture.STARTED_AT
+        showMap()
+        robot.waitForIdle()
+
+        assertEquals(listOf(WALKED_ROUTE.asLatLngs()), fakeMap.polylinePoints.takeLast(1))
     }
 
     private fun filesDir(): File = composeRule.activity.filesDir

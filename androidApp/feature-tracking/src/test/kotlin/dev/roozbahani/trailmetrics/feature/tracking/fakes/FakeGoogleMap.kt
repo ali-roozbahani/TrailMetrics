@@ -11,6 +11,7 @@ import com.google.android.gms.maps.internal.IGoogleMapDelegate
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.PolylineOptions
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowViewGroup
@@ -39,9 +40,15 @@ class FakeGoogleMap {
     val pendingSnapshotCount: Int
         get() = pendingSnapshots.size
 
+    /** The points of each `addPolyline` call, in call order (a recomposition that rebuilds a line adds again). */
+    val polylinePoints: MutableList<List<LatLng>> = mutableListOf()
+
     val map: GoogleMap = GoogleMap(
         fakeDelegate(IGoogleMapDelegate::class.java) { method, args ->
-            if (method.name == "snapshot") {
+            if (method.name == "addPolyline") {
+                polylinePoints += (args?.firstOrNull() as PolylineOptions).points
+                null
+            } else if (method.name == "snapshot") {
                 snapshotRequests++
                 val callback = checkNotNull(args?.firstOrNull()) { "snapshot without a callback" }
                 // The callback interface is obfuscated; its only Bitmap method delivers the snapshot.

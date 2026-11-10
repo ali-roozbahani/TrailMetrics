@@ -25,6 +25,49 @@ class TrackingScreenStateTest {
     }
 
     @Test
+    fun `recordedPathToDraw is empty for an empty path and for a one-point path`() {
+        assertEquals(emptyList(), TrackingScreenState().recordedPathToDraw)
+        assertEquals(emptyList(), TrackingScreenState(trackingState = TrackingState.Tracking(metricsOf(PATH.take(1)))).recordedPathToDraw)
+    }
+
+    @Test
+    fun `recordedPathToDraw is the path from two points on, also for a restored paused or finished session`() {
+        val twoPoints = TrackingState.Tracking(metricsOf(PATH))
+        assertEquals(PATH, TrackingScreenState(trackingState = twoPoints).recordedPathToDraw)
+        assertForEveryState(
+            mapOf(IDLE to emptyList(), TRACKING to PATH, PAUSED to PATH, FINISHED to PATH)
+        ) { it.recordedPathToDraw }
+    }
+
+    @Test
+    fun `recordedPathToDraw does not depend on a planned route`() {
+        val state = TrackingScreenState(trackingState = PAUSED, plannedRoutePoints = emptyList(), routeProgress = null)
+        assertEquals(PATH, state.recordedPathToDraw)
+    }
+
+    @Test
+    fun `camera does nothing for an empty path`() {
+        assertEquals(CameraPlan.None, cameraPlanFor(emptyList(), pathAlreadySeen = false))
+        assertEquals(CameraPlan.None, cameraPlanFor(emptyList(), pathAlreadySeen = true))
+    }
+
+    @Test
+    fun `camera follows the first point of a live session`() {
+        assertEquals(CameraPlan.FollowLastPoint, cameraPlanFor(PATH.take(1), pathAlreadySeen = false))
+    }
+
+    @Test
+    fun `camera fits a path of two or more points once, when it is the first path seen`() {
+        assertEquals(CameraPlan.FitPath, cameraPlanFor(PATH, pathAlreadySeen = false))
+    }
+
+    @Test
+    fun `camera follows the last point once a path was seen, so a live session is never fitted`() {
+        assertEquals(CameraPlan.FollowLastPoint, cameraPlanFor(PATH, pathAlreadySeen = true))
+        assertEquals(CameraPlan.FollowLastPoint, cameraPlanFor(PATH.take(1), pathAlreadySeen = true))
+    }
+
+    @Test
     fun `currentMetrics are the session metrics once a session exists and null while idle`() {
         assertForEveryState(
             mapOf(IDLE to null, TRACKING to METRICS, PAUSED to METRICS, FINISHED to METRICS)
@@ -58,6 +101,8 @@ class TrackingScreenStateTest {
     fun `canStop is true only while tracking or paused`() {
         assertForEveryState(mapOf(IDLE to false, TRACKING to true, PAUSED to true, FINISHED to false)) { it.canStop }
     }
+
+    private fun metricsOf(path: List<Coordinates>) = METRICS.copy(path = path)
 
     private companion object {
         val PATH = listOf(

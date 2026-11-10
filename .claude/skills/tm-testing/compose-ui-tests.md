@@ -62,7 +62,8 @@ second tap hits nothing: the test passes with or without the guard. The check in
     false.
   - Every delegate call returns a default except `snapshot`, whose callback the test delivers with
     `deliverSnapshot(...)`.
-  - The map's content is still not asserted. The camera and bitmap-descriptor factories are fakes
+  - A polyline is asserted through `FakeGoogleMap.polylinePoints` (the points of each `addPolyline`
+    call); markers and the camera are not asserted. The camera and bitmap-descriptor factories are fakes
     installed by `FakeGoogleMap.installFactories()`; they are static, so a test that renders no map
     and must see an uninitialized Maps SDK (`TrackingScreenTest`) calls
     `FakeGoogleMap.uninstallFactories()` first. `TrackingScreen` builds its camera update only
