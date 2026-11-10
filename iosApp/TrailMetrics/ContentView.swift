@@ -14,10 +14,14 @@ import Tracking
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .route
+    @StateObject private var savedSessionOffer = SavedSessionOfferModel()
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            RouteTab()
+            RouteTab(
+                offer: savedSessionOffer.offer,
+                onOfferConsumed: { savedSessionOffer.offerConsumed() }
+            )
                 .tabItem {
                     Label { Text("Route", bundle: .main) } icon: { Image(systemName: "map") }
                 }
@@ -31,13 +35,31 @@ struct ContentView: View {
         }
         .tint(Color.trailGreen)
         .onOpenURL(perform: handleOpenURL)
+        // Once per launch: the model ignores a later run of this task.
+        .task { await savedSessionOffer.restoreOnce() }
+        .onChange(of: savedSessionOffer.offer) { _, offer in
+            if offer != nil { selectedTab = .route }
+        }
+        .alert(
+            Text("Error", bundle: .main),
+            isPresented: Binding(
+                get: { savedSessionOffer.restoreFailed },
+                set: { isPresented in
+                    if !isPresented { savedSessionOffer.restoreFailureAcknowledged() }
+                }
+            )
+        ) {
+            Button { savedSessionOffer.restoreFailureAcknowledged() } label: { Text("OK", bundle: .main) }
+        } message: {
+            Text("Could not restore your saved session.", bundle: .main)
+        }
     }
 
     // Tapping the Live Activity opens the app via this URL (system-handled —
-    // no code needed for that part) and delivers it here. Cold-launch session
-    // recovery is explicitly out of scope for this feature, so this only
-    // needs to work while the app process is already alive: whenever a
-    // tracking session is genuinely live, TrackingView is already the top of
+    // no code needed for that part) and delivers it here. A cold launch is
+    // handled by `SavedSessionOfferModel` (it offers the stored session), so
+    // this only needs to work while the app process is already alive: whenever
+    // a tracking session is genuinely live, TrackingView is already the top of
     // RouteTab's NavigationPath (it only pops on Stop), so opening the app is
     // enough on its own. The one thing this handler adds is switching back to
     // the Route tab, covering the case where the user had switched to History
@@ -62,6 +84,9 @@ private enum AppTab: Hashable {
 
 private struct RouteTab: View {
     @State private var path = NavigationPath()
+    /// The restored session to show as the Tracking screen, or nil.
+    let offer: AppRouteTracking?
+    let onOfferConsumed: () -> Void
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -83,6 +108,11 @@ private struct RouteTab: View {
                     startPoint: destination.route.startPoint
                 )
                 .toolbar(.hidden, for: .tabBar)
+            }
+            .onChange(of: offer, initial: true) { _, offer in
+                guard let offer else { return }
+                path.append(TrackingDestination(route: offer))
+                onOfferConsumed()
             }
         }
     }

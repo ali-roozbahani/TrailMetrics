@@ -10,6 +10,8 @@ import SharedKit
 public class TrackingViewModel: ObservableObject {
     @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared
     @Published public private(set) var calories: Double?
+    /// Set when the user discards the session (Stop, Stop & Exit): the screen is on its way out.
+    @Published public private(set) var isDiscarding = false
 
     public let activityType: ActivityType
     public let plannedRoutePoints: [Coordinates]
@@ -41,7 +43,6 @@ public class TrackingViewModel: ObservableObject {
     private var loadedUserProfile: UserProfile?
     /// True while the load started in `init` runs; a Finish in that time does nothing.
     private var isLoadingUserProfile = false
-    private var startedAtEpochMillis: Int64 = 0
     /// Set before a save starts, so a repeated Finish neither saves twice nor calls `onSaved`
     /// twice; cleared when the save fails (retry) and when a new session starts.
     private var isSessionSaved = false
@@ -67,6 +68,12 @@ public class TrackingViewModel: ObservableObject {
 
     public var canPause: Bool {
         if case .tracking = onEnum(of: trackingState) { return true }
+        return false
+    }
+
+    /// A Finished session waits to be saved: the route's end, or a restored one. Not while it is discarded.
+    public var canFinish: Bool {
+        if case .finished = onEnum(of: trackingState) { return !isDiscarding }
         return false
     }
 
@@ -213,7 +220,6 @@ public class TrackingViewModel: ObservableObject {
 
     public func onStartClicked() {
         isSessionSaved = false
-        startedAtEpochMillis = clock.nowMillis()
         trackingSessionManager.start(startPoint: startPoint, activityType: activityType)
         liveActivityController?.start(activityType: liveActivityTypeKey)
     }
@@ -224,6 +230,9 @@ public class TrackingViewModel: ObservableObject {
 
     public func onResumeClicked() {
         trackingSessionManager.resume()
+        // A session restored after the app was terminated has no Live Activity, and none starts before
+        // the user resumes. In a live session one exists and `start` does nothing.
+        liveActivityController?.start(activityType: liveActivityTypeKey)
     }
 
     public func onStopClicked() {
@@ -265,12 +274,26 @@ public class TrackingViewModel: ObservableObject {
         )
     }
 
+    /// Stop, then remove the stored session: the user does not want it (the Stop button, Stop & Exit and
+    /// the Live Activity's Stop). A session that stops by itself at the route's end uses `onStopClicked`
+    /// and stays stored until it is saved with Finish. The manager logs a failed clear and discards the
+    /// session in memory anyway, so there is nothing more to handle here.
+    public func onDiscardClicked() {
+        isDiscarding = true
+        onStopClicked()
+        Task { await clearStoredSession() }
+    }
+
     public func onFinishClicked(snapshotFilePath: String?, onSaved: @escaping () -> Void) {
         guard !isSessionSaved else { return }
         guard case .finished(let data) = onEnum(of: trackingState) else { return }
         let knownUserProfile = loadedUserProfile
         guard knownUserProfile != nil || !isLoadingUserProfile else { return }
 
+        // A restored session has no start time of this instance: the manager holds the stored one. A session
+        // stored by an older version has none, so this is an estimate, as on Android.
+        let startedAtEpochMillis = trackingSessionManager.sessionDetails.value?.startedAtEpochMillis?.int64Value
+            ?? clock.nowMillis() - data.metrics.elapsedMillis
         isSessionSaved = true
         Task {
             do {
@@ -294,11 +317,23 @@ public class TrackingViewModel: ObservableObject {
                     startedAtEpochMillis: startedAtEpochMillis,
                     snapshotFilePath: snapshotFilePath
                 )
+                // Only now is the recorded data safe elsewhere; a failed save above keeps the stored session.
+                await clearStoredSession()
                 onSaved()
             } catch {
                 isSessionSaved = false
                 emit(.showError(RouteUiErrorGeneral.shared))
             }
+        }
+    }
+
+    private func clearStoredSession() async {
+        do {
+            try await trackingSessionManager.clearSession()
+        } catch {
+            // Only a cancelled task reaches here (`clearSession` logs every other failure). After a save the
+            // activity is safe and the screen still closes; after a discard the next launch offers the stored
+            // copy again, which loses nothing.
         }
     }
 
@@ -333,7 +368,7 @@ public class TrackingViewModel: ObservableObject {
     // Live Activity Stop should behave exactly like the in-app Stop button).
     private func handleStopNotification() {
         guard canStop else { return }
-        onStopClicked()
+        onDiscardClicked()
         emit(.dismissed)
     }
 }

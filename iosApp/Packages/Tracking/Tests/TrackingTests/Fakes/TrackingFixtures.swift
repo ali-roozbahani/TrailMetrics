@@ -34,3 +34,28 @@ enum TrackingFixtures {
         Coordinates(latitude: 52.372, longitude: 4.89)
     ]
 }
+
+extension TrackingFixtures {
+    static func metrics(path: [Coordinates]) -> TrackingMetrics {
+        TrackingMetrics(
+            elapsedMillis: 60_000,
+            lastUpdateElapsedRealtimeMillis: 60_000,
+            distanceMeters: 220,
+            path: path,
+            currentSpeedMetersPerSecond: nil
+        )
+    }
+
+    /// A stored session as the store returns it after the app was terminated.
+    static func storedSession(
+        _ state: TrackingState,
+        activityType: ActivityType? = .cycling,
+        startedAtEpochMillis: Int64 = 1_699_999_000_000
+    ) -> StoredTrackingSession {
+        StoredTrackingSession(
+            state: state,
+            activityType: activityType,
+            startedAtEpochMillis: KotlinLong(value: startedAtEpochMillis)
+        )
+    }
+}

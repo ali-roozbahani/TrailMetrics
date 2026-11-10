@@ -18,11 +18,14 @@ struct TrackingSubject {
     let activityHistoryRepository: FakeActivityHistoryRepository
     /// The ViewModel's and SaveActivityUseCase's clock (startedAt / endedAt).
     let clock: FakeClock
+    let sessionStore: FakeTrackingSessionStore
+    let trackingSessionManager: TrackingSessionManager
 
     /// - Parameters:
     ///   - scope: the TrackingSessionManager's scope; the caller cancels it when the test ends.
     ///   - updates: what each location collection (Start, Resume) emits.
     ///   - clockMillis: the fixed time `clock` reports until a test changes it.
+    ///   - sessionStore: the store behind the TrackingSessionManager.
     ///   - userProfileRepository: replaces the one built from `profile` and `isProfileStorageFailing`.
     ///   - isProfileStorageFailing: whether the user profile repository throws (see FakeUserProfileRepository).
     init(
@@ -32,6 +35,7 @@ struct TrackingSubject {
         activityHistoryRepository: FakeActivityHistoryRepository,
         clockMillis: Int64,
         isProfileStorageFailing: Bool = false,
+        sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
         userProfileRepository: FakeUserProfileRepository? = nil
     ) {
         let locationRepository = FakeLocationRepository(location: TrackingFixtures.startPoint, updates: updates)
@@ -47,10 +51,10 @@ struct TrackingSubject {
             // Swift can't see Kotlin default arguments; these repeat SpeedCalculator's defaults.
             speedCalculator: SpeedCalculator(windowSize: 5, acceptableAccuracyMeters: 20),
             // Its own clock, 10 s of elapsedRealtime per reading, so fixes produce elapsed time and
-            // average speed.
-            clock: FakeClock(nowMillis: 0, elapsedRealtimeMillis: 0, stepMillis: 10_000),
+            // average speed. Its wall clock reads `clockMillis` (the session's start time).
+            clock: FakeClock(nowMillis: clockMillis, elapsedRealtimeMillis: 0, stepMillis: 10_000),
             logger: FakeLogger(),
-            trackingSessionStore: FakeTrackingSessionStore(),
+            trackingSessionStore: sessionStore,
             scope: scope
         )
         self.viewModel = TrackingViewModel(
@@ -72,5 +76,7 @@ struct TrackingSubject {
         self.userProfileRepository = userProfileRepository
         self.activityHistoryRepository = activityHistoryRepository
         self.clock = clock
+        self.sessionStore = sessionStore
+        self.trackingSessionManager = trackingSessionManager
     }
 }

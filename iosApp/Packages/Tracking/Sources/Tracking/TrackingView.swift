@@ -52,7 +52,7 @@ public struct TrackingView: View {
                         MetricsDisplay(metrics: metrics, calories: viewModel.calories)
                     }
 
-                    if hasReachedDestination {
+                    if hasReachedDestination || viewModel.canFinish {
                         finishCard
                     } else {
                         controlsRow
@@ -77,7 +77,7 @@ public struct TrackingView: View {
         }
         .alert(Text("Stop tracking?", bundle: .module), isPresented: $showExitConfirmation) {
             Button(role: .destructive) {
-                viewModel.onStopClicked()
+                viewModel.onDiscardClicked()
                 dismiss()
             } label: {
                 Text("Stop & Exit", bundle: .module)
@@ -177,7 +177,7 @@ public struct TrackingView: View {
             }
             if viewModel.canStop {
                 Button {
-                    viewModel.onStopClicked()
+                    viewModel.onDiscardClicked()
                     dismiss()
                 } label: {
                     Label { Text("Stop", bundle: .module) } icon: { Image(systemName: "stop.fill") }

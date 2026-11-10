@@ -30,6 +30,7 @@ class TrackingTestCase: XCTestCase {
         profile: UserProfile? = nil,
         activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository(),
         isProfileStorageFailing: Bool = false,
+        sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
         userProfileRepository: FakeUserProfileRepository? = nil
     ) -> TrackingSubject {
         let scope = SwiftTestScope()
@@ -41,18 +42,21 @@ class TrackingTestCase: XCTestCase {
             activityHistoryRepository: activityHistoryRepository,
             clockMillis: Self.startedAtMillis,
             isProfileStorageFailing: isProfileStorageFailing,
+            sessionStore: sessionStore,
             userProfileRepository: userProfileRepository
         )
     }
 
     /// A session with a loaded profile, both moving fixes recorded, then stopped.
     func makeFinishedSubject(
-        activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository()
+        activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository(),
+        sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore()
     ) async -> TrackingSubject {
         let subject = makeSubject(
             updates: TrackingFixtures.movingUpdates,
             profile: UserProfile(weightKg: Self.weightKg),
-            activityHistoryRepository: activityHistoryRepository
+            activityHistoryRepository: activityHistoryRepository,
+            sessionStore: sessionStore
         )
         let viewModel = subject.viewModel
         viewModel.onStartClicked()
