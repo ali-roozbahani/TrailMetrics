@@ -336,9 +336,9 @@ The implementing session runs this before every push, after its last commit and 
    change.
 3. The `SubagentStop` hook (`scripts/claude-hooks/require-local-review.sh`) records the
    reviewer's own report when the Agent tool run finishes; `scripts/local-review-gate.sh check
-   <sha>` says what it holds. `.review-verdict` is still written, as the older push hook
-   requires, only if the report's first line is `VERDICT: ` with one of the three values,
-   `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
+   <sha>` says what it holds. The hook does not write `.review-verdict`: the session still
+   writes it, as the older push hook requires, only if the report's first line is `VERDICT: `
+   with one of the three values, `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
 
    ```bash
    printf '%s %s\n' "$SHA" "$VERDICT" \
