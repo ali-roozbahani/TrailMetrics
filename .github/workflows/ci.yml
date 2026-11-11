@@ -39,25 +39,23 @@ jobs:
         run: scripts/classify-changes.sh --github
 
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
-      # commit, for every pull request, light ones too. The base is fetched at depth 1 when the
-      # checkout lacks it, as scripts/classify-changes.sh --github does. A push has no base.
+      # commit, for every pull request, light ones too. scripts/ci/pr-base.sh validates the base and
+      # fetches it at depth 1 when the checkout lacks it, as for scripts/classify-changes.sh --github.
+      # A push has no base.
       - name: Kover floors check
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$EVENT_NAME" != pull_request ]; then
+          # scripts/ci/pr-base.sh: exit 3 = no base (not a pull request), any other non-zero fails.
+          rc=0
+          BASE="$(scripts/ci/pr-base.sh)" || rc=$?
+          if [ "$rc" = 3 ]; then
             echo "Skipped: a '$EVENT_NAME' event has no base commit to compare the floors with."
             exit 0
           fi
-          if [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "PR_BASE_SHA is not a commit SHA"
-            exit 1
-          fi
-          if ! git cat-file -e "$PR_BASE_SHA^{commit}" 2>/dev/null; then
-            git fetch --no-tags --quiet --depth=1 origin "$PR_BASE_SHA"
-          fi
-          scripts/check-kover-floors.sh --base "$PR_BASE_SHA"
+          [ "$rc" = 0 ] || exit 1
+          scripts/check-kover-floors.sh --base "$BASE"
 
       # Room schema (Decision 4 of docs/epics/protected-paths-review-2.md): compared with the PR's
       # base commit, for every pull request, light ones too, as "Kover floors check" does.
@@ -66,18 +64,15 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$EVENT_NAME" != pull_request ]; then
+          # scripts/ci/pr-base.sh: exit 3 = no base (not a pull request), any other non-zero fails.
+          rc=0
+          BASE="$(scripts/ci/pr-base.sh)" || rc=$?
+          if [ "$rc" = 3 ]; then
             echo "Skipped: a '$EVENT_NAME' event has no base commit to compare the Room schema with."
             exit 0
           fi
-          if [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$PR_BASE_SHA" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "PR_BASE_SHA is not a commit SHA"
-            exit 1
-          fi
-          if ! git cat-file -e "$PR_BASE_SHA^{commit}" 2>/dev/null; then
-            git fetch --no-tags --quiet --depth=1 origin "$PR_BASE_SHA"
-          fi
-          scripts/check-room-schema.sh --base "$PR_BASE_SHA"
+          [ "$rc" = 0 ] || exit 1
+          scripts/check-room-schema.sh --base "$BASE"
 
       - name: Set up JDK 17
         if: steps.changes.outputs.decision != 'light'
@@ -138,8 +133,8 @@ jobs:
   # Repo tooling: the policy checks and the self-tests of the workflow scripts, none of which is
   # about Android or iOS. It always runs: no path filter and no job-level `if`, because a required
   # check that is skipped or never created blocks the PR or hides a break. No `needs`: it runs in
-  # parallel with the other jobs. New script self-tests go here, or into an iOS job when the script
-  # is iOS-only (tm-pr-workflow, "Tier 1").
+  # parallel with the other jobs. A new script's self-test goes on scripts/checks/self-tests.list:
+  # group `tooling` runs here, the iOS-only groups in ios-main (tm-pr-workflow, "Tier 1").
   tooling:
     name: Repo tooling — policy checks and script self-tests
     runs-on: ubuntu-26.04
@@ -153,72 +148,17 @@ jobs:
         run: scripts/check-board.sh
 
       - name: Protected paths check
+        run: scripts/check-protected-paths.sh --validate
+
+      - name: Scripts index check
+        run: scripts/checks/scripts-index.sh --check
+
+      # The self-tests of group `tooling` in scripts/checks/self-tests.list, the one list the gate
+      # reads too. The list check fails when a script with a --self-test is not on the list.
+      - name: Script self-tests
         run: |
-          scripts/check-protected-paths.sh --validate
-          scripts/check-protected-paths.sh --self-test
-
-      - name: Change classification self-test
-        run: scripts/classify-changes.sh --self-test
-
-      - name: Reviewer workflow self-test
-        run: scripts/check-pr-review-workflow.sh --self-test
-
-      - name: iOS scope self-test
-        run: scripts/check-ios-scope.sh --self-test
-
-      - name: Skill rule-change self-test
-        run: scripts/check-skill-rule-changes.sh --self-test
-
-      - name: Kover floors self-test
-        run: scripts/check-kover-floors.sh --self-test
-
-      - name: Room schema self-test
-        run: scripts/check-room-schema.sh --self-test
-
-      - name: Variant API check self-test
-        run: scripts/check-variant-api.sh --self-test
-
-      - name: Board check self-test
-        run: scripts/check-board.sh --self-test
-
-      - name: CI verdict reader self-test
-        run: scripts/read-ci-verdict.sh --self-test
-
-      - name: CI re-run guard self-test
-        run: scripts/rerun-failed-once.sh --self-test
-
-      - name: Local review gate self-test
-        run: scripts/local-review-gate.sh --self-test
-
-      - name: Local review hook self-test
-        run: scripts/claude-hooks/require-local-review.sh --self-test
-
-      - name: CI wait self-test
-        run: scripts/wait-for-checks.sh --self-test
-
-      - name: Main CI status self-test
-        run: scripts/main-ci-status.sh --self-test
-
-      - name: Scrub-env self-test
-        run: scripts/scrub-env.sh --self-test
-
-      - name: Xcode log filter self-test
-        run: scripts/filter-xcode-log.sh --self-test
-
-      - name: Push hook self-test
-        run: scripts/claude-hooks/block-git-push.sh --self-test
-
-      - name: Prune merged branches self-test
-        run: scripts/prune-merged-branches.sh --self-test
-
-      - name: Branch-create hook self-test
-        run: scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test
-
-      - name: Skill changes digest self-test
-        run: scripts/skill-changes-digest.sh --self-test
-
-      - name: PR description helper self-test
-        run: scripts/set-pr-body.sh --self-test
+          scripts/checks/self-tests.sh --check
+          scripts/checks/self-tests.sh --run tooling
 
   # The iOS work is split into parallel jobs behind one aggregator, `ios`, which keeps the required
   # check name "iOS — all stages". The iOS wall time is the longer of two chains: ios-main alone
@@ -405,11 +345,10 @@ jobs:
           cd iosApp
           swiftlint lint --strict
 
-      - name: Localized strings rules self-test
-        run: scripts/check-localized-strings.sh --self-test
-
-      - name: Optional try rule self-test
-        run: scripts/check-optional-try.sh --self-test
+      # The self-tests of groups `ios-swiftlint` (they need the swiftlint installed above) and
+      # `macos` in scripts/checks/self-tests.list, the one list the gate reads too.
+      - name: Script self-tests (iOS)
+        run: scripts/checks/self-tests.sh --run ios-swiftlint macos
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -426,9 +365,6 @@ jobs:
       # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework.
       - name: Production framework check
         run: scripts/check-production-framework.sh
-
-      - name: Production framework check self-test
-        run: scripts/check-production-framework.sh --self-test
 
       # iOS simulator tests can't run on the ubuntu android job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses

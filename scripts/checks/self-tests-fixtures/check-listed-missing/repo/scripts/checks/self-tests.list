@@ -1,0 +1,3 @@
+# test list
+tooling	a self-test	scripts/a.sh
+tooling	gone self-test	scripts/gone.sh

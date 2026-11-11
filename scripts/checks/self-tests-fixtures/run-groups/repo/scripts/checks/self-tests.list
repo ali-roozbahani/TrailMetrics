@@ -1,0 +1,4 @@
+# test list
+tooling	a self-test	scripts/a.sh
+macos	b self-test	scripts/b.sh
+ios-swiftlint	c self-test	scripts/c.sh

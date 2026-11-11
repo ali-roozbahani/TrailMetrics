@@ -124,31 +124,24 @@ echo
 
 run_step "board check" scripts/check-board.sh
 
-# Protected paths (.github/CODEOWNERS): the file must be valid and the classifier's own tests
-# must pass. Same commands as CI's tooling job.
-run_step "protected paths" bash -c 'scripts/check-protected-paths.sh --validate && scripts/check-protected-paths.sh --self-test'
-run_step "change classification self-test" scripts/classify-changes.sh --self-test
-run_step "reviewer workflow self-test" scripts/check-pr-review-workflow.sh --self-test
-run_step "skill rule-change self-test" scripts/check-skill-rule-changes.sh --self-test
-run_step "kover floors self-test" scripts/check-kover-floors.sh --self-test
-run_step "room schema self-test" scripts/check-room-schema.sh --self-test
-run_step "iOS scope self-test" scripts/check-ios-scope.sh --self-test
-run_step "variant API check self-test" scripts/check-variant-api.sh --self-test
-run_step "production framework check self-test" scripts/check-production-framework.sh --self-test
-run_step "scrub-env self-test" scripts/scrub-env.sh --self-test
-run_step "xcode log filter self-test" scripts/filter-xcode-log.sh --self-test
-run_step "CI verdict reader self-test" scripts/read-ci-verdict.sh --self-test
-run_step "CI re-run guard self-test" scripts/rerun-failed-once.sh --self-test
-run_step "local review gate self-test" scripts/local-review-gate.sh --self-test
-run_step "local review hook self-test" scripts/claude-hooks/require-local-review.sh --self-test
-run_step "CI wait self-test" scripts/wait-for-checks.sh --self-test
-run_step "main CI status self-test" scripts/main-ci-status.sh --self-test
-run_step "board check self-test" scripts/check-board.sh --self-test
-run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-test
-run_step "prune merged branches self-test" scripts/prune-merged-branches.sh --self-test
-run_step "branch-create hook self-test" scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test
-run_step "skill changes digest self-test" scripts/skill-changes-digest.sh --self-test
-run_step "PR description helper self-test" scripts/set-pr-body.sh --self-test
+# Protected paths (.github/CODEOWNERS): the file must be valid. Same command as CI's tooling job.
+run_step "protected paths" scripts/check-protected-paths.sh --validate
+
+# scripts/README.md indexes every script under scripts/ (one line each). Same as CI's tooling job.
+run_step "scripts index check" scripts/checks/scripts-index.sh --check
+
+# Script self-tests: the one list, scripts/checks/self-tests.list, which CI runs too. Its check
+# fails when a script with a --self-test is not on it. One gate step per line, so the output
+# still names each self-test; the list is read on fd 3, so a self-test cannot read it from
+# stdin. Fail closed: a list that cannot be read is a failure, not zero steps.
+run_step "self-test list check" scripts/checks/self-tests.sh --check
+if SELF_TESTS="$(scripts/checks/self-tests.sh --list tooling macos)"; then
+    while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
+        run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+    done 3<<< "$SELF_TESTS"
+else
+    FAILURES+=("self-test list (scripts/checks/self-tests.sh --list tooling macos failed)")
+fi
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
 # every classification, light included (no Gradle needed). Same check as CI's android job, which
@@ -272,16 +265,17 @@ if [ "$RUN_IOS_STEPS" = true ]; then
         FAILURES+=("swiftlint (not installed — install with 'brew install swiftlint')")
     fi
 
-    # The two SwiftLint rules that keep hardcoded user-visible strings out of iOS code, run against
-    # their fixtures (violating, fixed, out of scope). Needs swiftlint, like the step above.
+    # The SwiftLint rules' self-tests, group `ios-swiftlint` of scripts/checks/self-tests.list: the
+    # two rules that keep hardcoded user-visible strings out of iOS code, and the `optional_try`
+    # custom rule with its "Invalid configuration" check. They need swiftlint, like the step above.
     if command -v swiftlint >/dev/null 2>&1; then
-        run_step "localized strings rules self-test" scripts/check-localized-strings.sh --self-test
-    fi
-
-    # The `optional_try` custom rule against its fixtures, and a check that SwiftLint does not print
-    # "Invalid configuration" for it (it then turns the rule off without failing `--strict`).
-    if command -v swiftlint >/dev/null 2>&1; then
-        run_step "optional_try rule self-test" scripts/check-optional-try.sh --self-test
+        if SELF_TESTS="$(scripts/checks/self-tests.sh --list ios-swiftlint)"; then
+            while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
+                run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+            done 3<<< "$SELF_TESTS"
+        else
+            FAILURES+=("self-test list (scripts/checks/self-tests.sh --list ios-swiftlint failed)")
+        fi
     fi
 
     # Same hash-gated script as the Xcode scheme pre-action, so the iOS build and the package
