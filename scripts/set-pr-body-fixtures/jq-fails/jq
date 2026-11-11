@@ -1,0 +1,10 @@
+#!/bin/bash
+# Fake `jq` for the jq-fails case of scripts/set-pr-body.sh --self-test: the call that builds the
+# request body (`jq -Rs '{body: .}'`) fails with no output; every other call (the fake gh's) runs
+# the real jq, FAKE_REAL_JQ.
+if [ "${1:-}" = "-Rs" ]; then
+    cat > /dev/null
+    echo "jq: simulated failure" >&2
+    exit 5
+fi
+exec "$FAKE_REAL_JQ" "$@"

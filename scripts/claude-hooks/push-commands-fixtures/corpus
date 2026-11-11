@@ -24,9 +24,28 @@ push git --git-dir=/tmp/x/.git push
 push git --no-pager push
 push gh -R owner/repo pr create
 push gh pr create --base main --body-file b.md
+push /usr/bin/git push
+push \git push
+push `git push`
+push $(git push)
+push { git push; }
+push git -C dir -c a=b --no-pager push
+push git -p push
+push git --paginate push
+push git --bare push
+push git --exec-path=/x push
+push git --work-tree w push
+push git --namespace ns push origin
+push x=1 git push
+push git log --grep x; git push
+push git log --grep=x && git push
+push gh --repo o/r pr create
 nopush git pushd
 nopush git status
 nopush git log --grep push
+nopush git --no-pager log --grep push
+nopush git log --grep="git push"
+nopush git show push
 nopush git commit -m "message without the word"
 nopush git fetch origin
 nopush gh pr view 12

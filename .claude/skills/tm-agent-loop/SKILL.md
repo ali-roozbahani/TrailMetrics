@@ -237,12 +237,12 @@ is published as the workflow artifact `pr-review-report` of the run that owns th
 (`report.md`, and `first-report.md` when attempt 2 was used; nothing else). After `CHANGES`, when
 the count is above zero, or when you need the blocking findings under `ESCALATE_TO_HUMAN`,
 download it for the head SHA into a new empty
-temp dir outside the repo:
+temp dir outside the repo (the newest run of the SHA owns it, as `scripts/read-ci-verdict.sh` reads it):
 
 ```bash
 D="$(mktemp -d)"
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?check_name=Review%20%E2%80%94%20pr-reviewer&filter=latest" > "$D/runs.json"
-RUN="$(jq -r --arg sha "$SHA" '[.check_runs[] | select(.name == "Review — pr-reviewer" and .head_sha == $sha)] | if length == 1 then .[0].details_url else empty end' "$D/runs.json" | sed -n 's#.*/actions/runs/\([0-9][0-9]*\)/.*#\1#p')"
+RUN="$(jq -r --arg sha "$SHA" '[.check_runs[] | select(.name == "Review — pr-reviewer" and .head_sha == $sha)] | sort_by(.started_at // "9999", .id) | if length > 0 then last.details_url else empty end' "$D/runs.json" | sed -n 's#.*/actions/runs/\([0-9][0-9]*\)/.*#\1#p')"
 R="$(mktemp -d)"
 gh run download "$RUN" -n pr-review-report -D "$R"
 ```

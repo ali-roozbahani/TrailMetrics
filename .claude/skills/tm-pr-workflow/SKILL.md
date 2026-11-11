@@ -304,6 +304,8 @@ Add these when they apply. Recent PRs use them consistently:
 
 End the description with the attribution line the session specifies.
 
+The description of an open PR (the `Reviewer findings` added after the reviews, any later change) is set from the draft with `scripts/set-pr-body.sh <PR number> <draft>`: `gh pr edit` needs the `read:org` scope, which the machine token lacks.
+
 ## Boundaries
 
 - Never change a protected path as a side effect of an unrelated task. Protected paths

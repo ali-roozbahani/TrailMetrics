@@ -579,6 +579,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the script lists a removed or rewritten line whose rule is written with escalate/escalation or blocking (or the owner decides such lines are left to the reviewer, written in `tm-pr-review` item 10), with a `--self-test` case for it.
 - Refs: `scripts/check-skill-rule-changes.py` (`RULE_WORDS`); `.claude/skills/tm-pr-review/SKILL.md` (item 10); `.claude/skills/tm-kmp-shared/SKILL.md` ("`@Throws` policy", rule 6).
 
+### widget-catalog-keys-go-stale-on-build
+- Type: task
+- Area: iosApp/TrackingWidget
+- Order: 580
+- Source: task 61b stage 1 (owner's report request)
+- Problem: An Xcode build of the app rewrites `iosApp/TrackingWidget/Localizable.xcstrings`: it adds `"extractionState" : "stale"` and drops the final newline. Cause: with `SWIFT_EMIT_LOC_STRINGS = YES` (the widget target) the compiler extracts each target's string literals into `.stringsdata`, and Xcode's String Catalog sync marks every catalog key that no target extracted as `stale`, then writes the file with its own serializer (no final newline). Three widget keys, `Cycling`, `Running` and `Walking`, are never extracted: the widget shows them as `Text(LocalizedStringKey(context.attributes.activityType), bundle: .main)`, a runtime string. Measured on Xcode 27.1 with the gate's command line (`xcodebuild build -scheme TrailMetrics`, simulator): 7 of the 10 widget keys are extracted, every key of the app and of the three package catalogs is, and the command-line build changed no catalog. The rewrite therefore comes from a build in the Xcode app, whose catalog sync runs after the build; that build was not run here. Recorded, not fixed: report-only by the owner's task; the owner chooses the change.
+- Done when: the owner has chosen, and a build in Xcode leaves every catalog unchanged. Smallest change found: give the three keys `"extractionState" : "manual"` in the widget catalog (the state Xcode gives a key added by hand, which it never marks stale); no build setting or code changes. Alternatives: make the keys literals the compiler extracts (a `switch` over the activity type returning `Text("Running", bundle: .main)` and so on: a code change), or a gate check that fails on `"stale"` or a missing final newline in a catalog (it detects the rewrite, it does not stop it). Turning `SWIFT_EMIT_LOC_STRINGS` off for the widget target would leave every widget key unextracted, which is worse.
+- Refs: `iosApp/TrackingWidget/Localizable.xcstrings`; `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`LocalizedStringKey(context.attributes.activityType)`); `iosApp/TrailMetrics.xcodeproj/project.pbxproj` (`SWIFT_EMIT_LOC_STRINGS`, `LOCALIZATION_PREFERS_STRING_CATALOGS`); `.claude/skills/tm-ios/SKILL.md` ("Strings").
+
 ## Drift
 
 ### data-kover-comment-stale-figure

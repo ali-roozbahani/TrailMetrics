@@ -148,6 +148,7 @@ run_step "push hook self-test" scripts/claude-hooks/block-git-push.sh --self-tes
 run_step "prune merged branches self-test" scripts/prune-merged-branches.sh --self-test
 run_step "branch-create hook self-test" scripts/claude-hooks/block-branch-create-while-merged-branches.sh --self-test
 run_step "skill changes digest self-test" scripts/skill-changes-digest.sh --self-test
+run_step "PR description helper self-test" scripts/set-pr-body.sh --self-test
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
 # every classification, light included (no Gradle needed). Same check as CI's android job, which

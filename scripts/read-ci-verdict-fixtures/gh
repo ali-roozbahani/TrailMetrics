@@ -1,10 +1,17 @@
 #!/bin/bash
 # Fake `gh` for scripts/read-ci-verdict.sh --self-test: serves one fixture case and never touches
-# the network. FAKE_GH_DIR is the case directory, FAKE_GH_HEAD the PR's head SHA.
+# the network. FAKE_GH_DIR is the case directory, FAKE_GH_HEAD the PR's head SHA. The annotations
+# of check run <id> are annotations-<id>.json when the case has that file, else annotations.json.
 [ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: simulated failure" >&2; exit 1; }
 case "$*" in
     "pr view "*) echo "$FAKE_GH_HEAD" ;;
-    *"/annotations"*) cat "$FAKE_GH_DIR/annotations.json" ;;
+    *"/annotations"*)
+        id="$(printf '%s\n' "$*" | sed -n 's#.*/check-runs/\([0-9][0-9]*\)/annotations.*#\1#p')"
+        if [ -n "$id" ] && [ -e "$FAKE_GH_DIR/annotations-$id.json" ]; then
+            cat "$FAKE_GH_DIR/annotations-$id.json"
+        else
+            cat "$FAKE_GH_DIR/annotations.json"
+        fi ;;
     *"/check-runs?"*) cat "$FAKE_GH_DIR/runs.json" ;;
     *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
 esac
