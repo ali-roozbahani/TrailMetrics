@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Fake `gh` for the self-tests of scripts/queue/watch-prs.sh and update-branch.sh (and of
+# scripts/wait-for-checks.sh when watch-prs.sh calls it): no network. FAKE_GH_DIR holds the answers,
+# FAKE_GH_STATE is a scratch directory with the read counters and `log` (one line per call).
+# A call maps to a key; the N-th call of a key serves <key>-N.json (past the last file the last one
+# repeats) or <key>.json. A key with no file fails like a 404. `<key>.exit` (an exit code) and
+# `<key>.stderr` make every call of the key fail with them after printing the body;
+# `<key>.fail-calls` lists the numbers of the calls of the key (from 1) that fail without a body.
+#   pulls?state=open&per_page=100           pulls
+#   pulls/<n>                               pr-<n>
+#   git/ref/heads/<branch>                  ref-<branch with / as _>
+#   compare/<base>...<head>                 compare-<first 7 of head>
+#   commits/<sha>/check-runs?...            checks-<first 7 of sha>
+#   commits/<sha>                           commit-<first 7 of sha>
+#   -X PUT .../pulls/<n>/update-branch ...  put-<n>
+echo "$*" >> "$FAKE_GH_STATE/log"
+[ "${1:-}" = api ] || { echo "fake gh: only api calls: $*" >&2; exit 1; }
+shift
+method=GET
+if [ "${1:-}" = -X ]; then method="$2"; shift 2; fi
+path="$1"
+p="${path#repos/\{owner\}/\{repo\}/}"
+case "$method $p" in
+    "GET pulls?state=open&per_page=100") key=pulls ;;
+    "GET pulls/"*/*) key="" ;;
+    "GET pulls/"*) key="pr-${p#pulls/}" ;;
+    "GET git/ref/heads/"*) b="${p#git/ref/heads/}"; key="ref-$(printf '%s' "$b" | tr / _)" ;;
+    "GET compare/"*) h="${p##*...}"; key="compare-${h:0:7}" ;;
+    "GET commits/"*"/check-runs?"*) s="${p#commits/}"; key="checks-${s:0:7}" ;;
+    "GET commits/"*/*) key="" ;;
+    "GET commits/"*) s="${p#commits/}"; key="commit-${s:0:7}" ;;
+    "PUT pulls/"*/update-branch) n="${p#pulls/}"; key="put-${n%/update-branch}" ;;
+    *) key="" ;;
+esac
+[ -n "$key" ] || { echo "fake gh: unexpected call: $method $path" >&2; exit 1; }
+n=$(($(cat "$FAKE_GH_STATE/n-$key" 2>/dev/null || echo 0) + 1))
+echo "$n" > "$FAKE_GH_STATE/n-$key"
+for k in $(cat "$FAKE_GH_DIR/$key.fail-calls" 2>/dev/null); do
+    [ "$k" = "$n" ] && { echo "gh: simulated failure of call $n of $key" >&2; exit 1; }
+done
+f=""
+i="$n"
+while [ "$i" -ge 1 ]; do
+    [ -e "$FAKE_GH_DIR/$key-$i.json" ] && { f="$FAKE_GH_DIR/$key-$i.json"; break; }
+    i=$((i - 1))
+done
+[ -n "$f" ] || [ ! -e "$FAKE_GH_DIR/$key.json" ] || f="$FAKE_GH_DIR/$key.json"
+[ -n "$f" ] || { echo '{"message":"Not Found"}'; echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
+cat "$f"
+if [ -e "$FAKE_GH_DIR/$key.exit" ]; then
+    cat "$FAKE_GH_DIR/$key.stderr" >&2 2>/dev/null
+    exit "$(cat "$FAKE_GH_DIR/$key.exit")"
+fi
+exit 0

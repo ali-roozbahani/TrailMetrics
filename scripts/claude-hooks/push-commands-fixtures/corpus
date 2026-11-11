@@ -40,6 +40,7 @@ push x=1 git push
 push git log --grep x; git push
 push git log --grep=x && git push
 push gh --repo o/r pr create
+push git push --force
 nopush git pushd
 nopush git status
 nopush git log --grep push
@@ -48,5 +49,7 @@ nopush git log --grep="git push"
 nopush git show push
 nopush git commit -m "message without the word"
 nopush git fetch origin
+nopush git merge origin/main
+nopush git rebase origin/main
 nopush gh pr view 12
 nopush ls

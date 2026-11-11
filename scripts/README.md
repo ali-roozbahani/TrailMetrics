@@ -47,6 +47,14 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/rerun-failed-once.sh`: re-runs a finished run's failed jobs, once.
 - `scripts/main-ci-status.sh`: the last push runs on `main`; `--ack` records an acknowledged red run.
 
+## The PR queue (local, serial)
+
+- `scripts/queue/queue.sh`: the queue file of follow-up PRs; `next` says what to build, push or wait for.
+- `scripts/queue/watch-prs.sh`: the bot's open PRs once, or waits for the first merge, close, new head, fall-behind or finished checks.
+- `scripts/queue/update-branch.sh`: asks GitHub to update a PR branch that fell behind and checks the update is merge-only.
+- `scripts/queue/merge-only-check.sh`: proves a merge commit only moved its branch's base.
+- `scripts/queue/local-verdict-for-head.sh`: the local review that holds for a PR head over merge-only updates.
+
 ## Claude Code hooks (named by `.claude/settings.json`)
 
 - `scripts/claude-hooks/block-git-push.sh`: blocks a push or PR creation without a fresh gate pass, a verdict and the `gh` credential helper.

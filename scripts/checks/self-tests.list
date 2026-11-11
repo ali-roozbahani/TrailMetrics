@@ -34,6 +34,11 @@ tooling	branch-create hook self-test	scripts/claude-hooks/block-branch-create-wh
 tooling	skill changes digest self-test	scripts/skill-changes-digest.sh
 tooling	PR description helper self-test	scripts/set-pr-body.sh
 tooling	clean agent workspace self-test	scripts/dev/clean-agent-workspace.sh
+tooling	PR queue self-test	scripts/queue/queue.sh
+tooling	PR watcher self-test	scripts/queue/watch-prs.sh
+tooling	branch update fallback self-test	scripts/queue/update-branch.sh
+tooling	merge-only check self-test	scripts/queue/merge-only-check.sh
+tooling	local verdict for head self-test	scripts/queue/local-verdict-for-head.sh
 macos	production framework check self-test	scripts/check-production-framework.sh
 ios-swiftlint	localized strings rules self-test	scripts/check-localized-strings.sh
 ios-swiftlint	optional_try rule self-test	scripts/check-optional-try.sh
