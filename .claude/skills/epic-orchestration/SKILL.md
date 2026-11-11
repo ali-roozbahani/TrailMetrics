@@ -164,132 +164,8 @@ never conflict on it.
 
 ### Format
 
-````markdown
-# Epic: <title>
-
-- **Slug:** <epic-slug>
-- **Integration branch:** feature/epic/<epic-slug>
-- **Goal:** <one paragraph: what the user can do when this lands>
-- **Out of scope:** <explicit list>
-- **Approved by:** <human> on <YYYY-MM-DD>
-
-## Subtasks
-
-```yaml
-- id: S1
-  title: <imperative summary>
-  branch: <feature|bugfix|chore>/<epic-slug>-<subtask-slug>
-  skills: [tm-kmp-shared, tm-testing]
-  depends_on: []
-  allowed_paths:
-    - <glob>
-  acceptance:
-    - <checkable statement>
-  tier2: <the automated tests that cover the subtask's user-visible behavior, or the human
-    check with its reason (`tm-pr-workflow` Tier 2), or "none — <why>">
-```
-
-## Waves
-
-- Wave 1: S1
-- Wave 2: S2 ∥ S3   (disjoint: <one line on why>)
-
-## Epic-level Tier 2 (on the integrated branch before merge to main)
-
-- <end-to-end behavior across both platforms and the automated test that covers it>
-- <human checks with their reasons, and the final smoke check>
-````
-
-### Worked example: personal records on History
-
-The feature: History on both platforms shows the user's longest distance and fastest
-average pace across saved activities.
-
-````markdown
-# Epic: Personal records on History
-
-- **Slug:** personal-records
-- **Integration branch:** feature/epic/personal-records
-- **Goal:** Both History screens show a "Personal records" section (longest distance,
-  fastest average pace) computed once in `domain` from `ActivityHistoryRepository`.
-- **Out of scope:** persisting records;
-  records per `ActivityType`; any change to Tracking or Route.
-- **Approved by:** <human> on 2026-10-01
-
-## Subtasks
-
-```yaml
-- id: S1
-  title: Add GetPersonalRecordsUseCase and expose it to both platforms
-  branch: feature/personal-records-shared
-  skills: [tm-kmp-shared, tm-testing]
-  depends_on: []
-  allowed_paths:
-    - domain/src/commonMain/**/model/PersonalRecords.kt
-    - domain/src/commonMain/**/usecase/GetPersonalRecordsUseCase.kt
-    - domain/src/commonTest/**/usecase/GetPersonalRecordsUseCaseTest.kt
-    - data/src/commonMain/**/di/UseCaseModule.kt
-    - shared/src/iosMain/**/di/KoinHelper.kt
-  acceptance:
-    - PersonalRecords is a pure domain model; GetPersonalRecordsUseCase reads
-      ActivityHistoryRepository and returns null fields when history is empty.
-    - kotlin.test cases cover empty history, one activity, ties, and zero-distance
-      activities, using the existing FakeActivityHistoryRepository.
-    - Bound in useCaseModule; KoinHelper has a concrete getPersonalRecordsUseCase().
-  tier2: none — no UI yet
-
-- id: S2
-  title: Show personal records on Android History
-  branch: feature/personal-records-android
-  skills: [tm-android, tm-testing]
-  depends_on: [S1]
-  allowed_paths:
-    - androidApp/feature-history/**
-  acceptance:
-    - HistoryScreen shows the section above the list; hidden when there is no history.
-    - The records are new HistoryState fields only; HistoryViewModel keeps its MVI
-      shape (no new public method besides onAction).
-    - HistoryUiModule gets the use case via Koin; ViewModel test covers both states.
-  tier2: HistoryScreenTest (Compose UI, Robolectric): empty history → no section; two saved
-    activities → values match. HistoryViewModelTest covers both states.
-
-- id: S3
-  title: Show personal records on iOS History
-  branch: feature/personal-records-ios
-  skills: [tm-ios]
-  depends_on: [S1]
-  allowed_paths:
-    - iosApp/Packages/History/Sources/**
-    - iosApp/Packages/History/Tests/**
-  acceptance:
-    - HistoryViewModel resolves the use case via a KoinHelper default-parameter init.
-    - HistoryView shows the same section with the same empty-state rule as Android.
-  tier2: Swift unit tests of HistoryViewModel in HistoryTests: empty history → no records;
-    two saved activities → values match. Human check (the iOS UI-test target has no
-    scenario for this screen yet): HistoryView hides the section with empty
-    history and shows the values of two saved activities.
-```
-
-## Waves
-
-- Wave 1: S1
-- Wave 2: S2 ∥ S3   (disjoint: androidApp/feature-history/** vs iosApp/Packages/History/**;
-  neither touches app/, TrailMetrics/, the xcodeproj or the shared layer)
-
-## Epic-level Tier 2
-
-- The records are computed once, in `domain`: GetPersonalRecordsUseCaseTest runs on the
-  Android host and the iOS simulator.
-- Deleting the record-holding activity updates the section: a HistoryScreenTest case on
-  Android, a HistoryViewModel unit test on iOS; on iOS the View's update is a human check
-  (the iOS UI-test target has no scenario for this screen yet).
-- Final smoke check: the same data on both platforms shows identical records and formatting.
-````
-
-Notes on the example: S2 and S3 don't need `androidApp/app/**` or `iosApp/TrailMetrics/**`
-because History is already routed on both platforms. If a feature needed a new screen
-route, that wiring would be a separate subtask after S2/S3, or it would go into exactly
-one of them.
+The plan file's format, and a worked example (personal records on History), are in
+`plan-format.md`.
 
 ## Integration branch
 
@@ -322,57 +198,11 @@ epic integration branches too.
 
 **Recommendation: give epic branches the same protection as `main`, via one
 repository ruleset that targets the pattern.** Don't set up classic protection per
-branch. The reasons:
-
-- Subtask PRs merge into the epic branch, not `main`. Without required checks, a red
-  subtask can land there, and the problem only shows up when the epic's PR to `main`
-  fails. By then it's mixed in with every other subtask.
-- **Strict** matters most here. Parallel subtasks (S2 ∥ S3) each go green against the
-  epic branch as it was when they started. Strict forces the second one to merge in the
-  first and go green again before it can merge. That's the only point where the
-  *combination* gets tested before the final PR.
-- The branch is per-epic, but a ruleset on `refs/heads/feature/epic/*` covers every
-  future epic branch the moment it's created. There's nothing to remember per epic, and
-  no window where the branch is unprotected. The repo is public, so rulesets are
-  available.
-- The CI jobs behind the four checks run on every PR (no path filters), so requiring all four
-  checks can't leave a PR stuck waiting for a check that never runs.
+branch. The reasons are in `epic-branch-protection.md`.
 
 The human sets this up **once**, before the first epic. The orchestrator must not run
 it. Suggested ruleset (same four checks, integration id 15368 = GitHub Actions, as on
-`main`):
-
-```json
-{
-  "name": "Epic integration branches",
-  "target": "branch",
-  "enforcement": "active",
-  "conditions": { "ref_name": { "include": ["refs/heads/feature/epic/*"], "exclude": [] } },
-  "rules": [
-    { "type": "pull_request", "parameters": {
-        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": false,
-        "require_code_owner_review": false, "require_last_push_approval": false,
-        "required_review_thread_resolution": false } },
-    { "type": "required_status_checks", "parameters": {
-        "strict_required_status_checks_policy": true,
-        "do_not_enforce_on_create": true,
-        "required_status_checks": [
-          { "context": "Android — Lint, Detekt, Tests, Build", "integration_id": 15368 },
-          { "context": "iOS — all stages", "integration_id": 15368 },
-          { "context": "Repo tooling — policy checks and script self-tests", "integration_id": 15368 },
-          { "context": "Review — pr-reviewer", "integration_id": 15368 } ] } },
-    { "type": "non_fast_forward" }
-  ]
-}
-```
-
-`do_not_enforce_on_create: true` is explicit because GitHub defaults it to `false`, which
-rejects creating the branch unless its base commit already has all four checks green.
-
-Apply it with `gh api -X POST repos/ali-roozbahani/TrailMetrics/rulesets --input <file>`,
-or through Settings → Rules. There are no bypass actors, which matches `enforce_admins` on
-`main`. It deliberately has no `deletion` rule, so the human can delete the branch after
-the epic lands. It has no `creation` rule, so the branch can be created by a plain push.
+`main`), and how to apply it: `epic-branch-protection.md`.
 
 **Pre-flight check for the orchestrator:** before creating the epic branch, run
 `gh api repos/ali-roozbahani/TrailMetrics/rulesets`. If no active ruleset covers
@@ -437,15 +267,8 @@ branches under each other. The tool for this is the Agent tool with
   hook input (falling back to its own checkout), then finds that checkout's marker the
   same way, and compares it with that checkout's last commit.
 
-Verified on 2026-09-29 against `main` at `09a86a8`:
-- In a throwaway linked worktree, the full gate passed (exit 0) and wrote the marker under
-  `.git/worktrees/<name>/`.
-- The hook, fed a push command with that worktree as `cwd`, allowed it (exit 0).
-- With a fresh worktree that had no marker as `cwd`, it blocked (exit 2).
-
-Not yet verified: a real push from an Agent-tool worktree session, i.e. that the hook
-input's `cwd` there is the worktree. The first epic that runs parallel subtasks should
-confirm it and report under "Drift found" if it isn't.
+What was verified for the gate and hook in a linked worktree, and what was not yet, is in
+`worktree-isolation.md`.
 
 The caution that still applies to parallel worktrees:
 
@@ -477,31 +300,7 @@ The subtask prompt is the standard task prompt template from `tm-pr-workflow` wi
 **Epic** block added. Write the block into the prompt itself: a spawned agent starts with
 no memory of the planning conversation.
 
-```
-Task: <subtask title>
-
-Epic:
-- Epic plan: docs/epics/<epic-slug>.md on origin/feature/epic/<epic-slug> (read it; subtask <id>)
-- Base branch: feature/epic/<epic-slug>. Branch from origin/feature/epic/<epic-slug>,
-  and open the PR with --base feature/epic/<epic-slug>, NOT main.
-- depends_on: <ids>, already merged into the base branch: <what they added that you use>
-- allowed_paths (the only files you may create, modify or delete):
-    <globs, verbatim from the plan>
-- Parallel sibling(s): <ids + their allowed_paths>. Do not touch those paths.
-- If the task can't be done inside allowed_paths, stop and report which file and why.
-  Do not edit it. The plan changes only with human approval.
-
-Context:
-- Skills to load: tm-pr-workflow, <code skills from the plan>
-- Reference implementation: <path>
-- <anything else>
-
-Scope:
-- Acceptance criteria: <verbatim from the plan>
-- Out of scope: <epic's out-of-scope list + anything subtask-specific>
-
-Branch: <branch from the plan>
-```
+The template, with the Epic block: `subtask-prompt.md`.
 
 Don't pass `model` overrides or extra tools beyond the defaults unless the human asks.
 
@@ -574,20 +373,4 @@ commit.
 
 ## Where this skill made calls the retired workflow doc didn't
 
-Recorded so the first real epic can confirm or correct them:
-
-- Branch naming `feature/epic/<slug>` and sibling subtask branches: the retired workflow doc
-  named no convention. `ci.yml`'s `feature/**` trigger forces the prefix.
-- Protection for epic branches through a single ruleset: the retired workflow doc
-  predated required checks on `main` and said nothing about epic branches.
-- Subtask merges into the epic branch: the retired workflow doc only forbade merging into
-  `main`. Decision 5 of `docs/epics/agentic-dev-loop.md` now lets an agent merge them under
-  `tm-agent-loop`'s conditions; the human merges every other subtask PR.
-- The plan lives in `docs/epics/<slug>.md`: the retired workflow doc said the plan must be
-  reviewed, not where it goes.
-- "Ready" means the dependency is merged, not just its PR opened.
-- Merge commit for epic → `main`, where every other PR is squash-merged.
-- Parallel subtasks run in linked worktrees, which the gate and hook support since #40
-  (verified 2026-09-29, see "Isolation"), with a default cap of two concurrent subtasks
-  to limit build contention. An earlier version of this skill said the gate/hook
-  probably broke in worktrees and made sequential the default; that was true before #40.
+Recorded so the first real epic can confirm or correct them: `decisions-history.md`.
