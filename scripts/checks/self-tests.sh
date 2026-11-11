@@ -5,7 +5,8 @@
 #
 #   scripts/checks/self-tests.sh --list <group>...   print `<step name><TAB><script>` per line
 #   scripts/checks/self-tests.sh --run <group>...    run each `<script> --self-test`, every one
-#                                                    even after a failure; exit 1 if any failed
+#                                                    even after a failure; exit 1 if any failed,
+#                                                    naming each failed step and its script
 #   scripts/checks/self-tests.sh --check             every script with a self-test is listed, and
 #                                                    every line is well-formed and names an
 #                                                    executable script that has one
@@ -97,7 +98,7 @@ run_groups() {
         total=$((total + 1))
         echo "==> $name"
         if ! (cd "$ROOT" && "$script" --self-test); then
-            failed+=("$name")
+            failed+=("$name ($script)")
         fi
         echo
     done <<< "$entries"
