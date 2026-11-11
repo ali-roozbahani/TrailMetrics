@@ -31,7 +31,7 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   launch" / "Timed out while launching application via Xcode" (73.5 s and 80.9 s) in
   `XCUIApplication+Scenario.swift`; in one run `DetailsFailedDeleteUITests` also failed to launch
   ("Failed to get background assertion for target app", 43.0 s)
-- Count: 3
+- Count: 4
 - Status: open
 - escalated: flake-ios-ui-details-launch-timeout
 - Occurrences:
@@ -42,6 +42,10 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
     with the UI tests unchanged
   - 2026-10-20, a pull request without iOS, data or test changes, run id not recorded (not in the
     last 200 `ci.yml` runs as a failure), re-run: unknown
+  - 2026-11-11, run 43035083679 (PR #254, head `2ecfefc`; scripts and CI wiring, no iOS change),
+    re-run: yes, fixed it (attempt 2 green). Same signature: `DetailsDeleteTwiceUITests` "Failed
+    to launch" (73.2 s), then `DetailsFailedDeleteUITests` "Failed to get background assertion
+    for target app"
 - Notes: no test body ran and the Route tests passed. Runner image, Xcode and simulator matched
   seven green runs; the automation-session setup in the first test of green runs took 5.9 to 56.4 s
   against a limit of about 60 s. Reading: a launch stall on the runner, about 80% sure, not proven.
