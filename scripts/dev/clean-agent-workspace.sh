@@ -14,7 +14,8 @@
 # Deleted when older than 3 days (modification time), regular files only:
 #   pr-body-*  commit-*  merge-check-*  review-msg-*  gate-*.log
 # Always kept: TrailMetrics/, start-agent.sh, main-ci-ack (state of scripts/main-ci-status.sh --ack),
-#   hook-debug/ (kept to its newest 10 files by scripts/claude-hooks/require-local-review.sh).
+#   hook-debug/ (kept to its newest 10 files by scripts/claude-hooks/require-local-review.sh),
+#   queue/ (the queue file of scripts/queue/queue.sh).
 # Any other entry, a symlink or a pattern name that is not a regular file is kept and printed as
 #   `kept, unknown: <name>`.
 #
@@ -126,7 +127,7 @@ clean() {
         name="${e##*/}"
         if [ ! -L "$e" ]; then
             case "$name" in
-                TrailMetrics | start-agent.sh | main-ci-ack | hook-debug) continue ;;
+                TrailMetrics | start-agent.sh | main-ci-ack | hook-debug | queue) continue ;;
                 local-reviews) if [ -d "$e" ]; then clean_records "$e"; continue; fi ;;
                 pr-body-* | commit-* | merge-check-* | review-msg-* | gate-*.log)
                     if [ -f "$e" ]; then
@@ -173,7 +174,8 @@ STUB
     # names, an unknown file, a symlink and four old review records.
     make_ws() {
         local w="$1" p r
-        mkdir -p "$w/TrailMetrics" "$w/hook-debug" "$w/local-reviews"
+        mkdir -p "$w/TrailMetrics" "$w/hook-debug" "$w/local-reviews" "$w/queue"
+        echo old >"$w/queue/queue.tsv"; touch -t "$OLD" "$w/queue/queue.tsv" "$w/queue"
         repo="$w/TrailMetrics"
         git init -q -b main "$repo"
         git -C "$repo" config user.email t@example.com
@@ -223,7 +225,7 @@ STUB
     for f in pr-body-fresh.md commit-fresh.txt merge-check-fresh.md review-msg-fresh.txt gate-fresh.log; do
         check "fresh $f kept" there "$ws/$f"
     done
-    for f in TrailMetrics start-agent.sh main-ci-ack hook-debug; do check "protected $f kept" there "$ws/$f"; done
+    for f in TrailMetrics start-agent.sh main-ci-ack hook-debug queue/queue.tsv; do check "protected $f kept" there "$ws/$f"; done
     check "the repo inside is untouched" [ -d "$ws/TrailMetrics/.git" ]
     check "unknown notes.md kept" there "$ws/notes.md"
     check "gate-x.txt (not .log) kept" there "$ws/gate-x.txt"
