@@ -2,7 +2,10 @@ package dev.roozbahani.trailmetrics.feature.route
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
+import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -51,7 +54,41 @@ class RouteStateTest {
         assertFalse(state.canGenerateRoute)
     }
 
+    @Test
+    fun `planPoints are the start point then the waypoints then the route points`() {
+        val route = Route(points = listOf(RoutePoint(START, 0), RoutePoint(OTHER, 1)), distanceMeters = 10.0)
+        val state = RouteState(startPoint = START, waypoints = waypoints(2), generatedRoute = route)
+
+        assertEquals(listOf(START) + waypoints(2).map { it.coordinates } + listOf(START, OTHER), state.planPoints)
+        assertEquals(emptyList(), RouteState().planPoints)
+    }
+
+    @Test
+    fun `toStoredDraft holds the plan and not the profile or loading`() {
+        val route = Route(points = emptyList(), distanceMeters = 0.0)
+        val state = RouteState(
+            startPoint = START,
+            waypoints = waypoints(2),
+            generatedRoute = route,
+            userProfile = UserProfile(weightKg = 70.0),
+            selectedActivityType = ActivityType.Cycling,
+            isLoading = true
+        )
+
+        assertEquals(StoredRouteDraft(START, waypoints(2), route, ActivityType.Cycling), state.toStoredDraft())
+    }
+
+    @Test
+    fun `the camera fits a plan whose first waypoints arrive two or more at a time and only once`() {
+        assertFalse(isPlanFitNeeded(emptyList(), planAlreadySeen = false), "no waypoints")
+        assertFalse(isPlanFitNeeded(waypoints(1), planAlreadySeen = false), "a tapped first waypoint")
+        assertTrue(isPlanFitNeeded(waypoints(2), planAlreadySeen = false), "a restored plan")
+        assertTrue(isPlanFitNeeded(waypoints(5), planAlreadySeen = false), "a restored plan")
+        assertFalse(isPlanFitNeeded(waypoints(5), planAlreadySeen = true), "after the first waypoints")
+    }
+
     private companion object {
+        val OTHER = Coordinates(latitude = 48.137, longitude = 11.575)
         val START = Coordinates(latitude = 52.52, longitude = 13.405)
     }
 }

@@ -19,6 +19,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.feature.route.di.routeModule
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
+import dev.roozbahani.trailmetrics.feature.route.fakes.inMemoryRouteDraftKeeper
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,6 +74,7 @@ class RouteScreenTest {
                     single<UserProfileRepository> { userProfileRepository }
                     factory { GetCurrentLocationUseCase(locationRepository) }
                     factory { GenerateClosedRouteUseCase(directionsRepository) }
+                    single { inMemoryRouteDraftKeeper(testScheduler) }
                 }
             )
         }

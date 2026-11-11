@@ -9,6 +9,8 @@ import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
+import dev.roozbahani.trailmetrics.domain.route.RouteDraftStore
+import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
@@ -56,6 +58,15 @@ internal class UiTestTrackingSessionStore : TrackingSessionStore {
     override suspend fun save(session: StoredTrackingSession) = Unit
 
     override suspend fun load(): StoredTrackingSession? = null
+
+    override suspend fun clear() = Unit
+}
+
+/** Keeps nothing, so every UI test starts with an empty plan and none opens the Room database. */
+internal class UiTestRouteDraftStore : RouteDraftStore {
+    override suspend fun save(draft: StoredRouteDraft) = Unit
+
+    override suspend fun load(): StoredRouteDraft? = null
 
     override suspend fun clear() = Unit
 }

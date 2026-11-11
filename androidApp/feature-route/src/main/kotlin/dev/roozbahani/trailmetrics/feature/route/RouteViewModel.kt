@@ -13,6 +13,8 @@ import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
+import dev.roozbahani.trailmetrics.domain.route.RouteDraftKeeper
+import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import kotlinx.coroutines.CancellationException
@@ -29,7 +31,8 @@ import kotlinx.coroutines.launch
 class RouteViewModel(
     private val getCurrentLocationUseCase: GetCurrentLocationUseCase,
     private val generateClosedRouteUseCase: GenerateClosedRouteUseCase,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val routeDraftKeeper: RouteDraftKeeper
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RouteState())
@@ -45,15 +48,32 @@ class RouteViewModel(
     private var startTrackingJob: Job? = null
 
     init {
+        // Once, at creation: the stored plan, unless the user changed the plan first (RouteDraftKeeper).
+        viewModelScope.launch {
+            val draft = routeDraftKeeper.loadStoredPlan() ?: return@launch
+            if (!routeDraftKeeper.keepRestoredPlan()) return@launch
+            _state.update { state ->
+                state.copy(
+                    startPoint = draft.startPointToShow(currentLocation = state.startPoint),
+                    waypoints = draft.waypoints,
+                    generatedRoute = draft.generatedRoute,
+                    selectedActivityType = draft.activityType
+                )
+            }
+        }
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
 
     fun onAction(action: RouteAction) {
+        if (action.changesPlan) routeDraftKeeper.onUserChange()
         when (action) {
             is RouteAction.MapTapped -> addWaypoint(action.coordinates)
             is RouteAction.WaypointRemoved -> removeWaypoint(action.waypoint)
-            is RouteAction.ActivityTypeSelected -> _state.update { it.copy(selectedActivityType = action.activityType) }
+            is RouteAction.ActivityTypeSelected -> {
+                _state.update { it.copy(selectedActivityType = action.activityType) }
+                routeDraftKeeper.save(_state.value.toStoredDraft())
+            }
             is RouteAction.UserProfileSaved -> saveUserProfile(action.weightKg)
             RouteAction.GenerateRouteClicked -> generateRoute()
             RouteAction.ResetClicked -> reset()
@@ -66,7 +86,11 @@ class RouteViewModel(
         viewModelScope.launch {
             try {
                 val coordinates = getCurrentLocationUseCase()
-                _state.update { it.copy(startPoint = coordinates) }
+                // The start point of a plan with waypoints or a route stays (a restored one): they were
+                // planned from it.
+                val previous = _state.value.startPoint
+                _state.update { if (it.toStoredDraft().isPlannedFromStart) it else it.copy(startPoint = coordinates) }
+                if (_state.value.startPoint != previous) routeDraftKeeper.save(_state.value.toStoredDraft())
             } catch (error: RouteError) {
                 handleCurrentLocationErrors(error)
             }
@@ -87,6 +111,7 @@ class RouteViewModel(
             val newWaypoint = RoutePoint(coordinates = coordinates, order = state.waypoints.size)
             state.copy(waypoints = state.waypoints + newWaypoint, generatedRoute = null, isLoading = false)
         }
+        routeDraftKeeper.save(_state.value.toStoredDraft())
     }
 
     private fun generateRoute() {
@@ -108,6 +133,7 @@ class RouteViewModel(
             try {
                 val route = generateClosedRouteUseCase(draftRoute)
                 _state.update { it.copy(isLoading = false, generatedRoute = route) }
+                routeDraftKeeper.save(_state.value.toStoredDraft())
             } catch (error: RouteError) {
                 _state.update { it.copy(isLoading = false) }
                 _events.send(RouteEvent.ShowError(error.toUiError()))
@@ -124,6 +150,7 @@ class RouteViewModel(
     private fun reset() {
         cancelGeneration()
         _state.update { RouteState() }
+        routeDraftKeeper.save(_state.value.toStoredDraft())
         loadCurrentLocation()
         getAndUpdateUserProfile()
     }
@@ -137,6 +164,7 @@ class RouteViewModel(
 
             state.copy(waypoints = updatedWaypoints, generatedRoute = null, isLoading = false)
         }
+        routeDraftKeeper.save(_state.value.toStoredDraft())
     }
 
     private fun saveUserProfile(weightKg: Double) {
@@ -177,6 +205,8 @@ class RouteViewModel(
                 val startPoint = state.value.startPoint
                 val plannedRoutePoints = state.value.generatedRoute?.points?.map { it.coordinates }
                 if (startPoint != null && !plannedRoutePoints.isNullOrEmpty()) {
+                    // The plan is used up; the screen keeps showing it.
+                    routeDraftKeeper.clear()
                     _events.send(
                         RouteEvent.NavigateToTracking(
                             startPoint = startPoint,
@@ -219,12 +249,23 @@ data class RouteState(
     val canGenerateRoute: Boolean
         get() = startPoint != null && waypoints.size >= MIN_WAYPOINTS && !isLoading
 
+    internal fun toStoredDraft() = StoredRouteDraft(startPoint, waypoints, generatedRoute, selectedActivityType)
+
+    /** Every point of the plan: the start point, the waypoints and the generated route. */
+    val planPoints: List<Coordinates>
+        get() = listOfNotNull(startPoint) + waypoints.map { it.coordinates } +
+            generatedRoute?.points.orEmpty().map { it.coordinates }
+
     private companion object {
         const val MIN_WAYPOINTS = 3
     }
 }
 
 sealed interface RouteAction {
+    /** The user changes the plan (start point, waypoints, route, activity type) or uses it up. */
+    val changesPlan: Boolean
+        get() = this !is UserProfileSaved && this !is LocationPermissionGranted
+
     data class MapTapped(val coordinates: Coordinates) : RouteAction
     data class WaypointRemoved(val waypoint: RoutePoint) : RouteAction
     data class ActivityTypeSelected(val activityType: ActivityType) : RouteAction

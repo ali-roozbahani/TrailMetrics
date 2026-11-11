@@ -24,8 +24,17 @@ internal val MIGRATION_2_3: Migration = Migration(2, 3) { connection ->
     connection.execSQL("ALTER TABLE `tbl_tracking_session` ADD COLUMN `startedAtEpochMillis` INTEGER")
 }
 
+/** Adds the table of the route being planned, empty; the other tables are untouched. */
+internal val MIGRATION_3_4: Migration = Migration(3, 4) { connection ->
+    connection.execSQL(
+        "CREATE TABLE IF NOT EXISTS `tbl_route_draft` (`id` INTEGER NOT NULL, `startLatitude` REAL, " +
+            "`startLongitude` REAL, `waypoints` TEXT NOT NULL, `generatedRoutePoints` TEXT, " +
+            "`generatedRouteDistanceMeters` REAL, `activityType` TEXT NOT NULL, PRIMARY KEY(`id`))"
+    )
+}
+
 /**
  * Every migration of [TrailMetricsDatabase], oldest first. `getRoomDatabase` adds them to the
  * builder, and the migration harness in commonTest opens old databases through the same list.
  */
-internal val appMigrations: List<Migration> = listOf(MIGRATION_1_2, MIGRATION_2_3)
+internal val appMigrations: List<Migration> = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

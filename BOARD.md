@@ -54,15 +54,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
 - Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
 
-### route-draft-lost-on-process-death
-- Type: task
-- Area: androidApp/feature-route, iosApp/Route
-- Order: 30
-- Source: PR for tm-robustness-skill
-- Problem: The route being planned (start point, waypoints, generated route, chosen activity type) lives only in `RouteViewModel` (`RouteState`) and its Swift twin; there is no `SavedStateHandle`, `rememberSaveable` or `@SceneStorage` anywhere in the app, so process death on either platform drops the plan. Whether the draft is worth persisting is a product decision.
-- Done when: the owner decides; if yes, the draft survives process death on both platforms with a test each, if no, `tm-robustness` R1 records the screen as accepted.
-- Refs: `androidApp/feature-route/.../RouteViewModel.kt` (`RouteState`); `iosApp/Packages/Route/Sources/Route/RouteViewModel.swift`; `tm-robustness` R1.
-
 ### inject-dispatchers-from-di
 - Type: task
 - Area: androidApp/feature-tracking, data
@@ -560,6 +551,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The owner saw, on an Android device, that after Pause and Resume the recorded line joins the last point before the Pause to the first point after the Resume with a straight segment (a chord across a circle). What the code does, read in the files: `UpdateTrackingStateUseCase` handles `Pause` and `Resume` without touching the path, and the first `LocationReceived` after the Resume adds `path.last().distanceTo(newCoordinates)` to `distanceMeters`, so the jump is counted as distance, while the time of the pause is not counted (`Resume` sets `lastUpdateElapsedRealtimeMillis`); the path is a plain `List<Coordinates>`, so it has no gap marker and the Pause leaves no trace in it. Android draws the whole path as one `Polyline` (`RoutePolyline` in `TrackingScreen`), and iOS draws it as one `GMSPolyline` (`TrackingMapView`, `recordedPathToDraw`), so both show the chord; the saved activity keeps the same list. A restored session adds one more such jump (it comes back Paused, and its Resume continues from the last stored point). Not changed here: whether a pause splits the line and whether the jump counts as distance is a product decision with a model change in `domain`, both maps and the stored form.
 - Done when: the owner decides whether a pause splits the line and whether the jump counts as distance.
 - Refs: `domain/.../usecase/UpdateTrackingStateUseCase.kt` (`handleResume`, `handleLocationReceived`); `androidApp/core-ui/.../map/RoutePolyline.kt`; `androidApp/feature-tracking/.../TrackingScreen.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`; `domain/.../model/TrackingMetrics.kt` (`path`).
+
+### ios-ui-test-restored-session-offer
+- Type: task
+- Area: iosApp/TrailMetricsUITests, shared-uitest
+- Order: 550
+- Source: PR route-draft-restore
+- Problem: No iOS UI test reaches the saved-session offer of a relaunched app (from the iOS restore review of #248). What the files show: `ContentView` runs `savedSessionOffer.restoreOnce()` in a `.task` and shows the offer from `SavedSessionOfferModel.offer`; in UI-test mode `UiTestTrackingSessionStore.load()` always returns null, so no `UiTestScenario` (`FailedDelete`, `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`) can have a stored session, and `iosApp/TrailMetricsUITests` has no test of the offer; only the Swift unit tests `SavedSessionOfferTests` cover the model, not the view that shows it or what a tap on it does. Recorded, not fixed: a new scenario and its fake store are a UI-test task of their own (`docs/epics/ios-ui-tests.md`), not of the route draft.
+- Done when: a `UiTestScenario` launches the app with a stored Paused session, and a UI test sees the offer and, through it, the restored session on the tracking screen (D5 determinism rules of `tm-testing` "XCUITest").
+- Refs: `iosApp/TrailMetrics/ContentView.swift` (`restoreOnce`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift`; `shared-uitest/src/iosMain/.../UiTestFakes.kt` (`UiTestTrackingSessionStore`), `UiTestScenario.kt`; `docs/epics/ios-ui-tests.md`.
+
+### ios-tracking-start-not-blocked-while-restoring
+- Type: task
+- Area: iosApp/Tracking
+- Order: 560
+- Source: PR route-draft-restore
+- Problem: On iOS a tap on Start before `TrackingSessionManager.restore()` returns is not blocked (from the iOS restore review of #248). What the files show: Android's `TrackingViewModel` keeps `isRestoring` true until its own `restore()` call returns, and `start()` returns early while it is true (`TrackingScreenState.canStart` is `trackingState is Idle && !isRestoring`); on iOS the restore runs once in `SavedSessionOfferModel.restoreOnce()` (from `ContentView`'s `.task`), and `TrackingViewModel.canStart` is true for `.idle` and `.finished` with no restore check, and `onStartClicked()` calls `trackingSessionManager.start(...)` directly. A session started while the read runs makes `restore()` return the live state without restoring, and that session's first save replaces the stored one. Recorded, not fixed: of another subject (the tracking screen), and where iOS should wait (the offer model or the tracking ViewModel) is a design choice. The Live Activity of a killed process is task 59f, not this record.
+- Done when: on iOS, Start does nothing (or is not offered) until the stored session has been read, as on Android, with a Swift test that holds the store's load.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `onStartClicked`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift` (`restoreOnce`); `androidApp/feature-tracking/.../TrackingViewModel.kt` (`isRestoring`, `start`).
 
 ## Drift
 

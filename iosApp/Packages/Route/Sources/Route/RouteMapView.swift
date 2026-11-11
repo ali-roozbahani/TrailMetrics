@@ -12,6 +12,8 @@ import UIKit
 
 struct RouteMapView: UIViewRepresentable {
     private static let defaultZoom: Float = 15
+    /// As on the tracking map.
+    private static let fitPadding: CGFloat = 64
 
     let startPoint: Coordinates?
     let waypoints: [RoutePoint]
@@ -37,11 +39,7 @@ struct RouteMapView: UIViewRepresentable {
     func updateUIView(_ mapView: GMSMapView, context: Context) {
         context.coordinator.parent = self
 
-        if let startPoint, context.coordinator.lastCameraCoordinates != startPoint {
-            mapView.animate(toLocation: startPoint.locationCoordinate)
-            mapView.animate(toZoom: Self.defaultZoom)
-            context.coordinator.lastCameraCoordinates = startPoint
-        }
+        updateCamera(mapView, coordinator: context.coordinator)
 
         mapView.clear()
 
@@ -71,6 +69,27 @@ struct RouteMapView: UIViewRepresentable {
         }
     }
 
+    private func updateCamera(_ mapView: GMSMapView, coordinator: Coordinator) {
+        let isFitNeeded = isPlanFitNeeded(waypoints: waypoints, planAlreadySeen: coordinator.planAlreadySeen)
+        if !waypoints.isEmpty { coordinator.planAlreadySeen = true }
+        if isFitNeeded {
+            // A restored plan: all of it in view, once. The map has no size before its first layout, so
+            // the fit runs on the next main-actor turn, as on the tracking map.
+            var bounds = GMSCoordinateBounds()
+            for point in planPoints(startPoint: startPoint, waypoints: waypoints, generatedRoute: generatedRoute) {
+                bounds = bounds.includingCoordinate(point.locationCoordinate)
+            }
+            Task { @MainActor [weak mapView] in
+                mapView?.moveCamera(GMSCameraUpdate.fit(bounds, withPadding: Self.fitPadding))
+            }
+            coordinator.lastCameraCoordinates = startPoint
+        } else if let startPoint, coordinator.lastCameraCoordinates != startPoint {
+            mapView.animate(toLocation: startPoint.locationCoordinate)
+            mapView.animate(toZoom: Self.defaultZoom)
+            coordinator.lastCameraCoordinates = startPoint
+        }
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
@@ -78,6 +97,9 @@ struct RouteMapView: UIViewRepresentable {
     final class Coordinator: NSObject, GMSMapViewDelegate {
         var parent: RouteMapView
         var lastCameraCoordinates: Coordinates?
+        /// True once non-empty waypoints were handled (`isPlanFitNeeded(waypoints:planAlreadySeen:)`). Not
+        /// kept across launches: after process death the restored plan is fitted.
+        var planAlreadySeen = false
 
         init(parent: RouteMapView) {
             self.parent = parent

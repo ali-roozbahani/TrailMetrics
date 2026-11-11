@@ -60,8 +60,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.MapEffect
+import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.MarkerComposable
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
@@ -187,6 +191,32 @@ fun RouteScreen(
         }
     }
 
+    var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
+
+    // As on the tracking screen: CameraUpdateFactory throws until the Maps SDK is initialized, which a map
+    // existing proves. Not saveable on purpose: after process death the flag must be false again, so the
+    // restored plan is fitted.
+    var planAlreadySeen by remember { mutableStateOf(false) }
+    val displayMetrics = LocalContext.current.resources.displayMetrics
+
+    LaunchedEffect(state.waypoints, googleMapRef) {
+        if (googleMapRef == null) return@LaunchedEffect
+        val isFitNeeded = isPlanFitNeeded(state.waypoints, planAlreadySeen)
+        if (state.waypoints.isNotEmpty()) planAlreadySeen = true
+        if (isFitNeeded) {
+            // The screen size stands in for the map's, which may not be laid out yet (the size-less
+            // newLatLngBounds overload throws then).
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLngBounds(
+                    planBounds(state.planPoints),
+                    displayMetrics.widthPixels,
+                    displayMetrics.heightPixels,
+                    FIT_PADDING_PX
+                )
+            )
+        }
+    }
+
     if (showProfileSheet) {
         UserProfileBottomSheet(
             initialWeightKg = state.userProfile?.weightKg,
@@ -245,6 +275,13 @@ fun RouteScreen(
 
                 state.generatedRoute?.let { route ->
                     RoutePolyline(points = route.points.map { it.coordinates })
+                }
+
+                // MapEffect is the only maps-compose hook that exposes the raw GoogleMap, which the camera
+                // fit of a restored plan waits for.
+                @OptIn(MapsComposeExperimentalApi::class)
+                MapEffect(Unit) { map ->
+                    googleMapRef = map
                 }
             }
 
@@ -508,4 +545,5 @@ private fun RouteScreenPreview() {
 }
 
 private const val DEFAULT_ZOOM = 15f
+private const val FIT_PADDING_PX = 120
 private typealias CoreStrings = dev.roozbahani.trailmetrics.core.ui.R.string

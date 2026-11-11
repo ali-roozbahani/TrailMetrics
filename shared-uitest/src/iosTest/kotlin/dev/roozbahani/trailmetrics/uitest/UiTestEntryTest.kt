@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
+import dev.roozbahani.trailmetrics.domain.route.RouteDraftStore
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.shared.di.KoinHelper
@@ -53,6 +54,7 @@ class UiTestEntryTest {
             assertIs<UiTestTrackingServiceLauncher>(koin.get<TrackingServiceLauncher>(), "$scenario: launcher")
             assertIs<UiTestDirectionsRepository>(koin.get<DirectionsRepository>(), "$scenario: directions binding")
             assertIs<UiTestTrackingSessionStore>(koin.get<TrackingSessionStore>(), "$scenario: session store")
+            assertIs<UiTestRouteDraftStore>(koin.get<RouteDraftStore>(), "$scenario: route draft store")
             stopKoin()
         }
     }
@@ -136,6 +138,7 @@ class UiTestEntryTest {
         helper.observeActivitiesUseCase()
         helper.calorieCalculator()
         helper.clock()
+        helper.routeDraftKeeper()
         val koin = KoinPlatform.getKoin()
         koin.get<LocationRepository>()
         koin.get<TrackingServiceLauncher>()

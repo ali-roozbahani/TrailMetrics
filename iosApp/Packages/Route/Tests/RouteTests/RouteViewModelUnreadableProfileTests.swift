@@ -114,7 +114,8 @@ final class RouteViewModelUnreadableProfileTests: XCTestCase {
             generateClosedRouteUseCase: GenerateClosedRouteUseCase(
                 directionsRepository: FakeDirectionsRepository(route: RouteFixtures.route)
             ),
-            userProfileRepository: repository
+            userProfileRepository: repository,
+            routeDraftKeeper: makeRouteDraftKeeper()
         )
         await waitUntil { viewModel.startPoint != nil }
         tapWaypoints(3, on: viewModel)

@@ -11,6 +11,7 @@ import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadable
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.feature.route.fakes.FakeDirectionsRepository
+import dev.roozbahani.trailmetrics.feature.route.fakes.inMemoryRouteDraftKeeper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -55,7 +56,8 @@ class RouteViewModelUnreadableProfileTest {
     private fun createViewModel() = RouteViewModel(
         getCurrentLocationUseCase = GetCurrentLocationUseCase(locationRepository),
         generateClosedRouteUseCase = GenerateClosedRouteUseCase(directionsRepository),
-        userProfileRepository = userProfileRepository
+        userProfileRepository = userProfileRepository,
+        routeDraftKeeper = inMemoryRouteDraftKeeper(testScheduler)
     )
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement

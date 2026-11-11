@@ -67,6 +67,8 @@ rule that needs it never fires there (see "Mechanical rules").
 - **E4** The failure of a background job (a coroutine, a `Task`, a service) is observable as state
   or an event, not lost. Why: a failed save or sync the user never hears about is data loss.
   Example: `ObserveActivitiesUseCase` emits `Failed`. Enforced: reviewer only. Severity: blocking.
+  Accepted exception (owner, PR #250): the route draft. `RouteDraftSaver` logs a failed save or read,
+  planning goes on, no notice; the plan is cheap to make again, not data the user recorded.
 
 ## Dispatchers and threads
 
@@ -104,8 +106,9 @@ rule that needs it never fires there (see "Mechanical rules").
 
 - **R1** Android: UI state that must survive is in `SavedStateHandle` or `rememberSaveable`, data
   that must survive is persisted, and a ViewModel is never the only holder of something the user
-  would lose. Why: the system kills a backgrounded process at any time. Example: no example yet
-  (no `SavedStateHandle` or `rememberSaveable` in the code). Enforced: reviewer only. Severity:
+  would lose. Why: the system kills a backgrounded process at any time. Example: `RouteViewModel`
+  persists the plan through `RouteDraftKeeper` (Room) and restores it at creation (no `SavedStateHandle`
+  or `rememberSaveable` in the code). Enforced: reviewer only. Severity:
   blocking when the reviewer verifies in the files the loss of data the user recorded or entered
   (the session, the route draft, a saved activity), important for a likely gap the files cannot
   prove.
@@ -222,8 +225,6 @@ Don't copy these as a pattern for new code. Each names its board record.
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
   (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
   snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
-- The route draft (start point, waypoints, generated route) lives only in `RouteViewModel` and its
-  Swift twin (R1; `route-draft-lost-on-process-death`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)
   and the polyline is rebuilt from it; no conflation or distance filter on either platform (P4,
   P6; `tracking-location-update-path-cost`).
