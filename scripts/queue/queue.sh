@@ -24,8 +24,9 @@
 #   file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
 #   without a feature/, bugfix/ or chore/ prefix. A new entry is `planned` with PR `-`.
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
-#   without a PR number, while another entry is pushed, for an entry that is not the first open one
-#   in queue order, or whose parent is not merged; status `merged` without a PR number.
+#   without a PR number, for an entry that is not `ready`, while another entry is pushed, for an
+#   entry that is not the first open one in queue order, or whose parent is not merged; status
+#   `merged` without a PR number, or for an entry that is not `pushed`.
 #
 # next prints exactly one line, from the file alone (no network, no git):
 #   PUSH <slug>                   nothing is pushed, the first open entry is `ready`, its parent (if
@@ -39,6 +40,8 @@
 #   DONE                          no open entry
 # While nothing is pushed, a first open entry that is not ready is built (FINISH_BUILD, BUILD) before
 # anything else; while an entry is pushed, the other entries are built in queue order.
+#
+# show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Exit: 0 ok, 1 refused (reason on stderr), 2 usage error or unreadable queue file.
 # Bash 3.2 compatible.
@@ -129,12 +132,12 @@ cmd_add() {
 }
 
 cmd_set() {
-    local slug="${1:-}" kv key val status pr branch tmp first other parent
+    local slug="${1:-}" kv key val status pr branch tmp first other parent old
     [ -n "$slug" ] && [ "$#" -ge 2 ] || usage
     shift
     entries > /dev/null
     [ -n "$(field "$slug" 2)" ] || refuse "'$slug' is not in the queue"
-    status="$(field "$slug" 6)"; pr="$(field "$slug" 7)"; branch="$(field "$slug" 3)"
+    status="$(field "$slug" 6)"; old="$status"; pr="$(field "$slug" 7)"; branch="$(field "$slug" 3)"
     for kv in "$@"; do
         key="${kv%%=*}"; val="${kv#*=}"
         [ "$key" != "$kv" ] || usage
@@ -151,8 +154,9 @@ cmd_set() {
             *) refuse "unknown field '$key' (status, pr, branch)" ;;
         esac
     done
-    if [ "$status" = pushed ] && [ "$(field "$slug" 6)" != pushed ]; then
+    if [ "$status" = pushed ] && [ "$old" != pushed ]; then
         [ "$pr" != - ] || refuse "status pushed needs pr=<number>"
+        [ "$old" = ready ] || refuse "'$slug' is $old; only a ready entry is pushed"
         other="$(entries | awk -F '\t' -v s="$slug" '$6 == "pushed" && $2 != s { print $2; exit }')"
         [ -z "$other" ] || refuse "'$other' is pushed; one PR of the queue is pushed at a time"
         first="$(sorted | awk -F '\t' '$6 != "merged" && $6 != "dropped" { print $2; exit }')"
@@ -163,6 +167,9 @@ cmd_set() {
         fi
     fi
     if [ "$status" = merged ] && [ "$pr" = - ]; then refuse "status merged needs pr=<number>"; fi
+    if [ "$status" = merged ] && [ "$old" != merged ] && [ "$old" != pushed ]; then
+        refuse "'$slug' is $old; only a pushed entry is merged"
+    fi
     tmp="$(mktemp)"
     awk -F '\t' -v OFS='\t' -v s="$slug" -v st="$status" -v p="$pr" -v b="$branch" '
         !/^#/ && NF == 7 && $2 == s { $3 = b; $6 = st; $7 = p } { print }' "$QUEUE_FILE" > "$tmp"
@@ -175,7 +182,15 @@ cmd_show() {
     local rows
     rows="$(sorted)" || exit 2
     if [ -z "$rows" ]; then echo "(queue empty: $QUEUE_FILE)"; return 0; fi
-    { printf 'order\tslug\tbranch\tafter\tkind\tstatus\tpr\n'; printf '%s\n' "$rows"; } | column -t -s "$TAB"
+    { printf 'order\tslug\tbranch\tafter\tkind\tstatus\tpr\n'; printf '%s\n' "$rows"; } | awk -F '\t' '
+        { n[NR] = NF; for (i = 1; i <= NF; i++) { c[NR, i] = $i; if (length($i) > w[i]) w[i] = length($i) } }
+        END {
+            for (r = 1; r <= NR; r++) {
+                line = ""
+                for (i = 1; i < n[r]; i++) line = line sprintf("%-" (w[i] + 2) "s", c[r, i])
+                print line c[r, n[r]]
+            }
+        }'
 }
 
 cmd_next() {
@@ -217,11 +232,13 @@ self_test() {
     local tmp fails=0 out rc
     tmp="$(mktemp -d)"
     trap 'rm -rf -- "$tmp"' EXIT
-    check() { # check <description> <expected output> <expected exit> <command...>
+    # has_line <line> <text>: the text has a line equal to <line>, whole (`BUILD a` is not `FINISH_BUILD a`).
+    has_line() { printf '%s\n' "$2" | grep -qxF -- "$1"; }
+    check() { # check <description> <expected line, whole> <expected exit> <command...>
         local d="$1" want="$2" wantrc="$3"
         shift 3
         out="$("$@" 2>&1)" && rc=0 || rc=$?
-        if [ "$rc" = "$wantrc" ] && printf '%s\n' "$out" | grep -qF -- "$want"; then
+        if [ "$rc" = "$wantrc" ] && has_line "$want" "$out"; then
             echo "ok   $d"
         else
             echo "FAIL $d: expected exit $wantrc and '$want', got exit $rc:" >&2
@@ -229,6 +246,12 @@ self_test() {
             fails=$((fails + 1))
         fi
     }
+    # The comparison itself: a substring of a line is not a match.
+    if has_line "BUILD a" "FINISH_BUILD a" || ! has_line "BUILD a" "$(printf 'x\nBUILD a')"; then
+        echo "FAIL the comparison is not whole-line" >&2; fails=$((fails + 1))
+    else
+        echo "ok   the comparison is whole-line (BUILD a does not match FINISH_BUILD a)"
+    fi
     q() { QUEUE_FILE="$QF" bash "$SELF" "$@"; }
     fresh() { QF="$tmp/$1/queue.tsv"; }
     # line <order> <slug> <after> <kind> <status> <pr>: one entry, written straight into the file
@@ -238,43 +261,44 @@ self_test() {
     fresh add
     check "next on a missing file" "DONE" 0 q next
     check "add a" "added a (agent, order 1)" 0 q add a --branch chore/a
-    check "add the file outside the repo" "" 0 test -f "$QF"
+    check "add writes the queue file" "$QF" 0 sh -c "test -f '$QF' && echo '$QF'"
     check "add owner o" "added o (owner, order 2)" 0 q add o --branch chore/o --kind owner
     check "add b after a" "added b (agent, order 3, after a)" 0 q add b --branch chore/b --after a
-    check "duplicate slug" "already in the queue" 1 q add a --branch chore/a2
-    check "duplicate branch" "branch 'chore/a' is already" 1 q add c --branch chore/a
-    check "unknown --after" "--after 'zz' is not in the queue" 1 q add c --branch chore/c --after zz
-    check "agent after owner" "cannot come after the owner entry 'o'" 1 q add c --branch chore/c --after o
+    check "duplicate slug" "queue: refused: slug 'a' is already in the queue" 1 q add a --branch chore/a2
+    check "duplicate branch" "queue: refused: branch 'chore/a' is already in the queue" 1 q add c --branch chore/a
+    check "unknown --after" "queue: refused: --after 'zz' is not in the queue" 1 q add c --branch chore/c --after zz
+    check "agent after owner" "queue: refused: an agent entry cannot come after the owner entry 'o' (owner entries are pushed last)" 1 q add c --branch chore/c --after o
     check "owner after owner is fine" "added o2 (owner, order 4, after o)" 0 q add o2 --branch chore/o2 --kind owner --after o
-    check "bad branch prefix" "no feature/, bugfix/ or chore/" 1 q add c --branch docs/c
-    check "bad kind" "is not agent or owner" 1 q add c --branch chore/c --kind human
-    check "bad slug" "not kebab-case" 1 q add C_1 --branch chore/c
+    check "bad branch prefix" "queue: refused: branch 'docs/c' has no feature/, bugfix/ or chore/ prefix" 1 q add c --branch docs/c
+    check "bad kind" "queue: refused: kind 'human' is not agent or owner" 1 q add c --branch chore/c --kind human
+    check "bad slug" "queue: refused: slug 'C_1' is not kebab-case" 1 q add C_1 --branch chore/c
     check "fifth open entry" "added c (agent, order 5)" 0 q add c --branch chore/c
-    check "sixth open entry refused" "already has 5 open entries" 1 q add d --branch chore/d
-    check "agent entries order before owner entries" "c" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | sed -n 4p | grep -E '^5 +c '"
-    check "owner entries last" "o2" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | tail -1 | grep -E '^4 +o2 '"
+    check "sixth open entry refused" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add d --branch chore/d
+    check "agent entries order before owner entries" "5      c     chore/c   -      agent  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | sed -n 4p"
+    check "owner entries last" "4      o2    chore/o2  o      owner  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | tail -1"
     check "next builds the first entry" "BUILD a" 0 q next
-    check "set unknown slug" "not in the queue" 1 q set zz status=ready
-    check "set bad status" "status 'done' is not" 1 q set a status=done
-    check "set bad pr" "pr 'x1' is not a number" 1 q set a pr=x1
-    check "set bad field" "unknown field 'kind'" 1 q set a kind=owner
-    check "pushed needs a PR" "needs pr=<number>" 1 q set a status=pushed
-    check "pushed out of order" "'a' comes first" 1 q set c status=pushed pr=9
-    check "merged needs a PR" "merged needs pr=" 1 q set c status=merged
-    check "set a building" "set a: status building" 0 q set a status=building
+    check "set unknown slug" "queue: refused: 'zz' is not in the queue" 1 q set zz status=ready
+    check "set bad status" "queue: refused: status 'done' is not planned, building, ready, pushed, merged or dropped" 1 q set a status=done
+    check "set bad pr" "queue: refused: pr 'x1' is not a number or -" 1 q set a pr=x1
+    check "set bad field" "queue: refused: unknown field 'kind' (status, pr, branch)" 1 q set a kind=owner
+    check "pushed needs a PR" "queue: refused: status pushed needs pr=<number>" 1 q set a status=pushed
+    check "a planned entry is not pushed" "queue: refused: 'c' is planned; only a ready entry is pushed" 1 q set c status=pushed pr=9
+    check "merged needs a PR" "queue: refused: status merged needs pr=<number>" 1 q set c status=merged
+    check "a planned entry is not merged" "queue: refused: 'c' is planned; only a pushed entry is merged" 1 q set c status=merged pr=9
+    check "set a building" "set a: status building, pr -, branch chore/a" 0 q set a status=building
     check "FINISH_BUILD the building entry" "FINISH_BUILD a" 0 q next
-    check "set a ready" "set a: status ready" 0 q set a status=ready
+    check "set a ready" "set a: status ready, pr -, branch chore/a" 0 q set a status=ready
     check "PUSH a ready first entry" "PUSH a" 0 q next
-    check "set a pushed" "set a: status pushed, pr 11" 0 q set a status=pushed pr=11
-    check "a second pushed entry refused" "'a' is pushed" 1 q set c status=pushed pr=12
+    check "set a pushed" "set a: status pushed, pr 11, branch chore/a" 0 q set a status=pushed pr=11
     check "child of a pushed parent is built" "BUILD b" 0 q next
-    check "b ready" "" 0 q set b status=ready
+    check "b ready" "set b: status ready, pr -, branch chore/b" 0 q set b status=ready
+    check "a ready entry is not merged" "queue: refused: 'b' is ready; only a pushed entry is merged" 1 q set b status=merged pr=12
     check "next independent entry is built" "BUILD c" 0 q next
-    check "a child is not pushed while its parent is pushed" "'a' is pushed" 1 q set b status=pushed pr=12
-    check "dropped frees a slot" "" 0 q set c status=dropped
-    check "add after a dropped entry refused" "--after 'c' is dropped" 1 q add d --branch chore/d --after c
-    check "add into the freed slot" "added d" 0 q add d --branch chore/d
-    check "a sixth open entry is still refused" "already has 5 open" 1 q add e --branch chore/e
+    check "a child is not pushed while its parent is pushed" "queue: refused: 'a' is pushed; one PR of the queue is pushed at a time" 1 q set b status=pushed pr=12
+    check "dropped frees a slot" "set c: status dropped, pr -, branch chore/c" 0 q set c status=dropped
+    check "add after a dropped entry refused" "queue: refused: --after 'c' is dropped" 1 q add d --branch chore/d --after c
+    check "add into the freed slot" "added d (agent, order 6)" 0 q add d --branch chore/d
+    check "a sixth open entry is still refused" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add e --branch chore/e
     check "comments and blank lines are ignored" "BUILD d" 0 sh -c "printf '# note\n\n' >> '$QF'; QUEUE_FILE='$QF' bash '$SELF' next"
 
     # every branch of next, from a hand-written file
@@ -311,15 +335,23 @@ self_test() {
     fresh n16; line 1 a - agent pushed 3; line 2 b - agent dropped -
     check "WAIT ignores dropped entries" "WAIT a #3 agent" 0 q next
     fresh n18; line 1 a - agent dropped -; line 2 b a agent ready -
-    check "pushed refused while the parent is not merged" "parent 'a' is not merged" 1 q set b status=pushed pr=5
+    check "pushed refused while the parent is not merged" "queue: refused: the parent 'a' is not merged" 1 q set b status=pushed pr=5
+    fresh n19; line 1 a - agent planned -; line 2 c - agent ready -
+    check "pushed out of order" "queue: refused: 'a' comes first in the queue; 'c' is pushed after it is merged" 1 q set c status=pushed pr=9
+    fresh n20; line 1 a - agent pushed 3; line 2 c - agent ready -
+    check "a second pushed entry refused" "queue: refused: 'a' is pushed; one PR of the queue is pushed at a time" 1 q set c status=pushed pr=12
+    check "a merged entry stays merged" "set a: status merged, pr 3, branch chore/a" 0 q set a status=merged
+    check "setting merged again is no transition" "set a: status merged, pr 3, branch chore/a" 0 q set a status=merged
+    fresh n21; line 1 a - agent building -
+    check "a building entry is not pushed" "queue: refused: 'a' is building; only a ready entry is pushed" 1 q set a status=pushed pr=4
     fresh bad; mkdir -p "$tmp/bad"; printf 'x\ta\n' > "$QF"
-    check "a malformed line exits 2" "is not <order>" 2 q next
+    check "a malformed line exits 2" "queue: $QF:1 is not <order> <slug> <branch> <after> <kind> <status> <pr>" 2 q next
     fresh n17; line 1 a - agent pushed 3
-    check "pushed entry can be set merged" "set a: status merged" 0 q set a status=merged
+    check "pushed entry can be set merged" "set a: status merged, pr 3, branch chore/a" 0 q set a status=merged
     check "after the merge: DONE" "DONE" 0 q next
 
-    check "usage error exits 2" "usage:" 2 bash "$SELF" bogus
-    check "add without --branch exits 2" "usage:" 2 q add x
+    check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
+    check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 q add x
     if [ "$fails" = 0 ]; then echo "queue.sh self-test: all passed"; else echo "queue.sh self-test: $fails failed" >&2; fi
     [ "$fails" = 0 ]
     exit $?

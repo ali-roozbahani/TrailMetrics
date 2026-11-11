@@ -9,7 +9,7 @@
 #   scripts/main-ci-status.sh --ack <run id>  record that the owner accepts a red run (below)
 #   scripts/main-ci-status.sh --self-test
 #
-# Reads only through REST (`gh api` GET, GraphQL is refused here); `origin/main`'s head is read
+# Reads only through REST (`gh api` GET); `origin/main`'s head is read
 # from the local ref, so run `git fetch origin` first. It never cancels or re-runs anything.
 #
 # Output: a line `run <id> <sha> <conclusion> <url>`, a line `failed jobs: <names>` for a red run,
