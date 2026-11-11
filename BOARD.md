@@ -1,7 +1,10 @@
 # Board
 
-The backlog of open epics, tasks and drift, so follow-ups are not lost between PRs. It is
-not a plan or a status tracker: if a record exists, the item is open. Records are only added,
+The backlog of what the agent does not do on its own: open epics, and tasks and drift that need
+an owner decision or design, only the owner can push, are over the PR queue's limit of 5, or come
+from an owner-opened sweep. Follow-ups the agent can do are PRs of the local queue, not records
+(`tm-pr-workflow`, "Board", rule 1). It is not a plan or a status tracker: if a record exists, the
+item is open. Records are only added,
 deleted, narrowed when partly done, or given a new Order to make room for an insertion. They
 never move between sections.
 

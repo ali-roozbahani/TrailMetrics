@@ -75,7 +75,8 @@ scripts/main-ci-status.sh --recent 5   # the last 5 push runs on main, newest fi
   `fix/`, ...), switch to the closest allowed one and say so under "Assumptions" in the PR.
   Precedent: #35 was asked for `docs/...` and used `chore/...`.
 - Branch from the local `main` that "Before starting" left equal to `origin/main`, never from
-  `origin/main` directly, unless the task names a different base.
+  `origin/main` directly, unless the task names a different base or the branch is a queue entry
+  built on its parent's local branch (`tm-agent-loop`, section 9).
 - Slug: lowercase, hyphenated, describes the change (`chore/fix-gate-test-coverage`,
   `bugfix/route-reset-profile-refetch`).
 
@@ -189,8 +190,8 @@ reasons:
    map's content is not asserted, on iOS either); OS-level permission dialogs, the
    tracking notification and the iOS Live Activity (`TrackingWidget`); and a human judgement
    of visual design against Figma.
-2. **A test seam or test target that does not exist yet.** It must be tracked by a
-   `BOARD.md` record that the PR names. The iOS UI-test target `TrailMetricsUITests` has a
+2. **A test seam or test target that does not exist yet.** It must be tracked by a queued
+   PR or a `BOARD.md` record ("Board", rule 1) that the PR names. The iOS UI-test target `TrailMetricsUITests` has a
    launch test and the scenarios landed so far (Details delete, Route, Tracking), and the app
    has its launch-time fake seam (the `UITEST_SEAM` entry); the other scenarios land with later
    subtasks of `docs/epics/ios-ui-tests.md`, so an iOS-only user-visible behavior whose logic no
@@ -198,8 +199,8 @@ reasons:
 3. **The single final smoke check of a finished end-to-end feature**, after all its automated
    tests passed. It is a smoke check, not the validation.
 
-For each human check the PR gives the behavior, the reason (1, 2 with the record's slug, or
-3) and the exact steps. For docs-, test-, CI- or skill-only changes, say plainly that nothing
+For each human check the PR gives the behavior, the reason (1, 2 with its PR, queue entry or
+record, or 3) and the exact steps. For docs-, test-, CI- or skill-only changes, say plainly that nothing
 user-visible changes (see #32, #35).
 
 ## Commits
@@ -270,13 +271,15 @@ Add these when they apply. Recent PRs use them consistently:
   "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
-- **Follow-ups (out of scope, not changed)**: problems found but deliberately left alone
-  because they need a human decision, are of another subject, or are over the sweep's bound
-  or break a boundary. Say what the fix would be and why it is left. Each
-  bullet names its `BOARD.md` record's slug (see "Board").
+- **Follow-ups (out of scope, not changed)**: problems found but deliberately left out of this
+  PR because they are of another subject, over the sweep's bound, need a human decision, or
+  break a boundary. Say what the fix would be and why it is left.
 - **Drift found (not fixed)**: docs that disagree with code this task didn't change (see
-  "Docs follow the code you changed" under Boundaries). Each bullet names its `BOARD.md`
-  record's slug.
+  "Docs follow the code you changed" under Boundaries).
+- In both, each bullet ends with where the item went ("Board", rule 1): `(#<n>)` for its PR,
+  `(queue: <slug>)` while its queued PR does not exist yet (replaced by the number once it
+  opens, also on a merged PR), or `(board: <slug>)` for its `BOARD.md` record. A bullet with
+  none of them breaks rule 1.
 - **Board**: always, as one line: `Board: +slug-a, +slug-b, -slug-c`, or `Board: no changes`.
 - **Corrections**: if an earlier PR stated something wrong, correct it explicitly (see
   #34's "Correction to #33").
@@ -292,8 +295,8 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
   truth for which paths are protected is `.github/CODEOWNERS`; there is no list here.
   `scripts/check-protected-paths.sh` classifies a diff from it (`--files <path>...` for
   single paths). If a protected file is wrong and not of this task's subject (see "Docs
-  follow the code you changed"), report it under "Follow-ups" instead (#32, #33, #34 and #37
-  all did this).
+  follow the code you changed"), list it under "Follow-ups" instead and queue it as an owner
+  entry ("Board", rule 1; #32, #33, #34 and #37 reported such files).
   The five reference skills (`tm-ios`, `tm-android`, `tm-kmp-shared`, `tm-testing`, `tm-robustness`) are not
   protected (their folders have ownerless lines in CODEOWNERS, so every file in them is open),
   so an agent may edit them in a task that calls for it; the reviewer judges that diff like any other, and the
@@ -312,9 +315,9 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
   is then the human's to merge. The bound is 10 changed lines in 2 files per hit and 30
   lines for all hits. The authorization never covers changing a rule's content or
   strength, adding a rule or weakening a check. Drift about code this task didn't change,
-  or a hit beyond the bound, is not fixed here: add a drift record to `BOARD.md` and list
-  it under "Drift found (not fixed)" in the PR description, with the line and what the
-  code actually does.
+  or a hit beyond the bound, is not fixed here: it goes where "Board", rule 1 says (a queued
+  PR of its own, or a `BOARD.md` record) and is listed under "Drift found (not fixed)" in the
+  PR description, with the line and what the code actually does.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
@@ -330,8 +333,9 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
 
 ## Board
 
-`BOARD.md` at the repo root is the backlog of open epics, tasks and drift. A record exists
-only while its item is open. Its header gives the record format, including `Order` (unique
+`BOARD.md` at the repo root is the backlog of what the agent does not do on its own: epics,
+and tasks and drift that need the owner. Follow-ups the agent can do are PRs of the local queue
+(`tm-agent-loop`, section 9), not records. A record exists only while its item is open. Its header gives the record format, including `Order` (unique
 integer, ascending = do first, across all sections) and the optional `After` (slugs that must
 be gone from the board first). `scripts/check-board.sh` enforces the format; it is the first
 step of the gate and of CI's `tooling` job.
@@ -340,17 +344,24 @@ step of the gate and of CI's `tooling` job.
    `scripts/check-board.sh --next` prints. If that record is an epic (or
    `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
    approve, not with code.
-1. **Add.** What this PR leaves for later and the sweep ("Docs follow the code you changed")
-   does not fix gets a record in `BOARD.md` in the **same** PR, in every run, whether or not
-   the task came from the board: only an item that needs a human decision or design, is of a
-   different subject, or is over the sweep's bound, each with that one-line reason in its
-   Problem. Each such follow-up and drift you list under "Follow-ups (out of scope, not
-   changed)" or "Drift found (not fixed)", including one only the human can do (a workflow
-   file this token can't push) when it is not of this task's subject. The human decides when
-   it is done, not whether it is recorded. A same-subject item within the bound is fixed,
-   never recorded. The PR description keeps those sections, and each bullet names its slug;
-   a bullet without a slug breaks this rule. Every new record gets an `Order` and, only if
-   it truly can't start before another record is done, an `After`.
+1. **Add.** Everything this PR leaves for later that the sweep ("Docs follow the code you
+   changed") does not fix goes somewhere, in every run, whether or not the task came from the
+   board. A same-subject item within the bound is fixed, never left. Of the rest:
+   - **The agent can do it** (another subject, over the sweep's bound, a protected path the
+     owner merges): a queue entry and a PR of its own (`tm-agent-loop`, section 9), never a
+     record.
+   - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
+     or design; an epic, and the follow-ups its final board PR records (rule 5); a change only
+     the owner can push (a workflow file this token can't push); an item the queue refuses
+     because 5 entries are open; a finding of an owner-opened sweep (rule 4); a flake escalated
+     at count 3 ("Flake log"); and an `[important]` reviewer finding not fixed in the PR that is none of
+     these (the push hook accepts `board record <slug>` as its only deferred disposition).
+     Each record states that one-line reason in its Problem; a record whose only reason is
+     that the agent could do it breaks this rule. The human decides when it is done, not
+     whether it is recorded.
+   Each item is listed under "Follow-ups (out of scope, not changed)" or "Drift found (not
+   fixed)" with its PR, queue entry or record ("PR description"). Every new record gets an
+   `Order` and, only if it truly can't start before another record is done, an `After`.
 2. **Delete.** When the task starts from a board record, delete that record in the PR that
    does the work, as its own commit (`chore(board): remove <slug>`).
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves

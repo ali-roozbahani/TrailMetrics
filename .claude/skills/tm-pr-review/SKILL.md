@@ -111,9 +111,15 @@ from memory.
 7. **New dependencies.** Any change to `gradle/libs.versions.toml`, a Gradle `dependencies`
    or `plugins` block, `Package.swift` or `Package.resolved` must be named in `TASK`'s
    Scope. Otherwise blocking (`CLAUDE.md`, "Hard rules"; `tm-pr-workflow`, Boundaries).
-8. **Board bookkeeping** (`tm-pr-workflow`, "Board"). Follow-ups and drift the diff leaves
-   behind have `BOARD.md` records, each with its reason, and a record or follow-up whose
-   reason is a same-subject fix within the sweep bound is blocking; a record the task
+8. **Board and queue bookkeeping** (`tm-pr-workflow`, "Board", rule 1). Every bullet under
+   "Follow-ups" and "Drift found" ends with `(#<n>)`, `(queue: <slug>)` or `(board: <slug>)`; a
+   bullet with none is blocking. Each `BOARD.md` record the diff adds states in its Problem one
+   of the reasons rule 1 admits (owner decision or design, an epic or its final board PR's
+   records, only the owner can push it,
+   the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3, an
+   `[important]` finding the PR does not fix);
+   a record whose only reason is that the agent could do it, and a record or follow-up whose
+   reason is a same-subject fix within the sweep bound, are blocking; a record the task
    started from is deleted in its own commit (`chore(board): remove <slug>`); no `After` or
    skill/doc mention of a removed slug is left; the change is not board-only (a diff that
    touches only `CI_FLAKES.md` is judged like any other), except a sweep PR (`tm-pr-workflow`,
@@ -122,7 +128,8 @@ from memory.
    line naming another skill is blocking), and "What changed" says the owner's sweep task
    names it; a missing Source line or sentence is blocking. Exception
    (rule 5): a parallel subtask of an epic with an integration branch never edits
-   `BOARD.md` and lists its follow-ups and drift in its PR description instead.
+   `BOARD.md` and lists its follow-ups and drift in its PR description instead, without the
+   ending (the epic's final board PR records them).
 9. **Docs follow the code** (`tm-pr-workflow`, "Docs follow the code you changed"). A skill
    or `CLAUDE.md` line that describes code this diff changed is updated in the diff. No line
    numbers in docs, skills, board records or comments (a `<path>:<number>` reference, or
