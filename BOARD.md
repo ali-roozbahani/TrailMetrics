@@ -570,6 +570,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: on iOS, Start does nothing (or is not offered) until the stored session has been read, as on Android, with a Swift test that holds the store's load.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `onStartClicked`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift` (`restoreOnce`); `androidApp/feature-tracking/.../TrackingViewModel.kt` (`isRestoring`, `start`).
 
+### rule-change-signal-misses-escalation-words
+- Type: task
+- Area: scripts, tm-pr-review
+- Order: 570
+- Source: PR koinhelper-getter-no-escalation
+- Problem: `scripts/check-skill-rule-changes.py` (`tm-pr-review` item 10) lists a removed or rewritten skill line only when it holds one of its `RULE_WORDS` (must, never, always, do not, don't, required, forbidden, only, at most, at least). A rule written as "... stay an escalation", "is blocking" or "escalates" holds none, so weakening it is not listed: rewriting the last clause of `tm-kmp-shared` rule 6 ("... and any change to `KoinHelper` stay an escalation") gave `none` on this PR, although it is a rule weakening. Recorded, not fixed: of another subject (the review tooling), the script is a protected path, and which words count as rule words is the owner's decision.
+- Done when: the script lists a removed or rewritten line whose rule is written with escalate/escalation or blocking (or the owner decides such lines are left to the reviewer, written in `tm-pr-review` item 10), with a `--self-test` case for it.
+- Refs: `scripts/check-skill-rule-changes.py` (`RULE_WORDS`); `.claude/skills/tm-pr-review/SKILL.md` (item 10); `.claude/skills/tm-kmp-shared/SKILL.md` ("`@Throws` policy", rule 6).
+
 ## Drift
 
 ### data-kover-comment-stale-figure

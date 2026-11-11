@@ -112,8 +112,16 @@ looks safe even when the Kotlin side declares nothing.
    rules 1 to 3, (c) a new `Flow` that Swift iterates and that can fail gets the
    `ObserveActivitiesUseCase` treatment below (a `StateFlow` that never fails needs none), (d) the
    Swift fakes and callers are updated in the same PR, and (e) the PR description lists each new
-   Swift-visible name under the heading `Swift-visible API`. Removing or changing a `@Throws`, a
-   new failing Flow Swift iterates, and any change to `KoinHelper` stay an escalation.
+   Swift-visible name under the heading `Swift-visible API`. Removing or changing a `@Throws` and a
+   new failing Flow Swift iterates stay an escalation. A new getter on `KoinHelper` (step 2 of
+   "Adding a dependency iOS needs") does not escalate when all of these hold: (a) it is concrete
+   and non-generic, and its body only resolves the binding the way the neighbouring getters do
+   (`get()` or their `by inject()` property), no other logic; (b) the binding it returns is added
+   in the same PR in a `shared`/`data` Koin module (step 1); (c) `KoinGraphCheck` and the Swift
+   fakes and callers are updated in the same PR; (d) the PR description lists the getter under
+   `Swift-visible API`. Still an escalation: removing, renaming or changing an existing getter, a
+   getter with logic, and any other change to `KoinHelper`, to `KoinInit`'s module list beyond
+   adding the binding of (b), or to how Koin starts.
 
 Today: `GenerateClosedRouteUseCase`, `GetCurrentLocationUseCase` follow rule 2 (their
 repositories return `RouteError` failures). `SaveActivityUseCase`, `UserProfileRepository` and
