@@ -71,12 +71,14 @@ get() { # get <output file> <endpoint>: one GET with retries
     fails=0
 }
 
-# checks_of <sha>: running | green | red | missing (cached in $D/checks-<sha> once green or red)
+# checks_of <sha>: sets CHECKS to running | green | red | missing (cached in $D/checks-<sha> once
+# green or red). It runs in this shell, not in a command substitution, so the time its retries
+# sleep counts toward the wait and a success resets the failure count.
 checks_of() {
     local out code last
-    if [ -f "$D/checks-$1" ]; then cat "$D/checks-$1"; return; fi
+    if [ -f "$D/checks-$1" ]; then CHECKS="$(cat "$D/checks-$1")"; return; fi
     while :; do
-        out="$(WAIT_FOR_CHECKS_MAX_SECONDS=0 bash "$WAIT_FOR_CHECKS" "$1" 2>/dev/null)"
+        out="$(WAIT_FOR_CHECKS_MAX_SECONDS=0 bash "$WAIT_FOR_CHECKS" "$1" 2>/dev/null < /dev/null)"
         code=$?
         [ "$code" = 2 ] || break
         failed "the check runs of $1"
@@ -84,46 +86,46 @@ checks_of() {
     fails=0
     last="$(printf '%s\n' "$out" | tail -1)"
     case "$last" in
-        ALL_GREEN) echo green > "$D/checks-$1" ;;
-        FAILED*) echo red > "$D/checks-$1" ;;
-        "TIMEOUT (none running)"*) echo missing; return ;;
-        TIMEOUT*) echo running; return ;;
+        ALL_GREEN) CHECKS=green; echo green > "$D/checks-$1" ;;
+        FAILED*) CHECKS=red; echo red > "$D/checks-$1" ;;
+        "TIMEOUT (none running)"*) CHECKS=missing ;;
+        TIMEOUT*) CHECKS=running ;;
         *) die "unexpected output of wait-for-checks.sh for $1: $last" ;;
     esac
-    cat "$D/checks-$1"
 }
 
-# behind_of <base sha> <head sha>: behind_by, cached per pair
+# behind_of <base sha> <head sha>: sets BEHIND to behind_by, cached per pair; runs in this shell
+# for the same reason as checks_of.
 behind_of() {
     local f="$D/behind-$1-$2"
     if [ ! -f "$f" ]; then
         get "$D/compare.json" "repos/{owner}/{repo}/compare/$1...$2"
         jq -er '.behind_by | numbers' "$D/compare.json" > "$f" 2>/dev/null || { rm -f "$f"; die "compare data is not readable"; }
     fi
-    cat "$f"
+    BEHIND="$(cat "$f")"
 }
 
 # read_state <output file>: one line per open PR of the author:
 #   number  base  head-ref  head-sha  draft  behind  checks
 read_state() {
-    local out="$1" number base ref sha draft bsha behind checks
+    local out="$1" number base ref sha draft bsha
     get "$D/pulls.json" "repos/{owner}/{repo}/pulls?state=open&per_page=100"
     jq -r --arg a "$AUTHOR" '.[] | select(.user.login == $a)
         | [.number, .base.ref, .head.ref, .head.sha, (if .draft then "draft" else "open" end)] | @tsv' \
         "$D/pulls.json" > "$D/list.tsv" 2>/dev/null || die "the PR list is not readable"
     rm -f "$D"/base-*
     : > "$out"
-    while IFS="$(printf '\t')" read -r number base ref sha draft; do
+    while IFS="$(printf '\t')" read -r number base ref sha draft <&3; do
         [ -n "$number" ] || continue
         if [ ! -f "$D/base-$base" ]; then
             get "$D/ref.json" "repos/{owner}/{repo}/git/ref/heads/$base"
             jq -er '.object.sha | strings' "$D/ref.json" > "$D/base-$base" 2>/dev/null || die "the ref of $base is not readable"
         fi
         bsha="$(cat "$D/base-$base")"
-        behind="$(behind_of "$bsha" "$sha")" || exit 2
-        checks="$(checks_of "$sha")" || exit 2
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$number" "$base" "$ref" "$sha" "$draft" "$behind" "$checks" >> "$out"
-    done < "$D/list.tsv"
+        behind_of "$bsha" "$sha"
+        checks_of "$sha"
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$number" "$base" "$ref" "$sha" "$draft" "$BEHIND" "$CHECKS" >> "$out"
+    done 3< "$D/list.tsv"
 }
 
 once() {
@@ -275,6 +277,14 @@ CHECKS_DONE green #2 ${B:0:12}"
     run --once; expect "3 failed reads in a row are retried" 0 "#1	main	chore/pr-1 ${A:0:12}	open	behind=0	checks=green
 OPEN 1"
 
+    # The retries of a compare read in --wait count toward the wait: 3 failed reads after the base
+    # moved use up the rest of a 4-step budget, so the PR list is read only twice.
+    case_ retry-budget; put ref-main-1.json "{\"object\":{\"sha\":\"$M1\"}}"; put ref-main-2.json "{\"object\":{\"sha\":\"$M2\"}}"
+    put pulls.json "[$(pr_ 1 "$A")]"; put compare-aaaaaaa.json '{"behind_by":0}'; put compare-aaaaaaa.fail-calls "2 3 4"; put checks-aaaaaaa.json "$G"
+    MAXS=4 run --wait
+    if [ "$rc" = 1 ] && [ "$out" = "TIMEOUT open: #1" ] && [ "$(grep -c 'pulls?state=open' "$tmp/state/retry-budget/log")" = 2 ]; then
+        echo "ok   retries in --wait count toward the maximum wait"
+    else echo "FAIL retries in --wait: exit $rc, $out, $(grep -c 'pulls?state=open' "$tmp/state/retry-budget/log") list reads" >&2; fails=$((fails + 1)); fi
     for a in "" "--wait 0" "--wait 361" "--wait x" "--once 3" "--bogus"; do
         out="$(bash "$SELF" $a 2>&1)"; rc=$?
         [ "$rc" = 2 ] && echo "ok   usage error: '$a'" || { echo "FAIL '$a' does not exit 2 ($rc)" >&2; fails=$((fails + 1)); }
