@@ -318,15 +318,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the request handling (handle a request id once, cancel on teardown, drop a result whose request is no longer current, reset the request after delivery) is reachable from a Swift package test or a UI-test scenario, and tests cover each of the four.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`, `MapSnapshotSaver.swift`, `TrackingView.swift` (`finishTracking`); `tm-pr-workflow` Tier 2; `tm-testing`.
 
-### gate-self-test-list-duplicates-ci-tooling
-- Type: task
-- Area: scripts, .github/workflows/ci.yml
-- Order: 246
-- Source: investigation of ten red `main` runs, 2026-10-25
-- Problem: the self-tests are listed twice by hand: `scripts/pre-push-check.sh` (one `run_step` per script, from "protected paths" to "skill changes digest self-test") and the `tooling` job of `.github/workflows/ci.yml` (the steps from "Protected paths check" to "Skill changes digest self-test", plus the iOS ones at the `Localized strings rules self-test`, `Optional try rule self-test` and `Production framework check self-test` steps). A script added to one list and not the other runs only in the gate or only in CI; the new `main-ci-status.sh` self-test had to be added to both. Needs a human decision: one list (a script that runs every `*-fixtures` self-test) or a check that the two lists agree.
-- Done when: one source names the self-tests, or `scripts/` has a check that fails when the gate and `ci.yml` disagree, with its own self-test.
-- Refs: `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `.github/CODEOWNERS`.
-
 ### flake-ios-ui-details-launch-timeout
 - Type: task
 - Area: iosApp/TrailMetricsUITests
