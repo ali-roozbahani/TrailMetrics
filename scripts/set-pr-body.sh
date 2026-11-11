@@ -19,7 +19,8 @@
 #
 # --self-test runs the cases in scripts/set-pr-body-fixtures/ against a fake `gh` (no network), and
 # a CRLF case it writes itself: a case directory holds body.md, `expected` (the body the fake
-# received) and `expected-exit`, and a `gh-fail` file for a `gh` that fails.
+# received) and `expected-exit`, a `gh-fail` file for a `gh` that fails, and may hold a fake tool
+# (an executable named after it) that comes first on PATH.
 set -u
 
 USAGE="usage: scripts/set-pr-body.sh <PR number> <body file> | --print-body <body file> | --self-test"
@@ -31,13 +32,16 @@ print_body() {
 }
 
 self_test() {
-    local fixtures dir name state actual code expected_exit failed=0 self
+    local fixtures dir name state actual code expected_exit failed=0 self real_jq
+    real_jq="$(command -v jq)"   # before PATH puts a case's fake jq first
     self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
     fixtures="$(dirname "$self")/set-pr-body-fixtures"
     for dir in "$fixtures"/*/; do
         name="$(basename "$dir")"
         state="$(mktemp -d)"
-        PATH="$fixtures:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" "$self" 42 "$dir/body.md" > "$state/out" 2>&1
+        # A case directory comes first on PATH, so a case can bring its own fake tool (jq-fails/jq).
+        PATH="$dir:$fixtures:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" FAKE_REAL_JQ="$real_jq" \
+            "$self" 42 "$dir/body.md" > "$state/out" 2>&1
         code=$?
         expected_exit="$(cat "$dir/expected-exit")"
         actual="$(cat "$state/received" 2>/dev/null || echo "(no call)")"
