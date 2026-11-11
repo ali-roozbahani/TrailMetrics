@@ -579,6 +579,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner has chosen, and a build in Xcode leaves every catalog unchanged. Smallest change found: give the three keys `"extractionState" : "manual"` in the widget catalog (the state Xcode gives a key added by hand, which it never marks stale); no build setting or code changes. Alternatives: make the keys literals the compiler extracts (a `switch` over the activity type returning `Text("Running", bundle: .main)` and so on: a code change), or a gate check that fails on `"stale"` or a missing final newline in a catalog (it detects the rewrite, it does not stop it). Turning `SWIFT_EMIT_LOC_STRINGS` off for the widget target would leave every widget key unextracted, which is worse.
 - Refs: `iosApp/TrackingWidget/Localizable.xcstrings`; `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`LocalizedStringKey(context.attributes.activityType)`); `iosApp/TrailMetrics.xcodeproj/project.pbxproj` (`SWIFT_EMIT_LOC_STRINGS`, `LOCALIZATION_PREFERS_STRING_CATALOGS`); `.claude/skills/tm-ios/SKILL.md` ("Strings").
 
+### scripts-folder-moves
+- Type: task
+- Area: scripts, .github/workflows/ci.yml, .github/CODEOWNERS, skills
+- Order: 590
+- Source: task 61b stage 3 (PR chore/self-test-list-and-pr-base)
+- Problem: Stage 3 of task 61b groups the flat `scripts/` entries into folders by purpose. The first PR made the folders `scripts/checks/` and `scripts/ci/` (the self-test list and its runner, the scripts index, the PR-base script), `scripts/README.md` and its check; the existing scripts still sit flat in `scripts/`. Moving them changes about 360 references outside `scripts/` (skills, `CLAUDE.md`, `ci.yml`, `CODEOWNERS`, docs, the gate and the hooks), too many for one reviewable PR. Recorded, not fixed: over the sweep's bound; the owner reviews and pushes each folder's PR (`ci.yml` changes).
+- Done when: one PR per folder, each moving its scripts with their `*-fixtures/` folders and fixing every reference, with `scripts/README.md`, `scripts/checks/self-tests.list` and `CODEOWNERS` (a folder line in place of the per-script lines) updated and `check-protected-paths.sh --validate` passing: (1) `checks/`: `classify-changes` and every `check-*` (`.sh`, `.py`, fixtures); (2) `review/`: `review-task`, `local-review-gate`, `skill-changes-digest`, `set-pr-body`; (3) `ci/`: `wait-for-checks`, `read-ci-verdict`, `rerun-failed-once`, `main-ci-status`; (4) `dev/`: `filter-xcode-log`, `scrub-env`, `prune-merged-branches`, `simulate-route` with `routes/`. `pre-push-check.sh`, `build-kmp-framework.sh` and `claude-hooks/` stay where they are: `CLAUDE.md` and every skill name the gate; the Xcode project, its schemes and the Gradle and Kotlin sources name the framework build; `.claude/settings.json` names the hooks, and only the owner edits it.
+- Refs: `scripts/README.md`; `scripts/checks/self-tests.list`; `.github/CODEOWNERS`; `.github/workflows/ci.yml`; `.claude/settings.json`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
