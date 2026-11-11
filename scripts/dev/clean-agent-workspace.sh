@@ -265,6 +265,14 @@ STUB
     run "$ws" >/dev/null 2>&1 || true
     check "bad gh output: old record kept" there "$ws/local-reviews/$sha_old"
 
+    # 4b. A git failure (no origin/main) keeps every record too.
+    ws="$tmp/ws4b"; make_ws "$ws"
+    git -C "$ws/TrailMetrics" update-ref -d refs/remotes/origin/main
+    out="$(run "$ws" 2>&1)" && rc=0 || rc=$?
+    check "no origin/main: exits 0" [ "$rc" = 0 ]
+    check "no origin/main: old record kept" there "$ws/local-reviews/$sha_old"
+    check "no origin/main: said so" grep -q "no review record deleted" <<<"$out"
+
     # 5. The guard refuses a wrong dir.
     mkdir -p "$tmp/wrong/TrailMetrics"
     echo old >"$tmp/wrong/pr-body-x.md"; touch -t "$OLD" "$tmp/wrong/pr-body-x.md"
