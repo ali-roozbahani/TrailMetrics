@@ -27,6 +27,9 @@ push gh pr create --base main --body-file b.md
 nopush git pushd
 nopush git status
 nopush git log --grep push
+nopush git --no-pager log --grep push
+nopush git log --grep="git push"
+nopush git show push
 nopush git commit -m "message without the word"
 nopush git fetch origin
 nopush gh pr view 12

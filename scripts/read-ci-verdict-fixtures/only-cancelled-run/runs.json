@@ -1,0 +1,14 @@
+{
+  "total_count": 1,
+  "check_runs": [
+    {
+      "id": 9001,
+      "name": "Review — pr-reviewer",
+      "head_sha": "1111111111111111111111111111111111111111",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "started_at": "2026-11-10T10:00:00Z",
+      "details_url": "https://github.com/o/r/actions/runs/9001/job/1"
+    }
+  ]
+}
