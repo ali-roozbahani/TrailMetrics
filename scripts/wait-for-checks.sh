@@ -23,6 +23,10 @@
 #   repos/{owner}/{repo}/commits/<sha>/check-runs?filter=latest&per_page=100   (first page only)
 # It never cancels or re-runs anything.
 #
+# When a name has more than one check run for the SHA (a PR closed and reopened), only the newest
+# counts: latest `started_at` (a run not started yet counts as newest), then highest run id. The
+# older ones, cancelled or not, are neither printed nor judged.
+#
 # Steps: every 30 s for the first 5 minutes, then every 5 minutes, at most 90 minutes in all.
 # The check runs of a push appear one after another (jobs of ci.yml, `Review — pr-reviewer` of
 # another workflow, a job that needs another one), so "every run I see is completed" is not enough:
@@ -134,6 +138,14 @@ wait_for_checks() {
 
         fetch "$d/runs.json" "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest&per_page=100" "the check runs of $SHA"
         jq -e '.check_runs | type == "array"' "$d/runs.json" > /dev/null 2>&1 || die "check run data is not readable"
+        # Keep only the newest run per name and SHA: closing and reopening a PR leaves a second run
+        # of a workflow for the same SHA, and the older one (often cancelled) must not decide.
+        # Newest = latest started_at (a run not started yet counts as newest), then highest id.
+        jq '.check_runs |= (. as $all | map(. as $r | ($r.started_at // "9999") as $s
+            | select([$all[] | select(.name == $r.name and .head_sha == $r.head_sha
+                and ([(.started_at // "9999"), (.id // 0)] > [$s, ($r.id // 0)]))] | length == 0)))' \
+            "$d/runs.json" > "$d/newest.json" || die "check run data is not readable"
+        mv -- "$d/newest.json" "$d/runs.json"
         total="$(jq -r '.check_runs | length' "$d/runs.json")"
         pending="$(jq -r '[.check_runs[] | select(.status != "completed")] | length' "$d/runs.json")"
         missing="$(jq -r --arg required "$REQUIRED_CHECKS" '[.check_runs[].name] as $have

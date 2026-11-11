@@ -9,10 +9,13 @@
 # Prints one line: APPROVE, ESCALATE_TO_HUMAN, CHANGES, or UNKNOWN <reason>. When the message
 # carries a count of [important] findings (`APPROVE, 2 important.`) the line ends in
 # `, <n> important` (`APPROVE, 2 important`); a message without a count prints the bare verdict.
-# Exit 0 only for one of the three verdicts, which then comes from the one completed check run of
-# THAT SHA with exactly one annotation titled `Review — pr-reviewer` whose level and message
-# prefix agree and whose blob link names that SHA. Anything else is UNKNOWN and exits 1: only
-# the line APPROVE or `APPROVE, <n> important` counts as an approval. Exit 2 is a usage error.
+# Exit 0 only for one of the three verdicts, which then comes from the newest check run of THAT SHA
+# (latest `started_at`, a run not started yet counting as newest, then highest run id: closing and
+# reopening a PR leaves a second run for the same SHA, and an older one, cancelled or not, is
+# ignored) when it is completed and has exactly one annotation titled `Review — pr-reviewer` whose
+# level and message prefix agree and whose blob link names that SHA. Anything else is UNKNOWN and
+# exits 1: only the line APPROVE or `APPROVE, <n> important` counts as an approval. Exit 2 is a
+# usage error.
 # The PR number is used to confirm that the PR's head is still <head SHA>; a moved head is UNKNOWN.
 #
 # --self-test runs every case in scripts/read-ci-verdict-fixtures/ against a fake `gh` (no
@@ -40,7 +43,7 @@ read_verdict() {
     gh api "repos/{owner}/{repo}/commits/$sha/check-runs?check_name=Review%20%E2%80%94%20pr-reviewer&filter=latest" \
         > "$d/runs.json" 2>/dev/null || unknown "gh api failed"
     run_id="$(jq -r --arg sha "$sha" --arg name "$CHECK_NAME" \
-        '[.check_runs[] | select(.name == $name and .head_sha == $sha)] | if length == 1 then .[0].id else empty end' \
+        '[.check_runs[] | select(.name == $name and .head_sha == $sha)] | sort_by(.started_at // "9999", .id) | if length > 0 then last.id else empty end' \
         "$d/runs.json" 2>/dev/null)" || unknown "check runs are not readable"
     if [ -n "$run_id" ]; then
         gh api "repos/{owner}/{repo}/check-runs/$run_id/annotations?per_page=100" \
@@ -51,7 +54,8 @@ read_verdict() {
 
     out="$(jq -n -r --arg sha "$sha" --arg name "$CHECK_NAME" \
         --slurpfile runs "$d/runs.json" --slurpfile ann "$d/annotations.json" '
-        ($runs[0].check_runs | map(select(.name == $name and .head_sha == $sha))) as $r
+        ($runs[0].check_runs | map(select(.name == $name and .head_sha == $sha))
+            | sort_by(.started_at // "9999", .id) | if length > 0 then [last] else [] end) as $r
         | if ($r | length) != 1 then "NOT_APPROVE: \($r | length) check runs for \($sha)"
           elif $r[0].status != "completed" then "NOT_APPROVE: check run is \($r[0].status)"
           else ($ann[0] | map(select(.title == $name))) as $a

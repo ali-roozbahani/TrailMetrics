@@ -8,7 +8,8 @@
 #
 # <body file> is the draft PR description, ~/agent-workspace/pr-body-<slug>.md, the file the PR
 # is created with. Its `Title:` first line and the blank line below it, if present, are dropped,
-# as for `gh pr create`. Run it after the commit being reviewed, from the repository.
+# as for `gh pr create`, by scripts/set-pr-body.sh --print-body (the body the PR is given). Run it
+# after the commit being reviewed, from the repository.
 #
 # The TASK lines below are the CI step's lines; scripts/check-pr-review-workflow.sh --self-test
 # runs both on the same fixtures and fails when their output differs by one byte.
@@ -26,7 +27,7 @@ BOARD_FILE="$(mktemp)"
 trap 'rm -f -- "$BOARD_FILE"' EXIT
 git show origin/main:BOARD.md > "$BOARD_FILE"
 
-PR_BODY="$(tr -d '\r' < "$1" | awk 'NR == 1 && /^Title:/ {t = 1; next} t && NR == 2 && /^[[:space:]]*$/ {next} {print}')"
+PR_BODY="$("$(dirname "$0")/set-pr-body.sh" --print-body "$1")"
 
 body="$(printf '%s' "${PR_BODY:-}" | tr -d '\r')"
 board="$(printf '%s\n' "$body" | sed 's/[*_`]//g' | grep -m1 -E '^[[:space:]]*Board:' || true)"

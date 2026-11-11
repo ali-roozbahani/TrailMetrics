@@ -110,10 +110,14 @@ fi
 # Only act on git push and gh pr create; let every other command through untouched. Quotes are
 # dropped first (`git "push"`, `bash -c 'git push'`), and any run of global options (`-C <dir>`,
 # `-c k=v`, `--git-dir=<dir>`, `-R <repo>`) may sit before the subcommand, but another word may not
-# (`git log --grep push` is not a push). scripts/claude-hooks/push-commands-fixtures/corpus holds
-# the commands both this hook and require-local-review.sh must decide the same way.
-OPTS='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*'
-PUSH_RE="(^|[^[:alnum:]_-])(git${OPTS}[[:space:]]+push|gh${OPTS}[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|\$)"
+# (`git log --grep push` is not a push). Only the global options that take a separate value
+# (VALUE_OPTS) consume the next word, so `git --no-pager log --grep push` is not a push either; a
+# `git` right after `=` is an option's value, not a command (`git log --grep="git push"`).
+# scripts/claude-hooks/push-commands-fixtures/corpus holds the commands both this hook and
+# require-local-review.sh must decide the same way.
+VALUE_OPTS='(-C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|-R|--repo|--hostname)'
+OPTS="([[:space:]]+${VALUE_OPTS}[[:space:]]+[^[:space:]]+|[[:space:]]+-[^[:space:]]+)*"
+PUSH_RE="(^|[^[:alnum:]_=-])(git${OPTS}[[:space:]]+push|gh${OPTS}[[:space:]]+pr[[:space:]]+create)([^[:alnum:]_-]|\$)"
 if ! printf '%s\n' "$COMMAND" | tr -d "\"'" | grep -qE "$PUSH_RE"; then
     exit 0
 fi

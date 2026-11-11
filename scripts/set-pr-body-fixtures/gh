@@ -1,0 +1,10 @@
+#!/bin/bash
+# Fake `gh` for scripts/set-pr-body.sh --self-test: never touches the network. It accepts exactly
+# the PATCH call the script makes, writes the `body` of the JSON on stdin to
+# $FAKE_GH_STATE/received and prints a URL; a `gh-fail` file in the case directory
+# ($FAKE_GH_DIR) makes it fail after reading the request, as a refused call does.
+expected='api --method PATCH repos/{owner}/{repo}/pulls/42 --input - --jq .html_url'
+[ "$*" = "$expected" ] || { echo "fake gh: unexpected call: $*" >&2; exit 1; }
+jq -j .body > "$FAKE_GH_STATE/received" || { echo "fake gh: stdin is not a JSON object with body" >&2; exit 1; }
+[ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: HTTP 403: Resource not accessible by integration" >&2; exit 1; }
+echo "https://github.com/o/r/pull/42"
