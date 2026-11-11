@@ -89,6 +89,7 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/set-pr-body-fixtures/              @ali-roozbahani
 /scripts/checks/                            @ali-roozbahani
 /scripts/ci/                                @ali-roozbahani
+/scripts/dev/                               @ali-roozbahani
 
 # Build and dependency files
 /settings.gradle.kts                        @ali-roozbahani

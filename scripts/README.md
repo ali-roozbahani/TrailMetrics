@@ -60,3 +60,4 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/scrub-env.sh`: removes secret-looking variables from the environment (sourced by the gate).
 - `scripts/prune-merged-branches.sh`: deletes the local branches whose PR is merged.
 - `scripts/simulate-route.sh`: walks an iOS Simulator along a GPS route from `scripts/routes/`.
+- `scripts/dev/clean-agent-workspace.sh`: deletes the agent workspace's drafts, logs and review records of finished work older than 3 days.

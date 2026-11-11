@@ -15,6 +15,9 @@ conditions and the reading of the CI verdict are the plan's Decisions 5 to 8
 Do the start-of-run steps of `tm-pr-workflow`, "Before starting" (login, clean tree, `main`
 pulled, merged branches deleted, `fetch --prune`).
 
+Then, before any new work, run `scripts/dev/clean-agent-workspace.sh` and say in the report how many
+files it removed; nothing in the workspace is deleted mid-task.
+
 A run whose gate will run the iOS steps needs the git-ignored iOS secrets config (README
 "iOS", step 2) in the clone. The gate checks that it exists and stops at once if it is
 missing; the agent never reads or creates it, and stops and reports instead.
