@@ -204,10 +204,10 @@ reasons:
    of visual design against Figma.
 2. **A test seam or test target that does not exist yet.** It must be tracked by a
    `BOARD.md` record that the PR names. The iOS UI-test target `TrailMetricsUITests` has a
-   launch test and the failed-delete test, and the app has its launch-time fake seam (the
-   `UITEST_SEAM` entry); the other scenarios land with later subtasks of
-   `docs/epics/ios-ui-tests.md`, so an iOS-only user-visible behavior whose logic no Swift unit
-   test in the packages covers and no scenario reaches may still need this.
+   launch test and the scenarios landed so far (Details delete, Route, Tracking), and the app
+   has its launch-time fake seam (the `UITEST_SEAM` entry); the other scenarios land with later
+   subtasks of `docs/epics/ios-ui-tests.md`, so an iOS-only user-visible behavior whose logic no
+   Swift unit test in the packages covers and no scenario reaches may still need this.
 3. **The single final smoke check of a finished end-to-end feature**, after all its automated
    tests passed. It is a smoke check, not the validation.
 
@@ -389,7 +389,7 @@ step of the gate and of CI's `tooling` job.
    `<skill>` of each is on the "Open sweeps" line below, and its description says under
    "What changed" that the owner's sweep task names it. The reviewer checks the Source lines
    and that sentence; nothing else about such a PR is exempt. The owner removes a name from
-   the line when its stage is done, and the line when the sweep ends.
+   the line when its stage is done, and sets the line to `none` when the sweep ends.
    Open sweeps (the owner edits this line, in a protected PR): none.
 5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
    conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
