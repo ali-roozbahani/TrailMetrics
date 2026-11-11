@@ -5,7 +5,7 @@
 #   scripts/rerun-failed-once.sh <run id>
 #   scripts/rerun-failed-once.sh --self-test
 #
-# Reads the run through REST (`gh api`, GraphQL is refused here). Prints one line.
+# Reads the run through REST (`gh api`). Prints one line.
 # Exit 0 (RERUN ...) only when the run is completed, its conclusion is failure and its
 # `run_attempt` is 1; it then runs `gh run rerun <id> --failed`. Anything else prints
 # `REFUSED <id>: <why>` and exits 1, and re-runs nothing: a run_attempt of 2 or more, a run

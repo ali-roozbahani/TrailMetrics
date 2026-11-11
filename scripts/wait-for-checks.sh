@@ -18,7 +18,7 @@
 #
 # Given a PR number it resolves the head SHA, and reads the PR again on every step: a newer push
 # changes the head. Given a SHA there is no PR to compare with, so SUPERSEDED cannot happen.
-# Reads only through REST (`gh api` GET, GraphQL is refused here):
+# Reads only through REST (`gh api` GET):
 #   repos/{owner}/{repo}/pulls/<N>
 #   repos/{owner}/{repo}/commits/<sha>/check-runs?filter=latest&per_page=100   (first page only)
 # It never cancels or re-runs anything.
