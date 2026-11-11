@@ -16,9 +16,9 @@
 # Prints the PR's URL and exits 0 when the call succeeded. Exit 1: the `gh` call failed (its error
 # is printed). Exit 2: a usage error, a missing body file, or a missing tool.
 #
-# --self-test runs the cases in scripts/set-pr-body-fixtures/ against a fake `gh` (no network): a
-# case directory holds body.md, `expected` (the body the fake received) and `expected-exit`, and
-# a `gh-fail` file for a `gh` that fails.
+# --self-test runs the cases in scripts/set-pr-body-fixtures/ against a fake `gh` (no network), and
+# a CRLF case it writes itself: a case directory holds body.md, `expected` (the body the fake
+# received) and `expected-exit`, and a `gh-fail` file for a `gh` that fails.
 set -u
 
 USAGE="usage: scripts/set-pr-body.sh <PR number> <body file> | --print-body <body file> | --self-test"
@@ -53,6 +53,20 @@ self_test() {
         rm -rf -- "$state"
     done
     [ -n "${name:-}" ] || { echo "FAIL no cases in $fixtures"; failed=1; }
+    # Carriage returns are removed. Written here, not as a fixture: git normalizes the line ends of
+    # a committed file in this repo (core.autocrlf=input), so a fixture could not hold them.
+    state="$(mktemp -d)"
+    printf 'Title: t\r\n\r\n## What changed\r\nText.\r\n' > "$state/crlf.md"
+    PATH="$fixtures:$PATH" FAKE_GH_DIR="$fixtures/title-dropped" FAKE_GH_STATE="$state" "$self" 42 "$state/crlf.md" > /dev/null 2>&1
+    code=$?
+    if [ "$code" = 0 ] && [ "$(cat "$state/received" 2>/dev/null)" = "$(printf '## What changed\nText.\n')" ] \
+        && ! LC_ALL=C grep -q "$(printf '\r')" "$state/received"; then
+        echo "ok   crlf-removed (exit $code)"
+    else
+        echo "FAIL crlf-removed: exit $code, body:"; od -c "$state/received" 2>/dev/null | sed 's/^/       /'
+        failed=1
+    fi
+    rm -rf -- "$state"
     # usage errors exit 2 and never call gh
     state="$(mktemp -d)"
     PATH="$fixtures:$PATH" FAKE_GH_DIR="$fixtures/title-dropped" FAKE_GH_STATE="$state" "$self" > /dev/null 2>&1
