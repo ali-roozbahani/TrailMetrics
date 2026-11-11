@@ -14,7 +14,8 @@
 # The `Title:` line is not sent anywhere: this sets the description only, never the title.
 #
 # Prints the PR's URL and exits 0 when the call succeeded. Exit 1: the `gh` call failed (its error
-# is printed). Exit 2: a usage error, a missing body file, or a missing tool.
+# is printed). Exit 2, with no call: a usage error, a missing or unreadable body file, a body that
+# is empty or blank once the `Title:` line is dropped, or a missing tool.
 #
 # --self-test runs the cases in scripts/set-pr-body-fixtures/ against a fake `gh` (no network), and
 # a CRLF case it writes itself: a case directory holds body.md, `expected` (the body the fake
@@ -98,9 +99,23 @@ for tool in gh jq; do
     command -v "$tool" >/dev/null 2>&1 || { echo "set-pr-body: $tool is not installed" >&2; exit 2; }
 done
 
+# The body is computed first, so an unreadable file or an empty body (an empty file, a file holding
+# only a `Title:` line, only blank lines) stops here instead of PATCHing an empty description: jq
+# turns empty input into {"body":""}, which gh would send. pipefail makes a failed read of the file
+# fail print_body; the trailing `x` keeps the body's final newlines, which $(...) would strip.
+if ! body="$(set -o pipefail; print_body "$2" && printf x)"; then
+    echo "set-pr-body: cannot read $2; the description of PR $1 is unchanged" >&2
+    exit 2
+fi
+body="${body%x}"
+if [ -z "${body//[[:space:]]/}" ]; then
+    echo "set-pr-body: $2 gives an empty description; the description of PR $1 is unchanged" >&2
+    exit 2
+fi
+
 # The body goes in a JSON request body (jq -Rs keeps every byte of the text as one string), so no
 # field type conversion of `gh api -F` can touch it.
-print_body "$2" | jq -Rs '{body: .}' \
+printf '%s' "$body" | jq -Rs '{body: .}' \
     | gh api --method PATCH "repos/{owner}/{repo}/pulls/$1" --input - --jq .html_url || {
     echo "set-pr-body: the PATCH of PR $1 failed; the description is unchanged" >&2
     exit 1
