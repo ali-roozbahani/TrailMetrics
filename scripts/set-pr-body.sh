@@ -15,7 +15,7 @@
 #
 # Prints the PR's URL and exits 0 when the call succeeded. Exit 1: the `gh` call failed (its error
 # is printed). Exit 2, with no call: a usage error, a missing or unreadable body file, a body that
-# is empty or blank once the `Title:` line is dropped, or a missing tool.
+# is empty or blank once the `Title:` line is dropped, a failed jq, or a missing tool.
 #
 # --self-test runs the cases in scripts/set-pr-body-fixtures/ against a fake `gh` (no network), and
 # a CRLF case it writes itself: a case directory holds body.md, `expected` (the body the fake
@@ -118,8 +118,13 @@ if [ -z "${body//[[:space:]]/}" ]; then
 fi
 
 # The body goes in a JSON request body (jq -Rs keeps every byte of the text as one string), so no
-# field type conversion of `gh api -F` can touch it.
-printf '%s' "$body" | jq -Rs '{body: .}' \
+# field type conversion of `gh api -F` can touch it. The JSON is built and checked first: a failed
+# jq must stop here, not hand gh an empty request.
+if ! request="$(printf '%s' "$body" | jq -Rs '{body: .}')" || [ -z "$request" ]; then
+    echo "set-pr-body: jq could not build the request; the description of PR $1 is unchanged" >&2
+    exit 2
+fi
+printf '%s\n' "$request" \
     | gh api --method PATCH "repos/{owner}/{repo}/pulls/$1" --input - --jq .html_url || {
     echo "set-pr-body: the PATCH of PR $1 failed; the description is unchanged" >&2
     exit 1
