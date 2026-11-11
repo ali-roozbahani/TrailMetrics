@@ -278,7 +278,8 @@ self_test() {
     check "comments and blank lines are ignored" "BUILD d" 0 sh -c "printf '# note\n\n' >> '$QF'; QUEUE_FILE='$QF' bash '$SELF' next"
 
     # every branch of next, from a hand-written file
-    fresh n1; check "DONE on an empty file" "DONE" 0 sh -c ": > '$QF' 2>/dev/null || { mkdir -p '$(dirname "$QF")'; : > '$QF'; }; QUEUE_FILE='$QF' bash '$SELF' next"
+    fresh n1; mkdir -p "$(dirname "$QF")"; : > "$QF"
+    check "DONE on an empty file" "DONE" 0 q next
     fresh n2; line 1 a - agent merged 3; line 2 b - owner dropped -
     check "DONE when every entry is merged or dropped" "DONE" 0 q next
     fresh n3; line 1 a - agent ready -; line 2 b - agent building -
