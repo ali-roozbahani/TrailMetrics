@@ -1,0 +1,2 @@
+EVENT_NAME=pull_request
+PR_BASE_SHA={BASE}

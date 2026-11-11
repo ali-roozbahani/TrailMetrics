@@ -7,7 +7,7 @@
 #   scripts/classify-changes.sh --files <path>...  classify the given paths instead
 #   scripts/classify-changes.sh --github           CI: `push` is always full; `pull_request`
 #                                                  classifies the diff from PR_BASE_SHA (fetched
-#                                                  if missing) to HEAD. Writes
+#                                                  if missing, by scripts/ci/pr-base.sh) to HEAD. Writes
 #                                                  `decision=<light|full>` to $GITHUB_OUTPUT and
 #                                                  the result to $GITHUB_STEP_SUMMARY.
 #   scripts/classify-changes.sh --self-test        run the fixtures in scripts/classify-changes-fixtures/
@@ -141,26 +141,25 @@ classify_files() {
 }
 
 # CI mode (see the header). EVENT_NAME and PR_BASE_SHA come from the workflow's env, never
-# from interpolated event text.
+# from interpolated event text. scripts/ci/pr-base.sh validates and fetches the base, as it does
+# for CI's other base-comparing steps; this function only words its answer.
 github_mode() {
-    local result decision=full event="${EVENT_NAME:-}" base="${PR_BASE_SHA:-}"
-    case "$event" in
-        pull_request)
-            if [[ ! "$base" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$base" =~ ^[0-9a-f]{64}$ ]]; then
-                result=$'full\n(no file list: PR_BASE_SHA is not a commit SHA)'
+    local result decision=full event="${EVENT_NAME:-}" base rc
+    base="$("$SCRIPT_DIR/ci/pr-base.sh" --root "$ROOT" 2>/dev/null)"
+    rc=$?
+    case "$rc" in
+        0) result="$(classify_git "$base")" ;;
+        # Not a commit here even after the fetch: classify_git names the base it cannot read.
+        1) result="$(classify_git "${PR_BASE_SHA:-}")" ;;
+        4) result=$'full\n(no file list: PR_BASE_SHA is not a commit SHA)' ;;
+        3)
+            if [ "$event" = push ]; then
+                result=$'full\n(push event: always full)'
             else
-                if ! git -C "$ROOT" cat-file -e "$base^{commit}" 2>/dev/null; then
-                    git -C "$ROOT" fetch --no-tags --quiet --depth=1 origin "$base" >&2 || true
-                fi
-                result="$(classify_git "$base")"
+                result="full"$'\n'"(event '$event': always full)"
             fi
             ;;
-        push)
-            result=$'full\n(push event: always full)'
-            ;;
-        *)
-            result="full"$'\n'"(event '$event': always full)"
-            ;;
+        *) result="full"$'\n'"(no file list: scripts/ci/pr-base.sh exited $rc)" ;;
     esac
     [ "${result%%$'\n'*}" = "light" ] && decision=light
     printf '%s\n' "$result"

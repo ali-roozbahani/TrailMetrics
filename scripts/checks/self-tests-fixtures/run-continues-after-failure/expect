@@ -1,0 +1,5 @@
+==> a self-test
+==> b self-test
+b.sh self-test ran
+1 of 2 FAILED
+  a self-test (scripts/a.sh)

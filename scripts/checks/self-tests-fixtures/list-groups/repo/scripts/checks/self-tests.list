@@ -1,0 +1,3 @@
+# test list
+tooling	a self-test	scripts/a.sh
+macos	b self-test	scripts/b.sh

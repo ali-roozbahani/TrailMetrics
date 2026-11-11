@@ -1,0 +1,2 @@
+EVENT_NAME=push
+PR_BASE_SHA={BASE}
