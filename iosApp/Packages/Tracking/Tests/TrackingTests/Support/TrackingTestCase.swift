@@ -31,7 +31,8 @@ class TrackingTestCase: XCTestCase {
         activityHistoryRepository: FakeActivityHistoryRepository = FakeActivityHistoryRepository(),
         isProfileStorageFailing: Bool = false,
         sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
-        userProfileRepository: FakeUserProfileRepository? = nil
+        userProfileRepository: FakeUserProfileRepository? = nil,
+        isRestoring: Bool = false
     ) -> TrackingSubject {
         let scope = SwiftTestScope()
         scopes.append(scope)
@@ -43,7 +44,8 @@ class TrackingTestCase: XCTestCase {
             clockMillis: Self.startedAtMillis,
             isProfileStorageFailing: isProfileStorageFailing,
             sessionStore: sessionStore,
-            userProfileRepository: userProfileRepository
+            userProfileRepository: userProfileRepository,
+            isRestoring: isRestoring
         )
     }
 

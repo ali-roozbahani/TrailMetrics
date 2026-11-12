@@ -8,8 +8,9 @@ import SwiftUI
 
 public struct TrackingView: View {
     @StateObject private var viewModel: TrackingViewModel
-    /// Whether the app is still reading the stored session; Start waits for it.
-    private let isRestoring: Bool
+    /// The one source of "the app is still reading the stored session". The view observes it so that
+    /// Start (`viewModel.canStart`) is re-read when the read ends; the view model reads it too.
+    @ObservedObject private var savedSessionOffer: SavedSessionOfferModel
     @Environment(\.dismiss) private var dismiss
 
     // This view never holds a raw GMSMapView — TrackingMapView is the sole owner
@@ -31,14 +32,14 @@ public struct TrackingView: View {
         activityType: ActivityType,
         plannedRoutePoints: [Coordinates],
         startPoint: Coordinates,
-        isRestoring: Bool = false
+        savedSessionOffer: SavedSessionOfferModel
     ) {
-        self.isRestoring = isRestoring
+        self.savedSessionOffer = savedSessionOffer
         _viewModel = StateObject(wrappedValue: TrackingViewModel(
             activityType: activityType,
             plannedRoutePoints: plannedRoutePoints,
             startPoint: startPoint,
-            isRestoring: isRestoring
+            savedSessionOffer: savedSessionOffer
         ))
     }
 
@@ -106,9 +107,6 @@ public struct TrackingView: View {
             Button { errorMessage = nil } label: { Text("OK", bundle: .module) }
         } message: { message in
             Text(message)
-        }
-        .onChange(of: isRestoring) { _, restoring in
-            viewModel.onRestoringChanged(restoring)
         }
         .onChange(of: viewModel.currentPath) { _, _ in
             updateRouteProgress()

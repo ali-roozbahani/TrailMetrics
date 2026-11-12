@@ -42,7 +42,7 @@ public final class SavedSessionOfferModel: ObservableObject {
     /// True from the launch until the stored session has been read (or the read failed). Start is not
     /// offered while it is true: a session started during the read would make `restore()` return the live
     /// state without restoring, and its first save would replace the stored one. Android's `isRestoring`.
-    @Published public private(set) var isRestoring = true
+    @Published public private(set) var isRestoring
 
     private let trackingSessionManager: TrackingSessionManager
     private let endOrphanedLiveActivities: () async -> Void
@@ -54,12 +54,27 @@ public final class SavedSessionOfferModel: ObservableObject {
         }
     }
 
-    init(
+    convenience init(
         trackingSessionManager: TrackingSessionManager,
         endOrphanedLiveActivities: @escaping () async -> Void
     ) {
+        self.init(
+            trackingSessionManager: trackingSessionManager,
+            endOrphanedLiveActivities: endOrphanedLiveActivities,
+            isRestoring: true
+        )
+    }
+
+    /// `isRestoring` is the starting value; production always starts with true (the launch). A test that
+    /// needs a model whose read is over passes false.
+    init(
+        trackingSessionManager: TrackingSessionManager,
+        endOrphanedLiveActivities: @escaping () async -> Void,
+        isRestoring: Bool
+    ) {
         self.trackingSessionManager = trackingSessionManager
         self.endOrphanedLiveActivities = endOrphanedLiveActivities
+        self.isRestoring = isRestoring
     }
 
     /// Does nothing after the first call. `restore()` is a Kotlin suspend function: the store read runs

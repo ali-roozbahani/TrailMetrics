@@ -5,7 +5,7 @@
 
 import SharedKit
 import TestSupport
-import Tracking
+@testable import Tracking
 
 /// A TrackingViewModel wired to a real TrackingSessionManager, CalorieCalculator and
 /// SaveActivityUseCase, plus the fakes a test inspects.
@@ -20,6 +20,8 @@ struct TrackingSubject {
     let clock: FakeClock
     let sessionStore: FakeTrackingSessionStore
     let trackingSessionManager: TrackingSessionManager
+    /// The ViewModel's source of `isRestoring`; false unless the subject is made with `isRestoring: true`.
+    let savedSessionOffer: SavedSessionOfferModel
 
     /// - Parameters:
     ///   - scope: the TrackingSessionManager's scope; the caller cancels it when the test ends.
@@ -27,6 +29,7 @@ struct TrackingSubject {
     ///   - clockMillis: the fixed time `clock` reports until a test changes it.
     ///   - sessionStore: the store behind the TrackingSessionManager.
     ///   - userProfileRepository: replaces the one built from `profile` and `isProfileStorageFailing`.
+    ///   - isRestoring: whether the stored session is still being read (the model starts restoring).
     ///   - isProfileStorageFailing: whether the user profile repository throws (see FakeUserProfileRepository).
     init(
         scope: SwiftTestScope,
@@ -36,7 +39,8 @@ struct TrackingSubject {
         clockMillis: Int64,
         isProfileStorageFailing: Bool = false,
         sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
-        userProfileRepository: FakeUserProfileRepository? = nil
+        userProfileRepository: FakeUserProfileRepository? = nil,
+        isRestoring: Bool = false
     ) {
         let locationRepository = FakeLocationRepository(location: TrackingFixtures.startPoint, updates: updates)
         let serviceLauncher = FakeTrackingServiceLauncher()
@@ -57,10 +61,16 @@ struct TrackingSubject {
             trackingSessionStore: sessionStore,
             scope: scope
         )
+        let savedSessionOffer = SavedSessionOfferModel(
+            trackingSessionManager: trackingSessionManager,
+            endOrphanedLiveActivities: {},
+            isRestoring: isRestoring
+        )
         self.viewModel = TrackingViewModel(
             activityType: .running,
             plannedRoutePoints: TrackingFixtures.plannedRoutePoints,
             startPoint: TrackingFixtures.startPoint,
+            savedSessionOffer: savedSessionOffer,
             trackingSessionManager: trackingSessionManager,
             userProfileRepository: userProfileRepository,
             calorieCalculator: calorieCalculator,
@@ -78,5 +88,6 @@ struct TrackingSubject {
         self.clock = clock
         self.sessionStore = sessionStore
         self.trackingSessionManager = trackingSessionManager
+        self.savedSessionOffer = savedSessionOffer
     }
 }
