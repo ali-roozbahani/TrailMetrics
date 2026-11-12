@@ -7,6 +7,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## The gate
 
 - `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1").
+- `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time.
 
 ## Checks of a diff (gate and CI)
 

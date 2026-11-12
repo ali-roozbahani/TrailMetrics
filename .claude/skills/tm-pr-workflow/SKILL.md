@@ -104,6 +104,11 @@ here. Run the script itself, not a hand-picked command.
   exported-environment lines. The iOS secrets config (README "iOS", step 2) is git-ignored; when
   the gate stops because it is missing, never read, print, create or commit it: stop and
   report.
+- **One heavy run at a time.** The gate starts itself under `scripts/heavy-run.sh`, the
+  machine-wide lock for Gradle and xcodebuild runs: when another heavy run is going, the gate
+  prints who it waits for and starts when that run ends. Any other Gradle or `xcodebuild` command
+  the agent starts goes through `scripts/heavy-run.sh <command>` too (two at once took twice as
+  long each and pushed swap up on this Mac). A wait is not a failure and not an attempt.
 - **Coverage.** `koverVerify` fails the gate when a module is below its minimum in
   `config/kover-floors.properties`; see "Coverage ratchet". A module with no floor gets one when
   its first test of its own runs on the Android host.

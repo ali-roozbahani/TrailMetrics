@@ -34,6 +34,7 @@ tooling	branch-create hook self-test	scripts/claude-hooks/block-branch-create-wh
 tooling	skill changes digest self-test	scripts/skill-changes-digest.sh
 tooling	PR description helper self-test	scripts/set-pr-body.sh
 tooling	clean agent workspace self-test	scripts/dev/clean-agent-workspace.sh
+tooling	heavy run lock self-test	scripts/heavy-run.sh
 tooling	PR queue self-test	scripts/queue/queue.sh
 tooling	PR watcher self-test	scripts/queue/watch-prs.sh
 tooling	branch update fallback self-test	scripts/queue/update-branch.sh
