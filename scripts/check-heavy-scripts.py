@@ -128,7 +128,7 @@ class Checker:
 
         # Xcode project.
         xcode = os.path.join(self.root, "iosApp", "TrailMetrics.xcodeproj")
-        for base, _dirs, files in os.walk(xcode, onerror=walk_error):
+        for base, _dirs, files in (os.walk(xcode, onerror=walk_error) if os.path.isdir(xcode) else []):
             for name in sorted(files):
                 path = os.path.join(base, name)
                 text = read(path)

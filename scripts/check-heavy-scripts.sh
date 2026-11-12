@@ -38,6 +38,8 @@ self_test() {
     }
 
     fresh; expect "a repository with no heavy-step source: nothing to check" 0 "nothing checked"
+    fresh; rmdir "$repo/iosApp/TrailMetrics.xcodeproj" "$repo/iosApp" "$repo/.github/workflows" "$repo/.github"
+    expect "a repository without an Xcode project directory is not an error" 0 "nothing checked"
 
     fresh
     put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'
