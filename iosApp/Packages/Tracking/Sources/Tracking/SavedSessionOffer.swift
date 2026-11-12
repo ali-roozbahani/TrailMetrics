@@ -39,6 +39,10 @@ public final class SavedSessionOfferModel: ObservableObject {
     @Published public private(set) var offer: AppRouteTracking?
     /// The stored session could not be read: nothing is offered, and it stays stored for the next start.
     @Published public private(set) var restoreFailed = false
+    /// True from the launch until the stored session has been read (or the read failed). Start is not
+    /// offered while it is true: a session started during the read would make `restore()` return the live
+    /// state without restoring, and its first save would replace the stored one. Android's `isRestoring`.
+    @Published public private(set) var isRestoring = true
 
     private let trackingSessionManager: TrackingSessionManager
     private let endOrphanedLiveActivities: () async -> Void
@@ -72,12 +76,14 @@ public final class SavedSessionOfferModel: ObservableObject {
                 for: restored,
                 activityType: trackingSessionManager.sessionDetails.value?.activityType
             )
+            isRestoring = false
         } catch is CancellationError {
             // The launch task was cancelled before the read finished: nothing failed, so no alert, and
             // the next run of the task restores.
             hasRestored = false
         } catch {
             restoreFailed = true
+            isRestoring = false
         }
     }
 

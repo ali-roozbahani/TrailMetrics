@@ -8,6 +8,8 @@ import SwiftUI
 
 public struct TrackingView: View {
     @StateObject private var viewModel: TrackingViewModel
+    /// Whether the app is still reading the stored session; Start waits for it.
+    private let isRestoring: Bool
     @Environment(\.dismiss) private var dismiss
 
     // This view never holds a raw GMSMapView — TrackingMapView is the sole owner
@@ -25,11 +27,18 @@ public struct TrackingView: View {
     private static let routeCompletionIndexMargin: Int32 = 3
     private static let routeCompletionThresholdMeters = 25.0
 
-    public init(activityType: ActivityType, plannedRoutePoints: [Coordinates], startPoint: Coordinates) {
+    public init(
+        activityType: ActivityType,
+        plannedRoutePoints: [Coordinates],
+        startPoint: Coordinates,
+        isRestoring: Bool = false
+    ) {
+        self.isRestoring = isRestoring
         _viewModel = StateObject(wrappedValue: TrackingViewModel(
             activityType: activityType,
             plannedRoutePoints: plannedRoutePoints,
-            startPoint: startPoint
+            startPoint: startPoint,
+            isRestoring: isRestoring
         ))
     }
 
@@ -97,6 +106,9 @@ public struct TrackingView: View {
             Button { errorMessage = nil } label: { Text("OK", bundle: .module) }
         } message: { message in
             Text(message)
+        }
+        .onChange(of: isRestoring) { _, restoring in
+            viewModel.onRestoringChanged(restoring)
         }
         .onChange(of: viewModel.currentPath) { _, _ in
             updateRouteProgress()

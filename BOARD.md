@@ -537,15 +537,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a `UiTestScenario` launches the app with a stored Paused session, and a UI test sees the offer and, through it, the restored session on the tracking screen (D5 determinism rules of `tm-testing` "XCUITest").
 - Refs: `iosApp/TrailMetrics/ContentView.swift` (`restoreOnce`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift`; `shared-uitest/src/iosMain/.../UiTestFakes.kt` (`UiTestTrackingSessionStore`), `UiTestScenario.kt`; `docs/epics/ios-ui-tests.md`.
 
-### ios-tracking-start-not-blocked-while-restoring
-- Type: task
-- Area: iosApp/Tracking
-- Order: 560
-- Source: PR route-draft-restore
-- Problem: On iOS a tap on Start before `TrackingSessionManager.restore()` returns is not blocked (from the iOS restore review of #248). What the files show: Android's `TrackingViewModel` keeps `isRestoring` true until its own `restore()` call returns, and `start()` returns early while it is true (`TrackingScreenState.canStart` is `trackingState is Idle && !isRestoring`); on iOS the restore runs once in `SavedSessionOfferModel.restoreOnce()` (from `ContentView`'s `.task`), and `TrackingViewModel.canStart` is true for `.idle` and `.finished` with no restore check, and `onStartClicked()` calls `trackingSessionManager.start(...)` directly. A session started while the read runs makes `restore()` return the live state without restoring, and that session's first save replaces the stored one. Recorded, not fixed: of another subject (the tracking screen), and where iOS should wait (the offer model or the tracking ViewModel) is a design choice. The Live Activity of a killed process is task 59f, not this record.
-- Done when: on iOS, Start does nothing (or is not offered) until the stored session has been read, as on Android, with a Swift test that holds the store's load.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `onStartClicked`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift` (`restoreOnce`); `androidApp/feature-tracking/.../TrackingViewModel.kt` (`isRestoring`, `start`).
-
 ### rule-change-signal-misses-escalation-words
 - Type: task
 - Area: scripts, tm-pr-review
