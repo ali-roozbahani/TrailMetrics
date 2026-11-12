@@ -122,7 +122,8 @@ echo "iOS/shared checks required: $TOUCHES_IOS_OR_SHARED"
 echo "iOS UI smoke test required: $TOUCHES_IOS_UI"
 echo
 
-run_step "board check" scripts/check-board.sh
+# --base: the slug of a record this branch deleted must not be named in any other file (CI: same check, base fetched by the script).
+run_step "board check" scripts/check-board.sh --base "$BASE_REF"
 
 # Protected paths (.github/CODEOWNERS): the file must be valid. Same command as CI's tooling job.
 run_step "protected paths" scripts/check-protected-paths.sh --validate

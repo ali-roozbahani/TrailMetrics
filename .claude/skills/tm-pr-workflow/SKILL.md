@@ -135,6 +135,21 @@ How it is enforced, and what that means for the order of operations:
 - The hook matches on command text. Any Bash call that merely *mentions* `git push` or `gh pr create` (a
   commit message or PR body passed inline) is blocked until the gate has passed. Pass long
   text through a file: `git commit -F <file>`, `gh pr create --body-file <file>`.
+- **Shapes of the push and PR commands.** The hooks read the command text and the session
+  directory, so use these shapes and nothing cleverer:
+  - Run the gate as a command of its own, from the clone: `scripts/pre-push-check.sh`.
+  - Push with `git push -u origin <branch>` (or `HEAD`), alone or followed by a suffix such as
+    `2>&1 | tail -5`. Open the PR with `gh pr create --base main --body-file <file>`, the same suffix
+    allowed. The branch must exist locally.
+  - From another directory: `git -C <absolute path of the clone> push -u origin <branch>`, or
+    `cd <absolute path of the clone> && git push -u origin <branch>`. A `cd` target with `~`, a
+    variable, `-` or a missing directory, or a `cd` inside `( )`, `{ }` or a `||` list, blocks the
+    push (the hook cannot read it).
+  - Not in a wrapper (`env`, `bash -c`, `xargs`, `echo`), not with `--all`, `--mirror` or `--tags`.
+  - Creating a branch: run `scripts/prune-merged-branches.sh` as a command of its own first. The
+    branch-create hook checks before the whole command runs, so `scripts/prune-merged-branches.sh &&
+    git switch -c <branch>` in one command is blocked; the next command is `git switch -c <branch>`.
+  Each hook's block message names the command to run instead.
 - `./gradlew test` on its own runs zero tests. KMP tests only run under `allTests`. Use
   the gate script, not a hand-picked Gradle command, and read test counts from `allTests`.
 - **Coverage ratchet.** A PR that adds tests to a module with a Kover floor raises that floor
@@ -214,7 +229,9 @@ user-visible changes (see #32, #35).
   `core`, `route`) or an area (`ci`, `hooks`, `skills`, `learnings`). Omit the scope
   only when the change really spans everything.
 - One type per message. Don't combine them (`docs+chore:` in #7 is not the pattern).
-- End every commit message with the attribution trailer the session specifies.
+- End every commit message with the attribution trailer the session specifies. The one exception
+  is a local `git merge origin/main` commit (`tm-agent-loop`, section 9): the squash merge drops it
+  from `main`, so it needs no trailer (`git merge origin/main --no-edit`).
 
 ## Push and PR
 
@@ -368,7 +385,10 @@ step of the gate and of CI's `tooling` job.
    A PR closed unmerged never deletes it from `main`. If the work only partly resolves
    the record, narrow its Problem/Done when instead. If the record is obsolete, delete it
    and say why in the PR. The same commit removes the slug from every other record's
-   `After` and from every board mention in the skills and docs, or `check-board.sh` fails.
+   `After` and from every board mention in the skills and docs, or `check-board.sh` fails. It also
+   removes or rewords the slug wherever else it is named (`CI_FLAKES.md`, `LEARNINGS.md`, any file):
+   `check-board.sh --base` (the gate passes the merge-base; CI's pull_request run fetches the base)
+   fails on every file that still names the slug of a record deleted since the base.
    A mention in a historical plan under `docs/epics/` stays as written: the check only prints
    a notice for it.
 3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
@@ -406,16 +426,25 @@ format). It is not protected, and a PR that touches only that file is not a boar
 - One entry per signature: job, step, test, first error line, short slug. A re-run that turns
   green adds an occurrence (date, run id, PR, re-run fixed it) and increments the count; a new
   signature is a new entry, count 1, status `open`.
-- Put the update in the PR being watched when it is still open and a push is happening anyway;
-  otherwise make a small PR of its own. The agent may merge a PR that touches only
-  `CI_FLAKES.md` once the merge conditions of `tm-agent-loop`, section 8 hold.
+- Where the update goes. A PR that is already green, or being merged, never gets a push for a
+  flake-log update: it would start another full CI cycle for it. The update of a run of such a PR
+  goes into the first queue entry that is not pushed yet (its "What changed" says so), else into a
+  small PR of its own (`chore/flake-log-<slug>`, a queue entry; light CI). The update of a run of a
+  PR that is still red or waiting for a fix may go into that PR when a push is happening anyway.
+  The agent may merge a PR that touches only `CI_FLAKES.md` once the merge conditions of
+  `tm-agent-loop`, section 8 hold.
 - At count 3 for an `open` entry, add a `BOARD.md` record in the PR you are working on (type
   task, slug `flake-<slug>`, Problem with the occurrences, Done when: the flake no longer fails
   or the runner/test is changed so it cannot, shown on 5 consecutive runs) and mark the entry
   `escalated: flake-<slug>`. At most one record per entry.
-- The PR that fixes a flake sets the entry to `fixed` with the fix (PR) and one line of what was
-  learned, deletes the `BOARD.md` record, and adds an entry to `LEARNINGS.md` (why it flaked,
-  what fixed it).
+- The PR that fixes a flake sets the entry to `fixed (unverified)`, the status of a board record
+  until its Done when is shown, with `Fix: #<PR number>` (the number once the PR exists, never the
+  branch name) and one line of what was learned, deletes the `BOARD.md` record, and adds an entry
+  to `LEARNINGS.md` (why it flaked, what fixed it). The entry becomes `fixed` once 5 consecutive
+  runs of its job on `main` after the fix's merge commit are green (`scripts/main-ci-status.sh
+  --recent 10`; a run that skipped the job does not count). The first later PR that touches
+  `CI_FLAKES.md` makes that change. A failure with the signature of a `fixed (unverified)` or
+  `fixed` entry reopens it: status `open`, the occurrence added, the count incremented.
 
 ## After the PR is open
 

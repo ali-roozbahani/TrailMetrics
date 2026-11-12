@@ -3,6 +3,8 @@
 # board `<slug>` mentions in the skills and docs. First step of pre-push-check.sh and CI.
 #
 #   scripts/check-board.sh              check (exit 0 = OK, 1 = problems found)
+#   scripts/check-board.sh --base <rev>  also fail when the slug of a record deleted since <rev> is
+#                                       still named in another file (CI pull_request runs fetch the base)
 #   scripts/check-board.sh --next       print the record to take next
 #   scripts/check-board.sh --self-test  run the fixtures in scripts/check-board-fixtures/
 #

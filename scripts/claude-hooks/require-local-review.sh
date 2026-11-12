@@ -70,7 +70,7 @@ resolve_commit() {
     if sha="$(git_in "$1" rev-parse --verify --quiet "$2^{commit}" 2>/dev/null)"; then
         echo "$sha"
     else
-        echo "BLOCK cannot resolve '$2' to a commit, so the review of what would be pushed cannot be checked"
+        echo "BLOCK cannot resolve '$2' to a commit, so the review of what would be pushed cannot be checked. Name a local branch that exists (git push -u origin <branch>) or HEAD"
     fi
 }
 
@@ -96,7 +96,7 @@ targets() {
         case "${tokens[$i]:-}" in
             git | */git | gh | */gh) ;;
             *)
-                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, a quoted string) hides the pushed ref from the local review check; use git push / gh pr create as a plain command"
+                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, echo, a quoted string) hides the pushed ref from the local review check. Run instead: git push -u origin <branch> or gh pr create --base main --body-file <file> as the command itself (a suffix such as 2>&1 | tail -5 is fine)"
                 found=1
                 ;;
         esac
@@ -160,7 +160,7 @@ targets() {
                 fi
                 found=1
                 if [ "$cdunknown" = 1 ]; then
-                    echo "BLOCK a cd with a target this hook cannot read comes before this push; run the push in its own command, from the directory it pushes"
+                    echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this push. Run instead: cd <absolute path of the clone> && git push -u origin <branch>, or git -C <absolute path> push -u origin <branch>, or the push alone from the session directory"
                 else
                     push_targets "$dir2" "${tokens[@]:$i}"
                 fi
@@ -173,7 +173,7 @@ targets() {
                 if [ "${tokens[$i]:-}" = pr ] && [ "${tokens[$((i + 1))]:-}" = create ]; then
                     found=1
                     if [ "$cdunknown" = 1 ]; then
-                        echo "BLOCK a cd with a target this hook cannot read comes before this PR creation; run it in its own command, from the directory it belongs to"
+                        echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this PR creation. Run instead: cd <absolute path of the clone> && gh pr create --base main --body-file <file>, or the command alone from the session directory"
                     else
                         pr_targets "$dir2" "${tokens[@]:$((i + 2))}"
                     fi

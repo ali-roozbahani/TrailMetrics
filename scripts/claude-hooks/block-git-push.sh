@@ -171,7 +171,11 @@ MARKER="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .pre-p
 
 # The gate script must have been run and passed since the last commit.
 if [ ! -f "$MARKER" ]; then
-    echo "Blocked: scripts/pre-push-check.sh has not been run yet. Run it, fix any failures, then push." >&2
+    {
+        echo "Blocked: scripts/pre-push-check.sh has not been run yet in $REPO_ROOT (the checkout of the session directory)."
+        echo "Run, as a command of its own, from the clone: scripts/pre-push-check.sh"
+        echo "Then push with: git push -u origin <branch>   (alone, or with a suffix such as 2>&1 | tail -5)"
+    } >&2
     exit 2
 fi
 
@@ -179,7 +183,10 @@ LAST_COMMIT_TIME="$(git -C "$REPO_ROOT" log -1 --format=%ct 2>/dev/null || echo 
 MARKER_TIME="$(stat -c %Y "$MARKER" 2>/dev/null || stat -f %m "$MARKER" 2>/dev/null || echo 0)"
 
 if [ "$MARKER_TIME" -lt "$LAST_COMMIT_TIME" ]; then
-    echo "Blocked: code changed since the last successful scripts/pre-push-check.sh run. Re-run it, then push." >&2
+    {
+        echo "Blocked: a commit was made after the last successful scripts/pre-push-check.sh run in $REPO_ROOT."
+        echo "Run again, as a command of its own: scripts/pre-push-check.sh   (then push; a new commit also needs a new review)"
+    } >&2
     exit 2
 fi
 
@@ -206,6 +213,7 @@ fi
 {
     echo "Blocked: no local pr-reviewer verdict of APPROVE or ESCALATE_TO_HUMAN is recorded for HEAD ${HEAD_SHA:0:12}."
     echo "A missing or malformed record, a verdict for another commit, and CHANGES all block."
-    echo "Run the reviewer and record its verdict (tm-pr-review, \"Orchestrator's part\"), then push."
+    echo "Run: scripts/local-review-prepare.sh <pr body draft>, start the pr-reviewer on the message file it prints,"
+    echo "then record the reply with scripts/local-review-record-verdict.sh (tm-pr-review, \"Orchestrator's part\"), then push."
 } >&2
 exit 2

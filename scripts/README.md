@@ -11,7 +11,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## Checks of a diff (gate and CI)
 
 - `scripts/classify-changes.sh`: decides `light` or `full` for the gate and CI.
-- `scripts/check-board.sh`: `BOARD.md`'s record format, Order/After; `--next` prints the record to take.
+- `scripts/check-board.sh`: `BOARD.md`'s record format, Order/After, dangling mentions, and (`--base`) a deleted record's slug still named elsewhere; `--next` prints the record to take.
 - `scripts/check-board.py`: the implementation behind `check-board.sh`.
 - `scripts/check-protected-paths.sh`: classifies a diff or files as protected from `.github/CODEOWNERS`; `--validate` checks the file.
 - `scripts/check-protected-paths.py`: the implementation behind `check-protected-paths.sh`.
@@ -36,6 +36,8 @@ a line names a file that does not exist. Each script's header says how to run it
 
 - `scripts/review-task.sh`: prints the local `pr-reviewer`'s message, as CI's reviewer gets it.
 - `scripts/local-review-gate.sh`: records the local reviewer's report per commit and decides whether a push is allowed.
+- `scripts/local-review-prepare.sh`: fills the review input directory and writes the reviewer's whole message to a file in it.
+- `scripts/local-review-record-verdict.sh`: writes `.review-verdict` from the reviewer's recorded report after checking its format.
 - `scripts/skill-changes-digest.sh`: what changed in the skills and `CLAUDE.md` files on `main` since a date.
 - `scripts/set-pr-body.sh`: sets a PR's description from a file through the REST API.
 

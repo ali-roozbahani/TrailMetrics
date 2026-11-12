@@ -68,7 +68,9 @@ unrelated side effect.
 
 Draft the PR description first (`tm-pr-workflow`, "PR description"; no `Reviewer findings`
 yet), then run the `pr-reviewer` on the final HEAD as `tm-pr-review`, "Orchestrator's part"
-describes, with `scripts/review-task.sh <draft>` as its message, and record the verdict. A hook (`scripts/claude-hooks/require-local-review.sh`) captures the
+describes: `scripts/local-review-prepare.sh <draft>` fills the inputs and writes its message to a
+file, the reviewer is started with the two-line prompt it prints, and
+`scripts/local-review-record-verdict.sh` records the verdict. A hook (`scripts/claude-hooks/require-local-review.sh`) captures the
 reviewer's own report when it finishes and refuses `git push` and `gh pr create` unless the report
 of the commit that would be pushed has no `[blocking]` finding and a disposition for every
 `[important]` one: write them with `scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`
@@ -108,6 +110,9 @@ anything (use it, not `gh pr checks`: only the script knows the required checks,
 early failure and `SUPERSEDED`). Run each as a background command
 (`run_in_background`, with a timeout above 90 minutes), because you are re-invoked when it exits;
 a foreground `sleep` is blocked or capped in the agent's shell, so the wait must be this command.
+A foreground call is capped at 600 s and a wait takes up to 90 minutes, so never run it in the
+foreground without `--max-seconds 540`: that prints `PENDING <names>` (exit 3) after 540 s and you
+run the same command again; 10 `PENDING` in a row are a `TIMEOUT`. Prefer the background run.
 While that command runs, you do not end your turn, do not send a report and do not stop.
 
 **Reviewer first.** The reviewer finishes in about 2 minutes, the other jobs in 20 to 40, and a
@@ -336,7 +341,9 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
 - The task's PR is the first entry; every follow-up and drift the agent can do is an entry and a
   PR of its own (`tm-pr-workflow`, "Board", rule 1). Board instead: owner decision or design, an
   epic, a workflow-file change, an entry over the limit of 5.
-- Do what `scripts/queue/queue.sh next` prints, and record every change of an entry's state with
+- Do what `scripts/queue/queue.sh next` prints (`add` and `set` end with a `next:` line that is the
+  same answer: follow it, not your own plan, so a second entry is built only while the first is
+  pushed), and record every change of an entry's state with
   `queue.sh set` before the next action. At `PUSH`: merge `origin/main` when behind, then review
   and gate once. Never rebase, force-push or open a PR against a base other than `main`.
 - Wait in the background (section 6 for the pushed PR's checks, `scripts/queue/watch-prs.sh --wait`

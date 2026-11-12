@@ -4,7 +4,7 @@
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
-#   scripts/wait-for-checks.sh [--review-first] <PR number | head SHA (40 hex)>
+#   scripts/wait-for-checks.sh [--review-first] [--max-seconds <n>] <PR number | head SHA (40 hex)>
 #   scripts/wait-for-checks.sh --self-test
 #
 # --review-first waits only for the check run `Review — pr-reviewer` of the SHA to be completed
@@ -15,6 +15,14 @@
 # early exit below: `FAILED Review — pr-reviewer[; still running: ...][; missing: ...]` (exit 1).
 # Timeouts, retries of a failed `gh` read, SUPERSEDED and REST-only reads are those of the normal
 # mode.
+#
+# --max-seconds <n> (n below the maximum wait) is for a call that must end within a cap, such as
+# the 600 s of a foreground Bash call (use 540): when n seconds pass with the wait unfinished it
+# prints the rows and `PENDING <names still running>[; missing: <names>]` (exit 3), and the
+# caller runs the same command again (the 90 minutes are then the caller's to count: 10 PENDING
+# in a row are a TIMEOUT). Without it the wait is one command up to 90 minutes, to run in the
+# background (`run_in_background`, which has no 600 s cap; tm-agent-loop, section 6). Every other
+# result, and its exit code, is the same with or without it.
 #
 # Given a PR number it resolves the head SHA, and reads the PR again on every step: a newer push
 # changes the head. Given a SHA there is no PR to compare with, so SUPERSEDED cannot happen.
@@ -54,6 +62,9 @@
 #   TIMEOUT <names still running>[; missing: <names>]
 #                                   the maximum wait ran out; "(none running)" when only
 #                                   required runs are missing                            exit 1
+#   PENDING <names still running>[; missing: <names>]
+#                                   --max-seconds only: n seconds passed, nothing is decided;
+#                                   run the same command again                           exit 3
 #   SUPERSEDED <new sha>            the PR head is no longer the SHA being watched       exit 1
 # The early exit is only for the reviewer: it finishes in about 2 minutes, the Android and iOS jobs
 # in 15 to 40, and its verdict is read with scripts/read-ci-verdict.sh. Any other failed check
@@ -86,7 +97,7 @@ iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
 REVIEWER_CHECK="Review — pr-reviewer"
-USAGE="usage: scripts/wait-for-checks.sh [--review-first] <PR number | head SHA> | --self-test"
+USAGE="usage: scripts/wait-for-checks.sh [--review-first] [--max-seconds <n>] <PR number | head SHA> | --self-test"
 
 die() {
     echo "wait-for-checks: $1" >&2
@@ -181,6 +192,13 @@ wait_for_checks() {
             exit 1
         fi
 
+        if [ -n "${CALL_LIMIT:-}" ] && [ "$elapsed" -ge "$CALL_LIMIT" ] && [ "$elapsed" -lt "$MAX" ]; then
+            print_rows "$d/runs.json"
+            names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
+            echo "PENDING ${names:-(none running)}${missing:+; missing: $missing}"
+            exit 3
+        fi
+
         if [ "$elapsed" -ge "$MAX" ]; then
             print_rows "$d/runs.json"
             names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
@@ -228,6 +246,8 @@ self_test() {
     "$0" > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL no argument does not exit 2"; failed=1; }
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric, non-SHA argument does not exit 2"; failed=1; }
     "$0" --review-first > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-first without a PR or SHA does not exit 2"; failed=1; }
+    "$0" --max-seconds > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --max-seconds without a value does not exit 2"; failed=1; }
+    "$0" --max-seconds x 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric --max-seconds does not exit 2"; failed=1; }
     "$0" 12 13 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL two arguments do not exit 2"; failed=1; }
     WAIT_FOR_CHECKS_MAX_SECONDS=x "$0" 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric time does not exit 2"; failed=1; }
     if [ "$failed" = 0 ]; then echo "wait-for-checks: self-test passed"; else echo "wait-for-checks: self-test FAILED"; fi
@@ -254,10 +274,18 @@ fi
 
 PR=""
 SHA=""
-if [ "${1:-}" = "--review-first" ]; then
-    REVIEW_FIRST=1
-    shift
-fi
+CALL_LIMIT=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --review-first) REVIEW_FIRST=1; shift ;;
+        --max-seconds)
+            [ "$#" -ge 2 ] || { echo "$USAGE" >&2; exit 2; }
+            case "$2" in '' | *[!0-9]*) echo "$USAGE" >&2; echo "--max-seconds takes whole seconds" >&2; exit 2 ;; esac
+            [ "$2" -ge 1 ] || { echo "$USAGE" >&2; echo "--max-seconds must be at least 1" >&2; exit 2; }
+            CALL_LIMIT="$2"; shift 2 ;;
+        *) break ;;
+    esac
+done
 if [ "$#" != 1 ]; then
     echo "$USAGE" >&2
     exit 2

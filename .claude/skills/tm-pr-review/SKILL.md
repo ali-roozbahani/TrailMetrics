@@ -12,7 +12,10 @@ writes the git data for it into the git directory (see "Orchestrator's part").
 ## Inputs
 
 The session's message to the reviewer contains exactly these, and nothing else (no gate
-output, no reasoning, no summary of the change):
+output, no reasoning, no summary of the change). The message may be those four items, or the two
+lines `SHA: <full sha>` and `MESSAGE_FILE: <absolute path>`: then the file holds the four items
+(`scripts/local-review-prepare.sh` writes it) and the reviewer reads it first; its `SHA` line must
+equal the prompt's.
 
 - `SHA`: the full commit SHA to review, which is HEAD.
 - `BASE`: `git merge-base HEAD origin/main`.
@@ -302,39 +305,29 @@ The implementing session runs this before every push, after its last commit and 
 
 1. Draft the PR description (`tm-pr-workflow`, "PR description") at
    `~/agent-workspace/pr-body-<slug>.md`, without `Reviewer findings`. Commit everything
-   (`git status --porcelain` must be empty), then fill the input directory from git alone:
+   (`git status --porcelain` must be empty), then run:
 
    ```bash
-   SHA="$(git rev-parse HEAD)"; BASE="$(git merge-base HEAD origin/main)"
-   IN="$(git rev-parse --path-format=absolute --git-path review-input)"
-   mkdir -p "$IN" && rm -f -- "${IN:?}/head" "${IN:?}/base" "${IN:?}/branch" "${IN:?}/status" "${IN:?}/commits" "${IN:?}/diff" "${IN:?}/protected" "${IN:?}/rule-changes"
-   echo "$SHA" > "$IN/head"; echo "$BASE" > "$IN/base"
-   git rev-parse --abbrev-ref HEAD > "$IN/branch"
-   git status --porcelain > "$IN/status"
-   git log --reverse --format='commit %H%n%B' --name-status "$BASE..$SHA" > "$IN/commits"
-   git diff --no-color --find-renames "$BASE" "$SHA" > "$IN/diff"
-   scripts/check-protected-paths.sh --base "$BASE" > "$IN/protected" 2>&1
-   # rule-changes: the script as it is on BASE, never the working tree's copy. If it can't be
-   # read or fails, no file is written and the reviewer answers NO_VERDICT: INPUT_MISSING.
-   if ! RC_ON_BASE="$(git ls-tree --name-only "$BASE" scripts/check-skill-rule-changes.sh)"; then
-     echo "rule-changes: cannot read $BASE" >&2
-   elif [ -z "$RC_ON_BASE" ]; then
-     echo 'none (script not on the base)' > "$IN/rule-changes"
-   else
-     RC="$(mktemp -d)"
-     git archive "$BASE" -- scripts/check-skill-rule-changes.sh scripts/check-skill-rule-changes.py \
-       | tar -x -C "$RC" && bash "$RC/scripts/check-skill-rule-changes.sh" "$BASE" "$SHA" > "$RC/out" \
-       && mv -- "$RC/out" "$IN/rule-changes"
-     rm -rf -- "$RC"
-   fi
+   scripts/local-review-prepare.sh ~/agent-workspace/pr-body-<slug>.md
    ```
 
-2. Start the reviewer with the four Inputs and nothing else: the output of
-   `scripts/review-task.sh <draft>` is that message. The Agent tool with
+   It fills the input directory from git alone (`head`, `base`, `branch`, `status`, `commits`,
+   `diff`, `protected`, and `rule-changes` computed with the base's copy of
+   `scripts/check-skill-rule-changes.sh`, never the working tree's), writes the reviewer's whole
+   message to `message` in that directory (the output of `scripts/review-task.sh <draft>`) and
+   prints the prompt of step 2. It refuses on a dirty tree. If `rule-changes` cannot be written it
+   says so, and the reviewer answers `NO_VERDICT: INPUT_MISSING rule-changes`.
+
+2. Start the reviewer with the prompt `scripts/local-review-prepare.sh` printed and nothing
+   else: two lines, `SHA: <full sha>` (the SubagentStop hook reads the commit from it) and
+   `MESSAGE_FILE: <absolute path>`; the reviewer reads that file, which holds the four Inputs
+   (SHA, BASE, INPUT_DIR and TASK) exactly as `scripts/review-task.sh <draft>` prints them. Do not
+   paste the file's content into the prompt. The Agent tool with
    `subagent_type: pr-reviewer` is the one documented start; its report is recorded (step 3).
    Only for a session that doesn't list the agent (a new `.claude/agents/` directory needs a
    restart to be picked up) start it headless from the shell:
-   `claude -p --agent pr-reviewer --add-dir "$IN" < <message file>`. `--add-dir` lets it
+   `claude -p --agent pr-reviewer --add-dir "$IN" < <message file>` (`$IN` = the input directory
+   the script printed; the message file's content goes on stdin there). `--add-dir` lets it
    read `$IN` when the git dir is outside the working directory (a linked worktree);
    without it the reviewer returns `NO_VERDICT`. It takes several values, so the message
    goes on stdin, not after it. A headless run is not recorded, so the push gate blocks it
@@ -343,16 +336,18 @@ The implementing session runs this before every push, after its last commit and 
 3. The `SubagentStop` hook (`scripts/claude-hooks/require-local-review.sh`) records the
    reviewer's own report when the Agent tool run finishes; `scripts/local-review-gate.sh check
    <sha>` says what it holds. The hook does not write `.review-verdict`: the session still
-   writes it, as the older push hook requires, only if the report's first line is `VERDICT: `
-   with one of the three values, `REVIEWED_SHA` equals `SHA`, and HEAD is still `SHA`:
+   writes it, as the older push hook requires, with
 
    ```bash
-   printf '%s %s\n' "$SHA" "$VERDICT" \
-     > "$(git rev-parse --path-format=absolute --git-path .review-verdict)"
+   scripts/local-review-record-verdict.sh
    ```
 
-   It lives in the git dir next to `.pre-push-check-passed` and is never committed.
-   `scripts/pre-push-check.sh` prints it (report only, it never fails the gate).
+   which reads the report the hook recorded for HEAD (a report in a file, or `-` for stdin, is the
+   argument for a headless run), checks its format (line 1 `VERDICT: ` with one of the three values,
+   line 2 `REVIEWED_SHA: <full sha>` equal to HEAD; a `NO_VERDICT:` line refuses) and writes
+   `<sha> <VERDICT>` to the git dir next to `.pre-push-check-passed`; it is never committed. Do not
+   copy the verdict by hand. `scripts/pre-push-check.sh` prints it (report only, it never fails the
+   gate).
 4. After `CHANGES`, or after fixing blocking findings under `ESCALATE_TO_HUMAN`, the fix is a
    new commit (never an amend), and the review runs again on the new HEAD from step 1. The
    old verdict is stale. How many rounds are allowed is not defined here.

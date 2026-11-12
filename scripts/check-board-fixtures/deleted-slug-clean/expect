@@ -1,0 +1,4 @@
+args: --base-board {BASE}
+exit: 0
+contains: check-board: OK
+absent: names `

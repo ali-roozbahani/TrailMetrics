@@ -41,6 +41,10 @@
 # While nothing is pushed, a first open entry that is not ready is built (FINISH_BUILD, BUILD) before
 # anything else; while an entry is pushed, the other entries are built in queue order.
 #
+# add and set end with a line `next: <what next would print>`, so the agent reads its next action
+# from the script, not from its own plan: after `add` of the first entry it says BUILD, after `set
+# <slug> status=ready` it says PUSH, and a second entry is built only while the first is pushed.
+#
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Exit: 0 ok, 1 refused (reason on stderr), 2 usage error or unreadable queue file.
@@ -129,7 +133,11 @@ cmd_add() {
     write_file "$tmp"
     rm -f -- "$tmp"
     if [ "$after" = - ]; then echo "added $slug ($kind, order $order)"; else echo "added $slug ($kind, order $order, after $after)"; fi
+    print_next
 }
+
+# print_next: the line `next` would print, after the change just made.
+print_next() { echo "next: $(cmd_next)"; }
 
 cmd_set() {
     local slug="${1:-}" kv key val status pr branch tmp first other parent old
@@ -176,6 +184,7 @@ cmd_set() {
     write_file "$tmp"
     rm -f -- "$tmp"
     echo "set $slug: status $status, pr $pr, branch $branch"
+    print_next
 }
 
 cmd_show() {
@@ -257,6 +266,12 @@ self_test() {
     # line <order> <slug> <after> <kind> <status> <pr>: one entry, written straight into the file
     line() { mkdir -p "$(dirname "$QF")"; printf '%s\t%s\tchore/%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$2" "$3" "$4" "$5" "$6" >> "$QF"; }
 
+    q_fresh_add() { QF="$tmp/nx1/queue.tsv"; q add a --branch chore/a; }
+    q_ready_first() { QF="$tmp/nx2/queue.tsv"; q add a --branch chore/a >/dev/null && q add b --branch chore/b >/dev/null \
+        && q set a status=building >/dev/null && q set a status=ready; }
+    q_two_entries() { QF="$tmp/nx3/queue.tsv"; q add a --branch chore/a >/dev/null && q add b --branch chore/b >/dev/null \
+        && q set a status=building; }
+
     # add, ordering, refusals
     fresh add
     check "next on a missing file" "DONE" 0 q next
@@ -299,6 +314,9 @@ self_test() {
     check "add after a dropped entry refused" "queue: refused: --after 'c' is dropped" 1 q add d --branch chore/d --after c
     check "add into the freed slot" "added d (agent, order 6)" 0 q add d --branch chore/d
     check "a sixth open entry is still refused" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add e --branch chore/e
+    check "add ends with the next action" "next: BUILD a" 0 q_fresh_add
+    check "set ready ends with PUSH, not another BUILD" "next: PUSH a" 0 q_ready_first
+    check "a second entry is not built before the first is pushed" "next: FINISH_BUILD a" 0 q_two_entries
     check "comments and blank lines are ignored" "BUILD d" 0 sh -c "printf '# note\n\n' >> '$QF'; QUEUE_FILE='$QF' bash '$SELF' next"
 
     # every branch of next, from a hand-written file
