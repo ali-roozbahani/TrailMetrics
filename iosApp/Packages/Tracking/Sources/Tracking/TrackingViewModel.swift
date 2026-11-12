@@ -64,7 +64,7 @@ public class TrackingViewModel: ObservableObject {
 
     public var canStart: Bool {
         switch onEnum(of: trackingState) {
-        case .idle, .finished: return true
+        case .idle, .finished: return !isRestoring
         case .tracking, .paused: return false
         }
     }
@@ -242,6 +242,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onStartClicked() {
+        guard !isRestoring else { return }
         isSessionSaved = false
         trackingSessionManager.start(startPoint: startPoint, activityType: activityType)
         liveActivityController?.start(activityType: liveActivityTypeKey)
