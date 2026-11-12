@@ -159,6 +159,8 @@ class TrackingSessionManagerTest {
         val expectedPath = listOf(point1, point2)
         val actualPath = (manager.currentState.value as TrackingState.Tracking).metrics.path
         assertTrue(actualPath.size == expectedPath.size && actualPath.containsAll(expectedPath))
+        // The jump from point1 to point2 was made during the pause: it is on the path, not in the distance.
+        assertEquals(0.0, (manager.currentState.value as TrackingState.Tracking).metrics.distanceMeters)
     }
 
     @Test
