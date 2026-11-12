@@ -91,8 +91,8 @@ section 7's reason rule) before the push. A new commit needs a new review. A blo
 ## 5. Gate, push, PR
 
 Run `scripts/pre-push-check.sh` until green within the retry budget, then push and open the
-PR with `gh pr create --base main --body-file <file>` (`tm-pr-workflow`, "Tier 1", "Push and
-PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
+PR with `gh pr create --base main --title "<PR title>" --body-file <file>` (`tm-pr-workflow`,
+"Tier 1", "Push and PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
 
 If the diff touches `.github/workflows/`, you can't push it (the machine token has no
 `workflow` scope, Decision 1). This holds in practice because a push authenticates through the

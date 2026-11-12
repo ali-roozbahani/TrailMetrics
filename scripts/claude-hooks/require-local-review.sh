@@ -106,7 +106,7 @@ targets() {
         case "${tokens[$i]:-}" in
             git | */git | gh | */gh) ;;
             *)
-                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, echo, a quoted string) hides the pushed ref from the local review check. Run instead: git push -u origin <branch> or gh pr create --base main --body-file <file> as the command itself (a suffix such as 2>&1 | tail -5 is fine)"
+                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, echo, a quoted string) hides the pushed ref from the local review check. Run instead: git push -u origin <branch> or gh pr create --base main --title '<PR title>' --body-file <file> as the command itself (a suffix such as 2>&1 | tail -5 is fine)"
                 found=1
                 ;;
         esac
@@ -183,7 +183,7 @@ targets() {
                 if [ "${tokens[$i]:-}" = pr ] && [ "${tokens[$((i + 1))]:-}" = create ]; then
                     found=1
                     if [ "$cdunknown" = 1 ]; then
-                        echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this PR creation. Run instead: cd <absolute path of the clone> && gh pr create --base main --body-file <file>, or the command alone from the session directory"
+                        echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this PR creation. Run instead: cd <absolute path of the clone> && gh pr create --base main --title '<PR title>' --body-file <file>, or the command alone from the session directory"
                     else
                         pr_targets "$dir2" "${tokens[@]:$((i + 2))}"
                     fi
