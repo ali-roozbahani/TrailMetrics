@@ -4,7 +4,6 @@
 # also after a merge the agent did not make.
 #
 #   scripts/main-ci-status.sh                 the latest completed `push` run of ci.yml on main
-#   scripts/main-ci-status.sh --sha <sha>     the push run of that one commit (40 hex)
 #   scripts/main-ci-status.sh --recent <n>    the last n (1 to 20) push runs, newest first (below)
 #   scripts/main-ci-status.sh --ack <run id>  record that the owner accepts a red run (below)
 #   scripts/main-ci-status.sh --self-test
@@ -13,9 +12,9 @@
 # from the local ref, so run `git fetch origin` first. It never cancels or re-runs anything.
 #
 # Output: a line `run <id> <sha> <conclusion> <url>`, a line `failed jobs: <names>` for a red run,
-# a line `of head` (the run is the one of origin/main's head) or `OLDER than head <sha>` (head has
-# no completed run: not started yet or still running; the result shown is the latest completed
-# one), then one summary line and the exit code:
+# a line `of head` (the run is the one of origin/main's head), then one summary line and the exit
+# code. When head has no completed run (not started yet or still running), the line
+# `latest completed: run <id> <sha> <conclusion> (OLDER than head <sha>)` precedes MAIN_RUNNING:
 #   MAIN_GREEN <sha>                       the run of the commit concluded success             exit 0
 #   MAIN_RED <sha> <failed jobs>           failure, timed_out or startup_failure               exit 1
 #   MAIN_RUNNING <sha>                     the commit's run is queued or in progress, or no
@@ -23,7 +22,7 @@
 #                                          after the merge); an older result is printed above  exit 3
 #   MAIN_UNKNOWN <reason>                  a failed `gh` call, unreadable data, a conclusion
 #                                          that is neither green nor red (cancelled, ...)      exit 4
-# Without --sha the commit is origin/main's head. A usage error exits 2.
+# The commit is origin/main's head. A usage error exits 2.
 #
 # --recent <n> prints one line per run, newest first, then a summary line:
 #   <run id> <merge SHA> <#PR|-> <conclusion|running> [failed: <job names>]
@@ -50,7 +49,7 @@ set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FIXTURES="$ROOT/scripts/main-ci-status-fixtures"
-USAGE="usage: scripts/main-ci-status.sh [--sha <sha> | --recent <n (1-20)> | --ack <run id>] | --self-test"
+USAGE="usage: scripts/main-ci-status.sh [--recent <n (1-20)> | --ack <run id>] | --self-test"
 ACK_FILE="${MAIN_CI_ACK_FILE:-$HOME/agent-workspace/main-ci-ack}"
 
 unknown() {
@@ -83,9 +82,8 @@ self_test() {
     done
     # usage errors exit 2
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL an unknown argument does not exit 2"; failed=1; }
-    "$0" --sha > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --sha without a value does not exit 2"; failed=1; }
-    "$0" --sha xyz > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --sha with a non-SHA does not exit 2"; failed=1; }
-    "$0" --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa extra > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL an extra argument does not exit 2"; failed=1; }
+    "$0" --sha aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL the removed --sha does not exit 2"; failed=1; }
+    "$0" extra > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL an extra argument does not exit 2"; failed=1; }
     "$0" --recent > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --recent without a value does not exit 2"; failed=1; }
     "$0" --recent 0 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --recent 0 does not exit 2"; failed=1; }
     "$0" --recent 21 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --recent 21 does not exit 2"; failed=1; }
@@ -109,7 +107,6 @@ if [ "${1:-}" = "--self-test" ] && [ "$#" = 1 ]; then
     self_test
 fi
 
-SHA=""
 RECENT=""
 if [ "$#" = 0 ]; then
     :
@@ -129,8 +126,6 @@ elif [ "$#" = 2 ] && [ "$1" = "--ack" ] && [[ "$2" =~ ^[0-9]+$ ]]; then
     exit 0
 elif [ "$#" = 2 ] && [ "$1" = "--recent" ] && [[ "$2" =~ ^[0-9]+$ ]] && [ "$((10#$2))" -ge 1 ] && [ "$((10#$2))" -le 20 ]; then
     RECENT="$((10#$2))"
-elif [ "$#" = 2 ] && [ "$1" = "--sha" ] && [[ "$2" =~ ^[0-9a-f]{40}$ ]]; then
-    SHA="$2"
 else
     echo "$USAGE" >&2
     exit 2
@@ -141,7 +136,7 @@ done
 
 HEAD_SHA="${MAIN_CI_STATUS_HEAD:-$(git rev-parse --verify -q origin/main 2>/dev/null)}"
 [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || unknown "origin/main is not readable"
-WANT="${SHA:-$HEAD_SHA}"
+WANT="$HEAD_SHA"
 
 D="$(mktemp -d)"
 trap 'rm -rf "$D"' EXIT
@@ -194,11 +189,9 @@ fi
 # The newest run of the wanted commit (the list is newest first) and the newest completed run.
 RUN="$(jq -c --arg sha "$WANT" '[.workflow_runs[] | select(.head_sha == $sha)] | .[0] // empty' "$D/runs.json")"
 if [ -z "$RUN" ] || [ "$(jq -r '.status' <<< "$RUN")" != "completed" ]; then
-    if [ -z "$SHA" ]; then
-        OLD="$(jq -c '[.workflow_runs[] | select(.status == "completed")] | .[0] // empty' "$D/runs.json")"
-        if [ -n "$OLD" ]; then
-            echo "latest completed: run $(jq -r '.id' <<< "$OLD") $(jq -r '.head_sha' <<< "$OLD") $(jq -r '.conclusion' <<< "$OLD") (OLDER than head $WANT)"
-        fi
+    OLD="$(jq -c '[.workflow_runs[] | select(.status == "completed")] | .[0] // empty' "$D/runs.json")"
+    if [ -n "$OLD" ]; then
+        echo "latest completed: run $(jq -r '.id' <<< "$OLD") $(jq -r '.head_sha' <<< "$OLD") $(jq -r '.conclusion' <<< "$OLD") (OLDER than head $WANT)"
     fi
     echo "MAIN_RUNNING $WANT"
     exit 3
@@ -207,7 +200,7 @@ fi
 ID="$(jq -r '.id' <<< "$RUN")"
 CONCLUSION="$(jq -r '.conclusion // "-"' <<< "$RUN")"
 echo "run $ID $WANT $CONCLUSION $(jq -r '.html_url' <<< "$RUN")"
-if [ "$WANT" = "$HEAD_SHA" ]; then echo "of head"; else echo "OLDER than head $HEAD_SHA"; fi
+echo "of head"
 
 case "$CONCLUSION" in
     success)
