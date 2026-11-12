@@ -39,7 +39,7 @@ public struct TrackingView: View {
             activityType: activityType,
             plannedRoutePoints: plannedRoutePoints,
             startPoint: startPoint,
-            savedSessionOffer: savedSessionOffer
+            storedSessionReadState: savedSessionOffer
         ))
     }
 

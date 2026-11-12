@@ -70,7 +70,7 @@ struct TrackingSubject {
             activityType: .running,
             plannedRoutePoints: TrackingFixtures.plannedRoutePoints,
             startPoint: TrackingFixtures.startPoint,
-            savedSessionOffer: savedSessionOffer,
+            storedSessionReadState: savedSessionOffer,
             trackingSessionManager: trackingSessionManager,
             userProfileRepository: userProfileRepository,
             calorieCalculator: calorieCalculator,

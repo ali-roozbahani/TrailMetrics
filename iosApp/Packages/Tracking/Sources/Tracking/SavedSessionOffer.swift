@@ -31,11 +31,18 @@ func savedSessionOffer(
     )
 }
 
+/// Whether the app is still reading the stored session. The one thing `TrackingViewModel` needs from
+/// `SavedSessionOfferModel`: Start is not offered while it is true.
+@MainActor
+public protocol StoredSessionReadState: AnyObject {
+    var isRestoring: Bool { get }
+}
+
 /// Restores the stored tracking session once per app launch and publishes the Tracking route to offer.
 /// The offer stays published until `offerConsumed()`, so a view that is rebuilt does not lose it, and the
 /// model never offers a second time.
 @MainActor
-public final class SavedSessionOfferModel: ObservableObject {
+public final class SavedSessionOfferModel: ObservableObject, StoredSessionReadState {
     @Published public private(set) var offer: AppRouteTracking?
     /// The stored session could not be read: nothing is offered, and it stays stored for the next start.
     @Published public private(set) var restoreFailed = false
