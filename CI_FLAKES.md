@@ -147,8 +147,7 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   the same run. The Swift sources are those of run 42812119886 (#239, green): the diff from 43be50a to
   267e720 is `BOARD.md` only. Cause class: the wait is `waitUntil`'s default fixed 2.0 s bound on a loaded
   runner, with the same first error line and cause as `ios-tracking-finish-failed-save-wait` (another test
-  and package) and the former board record `ios-tracking-finish-test-fixed-wait` (deleted by the fix), which named only the Tracking
-  Finish test. Why the runner was slow is not shown.
+  and package) and the former board record of the Tracking Finish test (deleted by the fix), which named only that test. Why the runner was slow is not shown.
 
 ## ios-route-draft-read-wait
 
