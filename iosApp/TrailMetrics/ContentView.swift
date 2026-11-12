@@ -20,6 +20,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             RouteTab(
                 offer: savedSessionOffer.offer,
+                isRestoring: savedSessionOffer.isRestoring,
                 onOfferConsumed: { savedSessionOffer.offerConsumed() }
             )
                 .tabItem {
@@ -86,6 +87,8 @@ private struct RouteTab: View {
     @State private var path = NavigationPath()
     /// The restored session to show as the Tracking screen, or nil.
     let offer: AppRouteTracking?
+    /// Whether the stored session is still being read; the Tracking screen offers no Start until it is not.
+    let isRestoring: Bool
     let onOfferConsumed: () -> Void
 
     var body: some View {
@@ -105,7 +108,8 @@ private struct RouteTab: View {
                 TrackingView(
                     activityType: destination.route.selectedActivityType,
                     plannedRoutePoints: destination.route.plannedRoutePoints,
-                    startPoint: destination.route.startPoint
+                    startPoint: destination.route.startPoint,
+                    isRestoring: isRestoring
                 )
                 .toolbar(.hidden, for: .tabBar)
             }

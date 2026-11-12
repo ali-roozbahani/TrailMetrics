@@ -101,6 +101,59 @@ final class SavedSessionOfferTests: TrackingTestCase {
         XCTAssertFalse(model.restoreFailed)
     }
 
+    func test_restoreOnce_whileTheStoreLoadIsHeld_startIsNotOfferedAndDoesNothing() async {
+        let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
+        let store = FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused))
+        store.holdLoad()
+        let subject = makeSubject(sessionStore: store)
+        let viewModel = subject.viewModel
+        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+        XCTAssertTrue(model.isRestoring, "Restoring from the launch, before the read starts")
+
+        let restore = Task { await model.restoreOnce() }
+        await waitUntil { store.heldLoadCount == 1 }
+        viewModel.onRestoringChanged(model.isRestoring)
+
+        XCTAssertTrue(model.isRestoring)
+        XCTAssertFalse(viewModel.canStart)
+        viewModel.onStartClicked()
+        XCTAssertTrue(subject.trackingSessionManager.currentState.value is TrackingStateIdle)
+        XCTAssertEqual(subject.serviceLauncher.startCount, 0)
+
+        store.releaseLoad()
+        await restore.value
+        viewModel.onRestoringChanged(model.isRestoring)
+
+        XCTAssertFalse(model.isRestoring)
+        XCTAssertNotNil(model.offer, "The stored session was restored, not replaced by a started one")
+        XCTAssertTrue(subject.trackingSessionManager.currentState.value is TrackingStatePaused)
+        XCTAssertFalse(viewModel.canStart, "A restored Paused session is not started over")
+    }
+
+    func test_restoreOnce_withNothingStored_startIsAvailableOnceTheReadReturns() async {
+        let store = FakeTrackingSessionStore()
+        let subject = makeSubject(sessionStore: store)
+        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+
+        await model.restoreOnce()
+        subject.viewModel.onRestoringChanged(model.isRestoring)
+
+        XCTAssertFalse(model.isRestoring)
+        XCTAssertTrue(subject.viewModel.canStart)
+    }
+
+    func test_restoreOnce_whenTheStoreFails_isNoLongerRestoring() async {
+        let store = FakeTrackingSessionStore()
+        store.setLoadFailing(true)
+        let subject = makeSubject(sessionStore: store)
+        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+
+        await model.restoreOnce()
+
+        XCTAssertTrue(model.restoreFailed)
+        XCTAssertFalse(model.isRestoring, "A failed read must not block Start for good")
+    }
+
     func test_restoreOnce_calledTwice_readsTheStoreOnce() async {
         let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
         let store = FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused))

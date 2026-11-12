@@ -12,6 +12,9 @@ public class TrackingViewModel: ObservableObject {
     @Published public private(set) var calories: Double?
     /// Set when the user discards the session (Stop, Stop & Exit): the screen is on its way out.
     @Published public private(set) var isDiscarding = false
+    /// True while the app reads the stored session (`SavedSessionOfferModel.isRestoring`): Start is not
+    /// offered and `onStartClicked()` does nothing until it is false.
+    @Published public private(set) var isRestoring: Bool
 
     public let activityType: ActivityType
     public let plannedRoutePoints: [Coordinates]
@@ -123,6 +126,7 @@ public class TrackingViewModel: ObservableObject {
         activityType: ActivityType,
         plannedRoutePoints: [Coordinates],
         startPoint: Coordinates,
+        isRestoring: Bool = false,
         trackingSessionManager: TrackingSessionManager = KoinHelper().trackingSessionManager(),
         userProfileRepository: UserProfileRepository = KoinHelper().userProfileRepository(),
         calorieCalculator: CalorieCalculator = KoinHelper().calorieCalculator(),
@@ -132,6 +136,7 @@ public class TrackingViewModel: ObservableObject {
         self.activityType = activityType
         self.plannedRoutePoints = plannedRoutePoints
         self.startPoint = startPoint
+        self.isRestoring = isRestoring
         self.trackingSessionManager = trackingSessionManager
         self.userProfileRepository = userProfileRepository
         self.calorieCalculator = calorieCalculator
@@ -230,6 +235,10 @@ public class TrackingViewModel: ObservableObject {
             weightKg: userProfile.weightKg,
             durationMillis: metrics.elapsedMillis
         )
+    }
+
+    public func onRestoringChanged(_ isRestoring: Bool) {
+        self.isRestoring = isRestoring
     }
 
     public func onStartClicked() {

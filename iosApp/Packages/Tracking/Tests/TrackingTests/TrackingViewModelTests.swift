@@ -31,6 +31,23 @@ final class TrackingViewModelTests: TrackingTestCase {
         XCTAssertNil(viewModel.calories)
     }
 
+    func test_onStartClicked_whileRestoring_doesNothingUntilTheRestoreIsOver() async {
+        let subject = makeSubject()
+        let viewModel = subject.viewModel
+        viewModel.onRestoringChanged(true)
+
+        XCTAssertFalse(viewModel.canStart)
+        viewModel.onStartClicked()
+        XCTAssertTrue(viewModel.trackingState is TrackingStateIdle)
+        XCTAssertEqual(subject.serviceLauncher.startCount, 0)
+
+        viewModel.onRestoringChanged(false)
+        XCTAssertTrue(viewModel.canStart)
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.trackingState is TrackingStateTracking }
+        XCTAssertEqual(subject.serviceLauncher.startCount, 1)
+    }
+
     func test_onStartClicked_transitionsToTrackingFromStartPointAndStartsService() async {
         let subject = makeSubject()
         let viewModel = subject.viewModel
