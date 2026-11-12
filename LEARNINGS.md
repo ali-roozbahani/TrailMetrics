@@ -809,3 +809,6 @@ on code that had not changed (`CI_FLAKES.md`: `ios-tracking-finish-failed-save-w
 `ios-route-pending-events-wait`, `ios-route-draft-read-wait`; the failed tests ran 14 to 30 s). A wait that
 succeeds returns as soon as its condition holds, so a longer bound costs time only when a test fails. The
 default is now `defaultWaitTimeout`, 10 s, the bound `tm-testing` gives the UI-test waits (D5).
+
+Correction (2026-11-12): the 10 s default did not end these failures. `RouteViewModelDraftTests.test_failingRead_startsEmptyPlanWithoutErrorAndKeepsStoredRow` failed again with "Condition not met within 10.0 seconds" (33.1 s test, run 43204374961, green on re-run), so a longer bound alone is not the fix for that test; its flake-log entry `ios-route-draft-read-wait` is open again.
+
