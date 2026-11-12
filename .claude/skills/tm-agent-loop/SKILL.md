@@ -1,6 +1,6 @@
 ---
 name: tm-agent-loop
-description: Use for every TrailMetrics run that ends in a PR, a named task or a board pick ("take the next task", "work the board"). Covers one run from picking the record with scripts/check-board.sh --next (only a run without a named task) to its merged PR and the PRs of its follow-ups, worked through the local PR queue (scripts/queue/), with the PRs that need the human handed over and reported — implement, protected-path check, local review and its fix budget, gate, push, PR, watching CI (a failed job, its one re-run), reading the CI reviewer's verdict from its annotation, the merge conditions, auto-merge, after-merge cleanup, the queue cycle (queue.sh next, watch-prs.sh, main's run after each merge, the owner wait), and when to stop and report. Not for the per-PR rules themselves (see tm-pr-workflow) or for epics (see epic-orchestration).
+description: Use for every TrailMetrics run that ends in a PR, a named task or a board pick ("take the next task", "work the board"). Covers one run from picking the record with scripts/check-board.sh --next (only a run without a named task) to its merged PR and the PRs of its follow-ups, worked through the local PR queue (scripts/queue/), with the PRs that need the human handed over and reported — implement, protected-path check, local review and its fix budget, gate, push, PR, watching CI (a failed job, its one re-run), reading the CI reviewer's verdict from its annotation, the merge conditions, auto-merge, after-merge cleanup, the queue cycle (queue.sh next, watch-prs.sh, the read of main's recent runs before each merge, the owner wait), and when to stop and report. Not for the per-PR rules themselves (see tm-pr-workflow) or for epics (see epic-orchestration).
 ---
 
 # TrailMetrics agent loop
@@ -72,8 +72,8 @@ describes, with `scripts/review-task.sh <draft>` as its message, and record the 
 reviewer's own report when it finishes and refuses `git push` and `gh pr create` unless the report
 of the commit that would be pushed has no `[blocking]` finding and a disposition for every
 `[important]` one: write them with `scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`
-(one per finding, `fixed in <sha>` | `board record <slug>` | `rejected: <reason>`, section 7's reason
-rule) before the push. A new commit needs a new review. A blocked push is reported with the hook's reason.
+(one per finding, `fixed in <sha>` | `board record <slug>` | `queued <slug>` | `rejected: <reason>`,
+section 7's reason rule) before the push. A new commit needs a new review. A blocked push is reported with the hook's reason.
 
 - `APPROVE`: continue.
 - `CHANGES`, or blocking findings under `ESCALATE_TO_HUMAN`: fix them as a new commit and
@@ -127,8 +127,8 @@ returns, read the verdict (`scripts/read-ci-verdict.sh`, section 7). For `ESCALA
 - No `[blocking]` and no `[important]` that needs a fix (a bare `APPROVE`, or an
   `ESCALATE_TO_HUMAN` only because of a protected path or a human check): go on with
   `scripts/wait-for-checks.sh <PR number>` for the rest.
-- A `[blocking]`, or an `[important]` you will not dispose as `board record` or a justified
-  `rejected`: do not wait for the rest. Fix it as a new commit through the normal flow (local
+- A `[blocking]`, or an `[important]` you will not dispose as `board record`, `queued <slug>` or a
+  justified `rejected`: do not wait for the rest. Fix it as a new commit through the normal flow (local
   review, gate, push) and start again with `--review-first` on the new head. These rounds count
   toward the 2 CI-fix rounds below.
 - A finding that contradicts a task decision: stop and report, as below.
@@ -224,8 +224,9 @@ means zero:
   annotation from a different SHA, a PR head that is no longer `$SHA`, a failed `gh` call.
 
 A `rejected: <reason>` for an `[important]` finding needs a reason that shows the finding is
-wrong, not only that the task did not ask for it; otherwise the disposition is `fixed in <sha>` or
-`board record <slug>`.
+wrong, not only that the task did not ask for it; otherwise the disposition is `fixed in <sha>`,
+`queued <slug>` (the agent fixes it in a queue entry and a PR of its own, `queue.sh add` first) or
+`board record <slug>` (only for the reasons of `tm-pr-workflow`, "Board", rule 1).
 
 Fail closed: only the line `APPROVE` or `APPROVE, <n> important` counts as an approval.
 `ESCALATE_TO_HUMAN`, `CHANGES` and `UNKNOWN <reason>` are not an approval.
@@ -322,9 +323,11 @@ Right after the agent's own merge, or at the start of the next run (Decision 6):
 `gh pr view <N> --json state` prints `MERGED`, then do the steps of `tm-pr-workflow`,
 "Before starting", which delete the merged local branch and prune.
 
-After every merge, the agent's or the owner's, wait for `main`'s push run of the merge SHA before
-the next push or merge (`queue.md`, "Merge, hand-over and main's run"); a red run stops everything
-as in `tm-pr-workflow`, "Before starting". The next run still looks at `main` itself.
+The queue does not wait for `main`'s push run of the merge commit. `main` requires branches to be
+up to date, so the tree that lands is the tree CI tested; a red run on `main` is a flake or
+infrastructure, and the next PR's own CI covers the same code. Instead, right before each merge,
+read `main` once, without waiting (`queue.md`, "Merge, hand-over and the read of main"); the
+start-of-task read of `tm-pr-workflow`, "Before starting" stays as it is.
 
 ## 9. The queue
 
@@ -338,7 +341,10 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   and gate once. Never rebase, force-push or open a PR against a base other than `main`.
 - Wait in the background (section 6 for the pushed PR's checks, `scripts/queue/watch-prs.sh --wait`
   otherwise); never end the turn while a wait runs.
-- Merge when the six conditions hold, else hand over with a fresh Merge check comment. A PR behind
+- Merge when the six conditions hold and the read of `main` right before it shows
+  `unacknowledged-red=0` (one instant `scripts/main-ci-status.sh --recent 5`; a run still in
+  progress is not a reason to wait; an unacknowledged red run stops everything, as at the start of
+  a task), else hand over with a fresh Merge check comment. A PR behind
   `main` from a merge outside the queue: `scripts/queue/update-branch.sh` (the fallback).
 - Only owner PRs left: wait at most 180 minutes, then report them in queue order with their exact
   merge commands (full 40-character SHA).
@@ -357,7 +363,7 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   CURRENT head SHA count, and an older SHA's cancelled run is expected. Closing and reopening a
   PR (to re-trigger the reviewer) starts a new CI run for the same SHA and cancels one still in
   progress: read the current head SHA's checks after it, not the earlier run.
-- `main`'s push run after a merge is red, still running after 90 minutes or unknown (section 9).
+- The read of `main` right before a merge shows an unacknowledged red run (section 9), or fails.
 - A merge condition that is "no" is not a stop: the PR is handed over and the queue goes on.
 
 ## Report
@@ -373,6 +379,9 @@ The final report to the human has three parts: Done, Not done, Not verified.
 - The PR description keeps its own headings (`tm-pr-workflow`); this shape is for the chat report.
 - It says what each queue entry ended as, PRs waiting for the owner in queue order with their merge
   commands (`queue.md`, "The report").
+- One line with the recent status of `main`, read once at the end (`scripts/main-ci-status.sh
+  --recent 5`: its summary line and any red or running run), under Done, or under Not verified when
+  the read failed.
 - The final report is sent only when the queue ends (`DONE` or the owner wait ran out) or after a
   stop-and-report condition, never between opening a PR and its Merge check; an interim line saying "continuing" is not
   a report and must be followed by the next tool call in the same turn.

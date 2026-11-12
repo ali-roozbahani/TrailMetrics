@@ -22,7 +22,9 @@
 # `check <sha>` allows when the recorded review of exactly that sha has verdict APPROVE, or
 # ESCALATE_TO_HUMAN, with zero [blocking] findings, and every [important] finding has a
 # disposition recorded for that report: `fixed in <sha>` (the reviewed commit or an ancestor of it,
-# not on origin/main), `board record <slug>` or `rejected: <reason>` (`human check` is not one).
+# not on origin/main), `board record <slug>`, `queued <slug>` (the slug names an entry of the PR queue
+# file, scripts/queue/queue.sh, whose status is not `dropped`) or `rejected: <reason>` (`human check`
+# is not one). Form and the existence of the queue entry are checked, not that the finding is handled.
 # A review of another commit never counts.
 #
 # Records: ${LOCAL_REVIEWS_DIR:-$HOME/agent-workspace/local-reviews}/<sha>/report (latest report),
@@ -91,6 +93,14 @@ fixed_in_ok() {
     ! git merge-base --is-ancestor "$full" origin/main 2>/dev/null
 }
 
+# queue_entry_ok <slug>: the queue file has an entry of that slug that is not dropped. The queue file
+# is the one scripts/queue/queue.sh reads (tab-separated: order slug branch after kind status pr).
+queue_entry_ok() {
+    local qf="${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}"
+    [ -f "$qf" ] || return 1
+    awk -F '\t' -v s="$1" '!/^#/ && NF == 7 && $2 == s && $6 != "dropped" { found = 1 } END { exit !found }' "$qf"
+}
+
 # valid_disposition <disposition> <reviewed sha>
 valid_disposition() {
     local d="$1"
@@ -98,6 +108,8 @@ valid_disposition() {
         fixed_in_ok "${BASH_REMATCH[1]}" "$2"
     elif [[ "$d" =~ ^board\ record\ [a-z0-9]+(-[a-z0-9]+)*$ ]]; then
         return 0
+    elif [[ "$d" =~ ^queued\ ([a-z0-9]+(-[a-z0-9]+)*)$ ]]; then
+        queue_entry_ok "${BASH_REMATCH[1]}"
     elif [[ "$d" =~ ^rejected:\ .{15,}$ ]]; then
         return 0
     else
@@ -115,7 +127,7 @@ cmd_disposition() {
     [ "$#" -eq "$imp" ] || die "disposition: the review of ${sha:0:12} has $imp [important] finding(s), got $# disposition(s)"
     for d in "$@"; do
         i=$((i + 1))
-        valid_disposition "$d" "$sha" || die "disposition $i is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>' or 'rejected: <reason of 15+ characters>': $d"
+        valid_disposition "$d" "$sha" || die "disposition $i is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>', 'queued <slug>' (an entry of the queue file that is not dropped) or 'rejected: <reason of 15+ characters>': $d"
     done
     {
         echo "report $(sha256_of "$dir/report")"
@@ -154,14 +166,14 @@ cmd_check() {
         || block "the local review of ${sha:0:12} has a finding line the gate cannot parse: $unparsed line(s) mention [blocking] or [important] without being a numbered finding line ('<n>. [blocking]', '<n>. [important]' or '<n>. [note]'). Ask the reviewer again, in the report format of tm-pr-review."
     [ "$blocking" -eq 0 ] || block "the local review of ${sha:0:12} has $blocking [blocking] finding(s). Fix them as a new commit and review the new HEAD."
     if [ "$imp" -gt 0 ]; then
-        [ -f "$dir/dispositions" ] || block "the local review of ${sha:0:12} has $imp [important] finding(s) and no dispositions are recorded. Run: scripts/local-review-gate.sh disposition ${sha} '<fixed in <sha> | board record <slug> | rejected: <reason>>' ... ($imp arguments, in report order)."
+        [ -f "$dir/dispositions" ] || block "the local review of ${sha:0:12} has $imp [important] finding(s) and no dispositions are recorded. Run: scripts/local-review-gate.sh disposition ${sha} '<fixed in <sha> | board record <slug> | queued <slug> | rejected: <reason>>' ... ($imp arguments, in report order)."
         want="report $(sha256_of "$report")"
         [ "$(sed -n 1p "$dir/dispositions")" = "$want" ] || block "the dispositions of ${sha:0:12} belong to an earlier report of that commit. Record them again for the latest review."
         lines="$(sed -n '2,$p' "$dir/dispositions")"
         while IFS= read -r line; do
             [ -n "$line" ] || continue
             n=$((n + 1))
-            valid_disposition "$line" "$sha" || block "disposition $n of ${sha:0:12} is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>' or 'rejected: <reason>': $line"
+            valid_disposition "$line" "$sha" || block "disposition $n of ${sha:0:12} is not 'fixed in <sha>' (the reviewed commit or an ancestor of it, not on origin/main), 'board record <slug>', 'queued <slug>' (an entry of the queue file that is not dropped) or 'rejected: <reason>': $line"
         done <<<"$lines"
         got="$n"
         [ "$got" -eq "$imp" ] || block "the review of ${sha:0:12} has $imp [important] finding(s) but $got disposition(s) are recorded."
@@ -174,7 +186,7 @@ self_test() {
     fx="$SCRIPT_DIR/local-review-gate-fixtures"
     tmp="$(mktemp -d)"
     trap 'rm -rf -- "$tmp"' RETURN
-    export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null HOME="$tmp" LOCAL_REVIEWS_DIR="$tmp/reviews"
+    export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null HOME="$tmp" LOCAL_REVIEWS_DIR="$tmp/reviews" QUEUE_FILE="$tmp/queue.tsv"
     repo="$tmp/repo"
     git init -q "$repo"
     git -C "$repo" config user.email t@example.com
@@ -256,6 +268,21 @@ self_test() {
     forge "fixed in ${later:0:7}" "board record some-slug"; run "check: fixed in a descendant blocks" 1 chk "$sha"
     forge "fixed in ${orphan:0:7}" "board record some-slug"; run "check: fixed in an unrelated commit blocks" 1 chk "$sha"
     forge "fixed in ${mainc:0:7}" "board record some-slug"; run "check: fixed in a commit on origin/main blocks" 1 chk "$sha"
+    # queued <slug>: an entry of the queue file (scripts/queue/queue.sh) that is not dropped.
+    reset; rec two-important "$sha" "$sha" >/dev/null
+    run "queued without a queue file is refused" 1 disp "$sha" "queued some-entry" "board record some-slug"
+    printf '1\tsome-entry\tchore/some-entry\t-\tagent\tplanned\t-\n2\told-entry\tchore/old-entry\t-\tagent\tdropped\t-\n' >"$QUEUE_FILE"
+    run "queued with a slug that is no entry is refused" 1 disp "$sha" "queued other-entry" "board record some-slug"
+    run "queued with a dropped entry is refused" 1 disp "$sha" "queued old-entry" "board record some-slug"
+    run "queued with an empty slug is refused" 1 disp "$sha" "queued " "board record some-slug"
+    run "queued with a slug that is not kebab-case is refused" 1 disp "$sha" "queued Some_Entry" "board record some-slug"
+    run "queued with extra words is refused" 1 disp "$sha" "queued some-entry now" "board record some-slug"
+    run "an unknown form is refused" 1 disp "$sha" "deferred some-entry" "board record some-slug"
+    run "queued with an open entry is recorded" 0 disp "$sha" "queued some-entry" "rejected: the null case cannot happen, see the guard in start()"
+    run "check: queued with an open entry allows" 0 chk "$sha"
+    forge "queued old-entry" "board record some-slug"; run "check: queued with a dropped entry blocks" 1 chk "$sha"
+    forge "queued some-entry" "board record some-slug"; run "check: queued with an open entry allows (forged file)" 0 chk "$sha"
+    rm -f "$QUEUE_FILE"; run "check: queued after the queue file is gone blocks" 1 chk "$sha"
     # Fail closed on finding lines the strict parser does not see.
     reset; rec bullet-blocking "$sha" "$sha" >/dev/null; run "a bullet-formatted [blocking] finding blocks" 1 chk "$sha"
     reset; rec bullet-important "$sha" "$sha" >/dev/null; run "a bullet-formatted [important] finding blocks" 1 chk "$sha"

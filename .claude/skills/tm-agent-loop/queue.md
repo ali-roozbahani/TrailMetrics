@@ -14,6 +14,10 @@ their headers what they read and print. This file says how the loop uses them.
   `--after` only when it needs the parent's change; `--kind owner` when its PR will touch a
   protected path or needs the owner's review. The slug is its name in the parent's PR description
   (`(queue: <slug>)`) until its PR exists.
+- **An `[important]` reviewer finding the agent will fix in a PR of its own** is such an entry: `add`
+  it first, then dispose the finding as `queued <slug>` (`tm-pr-review`, "Orchestrator's part",
+  step 5). The push gate accepts the disposition only for a slug that is an entry of the queue
+  file and not dropped; it does not check that the entry fixes the finding.
 - **Not in the queue:** an item that needs an owner decision or design, an epic, a change under
   `.github/workflows/` (only the owner can push it), and an item `add` refuses because 5 entries are
   open. Those get a `BOARD.md` record instead.
@@ -77,12 +81,12 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   and report.
 - `TIMEOUT`: the owner wait ran out (below). `NONE_OPEN`: nothing to watch; run `next` again.
 
-## Merge, hand-over and main's run
+## Merge, hand-over and the read of main
 
 - **Merge.** After the PR's checks are done (section 6), check the six conditions of section 8 for
   its head SHA; `scripts/queue/watch-prs.sh --once` must show `behind=0` for it (otherwise
-  `BEHIND` above). All "yes": merge with the command of section 8, post the Merge check comment,
-  `set <slug> status=merged`.
+  `BEHIND` above). All "yes" and the read of `main` below clean: merge with the command of
+  section 8, post the Merge check comment, `set <slug> status=merged`.
 - **Condition 5 for an updated head.** When the head is a merge-only update of a reviewed commit
   (GitHub's update through `update-branch.sh`, the only update that is not pushed locally), the
   recorded verdict is that of the reviewed commit: `scripts/queue/local-verdict-for-head.sh <N>`
@@ -94,24 +98,25 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   one PR of the queue is pushed at a time, so the agent's own merges never leave an owner PR behind
   `main`. Only a merge outside the queue can (`BEHIND` above); after the update, post a fresh Merge
   check comment.
-- **Main's push run after every merge** (the agent's or the owner's): read the merge SHA
-  (`gh api repos/{owner}/{repo}/pulls/<N> --jq .merge_commit_sha`) and wait for its run as a
-  background command, at most 90 minutes:
+- **The read of `main` right before each merge.** The queue does not wait for the push run of a
+  merge commit, the agent's or the owner's: `main` requires branches to be up to date, so the tree
+  that lands is the tree CI tested, a red run there is a flake or infrastructure, and the next PR's
+  own CI covers the same code. Before every merge (and before the start of a task, as
+  `tm-pr-workflow`, "Before starting" says) take one instant, non-blocking read:
 
   ```bash
-  S=<merge sha>; for i in $(seq 1 90); do scripts/main-ci-status.sh --sha "$S" > /dev/null; [ $? = 3 ] || break; sleep 60; done; scripts/main-ci-status.sh --sha "$S"
+  scripts/main-ci-status.sh --recent 5
   ```
 
-  `MAIN_GREEN`: go on. `MAIN_RED`: stop everything (no push, no merge, no build) and report it as
-  `tm-pr-workflow`, "Before starting" says for an unacknowledged red run. Still `MAIN_RUNNING`
-  after 90 minutes, or `MAIN_UNKNOWN`: stop and report. Before every `PUSH` and every merge,
-  `scripts/main-ci-status.sh --recent 5` must show `unacknowledged-red=0`.
+  `unacknowledged-red=0`: merge. A run still `running` is not a reason to wait. An unacknowledged
+  red run, or a read that fails (exit 4): stop everything (no push, no merge, no build) and report
+  it as `tm-pr-workflow`, "Before starting" says; only the owner's "go on" acknowledges it.
 
 ## The owner wait
 
 When only PRs handed to the owner are left (the next action is `WAIT` on one, and its Merge check
 is posted), the run waits for them with `watch-prs.sh --wait` (default 180 minutes; that is the
-run's maximum wait). A `MERGED` goes on with main's run and `next`. On `TIMEOUT` the run ends with
+run's maximum wait). A `MERGED` goes on with `next`. On `TIMEOUT` the run ends with
 the report, which lists, in queue order, each PR waiting for the owner with its exact merge command
 and the full 40-character head SHA:
 
@@ -119,7 +124,8 @@ and the full 40-character head SHA:
 gh pr merge <N> --squash --match-head-commit <40-character SHA> --subject "<PR title> (#<N>)" --body ""
 ```
 
-followed by the entries not pushed yet and what each waits for.
+followed by the entries not pushed yet and what each waits for, and the one line with the recent
+status of `main` that `SKILL.md`, "Report" asks for.
 
 ## A new session
 

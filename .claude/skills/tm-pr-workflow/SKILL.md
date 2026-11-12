@@ -267,8 +267,8 @@ Add these when they apply. Recent PRs use them consistently:
 
 - **Reviewer findings**: present when a reviewer report (local or CI) has an `[important]` finding
   or a `[blocking]` one that was fixed. One line per `[important]` finding, with its disposition:
-  `fixed in <sha>` | `board record <slug>` | `rejected: <reason a human can check>` (`tm-pr-review`,
-  "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
+  `fixed in <sha>` | `board record <slug>` | `queued <slug>` | `rejected: <reason a human can
+  check>` (`tm-pr-review`, "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left out of this
@@ -353,9 +353,10 @@ step of the gate and of CI's `tooling` job.
    - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
      or design; an epic, and the follow-ups its final board PR records (rule 5); a change only
      the owner can push (a workflow file this token can't push); an item the queue refuses
-     because 5 entries are open; a finding of an owner-opened sweep (rule 4); a flake escalated
-     at count 3 ("Flake log"); and an `[important]` reviewer finding not fixed in the PR that is none of
-     these (the push hook accepts `board record <slug>` as its only deferred disposition).
+     because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
+     at count 3 ("Flake log"). An `[important]` reviewer finding not fixed in the PR is deferred as
+     `queued <slug>` (a queue entry and a PR of its own, the push hook checks that the entry exists)
+     or, when it is one of the items above, as `board record <slug>`.
      Each record states that one-line reason in its Problem; a record whose only reason is
      that the agent could do it breaks this rule. The human decides when it is done, not
      whether it is recorded.
