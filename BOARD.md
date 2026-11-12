@@ -330,15 +330,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the flake no longer fails or the runner/test is changed so it cannot, shown on 5 consecutive runs of the iOS UI-test job.
 - Refs: CI runs 39425719146 and 40122507751; `iosApp/TrailMetricsUITests/Support/XCUIApplication+Scenario.swift`; `CI_FLAKES.md` entry `ios-ui-details-launch-timeout`.
 
-### ios-tracking-finish-test-fixed-wait
-- Type: task
-- Area: iosApp/Packages/Tracking
-- Order: 248
-- Source: CI run 39459833673 (main, push, head fe41afd), 2026-10-20
-- Problem: `iOS 2b` failed once in `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain` ("Condition not met within 2.0 seconds", then "Expected showError, got []"). The code was unchanged and green on the next push. The cause is in our test: a fixed 2.0 s wait for the ViewModel on a loaded runner. #209 rewrote this file after the run, so the wait may already be gone; not checked.
-- Done when: the tests in `TrackingViewModelFinishTests` wait on the state they assert without a fixed 2.0 s bound that depends on runner speed, or the record is deleted because #209 already did so.
-- Refs: CI run 39459833673; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md` entry `ios-tracking-finish-failed-save-wait`.
-
 ### local-review-hook-shell-blind-spots
 - Type: task
 - Area: scripts/claude-hooks
@@ -527,15 +518,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-ios` "No dead code" says "No unused imports (`unused_import` is enabled)". `iosApp/.swiftlint.yml` lists `unused_import` under `opt_in_rules`, but it is an analyzer rule that only `swiftlint analyze` runs: `swiftlint lint --strict` exits 0 while printing "'unused_import' should be listed in the 'analyzer_rules' configuration section ... only run by 'swiftlint analyze'", and no script or workflow runs `swiftlint analyze` (the gate and CI run `lint`). So the rule is inert and unused imports are not checked by any tool. Count 1 rule. A mechanical rule that no tool runs is not a pass. Recorded, not fixed: SwiftLint config and CI are protected, and `analyze` needs a compiler log from an `xcodebuild` run, so adding it is a decision about the gate's cost.
 - Done when: `swiftlint analyze` runs on the iOS sources in the gate and CI with `unused_import` under `analyzer_rules` and passes, or the line is removed from `opt_in_rules` and `tm-ios` no longer claims the rule is enabled.
 - Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml` (`ios-main`); `tm-ios` ("No dead code", "SwiftLint").
-
-### swift-test-wait-until-fixed-two-second-bound
-- Type: task
-- Area: iosApp/Packages/TestSupport, iosApp package tests
-- Order: 520
-- Source: sweep tm-testing
-- Problem: `tm-testing` fixes the wait rules of the XCUITests (D5: `waitForExistence(timeout: 10)`, no fixed delay; D6: a red run is logged, not retried) and states no bound for the Swift package tests' own wait helper. That helper, `waitUntil` in `TestSupport` (and `waitUntilOnlyReference`, which calls it), gives every wait a default `timeout` of two seconds; only the first wait of a test process gets 120 seconds (`coldStartTimeout`). No call site passes another timeout. Count: 123 `await waitUntil { ... }` and 14 `waitUntilOnlyReference(&...)` calls in 14 test files of the History, Route and Tracking packages. It has failed twice on CI with "Condition not met within 2.0 seconds" on a loaded runner: `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain` (flake-log entry `ios-tracking-finish-failed-save-wait`, board record `ios-tracking-finish-test-fixed-wait`) and `RouteViewModelPendingEventsTests.test_eventAfterConsumerCancelled_isDeliveredOnceToNextStreamOnly` (flake-log entry `ios-route-pending-events-wait`, run 42813382887, a red push run of `main` on unchanged Swift sources). The older board record names only the Tracking Finish tests. Recorded, not fixed: the bound lives in `TestSupport`, which three packages share, and the right value or mechanism (a longer or scaled default, or waiting without a bound) is a decision; this sweep changes no code.
-- Done when: `grep -n 'seconds(2)' iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` returns nothing (or the default is a value the owner chose, with a comment saying why), the package tests pass, the two flake-log entries are set to `fixed` with this fix, and `ios-tracking-finish-test-fixed-wait` is deleted in the same PR.
-- Refs: `iosApp/Packages/TestSupport/Sources/TestSupport/Support/WaitUntil.swift` (`waitUntil`, `waitUntilOnlyReference`, `coldStartTimeout`); `iosApp/Packages/Route/Tests/RouteTests/RouteViewModelPendingEventsTests.swift`; `iosApp/Packages/Tracking/Tests/TrackingTests/TrackingViewModelFinishTests.swift`; `CI_FLAKES.md`; `ios-tracking-finish-test-fixed-wait`; `wait-until-cancellation-spin`; `tm-testing` ("XCUITest", D5, D6).
 
 ### pause-resume-joins-path-with-a-straight-segment
 - Type: task
