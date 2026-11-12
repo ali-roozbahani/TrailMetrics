@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
@@ -34,6 +35,7 @@ internal fun TestScope.startCall(
             UiTestHeldCall.Delete -> history.deleteActivity(UiTestFixtures.SEEDED_ACTIVITY_ID)
             UiTestHeldCall.Directions -> directions.getClosedRoute(UiTestFixtures.start, emptyList()).getOrThrow()
             UiTestHeldCall.Save -> history.saveActivity(newActivity)
+            UiTestHeldCall.Load -> KoinPlatform.getKoin().get<TrackingSessionStore>().load()
         }
     }
 }

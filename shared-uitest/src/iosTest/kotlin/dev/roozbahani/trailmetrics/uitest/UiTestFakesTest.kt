@@ -162,7 +162,7 @@ class UiTestFakesTest {
     @Test
     fun `only RestoredPausedSession stores a session and it restores as the Paused state`() = runTest {
         UiTestScenario.entries.filterNot { it == UiTestScenario.RestoredPausedSession }.forEach { scenario ->
-            launchUiTest(scenario)
+            launchUiTest(scenario).controls.releaseHeldCalls()
             assertNull(KoinPlatform.getKoin().get<TrackingSessionStore>().load(), "$scenario: stored session")
             stopKoin()
         }
@@ -177,6 +177,21 @@ class UiTestFakesTest {
             KoinPlatform.getKoin().get<TrackingSessionManager>().sessionDetails.value?.activityType
         )
         stopKoin()
+    }
+
+    @Test
+    fun `HeldSessionRead holds the read of the stored session until release and then reads none`() = runTest {
+        val controls = launchUiTest(UiTestScenario.HeldSessionRead).controls
+        val store = KoinPlatform.getKoin().get<TrackingSessionStore>()
+        val read = backgroundScope.async { store.load() }
+        testScheduler.runCurrent()
+        assertFalse(read.isCompleted, "the read completed while held")
+
+        controls.releaseHeldCalls()
+        testScheduler.runCurrent()
+
+        assertTrue(read.isCompleted, "the read still waiting after release")
+        assertNull(read.await())
     }
 
     @Test

@@ -48,8 +48,19 @@ enum class UiTestScenario(
         failsDelete = false,
         walksRoute = false,
         storesPausedSession = true
+    ),
+
+    /**
+     * Empty history, nothing stored. The session store's read is held until release, as a slow
+     * read at launch: the app must not offer Start while it lasts, and offers it after.
+     */
+    HeldSessionRead(
+        seedsHistory = false,
+        heldCall = UiTestHeldCall.Load,
+        failsDelete = false,
+        walksRoute = false
     )
 }
 
 /** The repository call a scenario holds until [UiTestControls.releaseHeldCalls]. */
-internal enum class UiTestHeldCall { Delete, Directions, Save }
+internal enum class UiTestHeldCall { Delete, Directions, Save, Load }

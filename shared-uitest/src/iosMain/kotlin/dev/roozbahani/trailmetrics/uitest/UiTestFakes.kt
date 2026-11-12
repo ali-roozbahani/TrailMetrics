@@ -54,13 +54,20 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
 }
 
 /**
- * Returns [stored] (null for every scenario but the one with a saved session) and keeps nothing else,
+ * Returns [stored] (null for every scenario but the one with a saved session), after the hold of the
+ * scenario that holds the read, and keeps nothing else,
  * so no UI test opens the Room database through the session store.
  */
-internal class UiTestTrackingSessionStore(private val stored: StoredTrackingSession? = null) : TrackingSessionStore {
+internal class UiTestTrackingSessionStore(
+    private val controls: UiTestControls,
+    private val stored: StoredTrackingSession? = null
+) : TrackingSessionStore {
     override suspend fun save(session: StoredTrackingSession) = Unit
 
-    override suspend fun load(): StoredTrackingSession? = stored
+    override suspend fun load(): StoredTrackingSession? {
+        controls.awaitReleaseIfHeld(UiTestHeldCall.Load)
+        return stored
+    }
 
     override suspend fun clear() = Unit
 }
