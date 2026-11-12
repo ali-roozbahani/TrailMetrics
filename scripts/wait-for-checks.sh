@@ -4,7 +4,7 @@
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
-#   scripts/wait-for-checks.sh [--review-first] <PR number | head SHA (40 hex)>
+#   scripts/wait-for-checks.sh [--review-first | --until-complete] [--max-seconds <n>] <PR number | head SHA (40 hex)>
 #   scripts/wait-for-checks.sh --self-test
 #
 # --review-first waits only for the check run `Review — pr-reviewer` of the SHA to be completed
@@ -15,6 +15,18 @@
 # early exit below: `FAILED Review — pr-reviewer[; still running: ...][; missing: ...]` (exit 1).
 # Timeouts, retries of a failed `gh` read, SUPERSEDED and REST-only reads are those of the normal
 # mode.
+#
+# --max-seconds <n> (n below the maximum wait) is for a call that must end within a cap, such as
+# the 600 s of a foreground Bash call (use 540): when n seconds pass with the wait unfinished it
+# prints the rows and `PENDING <names still running>[; missing: <names>]` (exit 3), and the
+# caller runs the same command again (the 90 minutes are then the caller's to count: 10 PENDING
+# in a row are a TIMEOUT). Without it the wait is one command up to 90 minutes, to run in the
+# background (`run_in_background`, which has no 600 s cap; tm-agent-loop, section 6). Every other
+# result, and its exit code, is the same with or without it.
+#
+# --until-complete is the wait for a run to finish after a failed job was classified as a flake: only
+# the reviewer's failure ends it early; any other failed job waits until every run has completed
+# (the earliest moment GitHub lets scripts/rerun-failed-once.sh re-run it).
 #
 # Given a PR number it resolves the head SHA, and reads the PR again on every step: a newer push
 # changes the head. Given a SHA there is no PR to compare with, so SUPERSEDED cannot happen.
@@ -27,6 +39,13 @@
 # counts: latest `started_at` (a run not started yet counts as newest), then highest run id. The
 # older ones, cancelled or not, are neither printed nor judged.
 #
+# The wait ends at the first failed check run, not when the last one finishes: `FAILED <failed names>;
+# still running: <names>` (below). Re-running a failed job is not possible before its whole run has
+# completed (GitHub offers "Re-run failed jobs" only for a finished run), so the agent reads the failed
+# job's log at once and, for a defect in the PR, pushes the fix without waiting (a new push cancels the
+# running CI of the old head: ci.yml `cancel-in-progress` for pull requests); only a flake waits for the
+# run to finish before scripts/rerun-failed-once.sh (tm-agent-loop, section 6).
+#
 # Steps: every 30 s for the first 5 minutes, then every 5 minutes, at most 90 minutes in all.
 # The check runs of a push appear one after another (jobs of ci.yml, `Review — pr-reviewer` of
 # another workflow, a job that needs another one), so "every run I see is completed" is not enough:
@@ -38,27 +57,27 @@
 # Output on exit: one tab-separated line per check run (name, status, conclusion; `-` when none),
 # then one summary line, and the exit code:
 #   ALL_GREEN                       every run completed, all success or skipped          exit 0
-#   FAILED <names>                  every run completed, others had another conclusion   exit 1
-#   FAILED Review — pr-reviewer[; still running: <names>][; missing: <names>]
-#                                   the reviewer's check run is completed with a conclusion
-#                                   other than success or skipped (`failure` for CHANGES and for
-#                                   a run with no verdict) while other runs are still running
-#                                   or not started: the wait ends early, those runs are listed
-#                                   (running ones show their status and `-` in their row).
-#                                   Required runs that do not exist yet are named after
-#                                   "missing:". When nothing is left to wait for, the plain FAILED line
-#                                   above is printed instead                             exit 1
+#   FAILED <names>[; still running: <names>][; missing: <names>]
+#                                   a check run is completed with a conclusion other than success
+#                                   or skipped (for `Review — pr-reviewer`: `failure` for CHANGES and
+#                                   for a run with no verdict). The wait ends at once: runs still
+#                                   running or not started are listed after "still running:" (their
+#                                   row shows the status and `-`), required runs that do not exist yet
+#                                   after "missing:". With nothing left running the line is the plain
+#                                   `FAILED <names>`                                     exit 1
 #   REVIEW_DONE <conclusion>; still running: <names|(none)>[; missing: <names>]
 #                                   --review-first only: the reviewer's check run is completed
 #                                   with success or skipped                              exit 0
 #   TIMEOUT <names still running>[; missing: <names>]
 #                                   the maximum wait ran out; "(none running)" when only
 #                                   required runs are missing                            exit 1
+#   PENDING <names still running>[; missing: <names>]
+#                                   --max-seconds only: n seconds passed, nothing is decided;
+#                                   run the same command again                           exit 3
 #   SUPERSEDED <new sha>            the PR head is no longer the SHA being watched       exit 1
-# The early exit is only for the reviewer: it finishes in about 2 minutes, the Android and iOS jobs
-# in 15 to 40, and its verdict is read with scripts/read-ci-verdict.sh. Any other failed check
-# keeps the wait until every run is completed (scripts/rerun-failed-once.sh refuses a run that is
-# not completed). A reviewer still running, with another check failed, is waited for.
+# The reviewer finishes in about 2 minutes, the Android and iOS jobs in 15 to 40; the reviewer's
+# verdict is read with scripts/read-ci-verdict.sh, any other failed job by its log. With
+# --review-first only the reviewer's failure ends the wait early.
 # Names are joined with "; ". Exit 2 is a usage error, a missing tool, unreadable data, or a `gh`
 # call that failed 4 times in a row.
 #
@@ -86,7 +105,7 @@ iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
 REVIEWER_CHECK="Review — pr-reviewer"
-USAGE="usage: scripts/wait-for-checks.sh [--review-first] <PR number | head SHA> | --self-test"
+USAGE="usage: scripts/wait-for-checks.sh [--review-first | --until-complete] [--max-seconds <n>] <PR number | head SHA> | --self-test"
 
 die() {
     echo "wait-for-checks: $1" >&2
@@ -172,13 +191,24 @@ wait_for_checks() {
             exit 1
         fi
 
-        reviewer_failed="$(jq -r --arg name "$REVIEWER_CHECK" '[.check_runs[] | select(.name == $name and .status == "completed"
-            and (.conclusion as $c | ["success", "skipped"] | index($c) | not))] | length' "$d/runs.json")"
-        if [ "$reviewer_failed" != 0 ]; then
+        # A failed check ends the wait at once, whatever else still runs: the agent reads the failed log
+        # and acts while the other jobs go on (tm-agent-loop, section 6). With --review-first or
+        # --until-complete only the reviewer's check counts here.
+        failed_names="$(jq -r --arg name "$REVIEWER_CHECK" --arg only "${REVIEW_FIRST:-}${UNTIL_COMPLETE:-}" '[.check_runs[]
+            | select(.status == "completed" and (.conclusion as $c | ["success", "skipped"] | index($c) | not)
+                and ($only == "" or .name == $name)) | .name] | join("; ")' "$d/runs.json")"
+        if [ -n "$failed_names" ]; then
             print_rows "$d/runs.json"
             names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
-            echo "FAILED $REVIEWER_CHECK${names:+; still running: $names}${missing:+; missing: $missing}"
+            echo "FAILED $failed_names${names:+; still running: $names}${missing:+; missing: $missing}"
             exit 1
+        fi
+
+        if [ -n "${CALL_LIMIT:-}" ] && [ "$elapsed" -ge "$CALL_LIMIT" ] && [ "$elapsed" -lt "$MAX" ]; then
+            print_rows "$d/runs.json"
+            names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
+            echo "PENDING ${names:-(none running)}${missing:+; missing: $missing}"
+            exit 3
         fi
 
         if [ "$elapsed" -ge "$MAX" ]; then
@@ -228,6 +258,8 @@ self_test() {
     "$0" > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL no argument does not exit 2"; failed=1; }
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric, non-SHA argument does not exit 2"; failed=1; }
     "$0" --review-first > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-first without a PR or SHA does not exit 2"; failed=1; }
+    "$0" --max-seconds > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --max-seconds without a value does not exit 2"; failed=1; }
+    "$0" --max-seconds x 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric --max-seconds does not exit 2"; failed=1; }
     "$0" 12 13 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL two arguments do not exit 2"; failed=1; }
     WAIT_FOR_CHECKS_MAX_SECONDS=x "$0" 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric time does not exit 2"; failed=1; }
     if [ "$failed" = 0 ]; then echo "wait-for-checks: self-test passed"; else echo "wait-for-checks: self-test FAILED"; fi
@@ -254,10 +286,19 @@ fi
 
 PR=""
 SHA=""
-if [ "${1:-}" = "--review-first" ]; then
-    REVIEW_FIRST=1
-    shift
-fi
+CALL_LIMIT=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --review-first) REVIEW_FIRST=1; shift ;;
+        --until-complete) UNTIL_COMPLETE=1; shift ;;
+        --max-seconds)
+            [ "$#" -ge 2 ] || { echo "$USAGE" >&2; exit 2; }
+            case "$2" in '' | *[!0-9]*) echo "$USAGE" >&2; echo "--max-seconds takes whole seconds" >&2; exit 2 ;; esac
+            [ "$2" -ge 1 ] || { echo "$USAGE" >&2; echo "--max-seconds must be at least 1" >&2; exit 2; }
+            CALL_LIMIT="$2"; shift 2 ;;
+        *) break ;;
+    esac
+done
 if [ "$#" != 1 ]; then
     echo "$USAGE" >&2
     exit 2

@@ -1,0 +1,6 @@
+args: --base-board {BASE}
+exit: 1
+contains: CI_FLAKES.md:3: names `flake-gone-record`, a board record deleted since the base
+contains: notice: docs/epics/plan.md:3: names `flake-gone-record`
+contains: check-board: FAILED, 1 problem(s)
+absent: CI_FLAKES.md:4

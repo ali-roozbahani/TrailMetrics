@@ -61,7 +61,17 @@ PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git[[:space:]]([^|]*[[:space:]])?push|gh[[:spa
 git_in() { local d="$1"; shift; git -C "$d" "$@"; }
 
 # split_segments <text>: simple commands, one per line.
-split_segments() { printf '%s\n' "$1" | tr '&|;()`' '\n\n\n\n\n\n'; }
+# Redirections are dropped before the command is split, because the `&` of `2>&1` would split it and
+# leave `2>` as a word of the push (read as a refspec). Only a redirection whose target is a plain word
+# (`> out.txt`, `2>> "log"`, `&>/dev/null`, `2>&1`) is removed with its target. For a target that holds a
+# command substitution or a backtick (`>$(git ...)`, `> "$(git ...)"`) only the operator is removed and
+# the target stays in the text, so a push or PR creation inside it is still found as a command.
+split_segments() {
+    local plain='("[^"$`]*"|'"'"'[^'"'"'$`]*'"'"'|[^[:space:]&|;()$`<>"'"'"']+)'
+    printf '%s\n' "$1" \
+        | sed -E "s/[0-9]*>&[0-9-]*//g; s/(&>>?|[0-9]*>>?)[[:space:]]*$plain([[:space:]&|;)]|\$)/\\3/g; s/&>>?/ /g; s/[0-9]*>>?/ /g" \
+        | tr '&|;()`' '\n\n\n\n\n\n'
+}
 
 # Print the SHAs a push or PR creation needs reviewed, one per line, or "BLOCK <reason>".
 # resolve_commit <dir> <ref>
@@ -70,7 +80,7 @@ resolve_commit() {
     if sha="$(git_in "$1" rev-parse --verify --quiet "$2^{commit}" 2>/dev/null)"; then
         echo "$sha"
     else
-        echo "BLOCK cannot resolve '$2' to a commit, so the review of what would be pushed cannot be checked"
+        echo "BLOCK cannot resolve '$2' to a commit, so the review of what would be pushed cannot be checked. Name a local branch that exists (git push -u origin <branch>) or HEAD"
     fi
 }
 
@@ -96,7 +106,7 @@ targets() {
         case "${tokens[$i]:-}" in
             git | */git | gh | */gh) ;;
             *)
-                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, a quoted string) hides the pushed ref from the local review check; use git push / gh pr create as a plain command"
+                echo "BLOCK a push or PR creation inside a wrapper (env, bash -c, xargs, echo, a quoted string) hides the pushed ref from the local review check. Run instead: git push -u origin <branch> or gh pr create --base main --body-file <file> as the command itself (a suffix such as 2>&1 | tail -5 is fine)"
                 found=1
                 ;;
         esac
@@ -160,7 +170,7 @@ targets() {
                 fi
                 found=1
                 if [ "$cdunknown" = 1 ]; then
-                    echo "BLOCK a cd with a target this hook cannot read comes before this push; run the push in its own command, from the directory it pushes"
+                    echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this push. Run instead: cd <absolute path of the clone> && git push -u origin <branch>, or git -C <absolute path> push -u origin <branch>, or the push alone from the session directory"
                 else
                     push_targets "$dir2" "${tokens[@]:$i}"
                 fi
@@ -173,7 +183,7 @@ targets() {
                 if [ "${tokens[$i]:-}" = pr ] && [ "${tokens[$((i + 1))]:-}" = create ]; then
                     found=1
                     if [ "$cdunknown" = 1 ]; then
-                        echo "BLOCK a cd with a target this hook cannot read comes before this PR creation; run it in its own command, from the directory it belongs to"
+                        echo "BLOCK a cd with a target this hook cannot read (a variable, ~, -, a missing directory, or a cd inside a group or || list) comes before this PR creation. Run instead: cd <absolute path of the clone> && gh pr create --base main --body-file <file>, or the command alone from the session directory"
                     else
                         pr_targets "$dir2" "${tokens[@]:$((i + 2))}"
                     fi

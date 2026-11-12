@@ -42,3 +42,5 @@ tooling	local verdict for head self-test	scripts/queue/local-verdict-for-head.sh
 macos	production framework check self-test	scripts/check-production-framework.sh
 ios-swiftlint	localized strings rules self-test	scripts/check-localized-strings.sh
 ios-swiftlint	optional_try rule self-test	scripts/check-optional-try.sh
+tooling	local review prepare self-test	scripts/local-review-prepare.sh
+tooling	local review verdict recorder self-test	scripts/local-review-record-verdict.sh

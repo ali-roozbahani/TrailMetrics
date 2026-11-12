@@ -105,14 +105,13 @@ final class SavedSessionOfferTests: TrackingTestCase {
         let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
         let store = FakeTrackingSessionStore(stored: TrackingFixtures.storedSession(paused))
         store.holdLoad()
-        let subject = makeSubject(sessionStore: store)
+        let subject = makeSubject(sessionStore: store, isRestoring: true)
         let viewModel = subject.viewModel
-        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+        let model = subject.savedSessionOffer
         XCTAssertTrue(model.isRestoring, "Restoring from the launch, before the read starts")
 
         let restore = Task { await model.restoreOnce() }
         await waitUntil { store.heldLoadCount == 1 }
-        viewModel.onRestoringChanged(model.isRestoring)
 
         XCTAssertTrue(model.isRestoring)
         XCTAssertFalse(viewModel.canStart)
@@ -122,7 +121,6 @@ final class SavedSessionOfferTests: TrackingTestCase {
 
         store.releaseLoad()
         await restore.value
-        viewModel.onRestoringChanged(model.isRestoring)
 
         XCTAssertFalse(model.isRestoring)
         XCTAssertNotNil(model.offer, "The stored session was restored, not replaced by a started one")
@@ -133,11 +131,11 @@ final class SavedSessionOfferTests: TrackingTestCase {
 
     func test_restoreOnce_withNothingStored_startIsAvailableOnceTheReadReturns() async {
         let store = FakeTrackingSessionStore()
-        let subject = makeSubject(sessionStore: store)
-        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+        let subject = makeSubject(sessionStore: store, isRestoring: true)
+        let model = subject.savedSessionOffer
+        XCTAssertFalse(subject.viewModel.canStart)
 
         await model.restoreOnce()
-        subject.viewModel.onRestoringChanged(model.isRestoring)
 
         XCTAssertFalse(model.isRestoring)
         XCTAssertTrue(subject.viewModel.canStart)

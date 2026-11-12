@@ -3,9 +3,13 @@
 One entry per flake signature (job, step, test, first error line). Rules: `tm-pr-workflow`,
 "Flake log"; watching and re-running: `tm-agent-loop`, section 6.
 
-Entry fields: Signature, Count, Status (`open` | `fixed`), Occurrences (date, run id, PR, whether
-a re-run fixed it), Notes; `escalated: flake-<slug>` once the board record exists; for a fixed
-entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
+Entry fields: Signature, Count, Status (`open` | `fixed (unverified)` | `fixed`), Occurrences (date,
+run id, PR, whether a re-run fixed it), Notes; `escalated: flake-<slug>` once the board record
+exists; for a fixed entry the Fix (`#<PR number>`) and Learned (one line, the full entry is in
+`LEARNINGS.md`). A PR that fixes a flake sets `fixed (unverified)`, the status of a board record
+until its Done when is shown (5 consecutive green runs of the job on `main` after the fix's merge
+commit); `fixed` only once they are. A failure with the signature of a `fixed (unverified)` or
+`fixed` entry reopens it to `open` and adds the occurrence.
 
 ## ios-ui-route-map-press-lost
 
@@ -108,8 +112,8 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain`, first error line
   "failed - Condition not met within 2.0 seconds" (`TrackingViewModelFinishTests.swift:43`)
 - Count: 1
-- Status: fixed
-- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s)
+- Status: fixed (unverified)
+- Fix: #264 (default `waitUntil` timeout 10 s)
 - Learned: a fixed 2 s default bound in a shared wait helper fails on a loaded runner; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
 - Occurrences:
   - 2026-10-20, run 39459833673 (push to `main`, head fe41afd), re-run: no
@@ -141,8 +145,8 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   first error line "failed - Condition not met within 2.0 seconds" (`RouteViewModelPendingEventsTests.swift`,
   the last `waitUntil` of the test; two assertion failures follow from it)
 - Count: 1
-- Status: fixed
-- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s)
+- Status: fixed (unverified)
+- Fix: #264 (default `waitUntil` timeout 10 s)
 - Learned: same cause and fix as `ios-tracking-finish-failed-save-wait`; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
 - Occurrences:
   - 2026-11-10, run 42813382887 (push to `main`, merge of #240), re-run: no

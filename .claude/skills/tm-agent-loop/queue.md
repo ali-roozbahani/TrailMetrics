@@ -8,7 +8,11 @@ their headers what they read and print. This file says how the loop uses them.
 
 - **The task's own PR** is the queue's first entry: once its branch is committed and its PR
   description drafted, `scripts/queue/queue.sh add <slug> --branch <branch> --kind agent|owner`
-  and `set <slug> status=ready`; it is then pushed when `next` says `PUSH`, like any entry.
+  and `set <slug> status=ready`; it is then pushed when `next` says `PUSH`, like any entry. Add
+  the follow-ups one at a time as they are found, and read the `next:` line that `add` and `set`
+  print: after the first entry is `ready` it is `PUSH`, so the first PR is pushed before any
+  follow-up is built (in the C3 dry run all four entries were built first and the first PR waited
+  36 minutes).
 - **Every follow-up and drift the agent can do** (`tm-pr-workflow`, "Board", rule 1) is an entry
   of its own: `add <slug> --branch <type>/<slug> [--after <parent slug>] [--kind owner]`.
   `--after` only when it needs the parent's change; `--kind owner` when its PR will touch a
@@ -30,6 +34,9 @@ their headers what they read and print. This file says how the loop uses them.
 Repeat until `next` prints `DONE`, or the owner wait below runs out, or a stop condition of
 `SKILL.md` holds. Each time: `scripts/queue/queue.sh next`, then do what it says.
 
+Every `add` and `set` ends with `next: <line>`, the answer `next` would give after that change.
+Act on it: the scripts decide the order, not the plan you made earlier.
+
 - `BUILD <slug>`: `set <slug> status=building` first. Create its branch from the local `main`, or,
   for an entry with a parent, from the parent's local branch. Do the work as sections 2 and 3 say
   (code skills, sweep, board, protected paths), commit, draft its PR description with a line
@@ -39,7 +46,8 @@ Repeat until `next` prints `DONE`, or the owner wait below runs out, or a stop c
   out its branch, read what is committed, finish it as for `BUILD`.
 - `PUSH <slug>`: check out its branch, `git fetch origin`, and when the branch is behind
   `origin/main` (always for an entry with a parent, which is pushed only after the parent's merge),
-  `git merge origin/main` in its own tool call (a merge commit; never a rebase). Resolve a conflict
+  `git merge origin/main --no-edit` in its own tool call (a merge commit, which needs no attribution
+  trailer because the squash merge drops it; never a rebase). Resolve a conflict
   by keeping both changes' intent. Then the local review (section 4), the gate (section 5), the
   push and `gh pr create --base main`, then `set <slug> status=pushed pr=<N>`. When the PR opens,
   put `(#<N>)` in place of `(queue: <slug>)` in the parent's description (`scripts/set-pr-body.sh

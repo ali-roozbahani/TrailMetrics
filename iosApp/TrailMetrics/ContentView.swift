@@ -18,11 +18,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            RouteTab(
-                offer: savedSessionOffer.offer,
-                isRestoring: savedSessionOffer.isRestoring,
-                onOfferConsumed: { savedSessionOffer.offerConsumed() }
-            )
+            RouteTab(savedSessionOffer: savedSessionOffer)
                 .tabItem {
                     Label { Text("Route", bundle: .main) } icon: { Image(systemName: "map") }
                 }
@@ -85,11 +81,9 @@ private enum AppTab: Hashable {
 
 private struct RouteTab: View {
     @State private var path = NavigationPath()
-    /// The restored session to show as the Tracking screen, or nil.
-    let offer: AppRouteTracking?
-    /// Whether the stored session is still being read; the Tracking screen offers no Start until it is not.
-    let isRestoring: Bool
-    let onOfferConsumed: () -> Void
+    /// The restored session to offer as the Tracking screen and whether it is still being read; the
+    /// Tracking screen offers no Start until it has been.
+    @ObservedObject var savedSessionOffer: SavedSessionOfferModel
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -109,14 +103,14 @@ private struct RouteTab: View {
                     activityType: destination.route.selectedActivityType,
                     plannedRoutePoints: destination.route.plannedRoutePoints,
                     startPoint: destination.route.startPoint,
-                    isRestoring: isRestoring
+                    savedSessionOffer: savedSessionOffer
                 )
                 .toolbar(.hidden, for: .tabBar)
             }
-            .onChange(of: offer, initial: true) { _, offer in
+            .onChange(of: savedSessionOffer.offer, initial: true) { _, offer in
                 guard let offer else { return }
                 path.append(TrackingDestination(route: offer))
-                onOfferConsumed()
+                savedSessionOffer.offerConsumed()
             }
         }
     }

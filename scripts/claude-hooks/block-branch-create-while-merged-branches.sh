@@ -309,7 +309,11 @@ case "$RC" in
         {
             echo "Blocked: a local branch whose PR is merged is still here, so no new branch can be created yet."
             echo "$OUTPUT"
-            echo "Run scripts/prune-merged-branches.sh (it deletes the merged ones and keeps open or PR-less branches), then create the branch."
+            echo "Run, as a command of its own (the hook checks before the whole command runs, so"
+            echo "'scripts/prune-merged-branches.sh && git switch -c ...' in one command is blocked too):"
+            echo "  scripts/prune-merged-branches.sh"
+            echo "It deletes the merged ones and keeps open or PR-less branches. Then create the branch in the next command:"
+            echo "  git switch -c <feature|bugfix|chore>/<slug>"
             echo "Name the OPEN and NO_PR lines it prints in your report (tm-pr-workflow, \"Before starting\")."
         } >&2
         exit 2

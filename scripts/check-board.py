@@ -9,10 +9,17 @@ the stock python3 of macOS and ubuntu-latest without installing anything.
   check-board.sh --next       print the first record in Order whose After slugs are all gone
   check-board.sh --self-test  run the fixtures in scripts/check-board-fixtures/
   --root <dir>                check another tree (used by the fixtures); default: repo root
+  --base <rev>                also fail when the slug of a record that BOARD.md has at <rev> and
+                              no longer has is still named in any other file (docs/epics/ only
+                              prints a notice). The gate passes the merge-base with origin/main; in
+                              a pull_request run of GitHub Actions without --base the base branch is
+                              fetched (depth 1), so CI needs no extra flag.
+  --base-board <file>         the same with the old BOARD.md read from a file (the fixtures)
 
 The record format is described in BOARD.md's header; the rules in tm-pr-workflow → "Board".
 """
 
+import os
 import re
 import shutil
 import subprocess
@@ -227,6 +234,71 @@ def check_mentions(root, records, problems, notices):
                         problems.append(message)
 
 
+SKIP_DIRS = {".git", "build", ".gradle", ".build", "node_modules", "DerivedData", "Pods"}
+
+
+def candidate_files(root):
+    """Tracked files when root is a git work tree, else a walk; fixtures and build output skipped."""
+    files = []
+    result = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True)
+    if result.returncode == 0 and result.stdout and (root / ".git").exists():
+        files = [root / name for name in result.stdout.decode("utf-8", "replace").split("\0") if name]
+    else:
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+            files += [Path(dirpath) / name for name in filenames]
+    kept = []
+    for path in files:
+        parts = path.relative_to(root).parts
+        if any(part.endswith("-fixtures") for part in parts[:-1]) or not path.is_file():
+            continue
+        kept.append(path)
+    return kept
+
+
+def check_deleted_slugs(root, records, base_text, problems, notices):
+    """A record deleted since the base: its slug must not be named in any other file."""
+    base_slugs = {r.slug for r in parse_board(base_text, [])}
+    gone = sorted(base_slugs - {r.slug for r in records})
+    if not gone:
+        return
+    patterns = {slug: re.compile(r"(?<![\w-])" + re.escape(slug) + r"(?![\w-])") for slug in gone}
+    for path in candidate_files(root):
+        rel = path.relative_to(root)
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for number, line in enumerate(text.splitlines(), start=1):
+            for slug, pattern in patterns.items():
+                if pattern.search(line):
+                    message = (f"{rel}:{number}: names `{slug}`, a board record deleted since the "
+                               f"base; remove or reword the mention")
+                    if HISTORICAL_PLAN_DIR in rel.parents:
+                        notices.append(f"notice: {message} (historical plan, not a failure)")
+                    else:
+                        problems.append(message)
+
+
+def base_board_text(root, base, base_board, auto_base):
+    """The old BOARD.md: from a file, from a revision, or (pull_request run without --base) from
+    the base branch fetched at depth 1. None when no base applies (a local run without --base)."""
+    if base_board:
+        return Path(base_board).read_text(encoding="utf-8")
+    if not base and auto_base and os.environ.get("GITHUB_EVENT_NAME") == "pull_request" and os.environ.get("GITHUB_BASE_REF"):
+        fetch = subprocess.run(["git", "-C", str(root), "fetch", "--no-tags", "--quiet", "--depth=1",
+                                "origin", os.environ["GITHUB_BASE_REF"]], capture_output=True, text=True)
+        if fetch.returncode != 0:
+            raise RuntimeError("cannot fetch the base branch: " + fetch.stderr.strip())
+        base = "FETCH_HEAD"
+    if not base:
+        return None
+    show = subprocess.run(["git", "-C", str(root), "show", f"{base}:BOARD.md"], capture_output=True, text=True)
+    if show.returncode != 0:
+        raise RuntimeError(f"cannot read BOARD.md at {base}: {show.stderr.strip()}")
+    return show.stdout
+
+
 def next_record(records):
     open_slugs = {r.slug for r in records}
     candidates = sorted((r for r in records if r.order is not None), key=lambda r: r.order)
@@ -236,7 +308,7 @@ def next_record(records):
     return None
 
 
-def run_check(root, want_next):
+def run_check(root, want_next, base=None, base_board=None, auto_base=False):
     board = root / "BOARD.md"
     if not board.is_file():
         print(f"check-board: {board} not found", file=sys.stderr)
@@ -262,6 +334,13 @@ def run_check(root, want_next):
     check_order(records, problems)
     check_line_numbers(text, problems)
     check_mentions(root, records, problems, notices)
+    try:
+        base_text = base_board_text(root, base, base_board, auto_base)
+    except (RuntimeError, OSError) as error:
+        print(f"check-board: {error}", file=sys.stderr)
+        return 2
+    if base_text is not None:
+        check_deleted_slugs(root, records, base_text, problems, notices)
     for notice in notices:
         print(notice)
     for problem in problems:
@@ -275,7 +354,8 @@ def run_check(root, want_next):
 
 def self_test(script_dir):
     """Each fixture dir holds a BOARD.md (plus any docs) and an `expect` file:
-    `args: ...`, `exit: N`, `contains: text` and `absent: text` lines. A fixture's skills live
+    `args: ...`, `exit: N`, `contains: text` and `absent: text` lines (`{BASE}` in args is the fixture's
+    `base-BOARD.md`, the BOARD.md of the base, kept out of the tree under check). A fixture's skills live
     in `dot-claude/` so Claude Code never loads them; the fixture is checked from a temporary
     copy where it is renamed to `.claude/`."""
     fixtures = sorted(p for p in (script_dir / "check-board-fixtures").iterdir() if p.is_dir())
@@ -298,7 +378,13 @@ def self_test(script_dir):
             shutil.copytree(fixture, tree)
             if (tree / "dot-claude").is_dir():
                 (tree / "dot-claude").rename(tree / ".claude")
-            result = subprocess.run(["bash", str(entry), "--root", str(tree)] + args,
+            # The old BOARD.md and `expect` are not part of the tree under check.
+            base_file = Path(tmp) / "base-BOARD.md"
+            if (tree / "base-BOARD.md").exists():
+                shutil.move(str(tree / "base-BOARD.md"), str(base_file))
+            (tree / "expect").unlink()
+            run_args = [a.replace("{BASE}", str(base_file)) for a in args]
+            result = subprocess.run(["bash", str(entry), "--root", str(tree)] + run_args,
                                     capture_output=True, text=True)
         output = result.stdout + result.stderr
         errors = []
@@ -319,6 +405,9 @@ def main(argv):
     script_dir = Path(__file__).resolve().parent
     root = script_dir.parent
     want_next = False
+    base = None
+    base_board = None
+    auto_base = True  # the base branch is fetched in a pull_request run only for the repo itself, not for --root
     args = list(argv)
     while args:
         arg = args.pop(0)
@@ -326,13 +415,18 @@ def main(argv):
             want_next = True
         elif arg == "--self-test":
             return self_test(script_dir)
+        elif arg == "--base" and args:
+            base = args.pop(0)
+        elif arg == "--base-board" and args:
+            base_board = args.pop(0)
         elif arg == "--root" and args:
             root = Path(args.pop(0)).resolve()
+            auto_base = False
         else:
-            print(f"usage: check-board.sh [--next] [--self-test] [--root <dir>] (got '{arg}')",
+            print(f"usage: check-board.sh [--next] [--self-test] [--root <dir>] [--base <rev>] (got '{arg}')",
                   file=sys.stderr)
             return 2
-    return run_check(root, want_next)
+    return run_check(root, want_next, base, base_board, auto_base)
 
 
 if __name__ == "__main__":

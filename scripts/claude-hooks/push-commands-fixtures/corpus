@@ -53,3 +53,24 @@ nopush git merge origin/main
 nopush git rebase origin/main
 nopush gh pr view 12
 nopush ls
+push git push -u origin HEAD 2>&1 | tail -5
+push git push origin HEAD > out.txt 2>&1
+push git push &>/dev/null
+push gh pr create --base main --body-file b.md 2>&1 | tail -3
+push git status >$(git push origin x)
+push ls > "$(git push origin x)"
+push ls >> $(git push origin x)
+push echo hi 2>$(git push origin x)
+push git status &>$(git push -u origin HEAD)
+push ls >"`git push origin x`"
+push ls > $(gh pr create --base main)
+push ls > "$(gh pr create --base main)"
+push git push origin HEAD >/dev/null 2>&1
+push git push origin HEAD > "out file.txt" 2>&1
+push git push origin HEAD >>log.txt
+push git push origin HEAD 2>log.txt | tail -3
+push cat < <(git push origin x)
+nopush ls > out.txt
+nopush git status 2>&1 | tail -3
+nopush git log --oneline >$(mktemp)
+nopush git log > "$(mktemp)"
