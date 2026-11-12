@@ -145,13 +145,12 @@ scripts/wait-for-checks.sh <PR number>
 ```
 
 It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
-check run of the head SHA is `completed`, or `Review — pr-reviewer` has failed (early-failure
-exit below). It exits with one line per check run (name, status, conclusion) and a last line:
+check run of the head SHA is `completed`, or any check run has failed (early-failure exit below).
+It exits with one line per check run (name, status, conclusion) and a last line:
 
 - `ALL_GREEN` (exit 0).
-- `FAILED <names>` (exit 1).
-- `FAILED Review — pr-reviewer[; still running: <names>][; missing: <names>]` (exit 1): the
-  early-failure exit below.
+- `FAILED <names>[; still running: <names>][; missing: <names>]` (exit 1): at least one check run
+  failed. With `still running:` other jobs go on; this is the early-failure exit below.
 - `TIMEOUT <names still running>[; missing: <names>]` (exit 1).
 - `SUPERSEDED <new sha>` (exit 1): a newer push changed the PR head, so watch that SHA instead.
 
@@ -181,16 +180,35 @@ and the reason, and never read a credential to find out. For any other failed jo
    - (c) something else: runner, cache, toolchain.
 3. For (b) and (c), re-run the failed jobs once for that SHA, only through
    `scripts/rerun-failed-once.sh <run id>`. It refuses when `run_attempt` is already 2 or more,
-   when the run is not completed or its conclusion is not failure. Then watch again. A green
-   re-run of a (b) is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
+   when the run is not completed or its conclusion is not failure. GitHub lets a failed job be
+   re-run only once its whole run has completed, so the earliest moment is the end of the
+   slowest job: wait for it with `scripts/wait-for-checks.sh --until-complete <PR number>` (only
+   the reviewer's failure ends that wait early), then re-run, then watch again. A green re-run
+   of a (b) is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
 4. A second failure of the same SHA, or a refusal of the script: stop and report the run URL,
    the failing step and test, and the class; never re-run again.
 
-**Early-failure exit.** `FAILED Review — pr-reviewer; still running: ...` (it is also what
-`--review-first` prints for a failed reviewer) means the review failed early. Do not wait for the
-running jobs. Read the verdict with `scripts/read-ci-verdict.sh` (section 7) at once and go on as
-for `CHANGES` or `UNKNOWN`; after `CHANGES` the running jobs belong to a head that the fix will
-replace.
+**Early-failure exit.** `FAILED <names>; still running: ...` means a check failed while other
+jobs of the head SHA still run (a failed job of a run ends the wait at once; the failed job's name
+is in the line). Do not wait for the running jobs: act on the failed one now.
+
+- `Review — pr-reviewer` (also what `--review-first` prints for a failed reviewer): read the
+  verdict with `scripts/read-ci-verdict.sh` (section 7) and go on as for `CHANGES` or `UNKNOWN`;
+  after `CHANGES` the running jobs belong to a head that the fix will replace.
+- Any other job: read its log now (steps 1 and 2 above). While the run goes on `gh run view <run id>
+  --log-failed` refuses ("still in progress"), but the log of the finished job is readable: the job
+  id is the check run's id, `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<job id>/logs
+  | sed 's/\[[0-9;]*[A-Za-z]//g'`. Find the root cause.
+  - A defect in the PR (class a): fix it as a new commit through the normal flow (review, gate,
+    push) at once, without waiting for the other jobs. The push cancels the CI of the old head for a
+    pull request (`ci.yml`, `pr-review.yml`: `cancel-in-progress`), so nothing is lost by not waiting;
+    the old head's cancelled runs are expected (the `SUPERSEDED` rule). The push counts as one of the
+    2 CI-fix rounds.
+  - A flake or infrastructure (b, c): no push. Re-running needs the run to be completed, so wait
+    with `--until-complete` and then re-run once (step 3). Do not cancel the run to re-run sooner
+    (never cancel a CI run).
+  - Not decided from the log: do not guess; wait with `--until-complete` and report as step 4 says
+    if it is still unclear.
 
 **A finding that contradicts a decision.** When a finding (or `ESCALATE_TO_HUMAN` reason)
 contradicts a decision written in the task, a hard rule or the owner's words, do not dispose it
