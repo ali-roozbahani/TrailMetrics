@@ -138,6 +138,11 @@ run_step "protected paths" scripts/check-protected-paths.sh --validate
 # scripts/README.md indexes every script under scripts/ (one line each). Same as CI's tooling job.
 run_step "scripts index check" scripts/checks/scripts-index.sh --check
 
+# The list of heavy scripts (scripts/classify-changes.sh) must name every script that a build or test
+# step runs, or a script change would be called light by mistake. In CI `classify-changes.sh --github`
+# runs the same check first and fails its step.
+run_step "heavy scripts check" scripts/check-heavy-scripts.sh
+
 # Script self-tests: the one list, scripts/checks/self-tests.list, which CI runs too. Its check
 # fails when a script with a --self-test is not on it. One gate step per line, so the output
 # still names each self-test; the list is read on fd 3, so a self-test cannot read it from

@@ -13,6 +13,7 @@ tooling	PR base self-test	scripts/ci/pr-base.sh
 tooling	scripts index self-test	scripts/checks/scripts-index.sh
 tooling	protected paths self-test	scripts/check-protected-paths.sh
 tooling	change classification self-test	scripts/classify-changes.sh
+tooling	heavy scripts check self-test	scripts/check-heavy-scripts.sh
 tooling	reviewer workflow self-test	scripts/check-pr-review-workflow.sh
 tooling	skill rule-change self-test	scripts/check-skill-rule-changes.sh
 tooling	kover floors self-test	scripts/check-kover-floors.sh

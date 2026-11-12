@@ -1,0 +1,6 @@
+decision: light
+contains: scripts/queue/queue.sh  (scripts/**)
+contains: scripts/subagent/worktree.sh  (scripts/**)
+contains: scripts/claude-hooks/block-git-push.sh  (scripts/**)
+contains: scripts/README.md  (*.md)
+absent: heavy script

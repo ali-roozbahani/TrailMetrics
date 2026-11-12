@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Change classification: does a diff need the full CI and gate run, or only the board and
-# protected-path checks? This script is the one place that decides it. CI's android and
+# Change classification: does a diff need the full CI and gate run, or only the checks that
+# always run (board, protected paths, scripts index, script self-tests, Kover floors, Room schema)?
+# A diff is `light` when none of its files can affect the Android or iOS build or their tests: docs,
+# skills and agent files, CODEOWNERS and the reviewer's workflow, and the tooling scripts under
+# scripts/ that no app job runs. This script is the one place that decides it. CI's android and
 # ios-plan jobs call it with --github, scripts/pre-push-check.sh with --base.
 #
 #   scripts/classify-changes.sh --base <ref>       files of `git diff --no-renames <ref> HEAD`
@@ -19,13 +22,22 @@
 #
 # Output (read by the callers, keep it stable): the first line is `light` or `full`. For
 # `light`, one line per file as `<file>  (<allowlist entry>)`. For `full`, one line per file
-# that made it full as `<file>  (not on the allowlist)`, or one line `(no file list: <reason>)`.
-# Exit 0 for both; exit 2 for a usage error or a --github run that could not write its output
-# (stdout still starts with `full`).
+# that made it full as `<file>  (not on the allowlist)` or `<file>  (heavy script: <entry>)`, or
+# one line `(no file list: <reason>)`.
+# Exit 0 for both; exit 2 for a usage error, for a --github run that could not write its output, and
+# for a --github run in which scripts/check-heavy-scripts.sh failed (stdout still starts with `full`,
+# the decision written is `full`, and the CI step fails).
 #
-# Fail safe: `light` only when the file list was computed without an error, is not empty, and
-# every file in it matches an allowlist entry. Anything else is `full`. Callers treat anything
-# but exit 0 with a first line of exactly `light` as `full` too.
+# Fail safe: `light` only when the file list was computed without an error, is not empty, every
+# file in it matches an allowlist entry and none matches a heavy-script entry. Anything else is
+# `full`. Callers treat anything but exit 0 with a first line of exactly `light` as `full` too.
+#
+# Scripts. `scripts/**` is on the allowlist, so a change to a tooling script is light, except the
+# scripts on HEAVY_SCRIPTS below: those that the Android or iOS jobs, Gradle, the Xcode project or the
+# gate's build steps start (directly or through another heavy script), that decide this very
+# classification, or whose self-test runs only in the iOS job. A heavy entry wins over the
+# allowlist. `scripts/check-heavy-scripts.sh` fails when something that those steps start is not on the
+# list, so a script added later is not missed silently; `--github` runs it first (below).
 #
 # Bash 3.2 (macOS /bin/bash) compatible; needs nothing but git.
 set -uo pipefail
@@ -45,6 +57,46 @@ ALLOWLIST=(
     '.claude/**'
     '.github/CODEOWNERS'
     '.github/workflows/pr-review.yml'
+    'scripts/**'
+)
+
+# The scripts that stay full although scripts/** is allowlisted (same three forms). Why each is here:
+#   build-kmp-framework.sh   run by the Xcode project's build phases and scheme pre-actions, by CI's iOS jobs
+#                            and by the gate's iOS steps; it runs check-variant-api.sh
+#   check-variant-api.sh     run by build-kmp-framework.sh --variant uitest
+#   check-production-framework.sh   a step of CI's iOS job; its self-test runs only there (group macos)
+#   check-room-schema.*      `--check-export-fresh` is a step after the Android build, in CI and the gate
+#   check-localized-strings.*, check-optional-try.*   SwiftLint rules; their self-tests run only in
+#                            CI's iOS job (group ios-swiftlint)
+#   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment
+#   pre-push-check.sh        the gate itself: a change to it is exercised by running it in full
+#   heavy-run.sh             the gate starts itself under it and Gradle runs go through it
+#   classify-changes.sh      this script and its fixtures (a wrong list would make everything light)
+#   ci/**                    pr-base.sh, which the classification and CI's base-comparing steps use
+#   checks/**                self-tests.sh and self-tests.list: what the iOS job runs
+#   check-heavy-scripts.*    the check that keeps this list complete; `--github` runs it
+# Keep the list in step with what runs: scripts/check-heavy-scripts.sh checks it.
+HEAVY_SCRIPTS=(
+    'scripts/build-kmp-framework.sh'
+    'scripts/check-variant-api.sh'
+    'scripts/check-variant-api-fixtures/**'
+    'scripts/check-production-framework.sh'
+    'scripts/check-room-schema.sh'
+    'scripts/check-room-schema.py'
+    'scripts/check-localized-strings.sh'
+    'scripts/check-localized-strings-fixtures/**'
+    'scripts/check-optional-try.sh'
+    'scripts/check-optional-try-fixtures/**'
+    'scripts/filter-xcode-log.sh'
+    'scripts/scrub-env.sh'
+    'scripts/pre-push-check.sh'
+    'scripts/heavy-run.sh'
+    'scripts/classify-changes.sh'
+    'scripts/classify-changes-fixtures/**'
+    'scripts/ci/**'
+    'scripts/checks/**'
+    'scripts/check-heavy-scripts.sh'
+    'scripts/check-heavy-scripts.py'
 )
 
 # Returns 0 when path $2 matches allowlist entry $1, 1 when it does not, 2 when the entry has
@@ -74,7 +126,14 @@ entry_matches() {
 
 # Classifies the NUL-separated paths in file $1 and prints the result (format in the header).
 classify_list() {
-    local list="$1" path entry matched rc count=0 light_lines="" full_lines=""
+    local list="$1" path entry matched rc count=0 light_lines="" full_lines="" heavy
+    for entry in "${HEAVY_SCRIPTS[@]}"; do
+        entry_matches "$entry" "x"
+        if [ $? -eq 2 ]; then
+            printf 'full\n(no file list: heavy-script entry %s has no supported form)\n' "$entry"
+            return 0
+        fi
+    done
     for entry in "${ALLOWLIST[@]}"; do
         entry_matches "$entry" "x"
         if [ $? -eq 2 ]; then
@@ -85,15 +144,27 @@ classify_list() {
     while IFS= read -r -d '' path; do
         count=$((count + 1))
         matched=""
-        for entry in "${ALLOWLIST[@]}"; do
+        heavy=""
+        for entry in "${HEAVY_SCRIPTS[@]}"; do
             entry_matches "$entry" "$path"
-            rc=$?
-            if [ "$rc" -eq 0 ]; then
-                matched="$entry"
+            if [ $? -eq 0 ]; then
+                heavy="$entry"
                 break
             fi
         done
-        if [ -n "$matched" ]; then
+        if [ -z "$heavy" ]; then
+            for entry in "${ALLOWLIST[@]}"; do
+                entry_matches "$entry" "$path"
+                rc=$?
+                if [ "$rc" -eq 0 ]; then
+                    matched="$entry"
+                    break
+                fi
+            done
+        fi
+        if [ -n "$heavy" ]; then
+            full_lines="$full_lines$path  (heavy script: $heavy)"$'\n'
+        elif [ -n "$matched" ]; then
             light_lines="$light_lines$path  ($matched)"$'\n'
         else
             full_lines="$full_lines$path  (not on the allowlist)"$'\n'
@@ -144,7 +215,14 @@ classify_files() {
 # from interpolated event text. scripts/ci/pr-base.sh validates and fetches the base, as it does
 # for CI's other base-comparing steps; this function only words its answer.
 github_mode() {
-    local result decision=full event="${EVENT_NAME:-}" base rc
+    local result decision=full event="${EVENT_NAME:-}" base rc heavy_report="" heavy_failed=0
+    # The list of heavy scripts must be complete before any decision is trusted (see the header).
+    if [ -x "$SCRIPT_DIR/check-heavy-scripts.sh" ]; then
+        heavy_report="$("$SCRIPT_DIR/check-heavy-scripts.sh" --root "$ROOT" 2>&1)" || heavy_failed=1
+    else
+        heavy_report="scripts/check-heavy-scripts.sh is missing or not executable"
+        heavy_failed=1
+    fi
     base="$("$SCRIPT_DIR/ci/pr-base.sh" --root "$ROOT" 2>/dev/null)"
     rc=$?
     case "$rc" in
@@ -162,6 +240,10 @@ github_mode() {
         *) result="full"$'\n'"(no file list: scripts/ci/pr-base.sh exited $rc)" ;;
     esac
     [ "${result%%$'\n'*}" = "light" ] && decision=light
+    if [ "$heavy_failed" = 1 ]; then
+        decision=full
+        result="full"$'\n'"(heavy-scripts check failed: every change is full until it passes)"
+    fi
     printf '%s\n' "$result"
     if [ -z "${GITHUB_OUTPUT:-}" ] || ! printf 'decision=%s\n' "$decision" >>"$GITHUB_OUTPUT"; then
         echo "classify-changes: could not write to GITHUB_OUTPUT" >&2
@@ -171,12 +253,21 @@ github_mode() {
         {
             printf '### Change classification: %s\n\n' "$decision"
             if [ "$decision" = light ]; then
-                printf 'Every changed file is on the non-source allowlist, so the heavy steps are skipped.\n\n'
+                printf 'No changed file can affect the Android or iOS build or tests, so the heavy steps are skipped.\n\n'
             else
                 printf 'All steps run.\n\n'
             fi
             printf '%s\n' "$result" | sed 's/^/    /'
+            if [ "$heavy_failed" = 1 ]; then
+                printf '\nThe heavy-scripts check failed:\n\n%s\n' "$heavy_report" | sed 's/^/    /'
+            fi
         } >>"$GITHUB_STEP_SUMMARY" || true
+    fi
+    if [ "$heavy_failed" = 1 ]; then
+        # Fail the CI step (the decision above is already full and written): the list of heavy scripts
+        # is incomplete, which is a defect of the repository, not of the pull request's size.
+        printf '%s\n' "classify-changes: heavy-scripts check failed:" "$heavy_report" >&2
+        return 2
     fi
     return 0
 }
@@ -184,7 +275,8 @@ github_mode() {
 # --- Self-test -------------------------------------------------------------------------------
 # Each directory in scripts/classify-changes-fixtures/ is one case:
 #   changes  (optional) one change per line, fields separated by a tab: `A <path>`, `M <path>`,
-#            `D <path>` or `R <old path> <new path>`. The case runs in a temporary git
+#            `D <path>` or `R <old path> <new path>`. A `files/` directory next to it is copied into
+#            the repository as it is before the base commit. The case runs in a temporary git
 #            repository with a base commit (holding every path that is modified, deleted or
 #            renamed) and a head commit (the changes applied). No changes: head is empty.
 #   expect   `args: ...` (default `--base {BASE}`), `env: NAME=VALUE`, `setup: shallow` (run in
@@ -202,6 +294,10 @@ make_fixture_repo() {
     local repo="$1" changes="$2" op a b
     git init -q "$repo" || return 1
     echo seed >"$repo/seed.txt"
+    # files/ (optional, next to `changes`): files that exist in the base commit as they are.
+    if [ -d "$(dirname "$changes")/files" ]; then
+        cp -R "$(dirname "$changes")/files/." "$repo/" || return 1
+    fi
     if [ -f "$changes" ]; then
         while IFS=$'\t' read -r op a b || [ -n "$op" ]; do
             case "$op" in

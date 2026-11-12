@@ -1,0 +1,3 @@
+decision: light
+contains: scripts/build-kmp-framework.sh.orig  (scripts/**)
+contains: scripts/ci-extra/x.sh  (scripts/**)
