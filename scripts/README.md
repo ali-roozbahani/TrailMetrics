@@ -57,6 +57,11 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/queue/merge-only-check.sh`: proves a merge commit only moved its branch's base.
 - `scripts/queue/local-verdict-for-head.sh`: the local review that holds for a PR head over merge-only updates.
 
+## Subagents (the orchestrator's tools, `tm-agent-loop`, "Subagents")
+
+- `scripts/subagent/worktree.sh`: creates an implementer's git worktree from a local branch with its allowed paths, takes its commits back into the task branch, removes it.
+- `scripts/subagent/guard.sh`: the implementer's own PreToolUse hook (its agent file names it): keeps it in its worktree and allowed paths, off push, `gh` and the orchestrator's scripts.
+
 ## Claude Code hooks (named by `.claude/settings.json`)
 
 - `scripts/claude-hooks/block-git-push.sh`: blocks a push or PR creation without a fresh gate pass, a verdict and the `gh` credential helper.
