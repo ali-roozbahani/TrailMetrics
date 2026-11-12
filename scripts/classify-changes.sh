@@ -45,7 +45,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# The non-source allowlist. Each entry has one of three forms, compared literally (no glob,
+# The allowlist of changes that cannot affect the builds. Each entry has one of three forms, compared literally (no glob,
 # no substring):
 #   <dir>/**   every path that starts with `<dir>/`
 #   *<suffix>  every path whose file name (after the last `/`) ends with <suffix>, at any depth
