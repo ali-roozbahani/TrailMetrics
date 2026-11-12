@@ -42,7 +42,8 @@ extension TrackingFixtures {
             lastUpdateElapsedRealtimeMillis: 60_000,
             distanceMeters: 220,
             path: path,
-            currentSpeedMetersPerSecond: nil
+            currentSpeedMetersPerSecond: nil,
+            awaitingFirstFixAfterResume: false
         )
     }
 
