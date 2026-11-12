@@ -105,7 +105,9 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   `TrackingViewModelFinishTests.test_onFinishClicked_afterFailedSave_savesAgain`, first error line
   "failed - Condition not met within 2.0 seconds" (`TrackingViewModelFinishTests.swift:43`)
 - Count: 1
-- Status: open
+- Status: fixed
+- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s)
+- Learned: a fixed 2 s default bound in a shared wait helper fails on a loaded runner; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
 - Occurrences:
   - 2026-10-20, run 39459833673 (push to `main`, head fe41afd), re-run: no
 - Notes: the test took 16.1 s on this run. `iosApp/Packages/Tracking` did not change between
@@ -136,12 +138,28 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   first error line "failed - Condition not met within 2.0 seconds" (`RouteViewModelPendingEventsTests.swift`,
   the last `waitUntil` of the test; two assertion failures follow from it)
 - Count: 1
-- Status: open
+- Status: fixed
+- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s)
+- Learned: same cause and fix as `ios-tracking-finish-failed-save-wait`; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
 - Occurrences:
   - 2026-11-10, run 42813382887 (push to `main`, merge of #240), re-run: no
 - Notes: the test ran 29.9 s; the other 42 Route tests and the History and Tracking packages passed in
   the same run. The Swift sources are those of run 42812119886 (#239, green): the diff from 43be50a to
   267e720 is `BOARD.md` only. Cause class: the wait is `waitUntil`'s default fixed 2.0 s bound on a loaded
   runner, with the same first error line and cause as `ios-tracking-finish-failed-save-wait` (another test
-  and package) and the board record `ios-tracking-finish-test-fixed-wait`, which names only the Tracking
-  Finish test. Why the runner was slow is not shown.
+  and package) and the former board record of the Tracking Finish test (deleted by the fix), which named only that test. Why the runner was slow is not shown.
+
+## ios-route-draft-read-wait
+
+- Signature: job `iOS 2b — lint, app build, package tests`, step `Run iOS package tests`, test
+  `RouteViewModelDraftTests.test_failingRead_startsEmptyPlanWithoutErrorAndKeepsStoredRow`, first
+  error line "failed - Condition not met within 2.0 seconds"
+- Count: 1
+- Status: fixed
+- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s); this PR
+  also fixes this entry
+- Learned: same cause and fix as `ios-tracking-finish-failed-save-wait`; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
+- Occurrences:
+  - 2026-11-12, run 43123250071 (push to `main`, merge of #262), re-run: no. The test took 14.3 s.
+- Notes: the merge of #262 changed scripts and skills, no Swift source; the same fixed 2.0 s default
+  bound as `ios-route-pending-events-wait` and `ios-tracking-finish-failed-save-wait`.

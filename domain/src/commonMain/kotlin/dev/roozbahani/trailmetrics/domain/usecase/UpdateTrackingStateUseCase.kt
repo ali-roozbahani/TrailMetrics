@@ -53,7 +53,8 @@ class UpdateTrackingStateUseCase {
         return when (currentState) {
             is TrackingState.Paused -> TrackingState.Tracking(
                 currentState.metrics.copy(
-                    lastUpdateElapsedRealtimeMillis = resumeEvent.elapsedRealtimeMillis
+                    lastUpdateElapsedRealtimeMillis = resumeEvent.elapsedRealtimeMillis,
+                    awaitingFirstFixAfterResume = true
                 )
             )
 
@@ -75,7 +76,12 @@ class UpdateTrackingStateUseCase {
     ): TrackingState {
         return when (currentState) {
             is TrackingState.Tracking -> {
-                val deltaDistance = currentState.metrics.path.last().distanceTo(newEvent.coordinates)
+                // The first fix after a Resume does not count the jump made while paused.
+                val deltaDistance = if (currentState.metrics.awaitingFirstFixAfterResume) {
+                    0.0
+                } else {
+                    currentState.metrics.path.last().distanceTo(newEvent.coordinates)
+                }
                 // The contract is monotonic input (Clock.elapsedRealtimeMillis), so this is never
                 // negative in practice; the clamp keeps this pure function safe for any caller.
                 val deltaTime = (newEvent.elapsedRealtimeMillis - currentState.metrics.lastUpdateElapsedRealtimeMillis)
@@ -86,7 +92,8 @@ class UpdateTrackingStateUseCase {
                     lastUpdateElapsedRealtimeMillis = newEvent.elapsedRealtimeMillis,
                     distanceMeters = currentState.metrics.distanceMeters + deltaDistance,
                     path = currentState.metrics.path + newEvent.coordinates,
-                    currentSpeedMetersPerSecond = newEvent.speedMetersPerSecond
+                    currentSpeedMetersPerSecond = newEvent.speedMetersPerSecond,
+                    awaitingFirstFixAfterResume = false
                 )
 
                 TrackingState.Tracking(newMetrics)

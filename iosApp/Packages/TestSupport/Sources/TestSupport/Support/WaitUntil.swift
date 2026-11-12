@@ -11,6 +11,12 @@ import XCTest
 /// that. Every later wait keeps its own `timeout`, so a hung wait still fails fast there.
 private let coldStartTimeout: Duration = .seconds(120)
 
+/// The default `timeout` of `waitUntil` and `waitUntilOnlyReference`: 10 s, the bound `tm-testing`
+/// gives every UI-test wait (D5, `waitForExistence(timeout: 10)`). The old 2 s failed on loaded CI
+/// runners ("Condition not met within 2.0 seconds", 14.3 s and 29.9 s tests) with no code change.
+/// A wait that succeeds returns as soon as its condition holds, so only a failing wait is slower.
+public let defaultWaitTimeout: Duration = .seconds(10)
+
 /// Whether a `waitUntil` has started in this test process. Each package's `xcodebuild test`
 /// is its own process, so each package's first wait gets `coldStartTimeout`.
 @MainActor private var hasWaitStarted = false
@@ -21,7 +27,7 @@ private let coldStartTimeout: Duration = .seconds(120)
 /// observable outcome (published state, a fake's recorded calls), never on a fixed delay.
 @MainActor
 public func waitUntil(
-    timeout: Duration = .seconds(2),
+    timeout: Duration = defaultWaitTimeout,
     file: StaticString = #filePath,
     line: UInt = #line,
     _ condition: () -> Bool
@@ -48,7 +54,7 @@ public func waitUntil(
 @MainActor
 public func waitUntilOnlyReference<Object: AnyObject>(
     _ object: inout Object,
-    timeout: Duration = .seconds(2),
+    timeout: Duration = defaultWaitTimeout,
     file: StaticString = #filePath,
     line: UInt = #line
 ) async {
