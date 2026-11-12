@@ -116,8 +116,7 @@ from memory.
    bullet with none is blocking. Each `BOARD.md` record the diff adds states in its Problem one
    of the reasons rule 1 admits (owner decision or design, an epic or its final board PR's
    records, only the owner can push it,
-   the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3, an
-   `[important]` finding the PR does not fix);
+   the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3);
    a record whose only reason is that the agent could do it, and a record or follow-up whose
    reason is a same-subject fix within the sweep bound, are blocking; a record the task
    started from is deleted in its own commit (`chore(board): remove <slug>`); no `After` or
@@ -361,7 +360,8 @@ The implementing session runs this before every push, after its last commit and 
    human decides; say why the reviewer escalated. Each `[important]` finding of the local report
    and of the CI report gets one disposition, one line each, under the heading `Reviewer
    findings` (`tm-pr-workflow`, "PR description"), before the PR is merged: `fixed in <sha>` |
-   `board record <slug>` (the record has its reason line) | `rejected: <reason a human can
-   check>`. Before the push, write the local ones with `scripts/local-review-gate.sh disposition
+   `board record <slug>` (the record has its reason line) | `queued <slug>` (a PR of its own, an
+   entry of the local queue; the gate checks that the entry exists, not that it fixes the finding)
+   | `rejected: <reason a human can check>`. Before the push, write the local ones with `scripts/local-review-gate.sh disposition
    <sha> '<disposition>' ...` (one argument per finding, in report order); the push hook needs
    them.
