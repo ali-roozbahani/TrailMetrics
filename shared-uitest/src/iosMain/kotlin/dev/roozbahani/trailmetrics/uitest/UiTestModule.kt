@@ -16,9 +16,6 @@ import org.koin.dsl.module
  * nothing resolves the Room database, the iOS location repository, the HTTP client or the
  * user-defaults storage, so Koin (whose singles are lazy) never creates them.
  */
-private fun UiTestScenario.storedSession(): StoredTrackingSession? =
-    if (storesPausedSession) UiTestFixtures.pausedSession else null
-
 internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestControls): Module = module {
     single<LocationRepository> { UiTestLocationRepository(walksRoute = scenario.walksRoute) }
     single<TrackingServiceLauncher> { UiTestTrackingServiceLauncher() }
@@ -28,3 +25,6 @@ internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestCont
     single<ActivityHistoryRepository> { UiTestActivityHistoryRepository(scenario, controls) }
     single<UserProfileRepository> { UiTestUserProfileRepository() }
 }
+
+private fun UiTestScenario.storedSession(): StoredTrackingSession? =
+    if (storesPausedSession) UiTestFixtures.pausedSession else null
