@@ -591,15 +591,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: one PR per folder, each moving its scripts with their `*-fixtures/` folders and fixing every reference, with `scripts/README.md`, `scripts/checks/self-tests.list` and `CODEOWNERS` (a folder line in place of the per-script lines) updated and `check-protected-paths.sh --validate` passing: (1) `checks/`: `classify-changes` and every `check-*` (`.sh`, `.py`, fixtures); (2) `review/`: `review-task`, `local-review-gate`, `skill-changes-digest`, `set-pr-body`; (3) `ci/`: `wait-for-checks`, `read-ci-verdict`, `rerun-failed-once`, `main-ci-status`; (4) `dev/`: `filter-xcode-log`, `scrub-env`, `prune-merged-branches`, `simulate-route` with `routes/`. `pre-push-check.sh`, `build-kmp-framework.sh` and `claude-hooks/` stay where they are: `CLAUDE.md` and every skill name the gate; the Xcode project, its schemes and the Gradle and Kotlin sources name the framework build; `.claude/settings.json` names the hooks, and only the owner edits it.
 - Refs: `scripts/README.md`; `scripts/checks/self-tests.list`; `.github/CODEOWNERS`; `.github/workflows/ci.yml`; `.claude/settings.json`.
 
-### queue-disposition-for-important-findings
-- Type: task
-- Area: scripts/local-review-gate.sh, skills
-- Order: 595
-- Source: PR chore/queue-in-agent-loop
-- Problem: An `[important]` reviewer finding that the agent will fix in a PR of its own, through the local queue, still needs a `board record <slug>` disposition. `scripts/local-review-gate.sh`, which the push hook calls, accepts only `fixed in <sha>`, `board record <slug>` and `rejected: <reason>`, so `tm-pr-workflow`, "Board", rule 1 admits such findings to the board. Needs an owner decision: the change is to logic the push hook relies on, which that task excluded.
-- Done when: the owner has decided. If yes: `local-review-gate.sh` accepts a queue disposition (for example `queued <slug>`) with a self-test case; rule 1, `tm-pr-review` (item 8 and the Orchestrator's part, step 5) and `tm-agent-loop` (sections 4 and 7) name it; and the board reason for `[important]` findings is removed. If no: this record is deleted.
-- Refs: `scripts/local-review-gate.sh` (`valid_disposition`); `scripts/claude-hooks/require-local-review.sh`; `.claude/skills/tm-pr-workflow/SKILL.md` ("Board", rule 1).
-
 ## Drift
 
 ### data-kover-comment-stale-figure
