@@ -12,7 +12,8 @@ enum class UiTestScenario(
     internal val seedsHistory: Boolean,
     internal val heldCall: UiTestHeldCall?,
     internal val failsDelete: Boolean,
-    internal val walksRoute: Boolean
+    internal val walksRoute: Boolean,
+    internal val storesPausedSession: Boolean = false
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -35,7 +36,19 @@ enum class UiTestScenario(
      * Empty history; every `saveActivity` is held until release. Location updates walk the route:
      * one update per route point, in order, ending at the second-to-last point (see [UiTestFixtures.route]).
      */
-    FinishTwice(seedsHistory = false, heldCall = UiTestHeldCall.Save, failsDelete = false, walksRoute = true)
+    FinishTwice(seedsHistory = false, heldCall = UiTestHeldCall.Save, failsDelete = false, walksRoute = true),
+
+    /**
+     * Empty history, nothing held. The session store holds a Paused session ([UiTestFixtures.pausedSession])
+     * as an app killed while paused leaves it, so the app offers it at launch.
+     */
+    RestoredPausedSession(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        storesPausedSession = true
+    )
 }
 
 /** The repository call a scenario holds until [UiTestControls.releaseHeldCalls]. */
