@@ -311,6 +311,10 @@ that needs to refer to a severity says the word without brackets (blocking, impo
 ## Orchestrator's part
 
 The implementing session runs this before every push, after its last commit and before the gate's final run.
+The implementing session is the orchestrator, the main agent: it starts the reviewer, never an `implementer`
+subagent, and it does so once, on the final HEAD in the main clone, after the commits of every implementer
+have been taken into the task branch (`tm-agent-loop`, "Subagents"). An implementer's commits are reviewed
+as part of that HEAD, not one by one.
 
 1. Draft the PR description (`tm-pr-workflow`, "PR description") at
    `~/agent-workspace/pr-body-<slug>.md`, without `Reviewer findings`. Commit everything

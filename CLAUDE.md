@@ -35,6 +35,10 @@ edit.
 - `tm-agent-loop`       every task that ends in a PR, named or picked from the board ("take the next
                         task"); with `tm-pr-workflow`
 
+Subagents are part of the loop: `explorer` for open-ended or large searches, `implementer` for a piece of
+code in its own worktree; the main agent orchestrates and alone integrates, gates, pushes and merges
+(`tm-agent-loop`, "Subagents").
+
 Open epics, tasks and drift that need the owner live in `BOARD.md`; follow-ups the agent can do
 become PRs of the local queue (`tm-agent-loop`). How to add and remove records: `tm-pr-workflow` → "Board".
 
