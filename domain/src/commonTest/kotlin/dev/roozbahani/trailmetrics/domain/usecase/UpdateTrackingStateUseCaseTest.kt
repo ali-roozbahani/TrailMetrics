@@ -122,6 +122,48 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
+    fun `first location after resume adds no distance for the jump made during the pause`() {
+        val paused = TrackingState.Paused(sampleMetrics(distanceMeters = 100.0, path = listOf(point1)))
+        val resumed = useCase(paused, TrackingEvent.Resume(20))
+
+        val afterFix = useCase(resumed, TrackingEvent.LocationReceived(point2, 30, 2f))
+
+        assertIs<TrackingState.Tracking>(afterFix)
+        assertEquals(100.0, afterFix.metrics.distanceMeters)
+        assertEquals(listOf(point1, point2), afterFix.metrics.path)
+        assertEquals(10L + 10L, afterFix.metrics.elapsedMillis)
+        assertEquals(30L, afterFix.metrics.lastUpdateElapsedRealtimeMillis)
+        assertEquals(2f, afterFix.metrics.currentSpeedMetersPerSecond)
+    }
+
+    @Test
+    fun `second location after resume adds distance again`() {
+        val point3 = Coordinates(point2.latitude + 0.001, point2.longitude)
+        val resumed = useCase(TrackingState.Paused(sampleMetrics(distanceMeters = 100.0)), TrackingEvent.Resume(20))
+        val afterFirst = useCase(resumed, TrackingEvent.LocationReceived(point2, 30, null))
+
+        val afterSecond = useCase(afterFirst, TrackingEvent.LocationReceived(point3, 40, null))
+
+        assertIs<TrackingState.Tracking>(afterSecond)
+        assertEquals(100.0 + point2.distanceTo(point3), afterSecond.metrics.distanceMeters, absoluteTolerance = 0.001)
+    }
+
+    @Test
+    fun `every resume skips the distance of its own first location`() {
+        val point3 = Coordinates(point2.latitude + 0.001, point2.longitude)
+        var state: TrackingState = TrackingState.Tracking(sampleMetrics(distanceMeters = 100.0))
+        state = useCase(state, TrackingEvent.Pause(15))
+        state = useCase(state, TrackingEvent.Resume(20))
+        state = useCase(state, TrackingEvent.LocationReceived(point2, 30, null))
+        state = useCase(state, TrackingEvent.Pause(35))
+        state = useCase(state, TrackingEvent.Resume(50))
+        state = useCase(state, TrackingEvent.LocationReceived(point3, 60, null))
+
+        assertIs<TrackingState.Tracking>(state)
+        assertEquals(100.0, state.metrics.distanceMeters)
+    }
+
+    @Test
     fun `stop from Tracking transitions to Finished`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
         val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateElapsedRealtimeMillis + 10)
