@@ -800,3 +800,13 @@ linked.
 
 detekt runs without type resolution. Five exception rules are already on and report 0, because their name allow-list accepts `_`. `SuspendFunSwallowedCancellation` is off by default and did not fire on a known-bad `runCatching { suspendCall() }` fixture; nothing analyses `commonMain` with type resolution.
 Decision: turn nothing on and keep `_` allowed: the `catch (_: Exception)` sites are boundaries that rethrow `CancellationException`.
+
+## Swift test wait helper: a 2 s default bound failed three times on CI
+
+`waitUntil` (TestSupport) gave every wait a default `timeout` of 2 s. On a loaded CI runner a ViewModel's
+fire-and-forget `Task` can need longer, so three tests failed with "Condition not met within 2.0 seconds"
+on code that had not changed (`CI_FLAKES.md`: `ios-tracking-finish-failed-save-wait`,
+`ios-route-pending-events-wait`, `ios-route-draft-read-wait`; the failed tests ran 14 to 30 s). A wait that
+succeeds returns as soon as its condition holds, so a longer bound costs time only when a test fails. The
+default is now `defaultWaitTimeout`, 10 s, the bound `tm-testing` gives the UI-test waits (D5).
+
