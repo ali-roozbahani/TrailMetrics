@@ -42,7 +42,7 @@ public final class SavedSessionOfferModel: ObservableObject {
     /// True from the launch until the stored session has been read (or the read failed). Start is not
     /// offered while it is true: a session started during the read would make `restore()` return the live
     /// state without restoring, and its first save would replace the stored one. Android's `isRestoring`.
-    @Published public private(set) var isRestoring
+    @Published public private(set) var isRestoring: Bool
 
     private let trackingSessionManager: TrackingSessionManager
     private let endOrphanedLiveActivities: () async -> Void
