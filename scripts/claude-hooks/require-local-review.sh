@@ -61,10 +61,15 @@ PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git[[:space:]]([^|]*[[:space:]])?push|gh[[:spa
 git_in() { local d="$1"; shift; git -C "$d" "$@"; }
 
 # split_segments <text>: simple commands, one per line.
-# Redirections (`2>&1`, `&>file`, `>file`, `2>>file`) are dropped first: the `&` of `2>&1` would split the
-# command and leave `2>` as a word of the push (read as a refspec).
+# Redirections are dropped before the command is split, because the `&` of `2>&1` would split it and
+# leave `2>` as a word of the push (read as a refspec). Only a redirection whose target is a plain word
+# (`> out.txt`, `2>> "log"`, `&>/dev/null`, `2>&1`) is removed with its target. For a target that holds a
+# command substitution or a backtick (`>$(git ...)`, `> "$(git ...)"`) only the operator is removed and
+# the target stays in the text, so a push or PR creation inside it is still found as a command.
 split_segments() {
-    printf '%s\n' "$1" | sed -E 's/&>>?[[:space:]]*[^[:space:]&|;]+//g; s/[0-9]*>&[0-9-]*//g; s/[0-9]*>>?[[:space:]]*[^[:space:]&|;]+//g' \
+    local plain='("[^"$`]*"|'"'"'[^'"'"'$`]*'"'"'|[^[:space:]&|;()$`<>"'"'"']+)'
+    printf '%s\n' "$1" \
+        | sed -E "s/[0-9]*>&[0-9-]*//g; s/(&>>?|[0-9]*>>?)[[:space:]]*$plain([[:space:]&|;)]|\$)/\\3/g; s/&>>?/ /g; s/[0-9]*>>?/ /g" \
         | tr '&|;()`' '\n\n\n\n\n\n'
 }
 
