@@ -176,6 +176,24 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
   it fails on is not shown. `ios-tracking-finish-failed-save-wait` and `ios-route-pending-events-wait`
   stay `fixed` until they fail again.
 
+## ios-2a-job-not-acquired
+
+- Signature: job `iOS 2a — build UI-test app`, no step ran (the job has no steps), first error
+  line "The job was not acquired by Runner of type hosted even after multiple attempts" (check-run
+  annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience
+  longer queue times."). `iOS — all stages` then failed with "ios-build-ui result is abandoned" and
+  `iOS 3 — run UI tests (after 2a)` was skipped
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-12, run 43287492527 (push to `main`, merge of #270), re-run: no (a run on `main` is
+    never re-run). The job waited 15 minutes (19:11:00 to 19:26:01) with no runner and was
+    cancelled by GitHub
+- Notes: class infra (macOS runner capacity), not the diff: the other jobs of the run passed,
+  including `iOS 2b — lint, app build, package tests`, which builds the app on the same runner
+  label. #270 added a UI test that this run never built or ran. The UI test itself is not shown
+  to pass or fail on `main`; the next push's `iOS 3` run is the first reading.
+
 ## ios-ui-probe-refresh-timeout
 
 - Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, tests
