@@ -134,13 +134,14 @@ How it is enforced, and what that means for the order of operations:
   them, which is one more reason to commit first.
 - The hook matches on command text. Any Bash call that merely *mentions* `git push` or `gh pr create` (a
   commit message or PR body passed inline) is blocked until the gate has passed. Pass long
-  text through a file: `git commit -F <file>`, `gh pr create --body-file <file>`.
+  text through a file: `git commit -F <file>`, `gh pr create --title "<PR title>" --body-file <file>`.
 - **Shapes of the push and PR commands.** The hooks read the command text and the session
   directory, so use these shapes and nothing cleverer:
   - Run the gate as a command of its own, from the clone: `scripts/pre-push-check.sh`.
   - Push with `git push -u origin <branch>` (or `HEAD`), alone or followed by a suffix such as
-    `2>&1 | tail -5`. Open the PR with `gh pr create --base main --body-file <file>`, the same suffix
-    allowed. The branch must exist locally.
+    `2>&1 | tail -5`. Open the PR with `gh pr create --base main --title "<PR title>" --body-file <file>`
+    (`gh` refuses without `--title` when it is not interactive; `<file>` is the draft without its
+    `Title:` line, see "PR description"), the same suffix allowed. The branch must exist locally.
   - From another directory: `git -C <absolute path of the clone> push -u origin <branch>`, or
     `cd <absolute path of the clone> && git push -u origin <branch>`. A `cd` target with `~`, a
     variable, `-` or a missing directory, or a `cd` inside `( )`, `{ }` or a `||` list, blocks the
@@ -243,7 +244,7 @@ user-visible changes (see #32, #35).
   `scripts/local-review-gate.sh check <sha>` says why not. Report the hook's reason when it
   blocks, never work around it (no `git -c`, no alias, no editing the settings).
 - Push the branch you created (`git push -u origin <branch>`), then open the PR against
-  `main` with `gh pr create --base main`. `gh` must be logged in as an account with write
+  `main` with `gh pr create --base main --title "<PR title>" --body-file <file>`. `gh` must be logged in as an account with write
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
 - Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
   under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
@@ -261,8 +262,10 @@ user-visible changes (see #32, #35).
 
 Required. Draft it at `~/agent-workspace/pr-body-<slug>.md` before the local review, without
 `Reviewer findings`: it is the local reviewer's `TASK` (`scripts/review-task.sh <draft>`), as it
-is CI's, and it is the file the PR is created with (an optional `Title:` first line and the blank
-line below it are dropped). A `Board: -slug` line brings that record's Problem and Done when to the
+is CI's. The PR is created from it with `--title "<PR title>"` and `--body-file`: an optional `Title:`
+first line and the blank line below it are not part of the body, so when the draft has one, write the
+body file first with `scripts/set-pr-body.sh --print-body <draft> > <body file>` and give `gh` that
+file (a draft without a `Title:` line is the body file itself). A `Board: -slug` line brings that record's Problem and Done when to the
 reviewer; a task with no record states its Task and Scope in "What changed". `Reviewer findings` is
 added after the reviews. Use these headings, and keep all four even when one is
 "nothing to check":

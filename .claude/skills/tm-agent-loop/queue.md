@@ -49,7 +49,7 @@ Act on it: the scripts decide the order, not the plan you made earlier.
   `git merge origin/main --no-edit` in its own tool call (a merge commit, which needs no attribution
   trailer because the squash merge drops it; never a rebase). Resolve a conflict
   by keeping both changes' intent. Then the local review (section 4), the gate (section 5), the
-  push and `gh pr create --base main`, then `set <slug> status=pushed pr=<N>`. When the PR opens,
+  push and `gh pr create --base main --title "<PR title>" --body-file <file>`, then `set <slug> status=pushed pr=<N>`. When the PR opens,
   put `(#<N>)` in place of `(queue: <slug>)` in the parent's description (`scripts/set-pr-body.sh
   <parent PR> <parent draft>`, also when the parent is merged). Then watch it (section 6).
 - `WAIT <slug> #<N> <kind>`: nothing is left to build. While the PR's own checks run, the wait is
