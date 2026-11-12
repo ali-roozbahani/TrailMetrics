@@ -53,3 +53,7 @@ nopush git merge origin/main
 nopush git rebase origin/main
 nopush gh pr view 12
 nopush ls
+push git push -u origin HEAD 2>&1 | tail -5
+push git push origin HEAD > out.txt 2>&1
+push git push &>/dev/null
+push gh pr create --base main --body-file b.md 2>&1 | tail -3

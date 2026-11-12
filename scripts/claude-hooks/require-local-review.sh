@@ -61,7 +61,12 @@ PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git[[:space:]]([^|]*[[:space:]])?push|gh[[:spa
 git_in() { local d="$1"; shift; git -C "$d" "$@"; }
 
 # split_segments <text>: simple commands, one per line.
-split_segments() { printf '%s\n' "$1" | tr '&|;()`' '\n\n\n\n\n\n'; }
+# Redirections (`2>&1`, `&>file`, `>file`, `2>>file`) are dropped first: the `&` of `2>&1` would split the
+# command and leave `2>` as a word of the push (read as a refspec).
+split_segments() {
+    printf '%s\n' "$1" | sed -E 's/&>>?[[:space:]]*[^[:space:]&|;]+//g; s/[0-9]*>&[0-9-]*//g; s/[0-9]*>>?[[:space:]]*[^[:space:]&|;]+//g' \
+        | tr '&|;()`' '\n\n\n\n\n\n'
+}
 
 # Print the SHAs a push or PR creation needs reviewed, one per line, or "BLOCK <reason>".
 # resolve_commit <dir> <ref>
