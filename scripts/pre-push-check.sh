@@ -8,6 +8,13 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# One heavy run (Gradle, xcodebuild, this gate) at a time on this machine: start again under
+# scripts/heavy-run.sh, which waits while another heavy run is going. Inside it TM_HEAVY_RUN_HELD
+# names the live holder and the gate goes on; the Gradle and xcodebuild steps below are covered by it.
+if ! { [ -n "${TM_HEAVY_RUN_HELD:-}" ] && kill -0 "$TM_HEAVY_RUN_HELD" 2>/dev/null; }; then
+    exec "$REPO_ROOT/scripts/heavy-run.sh" "$REPO_ROOT/scripts/pre-push-check.sh" "$@"
+fi
+
 # Remove secret-looking variables (deny list in scripts/scrub-env.sh) from the gate's own
 # environment before any step runs: xcodebuild logs the environment of the framework script's
 # pre-action and Run Script phase, and no step needs a token. Fail closed: if the file cannot be
