@@ -139,11 +139,56 @@ tasks.register<Exec>("x") { commandLine("scripts/new-tool.sh") }
 EOF
     expect "a Gradle build file runs an unlisted script" 1 "scripts/new-tool.sh is started by app/build.gradle.kts"
 
+    # The self-test groups come from ci.yml: a group run only by a step a light decision skips is heavy.
     fresh
+    put .github/workflows/ci.yml <<'EOF'
+jobs:
+  tooling:
+    steps:
+      - name: Self-tests
+        run: scripts/checks/self-tests.sh --run tooling
+  ios-main:
+    if: needs.ios-plan.outputs.decision != 'light'
+    steps:
+      - name: Script self-tests (iOS)
+        run: scripts/checks/self-tests.sh --run ios-swiftlint macos
+EOF
     printf 'tooling\tA\tscripts/new-tool.sh\nmacos\tB\tscripts/new-tool.sh\n' | put scripts/checks/self-tests.list
-    expect "a self-test of a group only the iOS job runs is an unlisted script" 1 "group macos"
+    expect "a self-test of a group only a heavy CI step runs is an unlisted script" 1 "group macos"
     printf 'tooling\tA\tscripts/new-tool.sh\n' | put scripts/checks/self-tests.list
     expect "a tooling-group self-test is not a heavy reference" 0 "OK"
+    put .github/workflows/ci.yml <<'EOF'
+jobs:
+  ios-main:
+    if: needs.ios-plan.outputs.decision != 'light'
+    steps:
+      - name: Script self-tests (iOS)
+        run: scripts/checks/self-tests.sh --run brand-new-group
+EOF
+    printf 'brand-new-group\tA\tscripts/new-tool.sh\n' | put scripts/checks/self-tests.list
+    expect "a new heavy-only group is derived from ci.yml, not from a fixed list" 1 "group brand-new-group"
+    printf 'orphan\tA\tscripts/new-tool.sh\n' | put scripts/checks/self-tests.list
+    expect "a group that no ci.yml step runs is a problem" 1 "is run by no step of ci.yml"
+    rm -f "$repo/.github/workflows/ci.yml"
+    expect "a self-test list without a ci.yml is a problem" 1 "no .github/workflows/ci.yml"
+
+    # A source that exists and cannot be read is an error, never a pass.
+    if [ "$(id -u)" != 0 ]; then
+        fresh
+        put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'
+shellScript = "scripts/build-kmp-framework.sh";
+EOF
+        chmod 000 "$repo/iosApp/TrailMetrics.xcodeproj/project.pbxproj"
+        expect "an unreadable Xcode project file exits 2" 2 "cannot be read"
+        chmod 644 "$repo/iosApp/TrailMetrics.xcodeproj/project.pbxproj"
+        fresh
+        put .github/workflows/ci.yml <<'EOF'
+jobs: {}
+EOF
+        chmod 000 "$repo/.github/workflows/ci.yml"
+        expect "an unreadable ci.yml exits 2" 2 "cannot be read"
+        chmod 644 "$repo/.github/workflows/ci.yml"
+    fi
 
     fresh
     put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'

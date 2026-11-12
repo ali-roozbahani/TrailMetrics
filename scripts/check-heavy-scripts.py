@@ -12,8 +12,9 @@ This check reads what the heavy steps run and fails for a script that the classi
     (`if: ... decision != 'light'` on the step, or on its job)
   * the gate: the top-level `if [ "$DECISION" ...` and `if [ "$RUN_IOS_STEPS" ...` blocks of
     scripts/pre-push-check.sh
-  * scripts/checks/self-tests.list: the scripts of the groups that only the iOS job runs (macos,
-    ios-swiftlint)
+  * scripts/checks/self-tests.list: the scripts of the groups that only the heavy CI steps run; the
+    groups come from the `self-tests.sh --run <groups>` arguments in ci.yml, and a group no CI step runs
+    is a problem of its own
   * what those scripts start themselves: every script a referenced heavy script names outside its
     comment lines, and so on (the control scripts classify-changes.sh, ci/, checks/ and
     pre-push-check.sh are not followed: they name the always-run checks too)
@@ -22,6 +23,8 @@ A reference counts when it is `scripts/<path>` and the path exists. The classifi
 (`classify-changes.sh --files <path>`), so this check has no copy of the list.
 
 Usage: check-heavy-scripts.py [--root <dir>]
+A source that exists but cannot be read is an error (exit 2), never a pass.
+
 Exit 0 ok (or nothing to check), 1 a script is missing from the list (report on stdout), 2 error.
 """
 import os
@@ -35,15 +38,26 @@ GATE_BLOCK_START = re.compile(r'^if \[ "\$(DECISION|RUN_IOS_STEPS)" ')
 # Control scripts: heavy for their own reasons (see HEAVY_SCRIPTS); not followed.
 NOT_FOLLOWED = ("scripts/classify-changes.sh", "scripts/pre-push-check.sh", "scripts/ci/", "scripts/checks/",
                 "scripts/check-heavy-scripts.")
-HEAVY_ONLY_GROUPS = ("macos", "ios-swiftlint")
+RUN_GROUPS = re.compile(r"self-tests\.sh\s+--run\s+([A-Za-z0-9_ -]+)")
+
+
+class Unreadable(Exception):
+    pass
 
 
 def read(path):
+    """The text of the file, None when it does not exist; a file that exists and cannot be read raises."""
+    if not os.path.exists(path):
+        return None
     try:
         with open(path, encoding="utf-8", errors="replace") as handle:
             return handle.read()
-    except OSError:
-        return None
+    except OSError as error:
+        raise Unreadable("%s exists but cannot be read: %s" % (path, error.strerror or error))
+
+
+def walk_error(error):
+    raise Unreadable("cannot read %s: %s" % (error.filename, error.strerror or error))
 
 
 def code_lines(text):
@@ -114,7 +128,7 @@ class Checker:
 
         # Xcode project.
         xcode = os.path.join(self.root, "iosApp", "TrailMetrics.xcodeproj")
-        for base, _dirs, files in os.walk(xcode):
+        for base, _dirs, files in os.walk(xcode, onerror=walk_error):
             for name in sorted(files):
                 path = os.path.join(base, name)
                 text = read(path)
@@ -123,7 +137,7 @@ class Checker:
                 self.sources += 1
                 feed(refs_in(text.splitlines()), os.path.relpath(path, self.root))
         # Gradle.
-        for base, dirs, files in os.walk(self.root):
+        for base, dirs, files in os.walk(self.root, onerror=walk_error):
             dirs[:] = [d for d in dirs if d not in (".git", "build", ".gradle", ".kotlin", ".build", "node_modules", "scripts", "docs", ".claude", "iosApp")]
             rel_base = os.path.relpath(base, self.root)
             for name in sorted(files):
@@ -141,10 +155,14 @@ class Checker:
                 feed(refs_in(code_lines(text)), rel)
         # CI steps that a light decision skips.
         ci = read(os.path.join(self.root, ".github", "workflows", "ci.yml"))
+        groups_heavy, groups_light = set(), set()
         if ci is not None:
             self.sources += 1
-            for step_name, text in self.heavy_ci_steps(ci):
-                feed(refs_in(code_lines(text)), ".github/workflows/ci.yml, step '%s'" % step_name)
+            for step_name, text, heavy in self.ci_steps(ci):
+                for found in RUN_GROUPS.findall("\n".join(code_lines(text))):
+                    (groups_heavy if heavy else groups_light).update(found.split())
+                if heavy:
+                    feed(refs_in(code_lines(text)), ".github/workflows/ci.yml, step '%s'" % step_name)
         # The gate's heavy blocks.
         gate = read(os.path.join(self.root, "scripts", "pre-push-check.sh"))
         if gate is not None:
@@ -156,8 +174,17 @@ class Checker:
             self.sources += 1
             for line in lst.splitlines():
                 parts = line.split("\t")
-                if len(parts) == 3 and parts[0] in HEAVY_ONLY_GROUPS:
-                    feed([parts[2]], "scripts/checks/self-tests.list (group %s, run only by the iOS job)" % parts[0])
+                if len(parts) != 3 or line.startswith("#"):
+                    continue
+                group = parts[0]
+                if group in groups_light:
+                    continue
+                if group in groups_heavy:
+                    feed([parts[2]], "scripts/checks/self-tests.list (group %s, run only by CI steps that a light decision skips)" % group)
+                elif ci is None:
+                    self.problems.append("scripts/checks/self-tests.list has group '%s' but there is no .github/workflows/ci.yml to say which step runs it" % group)
+                else:
+                    self.problems.append("scripts/checks/self-tests.list group '%s' (%s) is run by no step of ci.yml: say where it runs, so that the scripts of a heavy-only group can be kept on the list of heavy scripts" % (group, parts[2]))
         # What the heavy scripts start themselves.
         while work:
             rel, _started_by = work.pop()
@@ -170,9 +197,9 @@ class Checker:
         return self.problems
 
     @staticmethod
-    def heavy_ci_steps(text):
-        """(name, text) of each step skipped on a light decision, in ci.yml's own layout: jobs at 2
-        spaces under `jobs:`, a job's `if:` at 4, steps as `      - ` items, a step's `if:` at 8."""
+    def ci_steps(text):
+        """(name, text, heavy) of each step, heavy when a light decision skips it, in ci.yml's own layout:
+        jobs at 2 spaces under `jobs:`, a job's `if:` at 4, steps as `      - ` items, a step's `if:` at 8."""
         lines = text.splitlines()
         steps = []
         in_jobs = False
@@ -183,8 +210,7 @@ class Checker:
             nonlocal current
             if current is not None:
                 name, body, heavy = current
-                if job_heavy or heavy:
-                    steps.append((name, "\n".join(body)))
+                steps.append((name, "\n".join(body), job_heavy or heavy))
             current = None
 
         for line in lines:
@@ -243,7 +269,11 @@ def main(argv):
         print("check-heavy-scripts: %s is not a directory" % root, file=sys.stderr)
         return 2
     checker = Checker(root)
-    problems = checker.run()
+    try:
+        problems = checker.run()
+    except Unreadable as error:
+        print("check-heavy-scripts: %s" % error, file=sys.stderr)
+        return 2
     if checker.sources == 0:
         print("check-heavy-scripts: no heavy-step sources under %s: nothing checked" % root)
         return 0
