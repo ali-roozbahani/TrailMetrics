@@ -171,3 +171,24 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   runner stalled for more than 10 s inside this test, so the bound alone is not the cause; the wait
   it fails on is not shown. `ios-tracking-finish-failed-save-wait` and `ios-route-pending-events-wait`
   stay `fixed` until they fail again.
+
+## ios-ui-probe-refresh-timeout
+
+- Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, tests
+  `RouteGenerateThenResetUITests.test_resetWhileGenerating_leavesACleanScreen`,
+  `RouteGenerateTwiceUITests.test_generateTwice_requestsDirectionsOnce`,
+  `RouteMapLongPressUITests.test_longPress_addsAWaypoint` and
+  `TrackingFinishTwiceUITests.test_finishTwice_savesOneActivity`, first error line "failed - Probe
+  did not refresh within 10 s (still not read yet: tap Refresh)" (`UITestProbe.swift`)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-12, run 43213470138 (PR #267, head `f5d0d3b`; a new UI test and a scenario in
+    `shared-uitest`), re-run: yes, fixed it (attempt 2 green). The four tests failed one after the
+    other after 128.7, 49.1, 42.8 and 34.8 s; the four tests before them (Details, Launch and the
+    new `RestoredSessionOfferUITests`) passed
+- Notes: every test that reads the probe after the first failure failed the same way, so the
+  runner or simulator was probably stuck, not four tests. The same eight tests passed in one local
+  run on the same head. The signature differs from `ios-ui-route-map-press-lost` (a map press) and
+  `ios-ui-details-launch-timeout` (a launch).
+
