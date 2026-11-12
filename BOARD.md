@@ -528,15 +528,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a pause splits the polyline so no straight chord is drawn on either map, also in the saved history, as the owner decides.
 - Refs: `domain/.../usecase/UpdateTrackingStateUseCase.kt` (`handleResume`, `handleLocationReceived`); `androidApp/core-ui/.../map/RoutePolyline.kt`; `androidApp/feature-tracking/.../TrackingScreen.kt`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`; `domain/.../model/TrackingMetrics.kt` (`path`).
 
-### ios-ui-test-restored-session-offer
-- Type: task
-- Area: iosApp/TrailMetricsUITests, shared-uitest
-- Order: 550
-- Source: PR route-draft-restore
-- Problem: No iOS UI test reaches the saved-session offer of a relaunched app (from the iOS restore review of #248). What the files show: `ContentView` runs `savedSessionOffer.restoreOnce()` in a `.task` and shows the offer from `SavedSessionOfferModel.offer`; in UI-test mode `UiTestTrackingSessionStore.load()` always returns null, so no `UiTestScenario` (`FailedDelete`, `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`) can have a stored session, and `iosApp/TrailMetricsUITests` has no test of the offer; only the Swift unit tests `SavedSessionOfferTests` cover the model, not the view that shows it or what a tap on it does. Recorded, not fixed: a new scenario and its fake store are a UI-test task of their own (`docs/epics/ios-ui-tests.md`), not of the route draft.
-- Done when: a `UiTestScenario` launches the app with a stored Paused session, and a UI test sees the offer and, through it, the restored session on the tracking screen (D5 determinism rules of `tm-testing` "XCUITest").
-- Refs: `iosApp/TrailMetrics/ContentView.swift` (`restoreOnce`); `iosApp/Packages/Tracking/Sources/Tracking/SavedSessionOffer.swift`; `shared-uitest/src/iosMain/.../UiTestFakes.kt` (`UiTestTrackingSessionStore`), `UiTestScenario.kt`; `docs/epics/ios-ui-tests.md`.
-
 ### rule-change-signal-misses-escalation-words
 - Type: task
 - Area: scripts, tm-pr-review

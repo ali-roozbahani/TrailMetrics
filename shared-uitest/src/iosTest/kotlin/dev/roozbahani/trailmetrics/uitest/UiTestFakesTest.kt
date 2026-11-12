@@ -1,8 +1,12 @@
 package dev.roozbahani.trailmetrics.uitest
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
+import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
@@ -10,6 +14,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.koin.core.context.stopKoin
+import org.koin.mp.KoinPlatform
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -152,6 +157,26 @@ class UiTestFakesTest {
             listOf(1L, 2L),
             launch.history.observeActivities().take(1).toList().single().map { it.id }
         )
+    }
+
+    @Test
+    fun `only RestoredPausedSession stores a session and it restores as the Paused state`() = runTest {
+        UiTestScenario.entries.filterNot { it == UiTestScenario.RestoredPausedSession }.forEach { scenario ->
+            launchUiTest(scenario)
+            assertNull(KoinPlatform.getKoin().get<TrackingSessionStore>().load(), "$scenario: stored session")
+            stopKoin()
+        }
+        launchUiTest(UiTestScenario.RestoredPausedSession)
+
+        val restored = KoinPlatform.getKoin().get<TrackingSessionManager>().restore()
+
+        val paused = assertIs<TrackingState.Paused>(restored)
+        assertEquals(UiTestFixtures.route.points.take(3).map { it.coordinates }, paused.metrics.path)
+        assertEquals(
+            ActivityType.Running,
+            KoinPlatform.getKoin().get<TrackingSessionManager>().sessionDetails.value?.activityType
+        )
+        stopKoin()
     }
 
     @Test

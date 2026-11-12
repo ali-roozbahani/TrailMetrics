@@ -5,7 +5,10 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 
 /**
  * Fixed values every scenario's fakes return. No clock, no randomness: timestamps are constants
@@ -67,4 +70,22 @@ internal object UiTestFixtures {
     /** Speed and accuracy of each walked location update (accurate enough to be used). */
     const val WALK_SPEED_METERS_PER_SECOND = 1.5f
     const val WALK_ACCURACY_METERS = 5f
+
+    private const val PAUSED_SESSION_STARTED_AT_EPOCH_MILLIS = 1_760_100_000_000L
+    private const val PAUSED_SESSION_ELAPSED_MILLIS = 300_000L
+    private const val PAUSED_SESSION_DISTANCE_METERS = 400.0
+
+    /** The Paused session stored in the scenario that restores one: the first three points of [route]. */
+    val pausedSession = StoredTrackingSession(
+        state = TrackingState.Paused(
+            TrackingMetrics(
+                elapsedMillis = PAUSED_SESSION_ELAPSED_MILLIS,
+                lastUpdateElapsedRealtimeMillis = PAUSED_SESSION_ELAPSED_MILLIS,
+                distanceMeters = PAUSED_SESSION_DISTANCE_METERS,
+                path = route.points.take(3).map { it.coordinates }
+            )
+        ),
+        activityType = ActivityType.Running,
+        startedAtEpochMillis = PAUSED_SESSION_STARTED_AT_EPOCH_MILLIS
+    )
 }

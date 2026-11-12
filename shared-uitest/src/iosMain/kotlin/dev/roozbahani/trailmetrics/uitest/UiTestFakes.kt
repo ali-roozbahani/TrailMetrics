@@ -53,11 +53,14 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
     override fun stop() = Unit
 }
 
-/** Keeps nothing, so no UI test opens the Room database through the session store. */
-internal class UiTestTrackingSessionStore : TrackingSessionStore {
+/**
+ * Returns [stored] (null for every scenario but the one with a saved session) and keeps nothing else,
+ * so no UI test opens the Room database through the session store.
+ */
+internal class UiTestTrackingSessionStore(private val stored: StoredTrackingSession? = null) : TrackingSessionStore {
     override suspend fun save(session: StoredTrackingSession) = Unit
 
-    override suspend fun load(): StoredTrackingSession? = null
+    override suspend fun load(): StoredTrackingSession? = stored
 
     override suspend fun clear() = Unit
 }

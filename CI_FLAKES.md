@@ -31,7 +31,7 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   launch" / "Timed out while launching application via Xcode" (73.5 s and 80.9 s) in
   `XCUIApplication+Scenario.swift`; in one run `DetailsFailedDeleteUITests` also failed to launch
   ("Failed to get background assertion for target app", 43.0 s)
-- Count: 5
+- Count: 6
 - Status: open
 - escalated: flake-ios-ui-details-launch-timeout
 - Occurrences:
@@ -49,6 +49,9 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
   - 2026-11-11, run 43059387065 (PR #256, head `0043a74`; scripts, CODEOWNERS and a skill line,
     no iOS change), re-run: yes, fixed it (attempt 2 green). Same signature:
     `DetailsDeleteTwiceUITests` "Failed to launch" (64.6 s); `DetailsFailedDeleteUITests` passed
+  - 2026-11-12, run 43204374961 (PR #266, head `218ee91`; iOS package code, no UI-test change), re-run:
+    yes, fixed it (attempt 2 green). Same signature: `DetailsDeleteTwiceUITests` "Failed to launch"
+    (84.6 s), then `DetailsFailedDeleteUITests` "Failed to get background assertion for target app"
 - Notes: no test body ran and the Route tests passed. Runner image, Xcode and simulator matched
   seven green runs; the automation-session setup in the first test of green runs took 5.9 to 56.4 s
   against a limit of about 60 s. Reading: a launch stall on the runner, about 80% sure, not proven.
@@ -154,12 +157,17 @@ entry the Fix (PR) and Learned (one line, the full entry is in `LEARNINGS.md`).
 - Signature: job `iOS 2b — lint, app build, package tests`, step `Run iOS package tests`, test
   `RouteViewModelDraftTests.test_failingRead_startsEmptyPlanWithoutErrorAndKeepsStoredRow`, first
   error line "failed - Condition not met within 2.0 seconds"
-- Count: 1
-- Status: fixed
-- Fix: the PR `chore/swift-test-wait-until-ten-seconds` (default `waitUntil` timeout 10 s); this PR
-  also fixes this entry
-- Learned: same cause and fix as `ios-tracking-finish-failed-save-wait`; see `LEARNINGS.md`, "Swift test wait helper: a 2 s default bound failed three times on CI".
+- Count: 2
+- Status: open
 - Occurrences:
   - 2026-11-12, run 43123250071 (push to `main`, merge of #262), re-run: no. The test took 14.3 s.
+    "Condition not met within 2.0 seconds"
+  - 2026-11-12, run 43204374961 (PR #266, head `218ee91`; no Route change), re-run: yes, fixed it
+    (attempt 2 green). After #264 (default `waitUntil` timeout 10 s): "Condition not met within 10.0
+    seconds" at `RouteViewModelDraftTests.swift`, the test took 33.1 s
 - Notes: the merge of #262 changed scripts and skills, no Swift source; the same fixed 2.0 s default
   bound as `ios-route-pending-events-wait` and `ios-tracking-finish-failed-save-wait`.
+  Reopened by the second occurrence: #264 set it to `fixed`, and the 10 s bound did not hold. The
+  runner stalled for more than 10 s inside this test, so the bound alone is not the cause; the wait
+  it fails on is not shown. `ios-tracking-finish-failed-save-wait` and `ios-route-pending-events-wait`
+  stay `fixed` until they fail again.
