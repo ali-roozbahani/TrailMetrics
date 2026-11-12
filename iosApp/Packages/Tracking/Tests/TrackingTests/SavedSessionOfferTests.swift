@@ -127,6 +127,7 @@ final class SavedSessionOfferTests: TrackingTestCase {
         XCTAssertFalse(model.isRestoring)
         XCTAssertNotNil(model.offer, "The stored session was restored, not replaced by a started one")
         XCTAssertTrue(subject.trackingSessionManager.currentState.value is TrackingStatePaused)
+        await waitUntil { viewModel.trackingState is TrackingStatePaused }
         XCTAssertFalse(viewModel.canStart, "A restored Paused session is not started over")
     }
 
