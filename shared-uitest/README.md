@@ -20,7 +20,7 @@ Package `dev.roozbahani.trailmetrics.uitest`, in `src/iosMain`:
   `initKoin { modules(...) }`, whose modules the production modules would
   replace again.
 - **`UiTestScenario.kt`**: the scripted situations (`FailedDelete`,
-  `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`, `RestoredPausedSession`).
+  `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`, `RestoredPausedSession`, `HeldSessionRead`).
 - **`UiTestControls.kt`**: the counters a UI test reads (directions
   requests and completions, saves, deletes) and `releaseHeldCalls()`.
 - **`UiTestFakes.kt`**, **`UiTestFixtures.kt`**, **`UiTestModule.kt`**

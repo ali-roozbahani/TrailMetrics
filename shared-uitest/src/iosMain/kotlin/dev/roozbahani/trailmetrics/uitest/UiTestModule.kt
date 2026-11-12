@@ -19,7 +19,7 @@ import org.koin.dsl.module
 internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestControls): Module = module {
     single<LocationRepository> { UiTestLocationRepository(walksRoute = scenario.walksRoute) }
     single<TrackingServiceLauncher> { UiTestTrackingServiceLauncher() }
-    single<TrackingSessionStore> { UiTestTrackingSessionStore(scenario.storedSession()) }
+    single<TrackingSessionStore> { UiTestTrackingSessionStore(controls, scenario.storedSession()) }
     single<RouteDraftStore> { UiTestRouteDraftStore() }
     single<DirectionsRepository> { UiTestDirectionsRepository(controls) }
     single<ActivityHistoryRepository> { UiTestActivityHistoryRepository(scenario, controls) }
