@@ -5,7 +5,13 @@ data class TrackingMetrics(
     val lastUpdateElapsedRealtimeMillis: Long,
     val distanceMeters: Double,
     val path: List<Coordinates>,
-    val currentSpeedMetersPerSecond: Float? = null
+    val currentSpeedMetersPerSecond: Float? = null,
+    /**
+     * True from a Resume until the first location after it. That location is where the user is now,
+     * not a step from the last point before the Pause, so it adds to the path but not to
+     * [distanceMeters]. Not stored: a stored session comes back Paused and a Resume sets it again.
+     */
+    val awaitingFirstFixAfterResume: Boolean = false
 ) {
     val averageSpeedMetersPerSecond: Float?
         get() = if (elapsedMillis > 0) {
