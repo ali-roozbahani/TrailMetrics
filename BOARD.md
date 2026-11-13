@@ -555,15 +555,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: one PR per folder, each moving its scripts with their `*-fixtures/` folders and fixing every reference, with `scripts/README.md`, `scripts/checks/self-tests.list` and `CODEOWNERS` (a folder line in place of the per-script lines) updated and `check-protected-paths.sh --validate` passing: (1) `checks/`: `classify-changes` and every `check-*` (`.sh`, `.py`, fixtures); (2) `review/`: `review-task`, `local-review-gate`, `skill-changes-digest`, `set-pr-body`; (3) `ci/`: `wait-for-checks`, `read-ci-verdict`, `rerun-failed-once`, `main-ci-status`; (4) `dev/`: `filter-xcode-log`, `scrub-env`, `prune-merged-branches`, `simulate-route` with `routes/`. `pre-push-check.sh`, `build-kmp-framework.sh` and `claude-hooks/` stay where they are: `CLAUDE.md` and every skill name the gate; the Xcode project, its schemes and the Gradle and Kotlin sources name the framework build; `.claude/settings.json` names the hooks, and only the owner edits it.
 - Refs: `scripts/README.md`; `scripts/checks/self-tests.list`; `.github/CODEOWNERS`; `.github/workflows/ci.yml`; `.claude/settings.json`.
 
-### ci-light-skips-android
-- Type: task
-- Area: .github/workflows/ci.yml
-- Order: 600
-- Source: chat 2026-11-13 (owner: light CI for tooling-only changes, problem 2)
-- Problem: A change only the owner can push (a workflow file the machine token cannot push). On a light PR the Android job still runs, with its heavy steps skipped, and the Kover floors and Room schema checks live in it; the comments of `.github/workflows/ci.yml` still say "non-source allowlist" and name the single self-test list. The change is written, gated and committed on the branch `chore/ci-light-skips-android` of the agent's clone: the Android build job is skipped on a light decision like the iOS jobs, the required check `Android — Lint, Detekt, Tests, Build` becomes an aggregator that passes on a light PR, the two base-comparing checks move to the always-running tooling job, and the comments are reworded.
-- Done when: the owner has pushed and merged that change; on a light PR `Android 2 — Lint, Detekt, Tests, Build` is skipped, the required `Android — Lint, Detekt, Tests, Build` passes, and the Kover floors and Room schema checks run in `Repo tooling — policy checks and script self-tests`; the comments of `ci.yml` name `self-tests-tooling.list` and `self-tests.list`. The PR that does it deletes this record (`chore(board): remove ci-light-skips-android`).
-- Refs: `.github/workflows/ci.yml`; `scripts/classify-changes.sh`; `scripts/checks/self-tests-tooling.list`; the PR description at `~/agent-workspace/pr-body-ci-light-skips-android.md`.
-
 ### ui-test-app-idle-stalls
 - Type: task
 - Area: iosApp/TrailMetricsUITests, shared-uitest, the screens under test

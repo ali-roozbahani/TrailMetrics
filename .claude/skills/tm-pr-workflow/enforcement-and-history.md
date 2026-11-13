@@ -36,7 +36,7 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   UI scope the gate builds the `uitest` variant and runs ONE smoke UI test
   (`DetailsFailedDeleteUITests`); CI builds the variant once in `ios-build-ui` and runs ALL UI tests
   in `ios-ui`. So an `iosApp/` problem that already existed on `main` can make CI red on an
-  unrelated Android-only PR. CI's `android` job runs on Ubuntu, where the iOS simulator tests are
+  unrelated Android-only PR. CI's `android-build` job runs on Ubuntu, where the iOS simulator tests are
   skipped; they run in `ios-main`, `domain`'s and `data`'s since #34, `shared`'s since S3 of
   `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
   name: it runs no build step and is green only when `ios-plan`, `ios-build-ui`, `ios-ui` and

@@ -157,7 +157,7 @@ else
 fi
 
 # Coverage floors (config/kover-floors.properties) only go up: compared with the merge base, in
-# every classification, light included (no Gradle needed). Same check as CI's android job, which
+# every classification, light included (no Gradle needed). Same check as CI's tooling job, which
 # compares with the PR's base commit. Fail closed: a missing or non-executable script, or no
 # merge-base with origin/main (BASE_REF fell back to HEAD~1, which is not this branch's base),
 # fails the step.
@@ -178,7 +178,7 @@ run_step "kover floors" check_kover_floors
 # Room schema (Decision 4 of docs/epics/protected-paths-review-2.md): exported schema files are
 # append-only, a version bump has its schema file, migration and test, no destructive fallback.
 # Compared with the merge base, in every classification, light included (no Gradle needed). Same
-# check as CI's android job, which compares with the PR's base commit. Fail closed as above.
+# check as CI's tooling job, which compares with the PR's base commit. Fail closed as above.
 check_room_schema() {
     local script="$REPO_ROOT/scripts/check-room-schema.sh"
     if [ ! -f "$script" ] || [ ! -x "$script" ]; then
