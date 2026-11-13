@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  },
   "permissions": {
     "deny": [
       "Read(~/.ssh/**)",
@@ -10,8 +13,8 @@
       "Read(~/Library/Keychains/**)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(/local.properties)",
-      "Read(/iosApp/TrailMetrics/Secrets.xcconfig)",
+      "Read(**/local.properties)",
+      "Read(**/iosApp/TrailMetrics/Secrets.xcconfig)",
       "Bash(security *)",
       "Bash(*/.ssh*)",
       "Bash(*/.gnupg*)",
