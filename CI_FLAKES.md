@@ -187,7 +187,6 @@ run, and the jobs it hit are counted below.
   times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
 - Count: 3 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1
 - Status: open
-- escalated: flake-ios-2a-job-not-acquired
 - Occurrences:
   - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
     never re-run). The job waited 15 minutes (19:11:00 to 19:26:01) with no runner and was
