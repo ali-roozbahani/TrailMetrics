@@ -103,8 +103,8 @@ fi
 # <<< iOS scope: BASE_REF, CHANGED_FILES, TOUCHES_IOS_OR_SHARED, TOUCHES_IOS_UI (end) <<<
 
 # --- Decide scope: may the heavy steps be skipped? ---
-# scripts/classify-changes.sh decides it, the same script as CI. "light" (every changed file is
-# on its non-source allowlist) skips the Android/KMP steps and the iOS steps; anything else,
+# scripts/classify-changes.sh decides it, the same script as CI. "light" (no changed file can affect
+# the Android or iOS build or tests: its allowlist, minus its heavy scripts) skips the Android/KMP steps and the iOS steps; anything else,
 # including a missing merge-base or an error from the script, is "full".
 DECISION=full
 if [ "$BASE_REF" = HEAD~1 ]; then
@@ -137,6 +137,11 @@ run_step "protected paths" scripts/check-protected-paths.sh --validate
 
 # scripts/README.md indexes every script under scripts/ (one line each). Same as CI's tooling job.
 run_step "scripts index check" scripts/checks/scripts-index.sh --check
+
+# The list of heavy scripts (scripts/classify-changes.sh) must name every script that a build or test
+# step runs, or a script change would be called light by mistake. In CI `classify-changes.sh --github`
+# runs the same check first and fails its step.
+run_step "heavy scripts check" scripts/check-heavy-scripts.sh
 
 # Script self-tests: the one list, scripts/checks/self-tests.list, which CI runs too. Its check
 # fails when a script with a --self-test is not on it. One gate step per line, so the output
@@ -196,7 +201,7 @@ scripts/check-protected-paths.sh --base "$BASE_REF" 2>&1 | sed 's/^/    /' || tr
 echo "==> change classification of this branch (report only, never fails the gate): $DECISION"
 echo "$CLASSIFICATION" | tail -n +2 | sed 's/^/    /'
 if [ "$DECISION" = light ]; then
-    echo "    every changed file is on the non-source allowlist: Android/KMP and iOS steps skipped"
+    echo "    no changed file can affect the Android or iOS build or tests: Android/KMP and iOS steps skipped"
 fi
 
 # --- iOS secrets config (only when the iOS steps will run; before any long step) ---

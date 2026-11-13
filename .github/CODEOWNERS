@@ -48,6 +48,8 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/check-protected-paths.py           @ali-roozbahani
 /scripts/classify-changes.sh                @ali-roozbahani
 /scripts/classify-changes-fixtures/         @ali-roozbahani
+/scripts/check-heavy-scripts.sh             @ali-roozbahani
+/scripts/check-heavy-scripts.py             @ali-roozbahani
 /scripts/check-pr-review-workflow.sh        @ali-roozbahani
 /scripts/check-pr-review-workflow.py        @ali-roozbahani
 /scripts/check-pr-review-workflow-fixtures/ @ali-roozbahani

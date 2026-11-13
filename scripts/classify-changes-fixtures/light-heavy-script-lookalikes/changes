@@ -1,0 +1,5 @@
+A	scripts/build-kmp-framework.sh.orig
+A	scripts/pre-push-check.sh.bak
+A	scripts/ci-extra/x.sh
+A	scripts/checks-extra/x.sh
+A	scripts/classify-changes.sh.txt

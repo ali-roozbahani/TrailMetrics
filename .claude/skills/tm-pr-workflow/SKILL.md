@@ -87,8 +87,14 @@ gate: its header comment, its output (it names every step that ran) and the `--s
 option of each `scripts/check-*.sh` script say what is checked, so read them rather than a list
 here. Run the script itself, not a hand-picked command.
 
-- **`light` or full.** `scripts/classify-changes.sh` decides. On `light` (non-source changes
-  only) the gate skips the Gradle build and test steps and the iOS steps; the checks that need
+- **`light` or full.** `scripts/classify-changes.sh` decides. `light` means no changed file can
+  affect the Android or iOS build or their tests: docs, skills and agent files, CODEOWNERS, the
+  reviewer's workflow and the tooling scripts under `scripts/`, except the scripts on its
+  `HEAVY_SCRIPTS` list (the ones a build or test step starts, the gate, the classifier, CI's helpers
+  and the self-tests only the iOS job runs); a heavy script's reason is in the comment above that
+  list. `scripts/check-heavy-scripts.sh` (a gate step, and run first by the CI classification)
+  fails when a script that a build or test step runs is not on the list: add it there. On `light`
+  the gate skips the Gradle build and test steps and the iOS steps; the checks that need
   no build, among them the Kover floors and Room schema checks, still run. A full run adds the
   iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
   diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
