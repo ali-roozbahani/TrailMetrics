@@ -280,14 +280,28 @@ def check_deleted_slugs(root, records, base_text, problems, notices):
                         problems.append(message)
 
 
+def is_shallow(root):
+    result = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-shallow-repository"],
+                            capture_output=True, text=True)
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def fetch_base_branch(root, ref):
+    """Fetch the base branch into FETCH_HEAD. At depth 1 only when the checkout is already shallow (CI's
+    actions/checkout): a depth on a full clone would cut its history at the fetched commit, so a full
+    clone gets a plain fetch and stays full."""
+    depth = ["--depth=1"] if is_shallow(root) else []
+    return subprocess.run(["git", "-C", str(root), "fetch", "--no-tags", "--quiet", *depth, "origin", ref],
+                          capture_output=True, text=True)
+
+
 def base_board_text(root, base, base_board, auto_base):
     """The old BOARD.md: from a file, from a revision, or (pull_request run without --base) from
-    the base branch fetched at depth 1. None when no base applies (a local run without --base)."""
+    the base branch fetched (at depth 1 in a shallow checkout only). None when no base applies (a local run without --base)."""
     if base_board:
         return Path(base_board).read_text(encoding="utf-8")
     if not base and auto_base and os.environ.get("GITHUB_EVENT_NAME") == "pull_request" and os.environ.get("GITHUB_BASE_REF"):
-        fetch = subprocess.run(["git", "-C", str(root), "fetch", "--no-tags", "--quiet", "--depth=1",
-                                "origin", os.environ["GITHUB_BASE_REF"]], capture_output=True, text=True)
+        fetch = fetch_base_branch(root, os.environ["GITHUB_BASE_REF"])
         if fetch.returncode != 0:
             raise RuntimeError("cannot fetch the base branch: " + fetch.stderr.strip())
         base = "FETCH_HEAD"
@@ -398,7 +412,47 @@ def self_test(script_dir):
             failed += 1
             print("".join(f"    SELF-TEST FAIL: {e}\n" for e in errors), end="")
     print(f"check-board self-test: {len(fixtures) - failed}/{len(fixtures)} fixtures passed")
-    return 1 if failed else 0
+    fetch_failed = fetch_self_test()
+    return 1 if failed or fetch_failed else 0
+
+
+def fetch_self_test():
+    """The base fetch of a pull_request run, in scratch clones: a full clone stays full (the case of CI's
+    variables set by hand in a real clone), a shallow checkout (CI's) stays shallow. Returns the number of failures."""
+    def git(cwd, *args):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "init.defaultBranch=main",
+                               "-C", str(cwd), *args], capture_output=True, text=True)
+    failures = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        origin = Path(tmp) / "origin"
+        origin.mkdir()
+        git(origin, "init", "-q")
+        for name in ("one", "two", "three"):
+            git(origin, "commit", "-q", "--allow-empty", "-m", name)
+        for label, flags, want_shallow in (("full clone, base fetched, stays full", [], False),
+                                           ("shallow checkout, base fetched, stays shallow", ["--depth=1"], True)):
+            clone = Path(tmp) / label.split(",")[0].replace(" ", "-")
+            subprocess.run(["git", "clone", "-q", *flags, f"file://{origin}", str(clone)], capture_output=True)
+            git(origin, "commit", "-q", "--allow-empty", "-m", "later " + label)
+            before = git(clone, "rev-list", "--count", "HEAD").stdout.strip()
+            fetch = fetch_base_branch(clone, "main")
+            after = git(clone, "rev-list", "--count", "HEAD").stdout.strip()
+            tip = git(clone, "rev-parse", "FETCH_HEAD").stdout.strip()
+            want_tip = git(origin, "rev-parse", "HEAD").stdout.strip()
+            errors = []
+            if fetch.returncode != 0:
+                errors.append("fetch failed: " + fetch.stderr.strip())
+            if is_shallow(clone) != want_shallow:
+                errors.append(f"is-shallow is {not want_shallow}, expected {want_shallow}")
+            if before != after:
+                errors.append(f"HEAD history changed from {before} to {after} commits")
+            if tip != want_tip:
+                errors.append("FETCH_HEAD is not the origin's tip")
+            print(f"--- base fetch: {label}: {'FAIL' if errors else 'ok'}")
+            print("".join(f"    SELF-TEST FAIL: {e}\n" for e in errors), end="")
+            failures += bool(errors)
+    print(f"check-board base-fetch self-test: {2 - failures}/2 cases passed")
+    return failures
 
 
 def main(argv):

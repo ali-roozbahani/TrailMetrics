@@ -25,6 +25,13 @@ if ! source "$REPO_ROOT/scripts/scrub-env.sh" || ! scrub_secret_env; then
     exit 1
 fi
 
+# A shallow clone has no merge-base with origin/main and no history before its boundary, so every base-compared
+# step below would be wrong: stop before any of them. Passes in CI (GITHUB_ACTIONS=true), whose checkout is shallow.
+if ! scripts/check-full-clone.sh; then
+    echo "Gate stopped before any step. Do not push."
+    exit 1
+fi
+
 FAILURES=()
 run_step() {
     local name="$1"; shift
