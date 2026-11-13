@@ -18,7 +18,12 @@
 # Read, Grep, Glob: refused when they name, or resolve to, the git-ignored secrets files (the iOS
 #   secrets config, `local.properties`, `.env*`). The worktree path of such a file is not covered by the
 #   rooted deny rules of .claude/settings.json; that is why this exists.
-# Bash: refused when the command has, as a word of a simple command: `git push`, `git remote`,
+# Bash: refused when the command names a secrets file (the same names; the rooted deny rules of
+#   .claude/settings.json also refuse a command that spells them, for any path). A command that reads
+#   the linked file without spelling its name (`grep -R KEY .`, `cat *`, a glob) is not seen: the
+#   orchestrator links the files (`--ios`, `--android`) only for an implementer that needs the build, and
+#   the settings deny rules for the worktree's paths (given to the owner as text) are the second lock.
+#   Also refused, as a word of a simple command: `git push`, `git remote`,
 #   `git config`, `git credential`, `git update-ref`, `git worktree`, `git fetch`, `git pull`, and
 #   `git -c`, `--config-env`, `--exec-path` or an `alias.` (an alias can be a push); `gh`
 #   (pull requests, merges, the API); `claude`; `curl`, `wget`, `ssh`, `scp`, `rsync`; the orchestrator's
@@ -43,6 +48,8 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKTREE="$SCRIPT_DIR/worktree.sh"
 SECRETS_RE='(Secrets\.xcconfig|(^|/)local\.properties|(^|/)\.env([^/]*)?$)'
+# The same names found anywhere in a command line (a word, not only a path component).
+BASH_SECRETS_RE='(Secrets\.xcconfig|(^|[^[:alnum:]_.-])local\.properties|(^|[^[:alnum:]_])\.env([^[:alnum:]]|$))'
 
 deny() { echo "implementer guard: $*" >&2; exit 2; }
 
@@ -93,6 +100,9 @@ guard() {
             [ -n "$cmd" ] || exit 0
             if printf '%s' "$cmd" | grep -Eq '(^|[^[:alnum:]_.-])git[^;&|]*[[:space:]](push|remote|config|credential|update-ref|worktree|fetch|pull)([[:space:]]|$)'; then
                 deny "a git command that pushes, changes remotes, config, refs or worktrees, or fetches is not allowed here; commit in this worktree and stop (the orchestrator takes the commits). If this was a harmless command that only spells one of those words, rephrase it."
+            fi
+            if printf '%s' "$cmd" | grep -Eq "$BASH_SECRETS_RE"; then
+                deny "the command names a git-ignored secrets file (the iOS secrets config, local.properties, .env*): it is not read, printed or copied"
             fi
             if printf '%s' "$cmd" | grep -Eq '(^|[^[:alnum:]_.-])git[^;&|]*[[:space:]](-c|--config-env|--exec-path)([[:space:]=]|$)|alias\.'; then
                 deny "git -c, --config-env, --exec-path and aliases can run another command under git's name: not allowed here"
@@ -177,6 +187,10 @@ self_test() {
     expect "a push after other commands" 2 "$wt" Bash "$(bash_in 'echo hi && git push')"
     expect "an alias that stands for the push" 2 "$wt" Bash "$(bash_in 'git -c alias.p=push p origin HEAD')" "under git's name"
     expect "git -c with another setting" 2 "$wt" Bash "$(bash_in 'git -c core.editor=true commit')"
+    expect "a Bash command that names local.properties" 2 "$wt" Bash "$(bash_in 'cat local.properties')" "secrets file"
+    expect "a Bash command that names the iOS secrets config" 2 "$wt" Bash "$(bash_in 'sed -n 1p iosApp/TrailMetrics/Secrets.xcconfig')" "secrets file"
+    expect "a Bash command that names a .env file" 2 "$wt" Bash "$(bash_in 'cat app/.env.local')" "secrets file"
+    expect "a Bash command that names an environment word is not a secrets file" 0 "$wt" Bash "$(bash_in 'echo environment env')"
     expect "git remote" 2 "$wt" Bash "$(bash_in 'git remote add x y')"
     expect "git fetch" 2 "$wt" Bash "$(bash_in 'git fetch origin')"
     expect "gh pr create" 2 "$wt" Bash "$(bash_in 'gh pr create --fill')" "orchestrator's"

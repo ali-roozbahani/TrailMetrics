@@ -242,8 +242,12 @@ cmd_remove() {
         git worktree remove "$WT" || refuse "git worktree remove failed (untracked files? --force)"
     fi
     git worktree prune
-    git branch -D "$BRANCH" >/dev/null 2>&1 || true
-    echo "removed worktree $WT and branch $BRANCH"
+    if git branch -D "$BRANCH" >/dev/null 2>&1; then
+        echo "removed worktree $WT and branch $BRANCH"
+    else
+        echo "removed worktree $WT, but the branch $BRANCH could not be deleted (delete it with git branch -D $BRANCH)" >&2
+        return 1
+    fi
 }
 
 cmd_list() {
