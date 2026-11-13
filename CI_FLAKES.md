@@ -178,21 +178,28 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
 
 ## ios-2a-job-not-acquired
 
-- Signature: job `iOS 2a — build UI-test app`, no step ran (the job has no steps), first error
-  line "The job was not acquired by Runner of type hosted even after multiple attempts" (check-run
-  annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience
-  longer queue times."). `iOS — all stages` then failed with "ios-build-ui result is abandoned" and
-  `iOS 3 — run UI tests (after 2a)` was skipped
-- Count: 1
+One entry for the class "a macOS job is not acquired by a runner" (the slug names the first job it was seen on); the count is per
+run, and the jobs it hit are counted below.
+
+- Signature: job `iOS 2a — build UI-test app`, `iOS 2b — lint, app build, package tests` or `iOS 3 — run UI tests (after 2a)`, no
+  step ran (the job has no steps), first error line "The job was not acquired by Runner of type hosted even after multiple attempts"
+  (check-run annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue
+  times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
+- Count: 3 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1
 - Status: open
+- escalated: flake-ios-2a-job-not-acquired
 - Occurrences:
-  - 2026-11-12, run 43287492527 (push to `main`, merge of #270), re-run: no (a run on `main` is
+  - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
     never re-run). The job waited 15 minutes (19:11:00 to 19:26:01) with no runner and was
-    cancelled by GitHub
-- Notes: class infra (macOS runner capacity), not the diff: the other jobs of the run passed,
-  including `iOS 2b — lint, app build, package tests`, which builds the app on the same runner
-  label. #270 added a UI test that this run never built or ran. The UI test itself is not shown
-  to pass or fail on `main`; the next push's `iOS 3` run is the first reading.
+    cancelled by GitHub; `iOS — all stages` failed with "ios-build-ui result is abandoned" and `iOS 3` was skipped
+  - 2026-11-13, run 43459951394 (push to `main`, merge of #281), job `iOS 3`, re-run: no. The job waited 15 minutes (16:14:54
+    to 16:29:55) and was cancelled; `iOS 2a` and `iOS 2b` of the run passed (so the app and the UI-test products were built)
+  - 2026-11-13, run 43461639786 (push to `main`, merge of #282), jobs `iOS 2a` and `iOS 2b`, re-run: no. Both waited 15 minutes
+    (16:20:01 to 16:35:02) and were cancelled; `iOS 3` was skipped
+- Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
+  run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
+  ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner's note: if
+  it keeps recurring we revisit pinning the macOS label (not changed now; a workflow change only the owner can push).
 
 ## ios-ui-probe-refresh-timeout
 

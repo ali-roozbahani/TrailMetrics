@@ -564,6 +564,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the cause is shown for the Details-after-delete and the restored-session Tracking screens (which element, timer or animation keeps the app busy, from a CI run's recorded UI hierarchy or a sample of the app), the owner has decided whether the UI-test variant (`shared-uitest`, the launch-time seam) can avoid it, for example by disabling animations or stopping a ticking timer in the test variant, and the change is made so that `iOS 3` shows no idle stall of 18 s or more on 5 consecutive runs of `main`. No retry and no longer wait is added.
 - Refs: `CI_FLAKES.md` (the two entries above); `iosApp/TrailMetricsUITests/DetailsFailedDeleteUITests.swift`; `iosApp/TrailMetricsUITests/Tracking/RestoredSessionOfferUITests.swift`; `iosApp/TrailMetricsUITests/Support/UITestProbe.swift`; `shared-uitest`.
 
+### flake-ios-2a-job-not-acquired
+- Type: task
+- Area: .github/workflows/ci.yml (the macOS jobs)
+- Order: 620
+- Source: CI runs 43287492527, 43459951394 and 43461639786 (main, push); escalated at count 3 from the entry `ios-2a-job-not-acquired` in `CI_FLAKES.md`
+- Problem: Three runs on `main` lost a macOS job because no runner was acquired ("The job was not acquired by Runner of type hosted even after multiple attempts", with GitHub's notice about macOS arm64 capacity): `iOS 2a` twice, `iOS 2b` once (the same run as the second `iOS 2a`) and `iOS 3` once; each job waited 15 minutes and was cancelled, and `iOS — all stages` failed. The cause is capacity, not the change (the other jobs of each run passed, and the changes were a UI test, scripts and Markdown). A run on `main` is never re-run, so each one needs the owner's acknowledgement. The owner's note: if it keeps recurring we revisit pinning the macOS label.
+- Done when: the flake no longer fails or the runner is changed so it cannot (for example the macOS label is pinned, a change to `.github/workflows/ci.yml` that only the owner can push), shown on 5 consecutive runs of the iOS jobs on `main`.
+- Refs: CI runs 43287492527, 43459951394 and 43461639786; `.github/workflows/ci.yml` (`runs-on: macos-latest`); `CI_FLAKES.md` entry `ios-2a-job-not-acquired`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
