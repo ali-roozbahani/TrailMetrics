@@ -6,6 +6,7 @@
 # self-test of a new tooling script here.
 tooling	self-test list self-test	scripts/checks/self-tests.sh
 tooling	PR base self-test	scripts/ci/pr-base.sh
+tooling	full clone check self-test	scripts/check-full-clone.sh
 tooling	scripts index self-test	scripts/checks/scripts-index.sh
 tooling	protected paths self-test	scripts/check-protected-paths.sh
 tooling	change classification self-test	scripts/classify-changes.sh

@@ -105,6 +105,10 @@ here. Run the script itself, not a hand-picked command.
   `scripts/checks/self-tests.list`, a heavy file, when the script tests iOS-only things. Never into the
   Android build job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
   on a script that has a self-test and is on neither list, and on another group in the tooling list.
+- **A shallow clone.** The gate's first check, `scripts/check-full-clone.sh`, stops the gate before any
+  step when the clone is shallow (CI's checkout is exempt); the fix is `git fetch --unshallow`. No
+  script fetches at depth in a full clone: `scripts/check-board.py` and `scripts/ci/pr-base.sh` do it
+  only when the checkout is already shallow, so setting CI's variables by hand is safe.
 - **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:

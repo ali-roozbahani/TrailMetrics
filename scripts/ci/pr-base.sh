@@ -11,7 +11,8 @@
 # another repository (default: the current directory).
 #
 # Exit and output:
-#   0  pull_request, and the base is a commit here (fetched at depth 1 when it was missing):
+#   0  pull_request, and the base is a commit here (fetched when it was missing, at depth 1 only in a
+#      shallow checkout, so a full clone stays full):
 #      prints the SHA
 #   3  no base: any other event (push, workflow_dispatch, ...); prints nothing, says why on stderr
 #   4  pull_request, and PR_BASE_SHA is not a commit SHA (40 or 64 hex)
@@ -22,7 +23,8 @@
 #
 # --self-test: each case directory holds `env` (EVENT_NAME=..., PR_BASE_SHA=... lines, where
 # {BASE} is the base commit and {UNFETCHED} a commit only the origin has), `expect-exit` and, for
-# exit 0, `expect-base` ({BASE} or {UNFETCHED}). The cases run in a scratch clone of a scratch
+# exit 0, `expect-base` ({BASE} or {UNFETCHED}); a case with a `full-clone` file runs in a full clone and must
+# leave it full. The cases run in a scratch clone of a scratch
 # origin, so the fetch is real and local.
 # Bash 3.2 compatible.
 set -u
@@ -40,7 +42,12 @@ pr_base() {
         return 4
     fi
     if ! git -C "$root" cat-file -e "$base^{commit}" 2>/dev/null; then
-        git -C "$root" fetch --no-tags --quiet --depth=1 origin "$base" >&2 || true
+        # At depth 1 only when the checkout is already shallow (CI's actions/checkout): a depth on a
+        # full clone would cut its history at the fetched commit, so a full clone gets a plain fetch.
+        local depth=""
+        [ "$(git -C "$root" rev-parse --is-shallow-repository 2>/dev/null)" = true ] && depth="--depth=1"
+        # shellcheck disable=SC2086
+        git -C "$root" fetch --no-tags --quiet $depth origin "$base" >&2 || true
     fi
     if ! git -C "$root" cat-file -e "$base^{commit}" 2>/dev/null; then
         echo "pr-base: $base is not a commit here, even after a fetch from origin" >&2
@@ -50,7 +57,7 @@ pr_base() {
 }
 
 self_test() {
-    local self fixtures tmp origin clone base unfetched failed=0 dir name want_exit want_base out code line
+    local self fixtures tmp origin clone base unfetched depth_flag failed=0 dir name want_exit want_base out code line
     self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
     fixtures="$(dirname "$self")/pr-base-fixtures"
     tmp="$(mktemp -d)" || { echo "FAIL mktemp"; exit 1; }
@@ -71,7 +78,10 @@ self_test() {
         # A fresh repository per case whose only commit is {BASE}, with the scratch origin as
         # `origin`: {UNFETCHED} is only on origin, and an earlier case's fetch cannot satisfy a
         # later one.
-        rm -rf -- "$clone" && g init -q "$clone" && g -C "$clone" fetch -q --depth=1 "file://$origin" "$base" \
+        depth_flag="--depth=1"
+        [ -e "$dir/full-clone" ] && depth_flag=""
+        # shellcheck disable=SC2086
+        rm -rf -- "$clone" && g init -q "$clone" && g -C "$clone" fetch -q $depth_flag "file://$origin" "$base" \
             && g -C "$clone" remote add origin "file://$origin" \
             || { echo "FAIL $name: could not build the clone"; failed=1; continue; }
         out="$(
@@ -85,6 +95,11 @@ self_test() {
             "$self" --root "$clone" 2>/dev/null
         )"
         code=$?
+        if [ -e "$dir/full-clone" ] && [ "$(g -C "$clone" rev-parse --is-shallow-repository)" != false ]; then
+            echo "FAIL $name: the full clone became shallow"
+            failed=1
+            continue
+        fi
         if [ "$code" = "$want_exit" ] && [ "$out" = "$want_base" ]; then
             echo "ok   $name (exit $code)"
         else
