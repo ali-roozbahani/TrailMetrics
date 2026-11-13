@@ -55,6 +55,7 @@ deny() { echo "implementer guard: $*" >&2; exit 2; }
 
 guard() {
     local input tool cwd root gitdir common rec p abs real dir rest base rel cmd seg word
+    local -a words
     input="$(cat)"
     command -v jq >/dev/null 2>&1 || deny "jq is missing, so this hook cannot read the call"
     tool="$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)" || deny "unreadable hook input"
@@ -115,11 +116,12 @@ guard() {
             fi
             # cd / pushd must stay inside the worktree.
             while IFS= read -r seg; do
-                set -- $seg
-                [ "${1:-}" = cd ] || [ "${1:-}" = pushd ] || continue
-                p="${2:-}"
+                # Split into words without pathname expansion (`cd *` must stay the word `*`).
+                read -r -a words <<< "$seg"
+                [ "${words[0]:-}" = cd ] || [ "${words[0]:-}" = pushd ] || continue
+                p="${words[1]:-}"
                 case "$p" in
-                    '' | - | '~'* | *'$'* | *'`'* | .. | ../* | */.. | */../*) deny "cd '$p' leaves the worktree or cannot be read" ;;
+                    '' | - | '~'* | *'$'* | *'`'* | *'*'* | *'?'* | *'['* | .. | ../* | */.. | */../*) deny "cd '$p' leaves the worktree or cannot be read" ;;
                     /*) real="$(cd "$p" 2>/dev/null && pwd -P)" || deny "cd '$p': no such directory"
                         case "$real/" in "$root"/*) ;; *) deny "cd '$p' leaves the worktree $root" ;; esac ;;
                 esac
@@ -203,6 +205,7 @@ self_test() {
     expect "cd to an absolute path inside" 0 "$wt" Bash "$(bash_in "cd $wt/src && ls")"
     expect "cd to /tmp" 2 "$wt" Bash "$(bash_in 'cd /tmp && ls')" "leaves the worktree"
     expect "cd .." 2 "$wt" Bash "$(bash_in 'cd .. && ls')"
+    expect "cd to a glob" 2 "$wt" Bash "$(bash_in 'cd * && ls')" "cannot be read"
     expect "cd to a variable" 2 "$wt" Bash "$(bash_in 'cd $HOME && ls')"
     expect "cd ~" 2 "$wt" Bash "$(bash_in 'cd ~ && ls')"
     expect "a command in a subdirectory of the worktree" 0 "$wt/src" Bash "$(bash_in 'ls')"
