@@ -11,7 +11,8 @@
 # worktree's own git directory). Another directory, or a worktree without the record, blocks every call
 # (fail closed). But a subagent's hook always gets the main clone as `cwd`: the shell is reset to
 # it before every call and a `cd` does not last (two real runs showed it). So from the main clone the
-# guard judges by what the call names: Read, Grep and Glob by the secrets names only; Write, Edit and
+# guard judges by what the call names: Read, Grep and Glob by the secrets names and by staying inside the
+# main clone (an absolute path elsewhere is refused); Write, Edit and
 # the like by their absolute target path, which must lie in a worktree under the worktree folder
 # (then that worktree's allowed paths apply); Bash only when the command begins with
 # `cd <the root of a worktree under the worktree folder>`, and the rest of it is judged as if the shell
@@ -46,9 +47,10 @@
 # script the implementer wrote and runs, or a path built from a variable is not seen, and a Bash call
 # that leaves the worktree without `cd` text (`git -C /elsewhere`) is not caught except for the words
 # above. `worktree.sh take` refuses afterwards any commit outside the allowed paths, and the
-# orchestrator reviews the diff, which is the check that does not depend on this hook. Whether this
-# hook fires for a subagent's tool calls, and what `.cwd` holds there, are in the report of the PR that
-# added it as "not verified" until a real run shows them.
+# orchestrator reviews the diff, which is the check that does not depend on this hook. Three real
+# implementer runs showed that this hook fires for a subagent's tool calls, that its message reaches the
+# subagent, and that `.cwd` is the main clone on every call (see the paragraph above). Not verified:
+# that `agent_id` is in the hook input of a front-matter hook (it would tell two implementers apart).
 #
 # Needs jq. BREAK-GLASS (human only): remove the `hooks:` block from .claude/agents/implementer.md.
 # Bash 3.2 compatible.
@@ -79,7 +81,8 @@ guard() {
     if [ "$gitdir" = "$common" ]; then
         # A subagent's hook always sees the main session's directory, the main clone, as `cwd`: a `cd`
         # does not last from one Bash call to the next (two real runs showed it), so nothing here can
-        # rely on cwd. From the main clone: Read, Grep and Glob are judged by the secrets names only; a
+        # rely on cwd. From the main clone: Read, Grep and Glob are judged by the secrets names and by staying
+        # inside the main clone and the worktree folder (no `..`, no absolute path elsewhere); a
         # Write-family call by its absolute target path, which must lie in a worktree under the worktree
         # folder; a Bash command must begin with `cd <that worktree>` (every call, so the implementer
         # writes `cd <worktree> && ...`), and the rest of it is judged as if the shell were there.
@@ -89,6 +92,18 @@ guard() {
         case "$tool" in
             Read | Grep | Glob)
                 check_record=0
+                # Reads stay inside the main clone and the worktree folder (normally inside it): an absolute path elsewhere,
+                # or one with a `..` component, is refused. A Grep pattern is a regular expression, not a path.
+                p="$(printf '%s' "$input" | jq -r '[.tool_input.file_path, .tool_input.path, (if "'"$tool"'" == "Glob" then .tool_input.pattern else null end)] | map(select(. != null)) | join("\n")' 2>/dev/null)"
+                while IFS= read -r word; do
+                    # A `..` component in any word, relative ones included, could leave the clone.
+                    case "/$word/" in */../*) deny "'$word' has a '..' component" ;; esac
+                    case "$word" in
+                        /*)
+                            case "$word" in "$root" | "$root"/* | "$wts" | "$wts"/*) ;; *) deny "'$word' is outside the main clone $root and its worktree folder: Read, Grep and Glob stay inside them" ;; esac
+                            ;;
+                    esac
+                done <<< "$p"
                 ;;
             Write | Edit | MultiEdit | NotebookEdit)
                 p="$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)"
@@ -109,6 +124,7 @@ guard() {
                 read -r -a words <<< "$first"
                 { [ "${words[0]:-}" = cd ] && [ -n "${words[1]:-}" ]; } || deny "$mainmsg"
                 case "${words[1]}" in *'$'* | *'`'* | *'*'* | *'?'* | *'['* | '~'*) deny "$mainmsg" ;; esac
+                case "${words[1]}" in /*) ;; *) deny "cd '${words[1]}' is not an absolute path. $mainmsg" ;; esac
                 target="$(cd "${words[1]}" 2>/dev/null && pwd -P)" || deny "cd '${words[1]}': no such directory. $mainmsg"
                 case "$target" in "$wts"/*) case "${target#"$wts"/}" in */*) deny "cd '${words[1]}' is not the root of a worktree. $mainmsg" ;; esac ;; *) deny "cd '${words[1]}' is not one of the worktrees under $wts. $mainmsg" ;; esac
                 root="$target"
@@ -270,6 +286,17 @@ self_test() {
     expect "main clone: Read of the task file is allowed" 0 "$repo" Read "$(file_in "$tmp/wts/impl.task.md")"
     expect "main clone: Read of a secrets file" 2 "$repo" Read "$(file_in "$repo/local.properties")" "secrets file"
     expect "main clone: Grep" 0 "$repo" Grep "$(jq -n '{pattern: "one"}')"
+    expect "main clone: Read of a file outside the clone" 2 "$repo" Read "$(file_in "/etc/hosts")" "outside the main clone"
+    expect "main clone: Read of a relative path" 0 "$repo" Read "$(file_in "src/a.txt")"
+    expect "main clone: Read of a relative path that leaves the clone" 2 "$repo" Read "$(file_in "../../etc/hosts")" "'..' component"
+    expect "main clone: Grep with a relative path that leaves the clone" 2 "$repo" Grep "$(jq -n '{pattern: "x", path: "../.."}')" "'..' component"
+    expect "main clone: Glob of a relative pattern that leaves the clone" 2 "$repo" Glob "$(jq -n '{pattern: "../*"}')" "'..' component"
+    expect "main clone: Read with a '..' component" 2 "$repo" Read "$(file_in "$repo/src/../../x")" "'..' component"
+    expect "main clone: Grep with a path outside the clone" 2 "$repo" Grep "$(jq -n '{pattern: "x", path: "/etc"}')" "outside the main clone"
+    expect "main clone: Grep with a path inside the clone" 0 "$repo" Grep "$(jq -n --arg p "$repo/src" '{pattern: "one", path: $p}')"
+    expect "main clone: a Grep pattern that looks like a path is only a pattern" 0 "$repo" Grep "$(jq -n --arg p "$repo/src" '{pattern: "/etc/passwd", path: $p}')"
+    expect "main clone: Glob of a pattern outside the clone" 2 "$repo" Glob "$(jq -n '{pattern: "/etc/*"}')" "outside the main clone"
+    expect "main clone: Glob of a relative pattern" 0 "$repo" Glob "$(jq -n '{pattern: "src/**/*.kt"}')"
     expect "main clone: Grep that names a secrets file" 2 "$repo" Grep "$(jq -n '{pattern: "KEY", glob: "**/Secrets.xcconfig"}')" "secrets file"
     expect "main clone: Write to an allowed path of a worktree" 0 "$repo" Write "$(file_in "$wt/src/deep/new.kt")"
     expect "main clone: Write to a path that is not allowed" 2 "$repo" Write "$(file_in "$wt/docs/b.txt")" "not one of the allowed paths"
@@ -283,6 +310,7 @@ self_test() {
     expect "main clone: cd, then a refused command" 2 "$repo" Bash "$(bash_in "cd $wt && gh pr list")" "orchestrator's"
     expect "main clone: cd, then a command that names a secrets file" 2 "$repo" Bash "$(bash_in "cd $wt && cat local.properties")" "secrets file"
     expect "main clone: cd into a subdirectory of the worktree" 2 "$repo" Bash "$(bash_in "cd $wt/src && ls")" "not the root of a worktree"
+    expect "main clone: cd with a relative path" 2 "$repo" Bash "$(bash_in "cd .claude/worktrees/impl")" "not an absolute path"
     expect "main clone: cd somewhere else" 2 "$repo" Bash "$(bash_in 'cd /tmp && ls')" "not one of the worktrees"
     expect "main clone: a command that does not start with cd" 2 "$repo" Bash "$(bash_in "ls && cd $wt")" "begin every Bash command with cd"
     expect "main clone: cd to a variable" 2 "$repo" Bash "$(bash_in 'cd $HOME')"
