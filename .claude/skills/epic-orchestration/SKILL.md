@@ -39,6 +39,12 @@ conditions.
 - **Subtask agent**: one per subtask. It follows `tm-pr-workflow` plus the code skills
   for its paths, and opens one PR against the epic branch.
 
+Inside its own work, a subtask agent (or the orchestrator, for the contract) may use the `explorer` and
+`implementer` subagents like any run (`tm-agent-loop`, "Subagents"); they are tools of that agent, never
+a subtask: they open no PR, and only the agent that started them integrates their commits. A subtask
+agent started with `isolation: "worktree"` is a different thing from an implementer's worktree
+(`scripts/subagent/worktree.sh`), which is created and removed by the agent that uses it.
+
 The epic PR into `main` is the human's only, on the human's explicit command
 (`docs/epics/agentic-dev-loop.md`, Decision 5). Subtask PRs into the epic branch follow
 Decision 5: an agent may merge one only under the conditions in `tm-agent-loop` ("Merge
@@ -281,10 +287,16 @@ The caution that still applies to parallel worktrees:
   memory and the shared `~/.gradle` cache locks, and can be slower in total than running
   them one after another. Default to **at most two** concurrent subtasks, and fewer when
   more than one of them runs the iOS steps. The human can raise the limit.
+  Since the heavy-run lock (`scripts/heavy-run.sh`, which the gate starts itself under) only one
+  Gradle or `xcodebuild` run goes at a time on this machine, whoever starts it: the others wait and
+  say who they wait for. Parallel subtasks therefore overlap their writing, not their gates, and a
+  wait is neither a failure nor a gate attempt.
 - **Untracked local files don't come along.** A new worktree has no `local.properties`
   (Android SDK path, `MAPS_API_KEY`) and no `iosApp/TrailMetrics/Secrets.xcconfig`, which
   the iOS build needs. Both are gitignored. The orchestrator copies them from the main
   checkout into each worktree before the subtask runs its gate. Never commit them.
+  For an implementer's worktree, `scripts/subagent/worktree.sh create ... --ios --android` puts symbolic
+  links to them in the worktree (never read, printed or copied by the script).
 - **Sequential in the main checkout is still fine.** It's the right choice when the
   machine can't take concurrent builds or a wave has only one subtask. The ordering,
   scoping and PR-per-subtask rules are the same either way.
