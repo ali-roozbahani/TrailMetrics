@@ -22,7 +22,7 @@ jobs:
   # its heavy scripts). The required check "Android — Lint, Detekt, Tests, Build" is the aggregator `android`
   # at the end of this file, which also passes when this job was skipped on a light decision.
   android-build:
-    name: Android 2 — Lint, Detekt, Tests, Build
+    name: Android build — lint, Detekt, tests, coverage, debug build, Room export
     needs: ios-plan
     if: needs.ios-plan.outputs.decision != 'light'
     runs-on: ubuntu-26.04
