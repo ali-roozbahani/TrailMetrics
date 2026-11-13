@@ -27,6 +27,8 @@ tooling	CI re-run guard self-test	scripts/rerun-failed-once.sh
 tooling	local review gate self-test	scripts/local-review-gate.sh
 tooling	local review hook self-test	scripts/claude-hooks/require-local-review.sh
 tooling	CI wait self-test	scripts/wait-for-checks.sh
+tooling	cancel head CI self-test	scripts/cancel-head-ci.sh
+tooling	reviewer input check self-test	scripts/review-input-check.sh
 tooling	main CI status self-test	scripts/main-ci-status.sh
 tooling	board check self-test	scripts/check-board.sh
 tooling	push hook self-test	scripts/claude-hooks/block-git-push.sh

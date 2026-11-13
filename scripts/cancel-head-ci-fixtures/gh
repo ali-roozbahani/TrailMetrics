@@ -1,0 +1,15 @@
+#!/bin/bash
+# Fake `gh` for scripts/cancel-head-ci.sh --self-test: serves one fixture case, never touches the network and
+# records every cancel call (one run id per line) in $FAKE_GH_STATE/posts. FAKE_GH_DIR is the case directory.
+[ -e "$FAKE_GH_DIR/gh-fail" ] && { echo "gh: simulated failure" >&2; exit 1; }
+case "$*" in
+    "api repos/{owner}/{repo}/pulls/"*) cat "$FAKE_GH_DIR/pr.json" ;;
+    "api user --jq .login") cat "$FAKE_GH_DIR/login" ;;
+    "api repos/{owner}/{repo}/actions/runs?head_sha="*"&per_page=100") cat "$FAKE_GH_DIR/runs.json" ;;
+    "api -X POST repos/{owner}/{repo}/actions/runs/"*"/cancel")
+        all="$*"; id="${all#*actions/runs/}"; id="${id%/cancel}"
+        [ -e "$FAKE_GH_DIR/cancel-fails" ] && { echo "gh: Cannot cancel a workflow run that is completed" >&2; exit 1; }
+        echo "$id" >> "$FAKE_GH_STATE/posts"
+        echo '{}' ;;
+    *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
+esac
