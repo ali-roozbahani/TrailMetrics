@@ -1,0 +1,2 @@
+decision: full
+contains: scripts/pre-push-check.sh  (heavy script: scripts/pre-push-check.sh)

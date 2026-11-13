@@ -1,0 +1,3 @@
+decision: light
+contains: scripts/queue/queue.sh  (scripts/**)
+contains: .claude/settings.json  (.claude/**)
