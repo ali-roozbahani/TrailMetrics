@@ -132,7 +132,7 @@ from memory.
    bullet with none is blocking. Each `BOARD.md` record the diff adds states in its Problem one
    of the reasons rule 1 admits (owner decision or design, an epic or its final board PR's
    records, only the owner can push it,
-   the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3);
+   the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3, never a "job not acquired by a runner" one);
    a record whose only reason is that the agent could do it, and a record or follow-up whose
    reason is a same-subject fix within the sweep bound, are blocking; a record the task
    started from is deleted in its own commit (`chore(board): remove <slug>`); no `After` or

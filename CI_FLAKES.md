@@ -9,7 +9,9 @@ exists; for a fixed entry the Fix (`#<PR number>`) and Learned (one line, the fu
 `LEARNINGS.md`). A PR that fixes a flake sets `fixed (unverified)`, the status of a board record
 until its Done when is shown (5 consecutive green runs of the job on `main` after the fix's merge
 commit); `fixed` only once they are. A failure with the signature of a `fixed (unverified)` or
-`fixed` entry reopens it to `open` and adds the occurrence.
+`fixed` entry reopens it to `open` and adds the occurrence. A failure of the kind "job not acquired by a
+runner" (infra: no test or code involved) is counted and never escalated to a board record (`tm-pr-workflow`,
+"Flake log").
 
 ## ios-ui-route-map-press-lost
 
@@ -187,7 +189,6 @@ run, and the jobs it hit are counted below.
   times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
 - Count: 3 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1
 - Status: open
-- escalated: flake-ios-2a-job-not-acquired
 - Occurrences:
   - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
     never re-run). The job waited 15 minutes (19:11:00 to 19:26:01) with no runner and was
@@ -198,29 +199,35 @@ run, and the jobs it hit are counted below.
     (16:20:01 to 16:35:02) and were cancelled; `iOS 3` was skipped
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
-  ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner's note: if
-  it keeps recurring we revisit pinning the macOS label (not changed now; a workflow change only the owner can push).
+  ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
+  pinning the macOS label when the count shows a pattern (a workflow change only the owner can push); this kind of
+  failure is counted and never escalated to a board record.
 
 ## ios-ui-probe-refresh-timeout
 
 - Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, tests
   `RouteGenerateThenResetUITests.test_resetWhileGenerating_leavesACleanScreen`,
   `RouteGenerateTwiceUITests.test_generateTwice_requestsDirectionsOnce`,
-  `RouteMapLongPressUITests.test_longPress_addsAWaypoint` and
+  `RouteMapLongPressUITests.test_longPress_addsAWaypoint`,
+  `StartWaitsForRestoreUITests.test_startIsNotOfferedWhileTheStoredSessionIsRead_andIsOfferedAfter` and
   `TrackingFinishTwiceUITests.test_finishTwice_savesOneActivity`, first error line "failed - Probe
   did not refresh within 10 s (still not read yet: tap Refresh)" (`UITestProbe.swift`)
-- Count: 1
+- Count: 2
 - Status: open
 - Occurrences:
   - 2026-11-12, run 43213470138 (PR #267, head `f5d0d3b`; a new UI test and a scenario in
     `shared-uitest`), re-run: yes, fixed it (attempt 2 green). The four tests failed one after the
     other after 128.7, 49.1, 42.8 and 34.8 s; the four tests before them (Details, Launch and the
     new `RestoredSessionOfferUITests`) passed
+  - 2026-11-13, run 43471164004 (push to `main`, the merge of #284, head `fe46290`; a change to `.claude/settings.json` only), re-run:
+    no (a run on `main` is never re-run; the owner acknowledged the red run and classified it as this entry). Five tests failed one
+    after the other after 114.9, 38.6, 38.0, 36.9 and 43.9 s; the four tests before them (Details, Launch and
+    `RestoredSessionOfferUITests`) passed. The first one stalled 77.7 s in XCTest's "Wait for com.apple.springboard to idle" at 9.2 s
 - Notes: every test that reads the probe after the first failure failed the same way, so the
   runner or simulator was probably stuck, not four tests. The same eight tests passed in one local
   run on the same head. The signature differs from `ios-ui-route-map-press-lost` (a map press) and
   `ios-ui-details-launch-timeout` (a launch).
-
+  Cause class `ui-test-idle-stall` (see the Notes of `ios-ui-details-failed-delete-error-alert-not-shown` and the board record `ui-test-app-idle-stalls`): the 77.7 s stall of the second occurrence was in the simulator's SpringBoard, not our app.
 
 ## ios-ui-details-failed-delete-error-alert-not-shown
 
@@ -242,6 +249,7 @@ run, and the jobs it hit are counted below.
   `ios-ui-details-failed-delete-row-not-found` (the seeded row assertion) and from the launch stalls of
   `ios-ui-details-launch-timeout`, which fail before a test body runs.
   Cause class `ui-test-idle-stall`, trigger unknown (board: ui-test-app-idle-stalls): three failures on two signatures (this one twice, `ios-ui-restored-session-offer-not-offered` once) took 87.1, 84.0 and 84.1 s on different tests, and each holds one long stall inside XCTest's own "Wait for <app> to idle" step before the test's last 10 s wait: 49 s, 18 s plus 33 s, and exactly 60.0 s. Every wait in the UI tests is 10 s and the CI step sets no per-test allowance (the gate's 90 s is not set in ci.yml), so no wait or timeout of about 80 s explains it; the 60.0 s looks like XCTest's own app-idle wait giving up. What keeps the app busy is not shown. No retry and no longer wait was added.
+  A fourth failure, run 43471164004 (`ios-ui-probe-refresh-timeout`, second occurrence), had a stall of 77.7 s in XCTest's "Wait for com.apple.springboard to idle" at 9.2 s of its first failed test: the simulator's SpringBoard, not our app, was not idle. So the cause class covers the simulator or runner as well as the app.
 
 ## ios-ui-restored-session-offer-not-offered
 
