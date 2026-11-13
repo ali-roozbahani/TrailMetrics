@@ -32,7 +32,7 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/check-production-framework.sh`: no test-only Kotlin in the production framework.
 - `scripts/check-localized-strings.sh`: self-test of the SwiftLint rules against hardcoded user-visible strings.
 - `scripts/check-optional-try.sh`: self-test of the SwiftLint `optional_try` rule.
-- `scripts/checks/self-tests.sh`: runs and checks the one list of script self-tests, `scripts/checks/self-tests.list`.
+- `scripts/checks/self-tests.sh`: runs and checks the lists of script self-tests, `scripts/checks/self-tests-tooling.list` (light) and `scripts/checks/self-tests.list` (the groups only the iOS job runs, heavy).
 - `scripts/checks/scripts-index.sh`: checks this index against the scripts under `scripts/`.
 
 ## Review and PR description

@@ -98,11 +98,13 @@ here. Run the script itself, not a hand-picked command.
   no build, among them the Kover floors and Room schema checks, still run. A full run adds the
   iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
   diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
-- **Self-test of a new script.** Its `--self-test` goes on `scripts/checks/self-tests.list`, the
-  one list the gate and CI read: group `tooling` (CI's `tooling` job), or an iOS group (CI's
-  `ios-main` job) when the script tests iOS-only things, never into the `android` job, and a job's
-  name states what the job runs. `scripts/checks/self-tests.sh --check` fails on a script that
-  has a self-test and is not on the list.
+- **Self-test of a new script.** Its `--self-test` goes on one of the two lists the gate and CI read
+  (`scripts/checks/self-tests.sh` reads both): group `tooling` (CI's `tooling` job) on
+  `scripts/checks/self-tests-tooling.list`, which `scripts/classify-changes.sh` treats as light, so
+  a PR of tooling scripts and their registration stays light; an iOS group (CI's `ios-main` job) on
+  `scripts/checks/self-tests.list`, a heavy file, when the script tests iOS-only things. Never into the
+  `android` job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
+  on a script that has a self-test and is on neither list, and on another group in the tooling list.
 - **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:

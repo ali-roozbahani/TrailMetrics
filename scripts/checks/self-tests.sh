@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Runs and checks the one list of script self-tests, scripts/checks/self-tests.list (format and
-# groups in its header). The gate reads the list through --list; CI runs a job's groups through
-# --run in one step.
+# Runs and checks the list of script self-tests: scripts/checks/self-tests-tooling.list (group `tooling`
+# only) and scripts/checks/self-tests.list (the groups the iOS job runs; format and groups in its header).
+# The gate reads the lists through --list; CI runs a job's groups through --run in one step.
 #
 #   scripts/checks/self-tests.sh --list <group>...   print `<step name><TAB><script>` per line
 #   scripts/checks/self-tests.sh --run <group>...    run each `<script> --self-test`, every one
 #                                                    even after a failure; exit 1 if any failed,
 #                                                    naming each failed step and its script
-#   scripts/checks/self-tests.sh --check             every script with a self-test is listed, and
-#                                                    every line is well-formed and names an
-#                                                    executable script that has one
+#   scripts/checks/self-tests.sh --check             every script with a self-test is listed (in either list),
+#                                                    every line is well-formed and names an executable script
+#                                                    that has one, and the tooling list holds only the group
+#                                                    `tooling` (a group that only the iOS job runs belongs in
+#                                                    self-tests.list: the classifier treats the tooling list as light)
 #   scripts/checks/self-tests.sh --self-test         the cases in scripts/checks/self-tests-fixtures/
 #   --root <dir>   (first) the repository to read (default: this script's checkout; the fixtures)
 #
@@ -29,20 +31,28 @@ GROUPS_ALLOWED="tooling macos ios-swiftlint"
 
 die() { echo "self-tests: $1" >&2; exit 2; }
 
-list_file() { printf '%s/scripts/checks/self-tests.list\n' "$ROOT"; }
+TOOLING_LIST=scripts/checks/self-tests-tooling.list
+MAIN_LIST=scripts/checks/self-tests.list
 
-# Lines of the list for the given groups, as `<name><TAB><script>`; exit 2 on a missing file.
+# The list files, tooling first (the order of the gate's steps); the tooling list is optional, the main one is not.
+list_files() {
+    [ ! -f "$ROOT/$TOOLING_LIST" ] || printf '%s\n' "$ROOT/$TOOLING_LIST"
+    printf '%s\n' "$ROOT/$MAIN_LIST"
+}
+
+# Lines of the lists for the given groups, as `<name><TAB><script>`; exit 2 on a missing main list.
 list_groups() {
     local f line group name script rest g want
-    f="$(list_file)"
-    [ -f "$f" ] || die "no list at $f"
-    while IFS= read -r line || [ -n "$line" ]; do
-        case "$line" in '#'* | '') continue ;; esac
-        IFS=$'\t' read -r group name script rest <<< "$line"
-        for want in "$@"; do
-            if [ "$group" = "$want" ]; then printf '%s\t%s\n' "$name" "$script"; fi
-        done
-    done < "$f"
+    [ -f "$ROOT/$MAIN_LIST" ] || die "no list at $ROOT/$MAIN_LIST"
+    while IFS= read -r f; do
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in '#'* | '') continue ;; esac
+            IFS=$'\t' read -r group name script rest <<< "$line"
+            for want in "$@"; do
+                if [ "$group" = "$want" ]; then printf '%s\t%s\n' "$name" "$script"; fi
+            done
+        done < "$f"
+    done < <(list_files)
     return 0
 }
 
@@ -54,33 +64,40 @@ has_self_test() { # <repo-relative path>
 }
 
 check() {
-    local f problems=0 line n=0 group name script rest seen="" p
-    f="$(list_file)"
-    [ -f "$f" ] || die "no list at $f"
-    while IFS= read -r line || [ -n "$line" ]; do
-        n=$((n + 1))
-        case "$line" in '#'* | '') continue ;; esac
-        IFS=$'\t' read -r group name script rest <<< "$line"
-        if [ -z "${script:-}" ] || [ -n "${rest:-}" ] || [ -z "$name" ]; then
-            echo "self-tests.list:$n: not <group><TAB><step name><TAB><script>"; problems=$((problems + 1)); continue
-        fi
-        case " $GROUPS_ALLOWED " in *" $group "*) ;; *)
-            echo "self-tests.list:$n: unknown group '$group' (allowed: $GROUPS_ALLOWED)"; problems=$((problems + 1)) ;;
-        esac
-        case "$seen" in *"|$script|"*)
-            echo "self-tests.list:$n: $script is listed twice"; problems=$((problems + 1)) ;;
-        esac
-        seen="$seen|$script|"
-        if ! has_self_test "$script"; then
-            echo "self-tests.list:$n: $script is missing, not executable, or has no --self-test"; problems=$((problems + 1))
-        fi
-    done < "$f"
+    local f fname problems=0 line n group name script rest seen="" p
+    [ -f "$ROOT/$MAIN_LIST" ] || die "no list at $ROOT/$MAIN_LIST"
+    while IFS= read -r f; do
+        fname="$(basename "$f")"
+        n=0
+        while IFS= read -r line || [ -n "$line" ]; do
+            n=$((n + 1))
+            case "$line" in '#'* | '') continue ;; esac
+            IFS=$'\t' read -r group name script rest <<< "$line"
+            if [ -z "${script:-}" ] || [ -n "${rest:-}" ] || [ -z "$name" ]; then
+                echo "$fname:$n: not <group><TAB><step name><TAB><script>"; problems=$((problems + 1)); continue
+            fi
+            case " $GROUPS_ALLOWED " in *" $group "*) ;; *)
+                echo "$fname:$n: unknown group '$group' (allowed: $GROUPS_ALLOWED)"; problems=$((problems + 1)) ;;
+            esac
+            if [ "$fname" = "$(basename "$TOOLING_LIST")" ] && [ "$group" != tooling ]; then
+                echo "$fname:$n: group '$group' does not belong here: this file holds the group tooling only; a group that only the iOS job runs goes in self-tests.list (the classifier treats this file as light)"
+                problems=$((problems + 1))
+            fi
+            case "$seen" in *"|$script|"*)
+                echo "$fname:$n: $script is listed twice"; problems=$((problems + 1)) ;;
+            esac
+            seen="$seen|$script|"
+            if ! has_self_test "$script"; then
+                echo "$fname:$n: $script is missing, not executable, or has no --self-test"; problems=$((problems + 1))
+            fi
+        done < "$f"
+    done < <(list_files)
     while IFS= read -r p; do
         [ -n "$p" ] || continue
         case "$p" in scripts/pre-push-check.sh | *-fixtures/*) continue ;; esac
         has_self_test "$p" || continue
         case "$seen" in *"|$p|"*) ;; *)
-            echo "$p has a --self-test but is not in scripts/checks/self-tests.list"; problems=$((problems + 1)) ;;
+            echo "$p has a --self-test but is in neither scripts/checks/self-tests-tooling.list nor scripts/checks/self-tests.list"; problems=$((problems + 1)) ;;
         esac
     done < <(cd "$ROOT" && find scripts -type f -name '*.sh' | LC_ALL=C sort)
     if [ "$problems" -ne 0 ]; then

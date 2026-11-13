@@ -19,3 +19,4 @@ M	scripts/checks/self-tests.list
 M	scripts/checks/self-tests.sh
 M	scripts/check-heavy-scripts.sh
 M	scripts/check-heavy-scripts.py
+M	scripts/checks/self-tests-fixtures/x/expect

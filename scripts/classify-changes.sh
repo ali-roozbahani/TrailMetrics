@@ -73,7 +73,9 @@ ALLOWLIST=(
 #   heavy-run.sh             the gate starts itself under it and Gradle runs go through it
 #   classify-changes.sh      this script and its fixtures (a wrong list would make everything light)
 #   ci/**                    pr-base.sh, which the classification and CI's base-comparing steps use
-#   checks/**                self-tests.sh and self-tests.list: what the iOS job runs
+#   checks/self-tests.sh, checks/self-tests.list, checks/self-tests-fixtures/**   what the iOS job runs: the
+#                            runner and the list of the groups it runs. The tooling list and scripts-index.sh
+#                            are light: only the always-run jobs and the gate read them
 #   check-heavy-scripts.*    the check that keeps this list complete; `--github` runs it
 # Keep the list in step with what runs: scripts/check-heavy-scripts.sh checks it.
 HEAVY_SCRIPTS=(
@@ -94,7 +96,9 @@ HEAVY_SCRIPTS=(
     'scripts/classify-changes.sh'
     'scripts/classify-changes-fixtures/**'
     'scripts/ci/**'
-    'scripts/checks/**'
+    'scripts/checks/self-tests.sh'
+    'scripts/checks/self-tests.list'
+    'scripts/checks/self-tests-fixtures/**'
     'scripts/check-heavy-scripts.sh'
     'scripts/check-heavy-scripts.py'
 )
