@@ -10,3 +10,5 @@
 .cxx
 local.properties
 iosApp/TrailMetrics/Secrets.xcconfig
+# Implementer worktrees (scripts/subagent/worktree.sh): inside the clone so a subagent's file tools reach them
+/.claude/worktrees/
