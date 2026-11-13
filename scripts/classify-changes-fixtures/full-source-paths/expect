@@ -1,6 +1,6 @@
 decision: full
 contains: .github/workflows/ci.yml  (not on the allowlist)
-contains: scripts/pre-push-check.sh  (not on the allowlist)
+contains: scripts/pre-push-check.sh  (heavy script: scripts/pre-push-check.sh)
 contains: build.gradle.kts  (not on the allowlist)
 contains: settings.gradle.kts  (not on the allowlist)
 contains: gradle/libs.versions.toml  (not on the allowlist)

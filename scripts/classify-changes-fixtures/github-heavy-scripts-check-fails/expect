@@ -1,0 +1,8 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA={BASE}
+exit: 2
+decision: full
+contains: heavy-scripts check failed
+contains: scripts/new-tool.sh is started by iosApp/TrailMetrics.xcodeproj/project.pbxproj
+output: decision=full

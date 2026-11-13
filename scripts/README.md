@@ -7,10 +7,13 @@ a line names a file that does not exist. Each script's header says how to run it
 ## The gate
 
 - `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1").
+- `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time.
 
 ## Checks of a diff (gate and CI)
 
-- `scripts/classify-changes.sh`: decides `light` or `full` for the gate and CI.
+- `scripts/classify-changes.sh`: decides `light` or `full` for the gate and CI (a tooling-only change is light; its HEAVY_SCRIPTS list names the scripts that stay full).
+- `scripts/check-heavy-scripts.sh`: fails when a script that a build or test step runs is not on that list.
+- `scripts/check-heavy-scripts.py`: the logic of `check-heavy-scripts.sh`.
 - `scripts/check-board.sh`: `BOARD.md`'s record format, Order/After, dangling mentions, and (`--base`) a deleted record's slug still named elsewhere; `--next` prints the record to take.
 - `scripts/check-board.py`: the implementation behind `check-board.sh`.
 - `scripts/check-protected-paths.sh`: classifies a diff or files as protected from `.github/CODEOWNERS`; `--validate` checks the file.
