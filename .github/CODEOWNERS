@@ -84,6 +84,9 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/local-review-gate-fixtures/        @ali-roozbahani
 /scripts/rerun-failed-once.sh               @ali-roozbahani
 /scripts/rerun-failed-once-fixtures/        @ali-roozbahani
+/scripts/cancel-head-ci.sh                  @ali-roozbahani
+/scripts/cancel-head-ci-fixtures/           @ali-roozbahani
+/scripts/review-input-check.sh              @ali-roozbahani
 /scripts/wait-for-checks.sh                 @ali-roozbahani
 /scripts/wait-for-checks-fixtures/          @ali-roozbahani
 /scripts/main-ci-status.sh                  @ali-roozbahani

@@ -43,6 +43,7 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/local-review-record-verdict.sh`: writes `.review-verdict` from the reviewer's recorded report after checking its format.
 - `scripts/skill-changes-digest.sh`: what changed in the skills and `CLAUDE.md` files on `main` since a date.
 - `scripts/set-pr-body.sh`: sets a PR's description from a file through the REST API.
+- `scripts/review-input-check.sh`: a mechanical copy of the reviewer's input checks; its self-test runs them on a clone, a worktree and the tree CI builds.
 
 ## CI: after a push
 
@@ -50,6 +51,7 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/wait-for-checks.sh`: waits for a commit's check runs (`--review-first` for the reviewer's).
 - `scripts/read-ci-verdict.sh`: the CI reviewer's verdict from its check run's annotation.
 - `scripts/rerun-failed-once.sh`: re-runs a finished run's failed jobs, once.
+- `scripts/cancel-head-ci.sh`: cancels the unfinished runs of an open PR's current head when a reviewer finding is going to be fixed.
 - `scripts/main-ci-status.sh`: the last push runs on `main`; `--ack` records an acknowledged red run.
 
 ## The PR queue (local, serial)
