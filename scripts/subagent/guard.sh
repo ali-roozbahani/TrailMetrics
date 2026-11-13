@@ -8,8 +8,11 @@
 #
 # The worktree and its allowed paths come from `.cwd`: the git work tree it is in must be a linked
 # worktree with the `tm-subagent` record that scripts/subagent/worktree.sh create writes (in the
-# worktree's own git directory). From the main clone, another directory, or a worktree without the
-# record, every call is blocked (fail closed). The record's `allowed` list is read through
+# worktree's own git directory). Another directory, or a worktree without the record, blocks every call
+# (fail closed). A subagent starts with the main session's directory, the main clone (a real run
+# showed it), so from the main clone only two calls pass: a Read of `<worktree folder>/<name>.task.md`
+# and a Bash command that begins with `cd <the root of a worktree under the worktree folder>`; the rest
+# of that command is judged as if the shell were in the worktree. The record's `allowed` list is read through
 # `worktree.sh check-path`, the same matcher `worktree.sh take` applies to the commits afterwards.
 #
 # Write, Edit, MultiEdit, NotebookEdit: the target must resolve (directories through `cd -P`, so a
@@ -56,6 +59,7 @@ deny() { echo "implementer guard: $*" >&2; exit 2; }
 guard() {
     local input tool cwd root gitdir common rec p abs real dir rest base rel cmd seg word
     local -a words
+    local wts mainmsg first target
     input="$(cat)"
     command -v jq >/dev/null 2>&1 || deny "jq is missing, so this hook cannot read the call"
     tool="$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)" || deny "unreadable hook input"
@@ -65,7 +69,36 @@ guard() {
     root="$(cd "$root" && pwd -P)"
     gitdir="$(git -C "$root" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || deny "cannot read the git directory of $root"
     common="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || deny "cannot read the git directory of $root"
-    [ "$gitdir" != "$common" ] || deny "$root is the main clone: the implementer works only in its own worktree (scripts/subagent/worktree.sh create)"
+    if [ "$gitdir" = "$common" ]; then
+        # A subagent starts in the main session's directory, the main clone (seen in a real run): the
+        # only calls allowed from there are the read of its task file and a Bash command that begins
+        # with `cd <its worktree>`; the rest of that command, and every later call (the shell stays
+        # in the worktree), are judged against the worktree.
+        wts="${TM_WORKTREE_DIR:-$root/.claude/worktrees}"
+        wts="$(cd "$wts" 2>/dev/null && pwd -P)" || deny "$root is the main clone and has no worktree folder: the implementer works only in its own worktree (scripts/subagent/worktree.sh create)"
+        mainmsg="$root is the main clone: the implementer works only in its own worktree; from here only the read of its task file and a command that starts with cd <its worktree> are allowed"
+        case "$tool" in
+            Read)
+                p="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)"
+                case "$p" in
+                    "$wts"/*.task.md) case "${p#"$wts"/}" in */*) deny "$mainmsg" ;; *) exit 0 ;; esac ;;
+                    *) deny "$mainmsg" ;;
+                esac
+                ;;
+            Bash)
+                cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
+                first="$(printf '%s' "$cmd" | sed -E 's/(&&|\|\||;|\||&).*//' | head -n 1)"
+                read -r -a words <<< "$first"
+                { [ "${words[0]:-}" = cd ] && [ -n "${words[1]:-}" ]; } || deny "$mainmsg"
+                case "${words[1]}" in *'$'* | *'`'* | *'*'* | *'?'* | *'['* | '~'*) deny "$mainmsg" ;; esac
+                target="$(cd "${words[1]}" 2>/dev/null && pwd -P)" || deny "cd '${words[1]}': no such directory. $mainmsg"
+                case "$target" in "$wts"/*) case "${target#"$wts"/}" in */*) deny "cd '${words[1]}' is not the root of a worktree. $mainmsg" ;; esac ;; *) deny "cd '${words[1]}' is not one of the worktrees under $wts. $mainmsg" ;; esac
+                root="$target"
+                cwd="$target"
+                ;;
+            *) deny "$mainmsg" ;;
+        esac
+    fi
     rec="$(git -C "$root" rev-parse --path-format=absolute --git-path tm-subagent 2>/dev/null)"
     [ -f "$rec/allowed" ] || deny "$root has no tm-subagent record: it was not created by scripts/subagent/worktree.sh"
 
@@ -213,6 +246,21 @@ self_test() {
     expect "a tool the guard does not judge" 0 "$wt" WebSearch '{}'
 
     expect "the main clone is refused" 2 "$repo" Write "$(file_in "$repo/src/x")" "main clone"
+    # Starting from the main clone: the task file and the cd into the worktree, nothing else.
+    expect "from the main clone: read the task file" 0 "$repo" Read "$(file_in "$tmp/wts/impl.task.md")"
+    expect "from the main clone: read another file" 2 "$repo" Read "$(file_in "$repo/src/a.txt")" "only the read of its task file"
+    expect "from the main clone: read a task file of a nested folder" 2 "$repo" Read "$(file_in "$tmp/wts/sub/x.task.md")"
+    expect "from the main clone: grep" 2 "$repo" Grep "$(jq -n '{pattern: "x"}')" "main clone"
+    expect "from the main clone: cd into the worktree" 0 "$repo" Bash "$(bash_in "cd $wt")"
+    expect "from the main clone: cd into the worktree, then pwd and git" 0 "$repo" Bash "$(bash_in "cd $wt && pwd && git rev-parse --abbrev-ref HEAD")"
+    expect "from the main clone: the cd is followed by a refused command" 2 "$repo" Bash "$(bash_in "cd $wt && gh pr list")" "orchestrator's"
+    expect "from the main clone: the cd is followed by an allowed command" 0 "$repo" Bash "$(bash_in "cd $wt && ls")"
+    expect "from the main clone: cd into a subdirectory of the worktree" 2 "$repo" Bash "$(bash_in "cd $wt/src && ls")" "not the root of a worktree"
+    expect "from the main clone: cd somewhere else" 2 "$repo" Bash "$(bash_in 'cd /tmp && ls')" "not one of the worktrees"
+    expect "from the main clone: a command that does not start with cd" 2 "$repo" Bash "$(bash_in "ls && cd $wt")" "only the read of its task file"
+    expect "from the main clone: cd to a variable" 2 "$repo" Bash "$(bash_in 'cd $HOME')"
+    expect "from the main clone: cd to a glob" 2 "$repo" Bash "$(bash_in 'cd *')"
+    expect "from the main clone: cd to a plain worktree without a record" 2 "$repo" Bash "$(bash_in "cd $tmp/plain")" "not one of the worktrees"
     expect "a worktree without a record is refused" 2 "$tmp/plain" Write "$(file_in "$tmp/plain/src/x")" "tm-subagent record"
     expect "a directory outside git is refused" 2 "$other" Bash "$(bash_in 'ls')" "not inside a git work tree"
 
