@@ -17,8 +17,14 @@ concurrency:
 jobs:
   # Pinned to ubuntu-26.04 after a trial on the PR that moved the pin; the pin is explicit so image
   # changes are chosen, not inherited from ubuntu-latest. This applies to every Ubuntu job below.
-  android:
-    name: Android — Lint, Detekt, Tests, Build
+  # The Android build and tests. Skipped when the plan job (ios-plan, below) decides "light": no changed
+  # file can affect the Android or iOS build or tests (the allowlist of scripts/classify-changes.sh, minus
+  # its heavy scripts). The required check "Android — Lint, Detekt, Tests, Build" is the aggregator `android`
+  # at the end of this file, which also passes when this job was skipped on a light decision.
+  android-build:
+    name: Android 2 — Lint, Detekt, Tests, Build
+    needs: ios-plan
+    if: needs.ios-plan.outputs.decision != 'light'
     runs-on: ubuntu-26.04
     timeout-minutes: 20
 
@@ -26,17 +32,85 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Decides whether the heavy steps below run: "light" only when every changed file of a
-      # pull request is on the non-source allowlist in scripts/classify-changes.sh; pushes and
-      # any error give "full". continue-on-error: if this step fails, the output is unset and
-      # every heavy step runs.
-      - name: Classify changes
-        id: changes
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run lint
+        run: ./gradlew lint
+
+      - name: Run detekt
+        run: ./gradlew detekt
+
+      - name: Run unit tests
+        run: ./gradlew allTests test
+
+      # Coverage report (Kover, merged in the root project): best-effort, can't fail the job.
+      - name: Generate coverage report
         continue-on-error: true
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: scripts/classify-changes.sh --github
+        run: ./gradlew :koverXmlReport :koverHtmlReport :koverLog
+
+      # Regression gate: each module's koverVerify minimum line coverage (rules in domain, data
+      # and the three androidApp feature modules). Fails the job.
+      - name: Verify coverage
+        id: kover-verify
+        run: ./gradlew koverVerify
+
+      # Runs even when Verify coverage failed, so there is a report to look at.
+      - name: Upload coverage report
+        if: ${{ !cancelled() && steps.kover-verify.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-coverage-report
+          path: build/reports/kover/
+          if-no-files-found: warn
+
+      - name: Build
+        run: ./gradlew assembleDebug
+
+      # The build must leave data/schemas/ as committed: Room rewrites the current version's
+      # schema file when an entity changed without a version bump.
+      - name: Room schema export freshness
+        run: scripts/check-room-schema.sh --check-export-fresh
+
+  # Repo tooling: the policy checks and the self-tests of the workflow scripts, none of which is
+  # about Android or iOS. It always runs: no path filter and no job-level `if`, because a required
+  # check that is skipped or never created blocks the PR or hides a break. No `needs`: it runs in
+  # parallel with the other jobs. A new script's self-test goes on scripts/checks/self-tests-tooling.list
+  # (group `tooling`, runs here; a change to that list is light), the iOS-only groups on
+  # scripts/checks/self-tests.list (run in ios-main; a heavy file) (tm-pr-workflow, "Tier 1").
+  # The base-comparing checks every pull request needs, the light ones included, run here too: the Android
+  # build job is skipped on a light decision, this one never is.
+  tooling:
+    name: Repo tooling — policy checks and script self-tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Board check
+        run: scripts/check-board.sh
+
+      - name: Protected paths check
+        run: scripts/check-protected-paths.sh --validate
+
+      - name: Scripts index check
+        run: scripts/checks/scripts-index.sh --check
+
+      # The self-tests of group `tooling` (scripts/checks/self-tests-tooling.list), which the gate reads
+      # too. The list check fails when a script with a --self-test is on neither list.
+      - name: Script self-tests
+        run: |
+          scripts/checks/self-tests.sh --check
+          scripts/checks/self-tests.sh --run tooling
 
       # Coverage floors (config/kover-floors.properties) only go up: compared with the PR's base
       # commit, for every pull request, light ones too. scripts/ci/pr-base.sh validates the base and
@@ -74,92 +148,6 @@ jobs:
           [ "$rc" = 0 ] || exit 1
           scripts/check-room-schema.sh --base "$BASE"
 
-      - name: Set up JDK 17
-        if: steps.changes.outputs.decision != 'light'
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        if: steps.changes.outputs.decision != 'light'
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run lint
-        if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew lint
-
-      - name: Run detekt
-        if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew detekt
-
-      - name: Run unit tests
-        if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew allTests test
-
-      # Coverage report (Kover, merged in the root project): best-effort, can't fail the job.
-      - name: Generate coverage report
-        if: steps.changes.outputs.decision != 'light'
-        continue-on-error: true
-        run: ./gradlew :koverXmlReport :koverHtmlReport :koverLog
-
-      # Regression gate: each module's koverVerify minimum line coverage (rules in domain, data
-      # and the three androidApp feature modules). Fails the job.
-      - name: Verify coverage
-        if: steps.changes.outputs.decision != 'light'
-        id: kover-verify
-        run: ./gradlew koverVerify
-
-      # Runs even when Verify coverage failed, so there is a report to look at.
-      - name: Upload coverage report
-        if: ${{ !cancelled() && steps.kover-verify.outcome != 'skipped' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: kover-coverage-report
-          path: build/reports/kover/
-          if-no-files-found: warn
-
-      - name: Build
-        if: steps.changes.outputs.decision != 'light'
-        run: ./gradlew assembleDebug
-
-      # The build must leave data/schemas/ as committed: Room rewrites the current version's
-      # schema file when an entity changed without a version bump.
-      - name: Room schema export freshness
-        if: steps.changes.outputs.decision != 'light'
-        run: scripts/check-room-schema.sh --check-export-fresh
-
-  # Repo tooling: the policy checks and the self-tests of the workflow scripts, none of which is
-  # about Android or iOS. It always runs: no path filter and no job-level `if`, because a required
-  # check that is skipped or never created blocks the PR or hides a break. No `needs`: it runs in
-  # parallel with the other jobs. A new script's self-test goes on scripts/checks/self-tests.list:
-  # group `tooling` runs here, the iOS-only groups in ios-main (tm-pr-workflow, "Tier 1").
-  tooling:
-    name: Repo tooling — policy checks and script self-tests
-    runs-on: ubuntu-26.04
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Board check
-        run: scripts/check-board.sh
-
-      - name: Protected paths check
-        run: scripts/check-protected-paths.sh --validate
-
-      - name: Scripts index check
-        run: scripts/checks/scripts-index.sh --check
-
-      # The self-tests of group `tooling` in scripts/checks/self-tests.list, the one list the gate
-      # reads too. The list check fails when a script with a --self-test is not on the list.
-      - name: Script self-tests
-        run: |
-          scripts/checks/self-tests.sh --check
-          scripts/checks/self-tests.sh --run tooling
-
   # The iOS work is split into parallel jobs behind one aggregator, `ios`, which keeps the required
   # check name "iOS — all stages". The iOS wall time is the longer of two chains: ios-main alone
   # (SwiftLint, simulator tests, app build, package tests), or ios-build-ui then ios-ui.
@@ -174,10 +162,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Decides whether the macOS jobs run: "light" only when every changed file of a pull
-      # request is on the non-source allowlist in scripts/classify-changes.sh; pushes and any
-      # error give "full". continue-on-error: if this step fails, the output is unset and
-      # every macOS job runs (and the aggregator accepts no skipped result for it).
+      # Decides whether the Android and macOS jobs run: "light" only when no changed file of a pull
+      # request can affect the Android or iOS build or tests (the allowlist in
+      # scripts/classify-changes.sh, minus its heavy scripts); pushes and any error give "full".
+      # continue-on-error: if this step fails, the output is unset and every Android and macOS
+      # job runs (and the aggregators accept no skipped result for it).
       - name: Classify changes
         id: changes
         continue-on-error: true
@@ -346,7 +335,7 @@ jobs:
           swiftlint lint --strict
 
       # The self-tests of groups `ios-swiftlint` (they need the swiftlint installed above) and
-      # `macos` in scripts/checks/self-tests.list, the one list the gate reads too.
+      # `macos` in scripts/checks/self-tests.list, which the gate reads too.
       - name: Script self-tests (iOS)
         run: scripts/checks/self-tests.sh --run ios-swiftlint macos
 
@@ -366,7 +355,7 @@ jobs:
       - name: Production framework check
         run: scripts/check-production-framework.sh
 
-      # iOS simulator tests can't run on the ubuntu android job. data's
+      # iOS simulator tests can't run on the ubuntu android-build job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
       # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
       # shared-uitest, the test-only framework variant, has only iOS tests: those of its UI-test fakes
@@ -445,6 +434,45 @@ jobs:
             ios-build-ui=${{ needs.ios-build-ui.result }}
             ios-ui=${{ needs.ios-ui.result }}
             ios-main=${{ needs.ios-main.result }}
+        run: |
+          echo "plan decision: ${DECISION:-<empty>}"
+          verdict=PASS
+          for pair in $RESULTS; do
+            id="${pair%%=*}"
+            res="${pair#*=}"
+            echo "needs.$id.result = $res"
+            case "$res" in
+              success) ;;
+              skipped)
+                if [ "$DECISION" != light ]; then
+                  echo "::error::$id was skipped while the decision is '${DECISION:-<empty>}'"
+                  verdict=FAIL
+                fi ;;
+              *)
+                echo "::error::$id result is $res"
+                verdict=FAIL ;;
+            esac
+          done
+          echo "verdict=$verdict"
+          [ "$verdict" = PASS ]
+
+  # The required check "Android — Lint, Detekt, Tests, Build". if: always() so that it reports when the
+  # build job is skipped (a light decision) or fails, as `ios` does for the iOS stages: the build job
+  # may be skipped only while the decision is "light".
+  android:
+    name: Android — Lint, Detekt, Tests, Build
+    if: always()
+    needs: [ios-plan, android-build]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Check results
+        env:
+          DECISION: ${{ needs.ios-plan.outputs.decision }}
+          RESULTS: >-
+            ios-plan=${{ needs.ios-plan.result }}
+            android-build=${{ needs.android-build.result }}
         run: |
           echo "plan decision: ${DECISION:-<empty>}"
           verdict=PASS

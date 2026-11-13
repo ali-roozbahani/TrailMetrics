@@ -2,7 +2,7 @@
 # Coverage floor ratchet: the Kover floors in config/kover-floors.properties may only go up. Compares
 # the working tree's file with the same file on a base commit and fails when a floor is lower, when
 # a module that reads the file has no entry, or when an entry has no module. The gate runs it against
-# the merge base with origin/main, CI's android job against the PR's base commit.
+# the merge base with origin/main, CI's tooling job against the PR's base commit.
 #
 #   scripts/check-kover-floors.sh [--repo <dir>] --base <ref>   compare the working tree with <ref>
 #   scripts/check-kover-floors.sh --self-test                    run the fixtures in
