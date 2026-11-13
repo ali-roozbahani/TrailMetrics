@@ -1,0 +1,45 @@
+# The self-tests of group `tooling`: the gate, always; CI's `tooling` job. Same format as
+# scripts/checks/self-tests.list (read it first; `scripts/checks/self-tests.sh` reads both). This file holds the
+# `tooling` group only, and `scripts/checks/self-tests.sh --check` fails on any other group here: scripts/classify-changes.sh
+# treats a change to this file as light (no Android or iOS build or test can depend on a tooling self-test), while
+# scripts/checks/self-tests.list, which holds the groups that only the iOS job runs, stays heavy. Register the
+# self-test of a new tooling script here.
+tooling	self-test list self-test	scripts/checks/self-tests.sh
+tooling	PR base self-test	scripts/ci/pr-base.sh
+tooling	scripts index self-test	scripts/checks/scripts-index.sh
+tooling	protected paths self-test	scripts/check-protected-paths.sh
+tooling	change classification self-test	scripts/classify-changes.sh
+tooling	heavy scripts check self-test	scripts/check-heavy-scripts.sh
+tooling	reviewer workflow self-test	scripts/check-pr-review-workflow.sh
+tooling	skill rule-change self-test	scripts/check-skill-rule-changes.sh
+tooling	kover floors self-test	scripts/check-kover-floors.sh
+tooling	room schema self-test	scripts/check-room-schema.sh
+tooling	iOS scope self-test	scripts/check-ios-scope.sh
+tooling	variant API check self-test	scripts/check-variant-api.sh
+tooling	scrub-env self-test	scripts/scrub-env.sh
+tooling	xcode log filter self-test	scripts/filter-xcode-log.sh
+tooling	CI verdict reader self-test	scripts/read-ci-verdict.sh
+tooling	CI re-run guard self-test	scripts/rerun-failed-once.sh
+tooling	local review gate self-test	scripts/local-review-gate.sh
+tooling	local review hook self-test	scripts/claude-hooks/require-local-review.sh
+tooling	CI wait self-test	scripts/wait-for-checks.sh
+tooling	main CI status self-test	scripts/main-ci-status.sh
+tooling	board check self-test	scripts/check-board.sh
+tooling	push hook self-test	scripts/claude-hooks/block-git-push.sh
+tooling	prune merged branches self-test	scripts/prune-merged-branches.sh
+tooling	branch-create hook self-test	scripts/claude-hooks/block-branch-create-while-merged-branches.sh
+tooling	skill changes digest self-test	scripts/skill-changes-digest.sh
+tooling	PR description helper self-test	scripts/set-pr-body.sh
+tooling	clean agent workspace self-test	scripts/dev/clean-agent-workspace.sh
+tooling	heavy run lock self-test	scripts/heavy-run.sh
+tooling	PR queue self-test	scripts/queue/queue.sh
+tooling	subagent worktree self-test	scripts/subagent/worktree.sh
+tooling	subagent guard self-test	scripts/subagent/guard.sh
+tooling	PR watcher self-test	scripts/queue/watch-prs.sh
+tooling	branch update fallback self-test	scripts/queue/update-branch.sh
+tooling	merge-only check self-test	scripts/queue/merge-only-check.sh
+tooling	local verdict for head self-test	scripts/queue/local-verdict-for-head.sh
+tooling	local review prepare self-test	scripts/local-review-prepare.sh
+tooling	local review verdict recorder self-test	scripts/local-review-record-verdict.sh
+tooling	cancel head CI self-test	scripts/cancel-head-ci.sh
+tooling	reviewer input check self-test	scripts/review-input-check.sh

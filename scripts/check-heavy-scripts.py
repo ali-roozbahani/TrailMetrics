@@ -12,7 +12,7 @@ This check reads what the heavy steps run and fails for a script that the classi
     (`if: ... decision != 'light'` on the step, or on its job)
   * the gate: the top-level `if [ "$DECISION" ...` and `if [ "$RUN_IOS_STEPS" ...` blocks of
     scripts/pre-push-check.sh
-  * scripts/checks/self-tests.list: the scripts of the groups that only the heavy CI steps run; the
+  * scripts/checks/self-tests.list and self-tests-tooling.list: the scripts of the groups that only the heavy CI steps run; the
     groups come from the `self-tests.sh --run <groups>` arguments in ci.yml, and a group no CI step runs
     is a problem of its own
   * what those scripts start themselves: every script a referenced heavy script names outside its
@@ -169,8 +169,10 @@ class Checker:
             self.sources += 1
             feed(refs_in(code_lines("\n".join(self.gate_blocks(gate)))), "scripts/pre-push-check.sh (its DECISION and RUN_IOS_STEPS blocks)")
         # The self-tests that only the iOS job runs.
-        lst = read(os.path.join(self.root, "scripts", "checks", "self-tests.list"))
-        if lst is not None:
+        for list_name in ("self-tests-tooling.list", "self-tests.list"):
+            lst = read(os.path.join(self.root, "scripts", "checks", list_name))
+            if lst is None:
+                continue
             self.sources += 1
             for line in lst.splitlines():
                 parts = line.split("\t")
@@ -180,11 +182,11 @@ class Checker:
                 if group in groups_light:
                     continue
                 if group in groups_heavy:
-                    feed([parts[2]], "scripts/checks/self-tests.list (group %s, run only by CI steps that a light decision skips)" % group)
+                    feed([parts[2]], "scripts/checks/%s (group %s, run only by CI steps that a light decision skips)" % (list_name, group))
                 elif ci is None:
-                    self.problems.append("scripts/checks/self-tests.list has group '%s' but there is no .github/workflows/ci.yml to say which step runs it" % group)
+                    self.problems.append("scripts/checks/%s has group '%s' but there is no .github/workflows/ci.yml to say which step runs it" % (list_name, group))
                 else:
-                    self.problems.append("scripts/checks/self-tests.list group '%s' (%s) is run by no step of ci.yml: say where it runs, so that the scripts of a heavy-only group can be kept on the list of heavy scripts" % (group, parts[2]))
+                    self.problems.append("scripts/checks/%s group '%s' (%s) is run by no step of ci.yml: say where it runs, so that the scripts of a heavy-only group can be kept on the list of heavy scripts" % (list_name, group, parts[2]))
         # What the heavy scripts start themselves.
         while work:
             rel, _started_by = work.pop()
