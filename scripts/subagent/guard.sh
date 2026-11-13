@@ -80,7 +80,8 @@ guard() {
     if [ "$gitdir" = "$common" ]; then
         # A subagent's hook always sees the main session's directory, the main clone, as `cwd`: a `cd`
         # does not last from one Bash call to the next (two real runs showed it), so nothing here can
-        # rely on cwd. From the main clone: Read, Grep and Glob are judged by the secrets names only; a
+        # rely on cwd. From the main clone: Read, Grep and Glob are judged by the secrets names and by staying
+        # inside the main clone and the worktree folder (no `..`, no absolute path elsewhere); a
         # Write-family call by its absolute target path, which must lie in a worktree under the worktree
         # folder; a Bash command must begin with `cd <that worktree>` (every call, so the implementer
         # writes `cd <worktree> && ...`), and the rest of it is judged as if the shell were there.
@@ -94,9 +95,10 @@ guard() {
                 # or one with a `..` component, is refused. A Grep pattern is a regular expression, not a path.
                 p="$(printf '%s' "$input" | jq -r '[.tool_input.file_path, .tool_input.path, (if "'"$tool"'" == "Glob" then .tool_input.pattern else null end)] | map(select(. != null)) | join("\n")' 2>/dev/null)"
                 while IFS= read -r word; do
+                    # A `..` component in any word, relative ones included, could leave the clone.
+                    case "/$word/" in */../*) deny "'$word' has a '..' component" ;; esac
                     case "$word" in
                         /*)
-                            case "/$word/" in */../*) deny "'$word' has a '..' component" ;; esac
                             case "$word" in "$root" | "$root"/* | "$wts" | "$wts"/*) ;; *) deny "'$word' is outside the main clone $root and its worktree folder: Read, Grep and Glob stay inside them" ;; esac
                             ;;
                     esac
@@ -284,6 +286,9 @@ self_test() {
     expect "main clone: Grep" 0 "$repo" Grep "$(jq -n '{pattern: "one"}')"
     expect "main clone: Read of a file outside the clone" 2 "$repo" Read "$(file_in "/etc/hosts")" "outside the main clone"
     expect "main clone: Read of a relative path" 0 "$repo" Read "$(file_in "src/a.txt")"
+    expect "main clone: Read of a relative path that leaves the clone" 2 "$repo" Read "$(file_in "../../etc/hosts")" "'..' component"
+    expect "main clone: Grep with a relative path that leaves the clone" 2 "$repo" Grep "$(jq -n '{pattern: "x", path: "../.."}')" "'..' component"
+    expect "main clone: Glob of a relative pattern that leaves the clone" 2 "$repo" Glob "$(jq -n '{pattern: "../*"}')" "'..' component"
     expect "main clone: Read with a '..' component" 2 "$repo" Read "$(file_in "$repo/src/../../x")" "'..' component"
     expect "main clone: Grep with a path outside the clone" 2 "$repo" Grep "$(jq -n '{pattern: "x", path: "/etc"}')" "outside the main clone"
     expect "main clone: Grep with a path inside the clone" 0 "$repo" Grep "$(jq -n --arg p "$repo/src" '{pattern: "one", path: $p}')"
