@@ -98,7 +98,9 @@ The procedure, for each implementer, all from the main clone with the task branc
    blocks any command that merely contains the text of a push or of a PR creation, so a task is never
    spelled out in a command (the file is written with the Write tool, not through the shell).
 3. Start it (Agent tool, `subagent_type: implementer`), in the background when you have other work, at
-   most 2 at a time. While one runs, you do not edit its allowed paths.
+   most 2 at a time. While one runs, you do not edit its allowed paths. Its shell is reset to the main
+   clone before every call (a real run showed it), so the guard makes it begin every Bash command with
+   `cd <worktree> &&`; `implementer.md` says so, and the task file's `Worktree` heading gives the path.
 4. On `STATUS: DONE`: `scripts/subagent/worktree.sh take <name>`, one implementer at a time and in its
    own tool call. It brings the commits into the task branch one by one and refuses (changing nothing) a
    commit outside the allowed paths, a merge, uncommitted work or a conflict. Then read the diff of what
