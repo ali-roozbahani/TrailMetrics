@@ -33,7 +33,8 @@ USAGE="usage: scripts/cancel-head-ci.sh <PR number> | --self-test"
 cancel_runs() {
     local pr="$1" d me json sha state author head_repo base_repo n=0 done_n=0 id name rows status
     d="$(mktemp -d)"
-    trap 'rm -rf "$d"' EXIT
+    CANCEL_TMP="$d"
+    trap 'rm -rf "$CANCEL_TMP"' EXIT
     gh api "repos/{owner}/{repo}/pulls/$pr" > "$d/pr.json" 2>/dev/null || { echo "cancel-head-ci: reading PR $pr failed" >&2; exit 2; }
     me="$(gh api user --jq .login 2>/dev/null)" || { echo "cancel-head-ci: reading the gh login failed" >&2; exit 2; }
     state="$(jq -r '.state // empty' "$d/pr.json" 2>/dev/null)" || { echo "cancel-head-ci: PR data is not readable" >&2; exit 2; }
@@ -49,7 +50,8 @@ cancel_runs() {
     gh api "repos/{owner}/{repo}/actions/runs?head_sha=$sha&per_page=100" > "$d/runs.json" 2>/dev/null || { echo "cancel-head-ci: reading the runs of $sha failed" >&2; exit 2; }
     rows="$(jq -r --arg sha "$sha" '.workflow_runs[] | select(.head_sha == $sha and .event == "pull_request" and .status != "completed") | "\(.id)\t\(.name)"' "$d/runs.json" 2>/dev/null)" \
         || { echo "cancel-head-ci: run data is not readable" >&2; exit 2; }
-    done_n="$(jq -r --arg sha "$sha" '[.workflow_runs[] | select(.head_sha == $sha and .event == "pull_request" and .status == "completed")] | length' "$d/runs.json")"
+    done_n="$(jq -r --arg sha "$sha" '[.workflow_runs[] | select(.head_sha == $sha and .event == "pull_request" and .status == "completed")] | length' "$d/runs.json" 2>/dev/null)" \
+        || { echo "cancel-head-ci: run data is not readable" >&2; exit 2; }
     while IFS="$(printf '\t')" read -r id name; do
         [ -n "$id" ] || continue
         if gh api -X POST "repos/{owner}/{repo}/actions/runs/$id/cancel" > /dev/null 2>&1; then
@@ -63,17 +65,20 @@ cancel_runs() {
 }
 
 self_test() {
-    local failed=0 dir name expected expected_exit actual code state posts want_posts
+    local failed=0 dir name expected expected_exit actual code state posts want_posts errout
     for dir in "$FIXTURES"/*/; do
         name="$(basename "$dir")"
         expected="$(cat "$dir/expected")"
         expected_exit="$(cat "$dir/expected-exit")"
         want_posts="$(cat "$dir/expected-posts" 2>/dev/null)"
         state="$(mktemp -d)"
-        actual="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" "$0" $(cat "$dir/arg") 2>/dev/null)"
+        actual="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" "$0" $(cat "$dir/arg") 2>"$state/stderr")"
         code=$?
         posts="$(cat "$state/posts" 2>/dev/null)"
+        errout="$(cat "$state/stderr" 2>/dev/null)"
         rm -rf "$state"
+        # A successful run prints nothing on stderr (a leaked shell error would show here).
+        [ "$expected_exit" != 0 ] || [ -z "$errout" ] || { code="$code, stderr: $errout"; }
         if [ "$actual" = "$expected" ] && [ "$code" = "$expected_exit" ] && [ "$posts" = "$want_posts" ]; then
             echo "ok   $name (exit $code)"
         else
