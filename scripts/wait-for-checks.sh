@@ -4,14 +4,30 @@
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
-#   scripts/wait-for-checks.sh [--review-first | --until-complete] [--max-seconds <n>] <PR number | head SHA (40 hex)>
+#   scripts/wait-for-checks.sh [--review-first | --until-complete] [--review-acked] [--max-seconds <n>] <PR number | head SHA (40 hex)>
 #   scripts/wait-for-checks.sh --self-test
 #
+# The reviewer's verdict is acted on the moment it is posted, never after the rest of CI (tm-agent-loop,
+# section 6). Given a PR number, the wait reads the verdict itself (scripts/read-ci-verdict.sh, retried
+# while it says UNKNOWN: the annotation can lag the check run by a moment) as soon as the check run
+# `Review — pr-reviewer` is completed with success or skipped, in the default mode and with
+# --review-first, and prints `REVIEW_VERDICT <the verdict line>`. A bare `APPROVE` needs nothing: the
+# wait goes on. Anything else needs the agent now: `ESCALATE_TO_HUMAN` (its report may hold a
+# `[blocking]` finding the line does not show), `CHANGES`, `UNKNOWN <reason>`, or `APPROVE, <n>
+# important` with n above 0. The wait then ends at once, with the other jobs still running, like a
+# failed job does:
+#   REVIEW_ACTION <verdict line>; still running: <names|(none)>[; missing: <names>]      exit 4
+# The agent reads the report (tm-agent-loop, section 7), fixes or disposes each finding, and, when it is
+# not pushing a fix, runs the same command again with --review-acked, which prints the verdict once more
+# and then waits for the rest as before. A head given as a SHA has no PR to read the verdict for, and
+# --until-complete (the wait after a flake) does not read it: both behave as before.
+#
 # --review-first waits only for the check run `Review — pr-reviewer` of the SHA to be completed
-# (about 2 minutes) and never for the other jobs: the agent reads the verdict and fixes what it
-# found while Android and iOS still run (tm-agent-loop, section 6). It prints the rows and
-# `REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]` (exit 0) for a conclusion
-# of success or skipped; "(none)" when nothing is running. Any other conclusion is the same case as the
+# (about 2 minutes) and never for the other jobs: the agent fixes what the verdict shows while Android
+# and iOS still run (tm-agent-loop, section 6). It prints the rows, `REVIEW_VERDICT <line>` (given a PR
+# number) and `REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]` (exit 0) for a
+# conclusion of success or skipped and a verdict that needs nothing; "(none)" when nothing is running.
+# A verdict that needs action is `REVIEW_ACTION` (exit 4) as above. Any other conclusion is the same case as the
 # early exit below: `FAILED Review — pr-reviewer[; still running: ...][; missing: ...]` (exit 1).
 # Timeouts, retries of a failed `gh` read, SUPERSEDED and REST-only reads are those of the normal
 # mode.
@@ -67,7 +83,10 @@
 #                                   `FAILED <names>`                                     exit 1
 #   REVIEW_DONE <conclusion>; still running: <names|(none)>[; missing: <names>]
 #                                   --review-first only: the reviewer's check run is completed
-#                                   with success or skipped                              exit 0
+#                                   with success or skipped (and, for a PR, a bare APPROVE) exit 0
+#   REVIEW_ACTION <verdict line>; still running: <names|(none)>[; missing: <names>]
+#                                   the reviewer posted a verdict that needs action (above);
+#                                   the other jobs are not waited for                    exit 4
 #   TIMEOUT <names still running>[; missing: <names>]
 #                                   the maximum wait ran out; "(none running)" when only
 #                                   required runs are missing                            exit 1
@@ -89,7 +108,9 @@
 # a case directory holds `arg` (the argument), check-runs-N.json (the N-th read of the check runs;
 # the last file repeats), pr-N.json (the N-th read of the PR, for a PR number), `expected` (the
 # output), `expected-exit`, optionally `expected-stderr` (text the error output must contain), and
-# `gh-fail` for a `gh` that always fails or `gh-fail-calls` (numbers of the `gh` calls that fail).
+# `gh-fail` for a `gh` that always fails or `gh-fail-calls` (numbers of the `gh` calls that fail), and
+# optionally `verdict` (the line the verdict reader prints; default APPROVE; the self-test replaces
+# scripts/read-ci-verdict.sh by scripts/wait-for-checks-fixtures/verdict-stub, which prints it).
 # Bash 3.2 compatible.
 set -u
 
@@ -105,7 +126,7 @@ iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
 REVIEWER_CHECK="Review — pr-reviewer"
-USAGE="usage: scripts/wait-for-checks.sh [--review-first | --until-complete] [--max-seconds <n>] <PR number | head SHA> | --self-test"
+USAGE="usage: scripts/wait-for-checks.sh [--review-first | --until-complete] [--review-acked] [--max-seconds <n>] <PR number | head SHA> | --self-test"
 
 die() {
     echo "wait-for-checks: $1" >&2
@@ -114,6 +135,23 @@ die() {
 
 elapsed=0
 fails=0
+VERDICT_LINE=""
+VERDICT_CMD="${WAIT_FOR_CHECKS_VERDICT_CMD:-$ROOT/scripts/read-ci-verdict.sh}"
+
+# read_verdict: reads the reviewer's verdict for $PR and $SHA into VERDICT_LINE (up to 3 reads, one fast
+# step apart, while it says UNKNOWN) and prints it.
+read_verdict() {
+    local i=0
+    while :; do
+        VERDICT_LINE="$("$VERDICT_CMD" "$PR" "$SHA" 2>/dev/null | head -n 1)"
+        [ -n "$VERDICT_LINE" ] || VERDICT_LINE="UNKNOWN no verdict line"
+        case "$VERDICT_LINE" in UNKNOWN*) ;; *) break ;; esac
+        i=$((i + 1))
+        [ "$i" -lt 3 ] || break
+        sleep "$FAST_STEP"
+    done
+    echo "REVIEW_VERDICT $VERDICT_LINE${ACKED:+ (acknowledged)}"
+}
 
 # The sleep before the next read: 30 s in the fast phase, 5 minutes after, never past the maximum.
 next_step() {
@@ -138,7 +176,7 @@ fetch() {
 }
 
 wait_for_checks() {
-    local new_sha total pending names missing d rconc
+    local new_sha total pending names missing d rconc rdone
     d="$(mktemp -d)"
     trap 'rm -rf "$d"' EXIT
 
@@ -169,6 +207,21 @@ wait_for_checks() {
         pending="$(jq -r '[.check_runs[] | select(.status != "completed")] | length' "$d/runs.json")"
         missing="$(jq -r --arg required "$REQUIRED_CHECKS" '[.check_runs[].name] as $have
             | [$required | split("\n")[] | select(. != "") | select(. as $n | ($have | index($n)) == null)] | join("; ")' "$d/runs.json")"
+
+        # The reviewer's verdict is read the moment its check run is completed (see the header).
+        if [ -z "$VERDICT_LINE" ] && [ -n "$PR" ] && [ -z "${UNTIL_COMPLETE:-}" ]; then
+            rdone="$(jq -r --arg name "$REVIEWER_CHECK" '[.check_runs[] | select(.name == $name and .status == "completed"
+                and (.conclusion as $c | ["success", "skipped"] | index($c)))] | length' "$d/runs.json")"
+            if [ "$rdone" -gt 0 ]; then
+                read_verdict
+                if [ "$VERDICT_LINE" != APPROVE ] && [ -z "${ACKED:-}" ]; then
+                    print_rows "$d/runs.json"
+                    names="$(jq -r '[.check_runs[] | select(.status != "completed") | .name] | join("; ")' "$d/runs.json")"
+                    echo "REVIEW_ACTION $VERDICT_LINE; still running: ${names:-(none)}${missing:+; missing: $missing}"
+                    exit 4
+                fi
+            fi
+        fi
 
         if [ -n "${REVIEW_FIRST:-}" ]; then
             # A failed reviewer falls through to the reviewer_failed block below (same FAILED line).
@@ -237,7 +290,7 @@ self_test() {
         state="$(mktemp -d)"
         err="$state/stderr"
         actual="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" \
-            WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
+            WAIT_FOR_CHECKS_VERDICT_CMD="$FIXTURES/verdict-stub" WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
             WAIT_FOR_CHECKS_FAST_STEP=1 WAIT_FOR_CHECKS_SLOW_STEP=1 "$0" $(cat "$dir/arg") 2>"$err")"
         code=$?
         if [ -e "$dir/expected-stderr" ] && ! grep -qF -- "$(cat "$dir/expected-stderr")" "$err"; then
@@ -258,6 +311,7 @@ self_test() {
     "$0" > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL no argument does not exit 2"; failed=1; }
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric, non-SHA argument does not exit 2"; failed=1; }
     "$0" --review-first > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-first without a PR or SHA does not exit 2"; failed=1; }
+    "$0" --review-acked > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-acked without a PR or SHA does not exit 2"; failed=1; }
     "$0" --max-seconds > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --max-seconds without a value does not exit 2"; failed=1; }
     "$0" --max-seconds x 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric --max-seconds does not exit 2"; failed=1; }
     "$0" 12 13 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL two arguments do not exit 2"; failed=1; }
@@ -291,6 +345,7 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --review-first) REVIEW_FIRST=1; shift ;;
         --until-complete) UNTIL_COMPLETE=1; shift ;;
+        --review-acked) ACKED=1; shift ;;
         --max-seconds)
             [ "$#" -ge 2 ] || { echo "$USAGE" >&2; exit 2; }
             case "$2" in '' | *[!0-9]*) echo "$USAGE" >&2; echo "--max-seconds takes whole seconds" >&2; exit 2 ;; esac
