@@ -8,6 +8,9 @@ their headers what they read and print. This file says how the loop uses them.
 two sessions, wait for each other instead of losing one update, and one that cannot get the lock in
 30 seconds refuses (exit 1; run it again). `show` and `next` need no lock.
 
+Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review scripts: an
+`implementer` subagent is refused them by its guard hook (`SKILL.md`, "Subagents").
+
 ## What goes in
 
 - **The task's own PR** is the queue's first entry: once its branch is committed and its PR

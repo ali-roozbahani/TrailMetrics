@@ -555,6 +555,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: one PR per folder, each moving its scripts with their `*-fixtures/` folders and fixing every reference, with `scripts/README.md`, `scripts/checks/self-tests.list` and `CODEOWNERS` (a folder line in place of the per-script lines) updated and `check-protected-paths.sh --validate` passing: (1) `checks/`: `classify-changes` and every `check-*` (`.sh`, `.py`, fixtures); (2) `review/`: `review-task`, `local-review-gate`, `skill-changes-digest`, `set-pr-body`; (3) `ci/`: `wait-for-checks`, `read-ci-verdict`, `rerun-failed-once`, `main-ci-status`; (4) `dev/`: `filter-xcode-log`, `scrub-env`, `prune-merged-branches`, `simulate-route` with `routes/`. `pre-push-check.sh`, `build-kmp-framework.sh` and `claude-hooks/` stay where they are: `CLAUDE.md` and every skill name the gate; the Xcode project, its schemes and the Gradle and Kotlin sources name the framework build; `.claude/settings.json` names the hooks, and only the owner edits it.
 - Refs: `scripts/README.md`; `scripts/checks/self-tests.list`; `.github/CODEOWNERS`; `.github/workflows/ci.yml`; `.claude/settings.json`.
 
+### ci-light-skips-android
+- Type: task
+- Area: .github/workflows/ci.yml
+- Order: 600
+- Source: chat 2026-11-13 (owner: light CI for tooling-only changes, problem 2)
+- Problem: A change only the owner can push (a workflow file the machine token cannot push). On a light PR the Android job still runs, with its heavy steps skipped, and the Kover floors and Room schema checks live in it; the comments of `.github/workflows/ci.yml` still say "non-source allowlist" and name the single self-test list. The change is written, gated and committed on the branch `chore/ci-light-skips-android` of the agent's clone: the Android build job is skipped on a light decision like the iOS jobs, the required check `Android — Lint, Detekt, Tests, Build` becomes an aggregator that passes on a light PR, the two base-comparing checks move to the always-running tooling job, and the comments are reworded.
+- Done when: the owner has pushed and merged that change; on a light PR `Android 2 — Lint, Detekt, Tests, Build` is skipped, the required `Android — Lint, Detekt, Tests, Build` passes, and the Kover floors and Room schema checks run in `Repo tooling — policy checks and script self-tests`; the comments of `ci.yml` name `self-tests-tooling.list` and `self-tests.list`. The PR that does it deletes this record (`chore(board): remove ci-light-skips-android`).
+- Refs: `.github/workflows/ci.yml`; `scripts/classify-changes.sh`; `scripts/checks/self-tests-tooling.list`; the PR description at `~/agent-workspace/pr-body-ci-light-skips-android.md`.
+
+### ui-test-app-idle-stalls
+- Type: task
+- Area: iosApp/TrailMetricsUITests, shared-uitest, the screens under test
+- Order: 610
+- Source: chat 2026-11-13 (owner, after the flake-log analysis of the three failures)
+- Problem: Needs the owner's decision and a design (what the UI-test variant may change). Three failures of `iOS 3 — run UI tests` on two signatures (`ios-ui-details-failed-delete-error-alert-not-shown` twice, `ios-ui-restored-session-offer-not-offered` once; runs 43318989709, 43431312123, 43451417675) took 84 to 87 s on different tests, and each holds one long stall inside XCTest's own "Wait for the app to idle" step (49 s; 18 s plus 33 s; exactly 60.0 s) before the test's last 10 s wait. Every wait in the UI tests is 10 s and the CI step sets no per-test allowance, so no wait or timeout explains it; the same tests pass in about 10 to 28 s. What keeps the app busy in these screens is not shown: candidates are map rendering (the Maps view), timers (the tracking clock, the probe refresh), animations, and progress views or spinners (Generate, delete in progress), or only a loaded runner. The owner's constraint: no retries and no longer waits.
+- Done when: the cause is shown for the Details-after-delete and the restored-session Tracking screens (which element, timer or animation keeps the app busy, from a CI run's recorded UI hierarchy or a sample of the app), the owner has decided whether the UI-test variant (`shared-uitest`, the launch-time seam) can avoid it, for example by disabling animations or stopping a ticking timer in the test variant, and the change is made so that `iOS 3` shows no idle stall of 18 s or more on 5 consecutive runs of `main`. No retry and no longer wait is added.
+- Refs: `CI_FLAKES.md` (the two entries above); `iosApp/TrailMetricsUITests/DetailsFailedDeleteUITests.swift`; `iosApp/TrailMetricsUITests/Tracking/RestoredSessionOfferUITests.swift`; `iosApp/TrailMetricsUITests/Support/UITestProbe.swift`; `shared-uitest`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure

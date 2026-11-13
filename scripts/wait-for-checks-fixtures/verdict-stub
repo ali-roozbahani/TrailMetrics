@@ -1,0 +1,5 @@
+#!/bin/bash
+# Stands in for scripts/read-ci-verdict.sh in scripts/wait-for-checks.sh --self-test: prints the first
+# line of the case's `verdict` file (FAKE_GH_DIR), or APPROVE without one. Arguments (PR, SHA) are ignored.
+f="$FAKE_GH_DIR/verdict"
+if [ -e "$f" ]; then head -n 1 "$f"; else echo APPROVE; fi
