@@ -28,7 +28,8 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
 - **The gate is a Claude Code hook, not a git hook.** It is a `PreToolUse` hook, so it
   only gates pushes made from a Claude Code session. A push from a terminal skips it.
 - **CI doesn't mirror the gate exactly.** CI's heavy steps run unless
-  `scripts/classify-changes.sh` decides `light` (non-source changes only; pushes always run
+  `scripts/classify-changes.sh` decides `light` (no changed file can affect the Android or iOS
+  build or tests: docs, skills, tooling scripts outside its HEAVY_SCRIPTS list; pushes always run
   everything). Unlike the gate, CI's iOS jobs have no iOS path filter: on a non-`light` PR
   `ios-main` runs SwiftLint, the iOS build and the iOS simulator tests, and `ios-build-ui` and
   `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. For a diff in the

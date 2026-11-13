@@ -4,6 +4,10 @@ Detail of `SKILL.md`, section 9. The queue's own rules (statuses, order, the lim
 `next` line means) are in the header of `scripts/queue/queue.sh`; the scripts named here say in
 their headers what they read and print. This file says how the loop uses them.
 
+`add` and `set` run under a lock on the queue file (`<queue file>.lock`): two of them at once, from
+two sessions, wait for each other instead of losing one update, and one that cannot get the lock in
+30 seconds refuses (exit 1; run it again). `show` and `next` need no lock.
+
 ## What goes in
 
 - **The task's own PR** is the queue's first entry: once its branch is committed and its PR

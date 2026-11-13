@@ -47,6 +47,14 @@
 #
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
+# Lock: `add` and `set` read the file, validate against it and replace it, so two of them at the same
+# time would lose one update (and could both pass the limit of 5). Each runs under an exclusive
+# flock(2) on `<queue file>.lock`, held from before the read until the process ends; a second one
+# waits, and refuses (exit 1, "the queue file is locked by another add or set") after
+# ${TM_QUEUE_LOCK_WAIT:-30} seconds. The kernel drops the lock when its holder dies, so a killed `add`
+# leaves nothing to clean up. `show` and `next` take no lock: the file is replaced atomically, so they
+# read either the old or the new state. The lock is per machine, like the file. Needs perl.
+#
 # Exit: 0 ok, 1 refused (reason on stderr), 2 usage error or unreadable queue file.
 # Bash 3.2 compatible.
 set -u -o pipefail
@@ -86,6 +94,38 @@ field() { # field <slug> <column number>
 }
 
 is_open() { case "$1" in merged | dropped) return 1 ;; *) return 0 ;; esac; }
+
+LOCK_WAIT="${TM_QUEUE_LOCK_WAIT:-30}"
+# Holds <queue file>.lock (flock) and then execs `bash <this script> <args>`; the descriptor stays open
+# across the exec ($^F), so the lock lives exactly as long as that process.
+PERL_LOCK='
+use strict; use warnings; no warnings "exec";
+use Fcntl qw(:flock);
+my ($lock, $wait, $qf, @cmd) = @ARGV;
+$^F = 255;
+open(my $fh, ">>", $lock) or do { print STDERR "queue: cannot open $lock: $!\n"; exit 2 };
+my $deadline = time + $wait;
+until (flock($fh, LOCK_EX | LOCK_NB)) {
+    if (time >= $deadline) {
+        print STDERR "queue: refused: the queue file is locked by another add or set (waited $wait s); run it again\n";
+        exit 1;
+    }
+    select(undef, undef, undef, 0.1);
+}
+$ENV{TM_QUEUE_LOCKED} = $qf;
+exec { $cmd[0] } @cmd;
+print STDERR "queue: cannot run $cmd[0]: $!\n";
+exit 127;
+'
+
+# locked <add|set> <args>...: runs cmd_<sub> holding the queue file's lock (see the header, "Lock").
+locked() {
+    local sub="$1"
+    shift
+    if [ "${TM_QUEUE_LOCKED:-}" = "$QUEUE_FILE" ]; then "cmd_$sub" "$@"; return; fi
+    mkdir -p "$(dirname "$QUEUE_FILE")" || die "cannot create $(dirname "$QUEUE_FILE")"
+    exec perl -e "$PERL_LOCK" "$QUEUE_FILE.lock" "$LOCK_WAIT" "$QUEUE_FILE" bash "$SELF" "$sub" "$@"
+}
 
 write_file() { # write_file <content file>: atomic replace
     local dir
@@ -368,6 +408,26 @@ self_test() {
     check "pushed entry can be set merged" "set a: status merged, pr 3, branch chore/a" 0 q set a status=merged
     check "after the merge: DONE" "DONE" 0 q next
 
+    # The lock: five adds at once all land (without it, replacing the file loses updates), the sixth is
+    # refused by the limit, and an add that cannot get the lock refuses instead of writing.
+    fresh lk1; mkdir -p "$tmp/lk1"
+    for s in a b c d e; do q add "$s" --branch "chore/$s" >/dev/null 2>&1 & done
+    wait
+    out="$(q show 2>&1)"
+    if [ "$(printf '%s\n' "$out" | grep -c ' planned ')" = 5 ]; then echo "ok   five concurrent adds all land"; else
+        echo "FAIL five concurrent adds: expected 5 planned entries, got:" >&2; printf '%s\n' "$out" | sed 's/^/       /' >&2; fails=$((fails + 1)); fi
+    check "the sixth add is refused by the limit" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add f --branch chore/f
+    fresh lk2; mkdir -p "$tmp/lk2"
+    perl -e 'use Fcntl qw(:flock); open(my $f, ">>", $ARGV[0]) or exit 2; flock($f, LOCK_EX) or exit 2; sleep 4' "$QF.lock" &
+    local holder=$!
+    sleep 1
+    out="$(TM_QUEUE_LOCK_WAIT=1 q add a --branch chore/a 2>&1)" && rc=0 || rc=$?
+    if [ "$rc" = 1 ] && printf '%s' "$out" | grep -qF 'the queue file is locked by another add or set'; then echo "ok   an add that cannot get the lock refuses"; else
+        echo "FAIL locked add: expected exit 1 and the refusal, got exit $rc: $out" >&2; fails=$((fails + 1)); fi
+    if [ ! -e "$QF" ]; then echo "ok   the refused add wrote nothing"; else echo "FAIL the refused add wrote the file" >&2; fails=$((fails + 1)); fi
+    wait "$holder"
+    check "the same add works once the lock is free" "added a (agent, order 1)" 0 q add a --branch chore/a
+
     check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
     check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 q add x
     if [ "$fails" = 0 ]; then echo "queue.sh self-test: all passed"; else echo "queue.sh self-test: $fails failed" >&2; fi
@@ -377,8 +437,8 @@ self_test() {
 
 case "${1:-}" in
     --self-test) [ "$#" = 1 ] || usage; self_test ;;
-    add) shift; cmd_add "$@" ;;
-    set) shift; cmd_set "$@" ;;
+    add) shift; locked add "$@" ;;
+    set) shift; locked set "$@" ;;
     show) [ "$#" = 1 ] || usage; cmd_show ;;
     next) [ "$#" = 1 ] || usage; cmd_next ;;
     *) usage ;;

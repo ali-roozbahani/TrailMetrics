@@ -13,7 +13,7 @@
 #
 # create <name>: `<name>` is lowercase letters, digits and `-`. It makes the worktree
 #   `<main clone>/.claude/worktrees/<name>` (inside the clone, so the subagent's file tools work
-#   there without a prompt; the folder is git-ignored through .git/info/exclude and is not part of
+#   there without a prompt; the folder is git-ignored by the repository's .gitignore and is not part of
 #   any Gradle build) on a new local branch `chore/wt-<name>` that starts at the tip of `--from`
 #   (the committed state: uncommitted changes of the main clone are not in it). Each `--allow` is a
 #   repo-relative path the implementer may write: a directory (a prefix) or one file; no `..`, no
@@ -247,9 +247,13 @@ cmd_remove() {
         git worktree remove "$WT" || refuse "git worktree remove failed (untracked files? --force)"
     fi
     git worktree prune
-    git branch -D "$BRANCH" >/dev/null 2>&1 || true
     rm -f -- "$(wt_root_dir)/$name.task.md"
-    echo "removed worktree $WT and branch $BRANCH"
+    if git branch -D "$BRANCH" >/dev/null 2>&1; then
+        echo "removed worktree $WT and branch $BRANCH"
+    else
+        echo "removed worktree $WT, but the branch $BRANCH could not be deleted (delete it with git branch -D $BRANCH)" >&2
+        return 1
+    fi
 }
 
 cmd_list() {

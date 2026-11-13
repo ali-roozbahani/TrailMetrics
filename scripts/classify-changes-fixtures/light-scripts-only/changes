@@ -1,0 +1,5 @@
+M	scripts/queue/queue.sh
+A	scripts/subagent/worktree.sh
+M	scripts/check-board.sh
+M	scripts/claude-hooks/block-git-push.sh
+M	scripts/README.md
