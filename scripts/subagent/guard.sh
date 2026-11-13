@@ -11,7 +11,8 @@
 # worktree's own git directory). Another directory, or a worktree without the record, blocks every call
 # (fail closed). But a subagent's hook always gets the main clone as `cwd`: the shell is reset to
 # it before every call and a `cd` does not last (two real runs showed it). So from the main clone the
-# guard judges by what the call names: Read, Grep and Glob by the secrets names only; Write, Edit and
+# guard judges by what the call names: Read, Grep and Glob by the secrets names and by staying inside the
+# main clone (an absolute path elsewhere is refused); Write, Edit and
 # the like by their absolute target path, which must lie in a worktree under the worktree folder
 # (then that worktree's allowed paths apply); Bash only when the command begins with
 # `cd <the root of a worktree under the worktree folder>`, and the rest of it is judged as if the shell
@@ -89,6 +90,17 @@ guard() {
         case "$tool" in
             Read | Grep | Glob)
                 check_record=0
+                # Reads stay inside the main clone and the worktree folder (normally inside it): an absolute path elsewhere,
+                # or one with a `..` component, is refused. A Grep pattern is a regular expression, not a path.
+                p="$(printf '%s' "$input" | jq -r '[.tool_input.file_path, .tool_input.path, (if "'"$tool"'" == "Glob" then .tool_input.pattern else null end)] | map(select(. != null)) | join("\n")' 2>/dev/null)"
+                while IFS= read -r word; do
+                    case "$word" in
+                        /*)
+                            case "/$word/" in */../*) deny "'$word' has a '..' component" ;; esac
+                            case "$word" in "$root" | "$root"/* | "$wts" | "$wts"/*) ;; *) deny "'$word' is outside the main clone $root and its worktree folder: Read, Grep and Glob stay inside them" ;; esac
+                            ;;
+                    esac
+                done <<< "$p"
                 ;;
             Write | Edit | MultiEdit | NotebookEdit)
                 p="$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null)"
@@ -270,6 +282,14 @@ self_test() {
     expect "main clone: Read of the task file is allowed" 0 "$repo" Read "$(file_in "$tmp/wts/impl.task.md")"
     expect "main clone: Read of a secrets file" 2 "$repo" Read "$(file_in "$repo/local.properties")" "secrets file"
     expect "main clone: Grep" 0 "$repo" Grep "$(jq -n '{pattern: "one"}')"
+    expect "main clone: Read of a file outside the clone" 2 "$repo" Read "$(file_in "/etc/hosts")" "outside the main clone"
+    expect "main clone: Read of a relative path" 0 "$repo" Read "$(file_in "src/a.txt")"
+    expect "main clone: Read with a '..' component" 2 "$repo" Read "$(file_in "$repo/src/../../x")" "'..' component"
+    expect "main clone: Grep with a path outside the clone" 2 "$repo" Grep "$(jq -n '{pattern: "x", path: "/etc"}')" "outside the main clone"
+    expect "main clone: Grep with a path inside the clone" 0 "$repo" Grep "$(jq -n --arg p "$repo/src" '{pattern: "one", path: $p}')"
+    expect "main clone: a Grep pattern that looks like a path is only a pattern" 0 "$repo" Grep "$(jq -n --arg p "$repo/src" '{pattern: "/etc/passwd", path: $p}')"
+    expect "main clone: Glob of a pattern outside the clone" 2 "$repo" Glob "$(jq -n '{pattern: "/etc/*"}')" "outside the main clone"
+    expect "main clone: Glob of a relative pattern" 0 "$repo" Glob "$(jq -n '{pattern: "src/**/*.kt"}')"
     expect "main clone: Grep that names a secrets file" 2 "$repo" Grep "$(jq -n '{pattern: "KEY", glob: "**/Secrets.xcconfig"}')" "secrets file"
     expect "main clone: Write to an allowed path of a worktree" 0 "$repo" Write "$(file_in "$wt/src/deep/new.kt")"
     expect "main clone: Write to a path that is not allowed" 2 "$repo" Write "$(file_in "$wt/docs/b.txt")" "not one of the allowed paths"
