@@ -3,8 +3,8 @@
 # always run (board, protected paths, scripts index, script self-tests, Kover floors, Room schema)?
 # A diff is `light` when none of its files can affect the Android or iOS build or their tests: docs,
 # skills and agent files, CODEOWNERS and the reviewer's workflow, and the tooling scripts under
-# scripts/ that no app job runs. This script is the one place that decides it. CI's android and
-# ios-plan jobs call it with --github, scripts/pre-push-check.sh with --base.
+# scripts/ that no app job runs. This script is the one place that decides it. CI's ios-plan
+# job calls it with --github, scripts/pre-push-check.sh with --base.
 #
 #   scripts/classify-changes.sh --base <ref>       files of `git diff --no-renames <ref> HEAD`
 #   scripts/classify-changes.sh --files <path>...  classify the given paths instead

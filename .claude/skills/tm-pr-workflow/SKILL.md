@@ -103,7 +103,7 @@ here. Run the script itself, not a hand-picked command.
   `scripts/checks/self-tests-tooling.list`, which `scripts/classify-changes.sh` treats as light, so
   a PR of tooling scripts and their registration stays light; an iOS group (CI's `ios-main` job) on
   `scripts/checks/self-tests.list`, a heavy file, when the script tests iOS-only things. Never into the
-  `android` job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
+  Android build job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
   on a script that has a self-test and is on neither list, and on another group in the tooling list.
 - **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
