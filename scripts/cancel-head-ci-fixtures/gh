@@ -8,7 +8,8 @@ case "$*" in
     "api repos/{owner}/{repo}/actions/runs?head_sha="*"&per_page=100") cat "$FAKE_GH_DIR/runs.json" ;;
     "api -X POST repos/{owner}/{repo}/actions/runs/"*"/cancel")
         all="$*"; id="${all#*actions/runs/}"; id="${id%/cancel}"
-        [ -e "$FAKE_GH_DIR/cancel-fails" ] && { echo "gh: Cannot cancel a workflow run that is completed" >&2; exit 1; }
+        [ -e "$FAKE_GH_DIR/cancel-fails" ] && { echo "gh: Cannot cancel a workflow run that is completed (HTTP 409)" >&2; exit 1; }
+        [ -e "$FAKE_GH_DIR/cancel-errors" ] && { echo "gh: Server Error (HTTP 500)" >&2; exit 1; }
         echo "$id" >> "$FAKE_GH_STATE/posts"
         echo '{}' ;;
     *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;

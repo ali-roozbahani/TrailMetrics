@@ -14,15 +14,19 @@
 # head SHA whose status is not `completed`, and cancels each with `POST actions/runs/<id>/cancel`.
 # Output: one line `CANCELLED <run id> <workflow name>` per run, then
 # `CANCEL_DONE <n> cancelled, <m> already finished` (exit 0). A run that finished meanwhile is a refusal
-# of GitHub's cancel call: it is counted as finished, not as an error. Exit 1: refused (reason on
-# stderr). Exit 2: usage error, a missing tool or a `gh` read that failed. Cancelling takes a few
+# of GitHub's cancel call, HTTP 409 ("Cannot cancel a workflow run that is completed"): it is counted as
+# finished, not as an error. Any other failure of a cancel call (the network, a permission, a rate limit)
+# prints `CANCEL_FAILED <run id>`, the other runs are still tried, and the exit is 2: the old head's CI
+# may still be running. Exit 1: refused (reason on stderr). Exit 2: usage error, a missing tool, a `gh`
+# read that failed or a cancel that failed. Cancelling takes a few
 # seconds to show; the runs of the superseded head then end as `cancelled`, which is expected
 # (tm-agent-loop, section 6, "SUPERSEDED").
 #
 # --self-test runs every case in scripts/cancel-head-ci-fixtures/ against a fake `gh` (no network): a case
 # directory holds `arg`, pr.json, runs.json, `login` (the account), `expected` (output), `expected-exit`,
 # `expected-posts` (the cancel calls the fake recorded, one run id per line; empty when none) and optionally
-# `gh-fail` (a `gh` that always fails) or `cancel-fails` (every cancel call is refused, as for a finished run).
+# `gh-fail` (a `gh` that always fails), `cancel-fails` (every cancel call is refused with HTTP 409, as for a
+# finished run) or `cancel-errors` (every cancel call fails with HTTP 500).
 # Bash 3.2 compatible.
 set -u
 
@@ -31,7 +35,7 @@ FIXTURES="$ROOT/scripts/cancel-head-ci-fixtures"
 USAGE="usage: scripts/cancel-head-ci.sh <PR number> | --self-test"
 
 cancel_runs() {
-    local pr="$1" d me json sha state author head_repo base_repo n=0 done_n=0 id name rows status
+    local pr="$1" d me json sha state author head_repo base_repo n=0 done_n=0 failed_n=0 id name rows status out
     d="$(mktemp -d)"
     CANCEL_TMP="$d"
     trap 'rm -rf "$CANCEL_TMP"' EXIT
@@ -54,14 +58,18 @@ cancel_runs() {
         || { echo "cancel-head-ci: run data is not readable" >&2; exit 2; }
     while IFS="$(printf '\t')" read -r id name; do
         [ -n "$id" ] || continue
-        if gh api -X POST "repos/{owner}/{repo}/actions/runs/$id/cancel" > /dev/null 2>&1; then
+        if out="$(gh api -X POST "repos/{owner}/{repo}/actions/runs/$id/cancel" 2>&1)"; then
             echo "CANCELLED $id $name"
             n=$((n + 1))
-        else
+        elif printf '%s' "$out" | grep -q 'HTTP 409'; then
             done_n=$((done_n + 1))
+        else
+            echo "CANCEL_FAILED $id $name"
+            failed_n=$((failed_n + 1))
         fi
     done <<< "$rows"
-    echo "CANCEL_DONE $n cancelled, $done_n already finished"
+    echo "CANCEL_DONE $n cancelled, $done_n already finished$([ "$failed_n" = 0 ] || echo ", $failed_n failed")"
+    [ "$failed_n" = 0 ] || exit 2
 }
 
 self_test() {
