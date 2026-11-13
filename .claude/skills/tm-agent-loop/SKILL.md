@@ -54,6 +54,16 @@ and the record deleted in its own commit. Load the code skills for the paths you
 Scope is the task (a picked record's Done when) and the same-subject fixes of that sweep, nothing
 else.
 
+## Subagents (tools of sections 2 and 4)
+
+The main agent is the orchestrator: it, and only it, integrates (takes the commits in, runs the review and
+the gate, pushes, opens the PR, watches CI, merges, works the queue). A subagent never does, and its work is
+a claim: the diff and the gate decide. `subagents.md` has the rest, and is read before any subagent is
+started: the `explorer` (an open-ended or large search, never a targeted lookup), the decision between
+implementing yourself, one `implementer` and a split of at most 2, the procedure with
+`scripts/subagent/worktree.sh` and the task file, heavy runs one at a time through
+`scripts/heavy-run.sh`, and why nothing below the orchestrator spawns.
+
 ## 3. Protected paths
 
 ```bash
@@ -115,36 +125,45 @@ foreground without `--max-seconds 540`: that prints `PENDING <names>` (exit 3) a
 run the same command again; 10 `PENDING` in a row are a `TIMEOUT`. Prefer the background run.
 While that command runs, you do not end your turn, do not send a report and do not stop.
 
-**Reviewer first.** The reviewer finishes in about 2 minutes, the other jobs in 20 to 40, and a
-green check run can still carry `[blocking]` findings (`ESCALATE_TO_HUMAN`,
-`APPROVE, <n> important`). So after a push run this first:
+**Reviewer first, and acted on the moment it is posted.** The reviewer finishes in about 2 minutes, the
+other jobs in 20 to 40, and a green check run can still carry `[blocking]` findings (`ESCALATE_TO_HUMAN`,
+`APPROVE, <n> important`). So after a push run this first, on its own:
 
 ```bash
 scripts/wait-for-checks.sh --review-first <PR number>
 ```
 
-It waits only for `Review — pr-reviewer` of the head SHA to be completed and prints
-`REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]` (exit 0). A failed reviewer
-is the early-failure exit below; `SUPERSEDED` and the timeouts are as for the rest. When it
-returns, read the verdict (`scripts/read-ci-verdict.sh`, section 7). For `ESCALATE_TO_HUMAN`,
-`APPROVE, <n> important` with n above 0, or `CHANGES`, read the report as section 7 says. Then:
+Given a PR number it reads the verdict itself (`scripts/read-ci-verdict.sh`, section 7) the moment
+`Review — pr-reviewer` of the head SHA is completed, prints `REVIEW_VERDICT <the verdict line>`, and then:
 
-- No `[blocking]` and no `[important]` that needs a fix (a bare `APPROVE`, or an
-  `ESCALATE_TO_HUMAN` only because of a protected path or a human check): go on with
-  `scripts/wait-for-checks.sh <PR number>` for the rest.
-- A `[blocking]`, or an `[important]` you will not dispose as `board record`, `queued <slug>` or a
-  justified `rejected`: do not wait for the rest. Fix it as a new commit through the normal flow (local
-  review, gate, push) and start again with `--review-first` on the new head. These rounds count
-  toward the 2 CI-fix rounds below.
+- A bare `APPROVE`: it prints `REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]`
+  (exit 0). Go on with `scripts/wait-for-checks.sh <PR number>` for the rest.
+- Anything else ends the wait at once, with the other jobs still running, like a failed job:
+  `REVIEW_ACTION <verdict line>; still running: <names>` (exit 4). That is `ESCALATE_TO_HUMAN` (also a
+  bare one: its report can hold a `[blocking]` finding the line does not show), `CHANGES`,
+  `UNKNOWN <reason>` or `APPROVE, <n> important` with n above 0. Download and read the report as
+  section 7 says, as a command of its own and now, and decide at once:
+  - A `[blocking]`, or an `[important]` you will fix: run `scripts/cancel-head-ci.sh <PR number>` first,
+    so the old head's CI stops running (a push would cancel it only after the local review and the gate),
+    then fix it as a new commit through the normal flow (local review, gate, push) and start again with
+    `--review-first` on the new head. These rounds count toward the 2 CI-fix rounds below.
+  - Nothing to fix (each `[important]` disposed as `board record`, `queued <slug>` or a justified
+    `rejected`; an `ESCALATE_TO_HUMAN` only because of a protected path or a human check): run
+    `scripts/wait-for-checks.sh --review-acked <PR number>` for the rest.
 - A finding that contradicts a task decision: stop and report, as below.
+
+The verdict is never read inside a background wait, and the wait for the rest is never started before this
+decision. A failed reviewer is the early-failure exit below. `SUPERSEDED` and the timeouts are as for the
+rest. A head given as a SHA (no PR number) has no verdict to read: read it yourself, at once.
 
 **The rest.**
 
 ```bash
-scripts/wait-for-checks.sh <PR number>
+scripts/wait-for-checks.sh [--review-acked] <PR number>
 ```
 
-It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
+(`--review-acked` after the reviewer's verdict was read and decided, as above; without it, the wait also
+ends at once with `REVIEW_ACTION` when the reviewer posts a verdict that needs action.) It sleeps itself (every 30 seconds for the first 5 minutes, then every 5 minutes) until every
 check run of the head SHA is `completed`, or any check run has failed (early-failure exit below).
 It exits with one line per check run (name, status, conclusion) and a last line:
 
@@ -152,6 +171,8 @@ It exits with one line per check run (name, status, conclusion) and a last line:
 - `FAILED <names>[; still running: <names>][; missing: <names>]` (exit 1): at least one check run
   failed. With `still running:` other jobs go on; this is the early-failure exit below.
 - `TIMEOUT <names still running>[; missing: <names>]` (exit 1).
+- `REVIEW_ACTION <verdict line>; still running: <names>` (exit 4): the reviewer's verdict needs action
+  (above); read the report and decide now.
 - `SUPERSEDED <new sha>` (exit 1): a newer push changed the PR head, so watch that SHA instead.
 
 A check run that does not exist yet counts as not finished: `ALL_GREEN` needs the three required
@@ -200,13 +221,14 @@ is in the line). Do not wait for the running jobs: act on the failed one now.
   id is the check run's id, `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<job id>/logs
   | sed 's/\[[0-9;]*[A-Za-z]//g'`. Find the root cause.
   - A defect in the PR (class a): fix it as a new commit through the normal flow (review, gate,
-    push) at once, without waiting for the other jobs. The push cancels the CI of the old head for a
-    pull request (`ci.yml`, `pr-review.yml`: `cancel-in-progress`), so nothing is lost by not waiting;
-    the old head's cancelled runs are expected (the `SUPERSEDED` rule). The push counts as one of the
+    push) at once, without waiting for the other jobs, and stop the old head's CI right away with
+    `scripts/cancel-head-ci.sh <PR number>`; the push would cancel it only later (`ci.yml`, `pr-review.yml`:
+    `cancel-in-progress`). The old head's cancelled runs are expected (the `SUPERSEDED` rule). The push counts as one of the
     2 CI-fix rounds.
   - A flake or infrastructure (b, c): no push. Re-running needs the run to be completed, so wait
     with `--until-complete` and then re-run once (step 3). Do not cancel the run to re-run sooner
-    (never cancel a CI run).
+    (never cancel a run to re-run it sooner; the one cancelling the loop does is `scripts/cancel-head-ci.sh` for a head
+    that a fix is about to replace).
   - Not decided from the log: do not guess; wait with `--until-complete` and report as step 4 says
     if it is still unclear.
 
@@ -399,7 +421,8 @@ A denied command is the owner's "no" for that command, not an obstacle to route 
 - CI still red on the same SHA after its one re-run, the script refuses, a third failing push after
   2 CI-fix rounds, or the reviewer check is `UNKNOWN` (section 6).
 - The reviewer's report cannot be downloaded after `CHANGES` (section 7).
-- Anything that would need a force-push, an amend, a cancelled run or reading a credential.
+- Anything that would need a force-push, an amend, a cancelled run (other than the old head's runs, through
+  `scripts/cancel-head-ci.sh`, once a fix is decided) or reading a credential.
   A run cancelled because a newer push superseded its SHA is not that case: the checks of the
   CURRENT head SHA count, and an older SHA's cancelled run is expected. Closing and reopening a
   PR (to re-trigger the reviewer) starts a new CI run for the same SHA and cancels one still in
@@ -420,6 +443,9 @@ The final report to the human has three parts: Done, Not done, Not verified.
 - The PR description keeps its own headings (`tm-pr-workflow`); this shape is for the chat report.
 - It says what each queue entry ended as, PRs waiting for the owner in queue order with their merge
   commands (`queue.md`, "The report").
+- One line per subagent run (agent, name, its `STATUS`, and what you checked after it: the `take`
+  output and the diff you read), and the choice between yourself, one implementer and a split with its
+  reason.
 - One line with the recent status of `main`, read once at the end (`scripts/main-ci-status.sh
   --recent 5`: its summary line and any red or running run), under Done, or under Not verified when
   the read failed.
@@ -429,12 +455,16 @@ The final report to the human has three parts: Done, Not done, Not verified.
 
 ## Never
 
-- Push to `main`, force-push or amend, or cancel a CI run.
+- Push to `main`, force-push or amend, or cancel a CI run (the one exception: `scripts/cancel-head-ci.sh`, for
+  the head that a decided reviewer-finding fix is about to replace).
 - Enable GitHub's auto-merge setting (it stays off) or use `gh pr merge --auto`; change
   repository settings; edit a protected path outside the task.
 - Read other credentials. The deny rules in `.claude/settings.json` are best effort, not a
   wall: don't try to get around them.
 - Merge a PR for which one of section 8's conditions is not met, or an epic PR into `main`.
+- Let a subagent push, open, review or merge a PR, run the gate, touch the queue or the review
+  records, or integrate: only the orchestrator does (section "Subagents"). Start a heavy run around
+  `scripts/heavy-run.sh`.
 - Do not join git commands that depend on each other with `;`. Join them with `&&`, so a failed
   command stops what follows (a failed `git revert` once let a following
   `git commit --amend` run). Run a history-changing command (`git revert`, `merge`,

@@ -41,3 +41,5 @@ tooling	merge-only check self-test	scripts/queue/merge-only-check.sh
 tooling	local verdict for head self-test	scripts/queue/local-verdict-for-head.sh
 tooling	local review prepare self-test	scripts/local-review-prepare.sh
 tooling	local review verdict recorder self-test	scripts/local-review-record-verdict.sh
+tooling	cancel head CI self-test	scripts/cancel-head-ci.sh
+tooling	reviewer input check self-test	scripts/review-input-check.sh
