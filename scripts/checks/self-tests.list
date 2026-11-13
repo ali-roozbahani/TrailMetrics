@@ -1,50 +1,15 @@
-# The one list of script self-tests. scripts/pre-push-check.sh reads it (one gate step per line)
-# and CI runs it through one step per job (scripts/checks/self-tests.sh --run <group>).
-# `scripts/checks/self-tests.sh --check` fails when a script that has a --self-test is not here,
-# or a line names a script that is missing or has none.
+# The self-tests that only CI's iOS job (and the gate's iOS steps) run; the group `tooling` is in
+# scripts/checks/self-tests-tooling.list (scripts/checks/self-tests.sh reads both). scripts/pre-push-check.sh reads the
+# lists (one gate step per line) and CI runs them through one step per job (scripts/checks/self-tests.sh --run <group>).
+# `scripts/checks/self-tests.sh --check` fails when a script that has a --self-test is in neither list, or a line names
+# a script that is missing or has none. A change to this file is a heavy change (scripts/classify-changes.sh): the iOS
+# job reads it; a change to the tooling list is not.
 #
 # Format: <group> <TAB> <step name> <TAB> <script>   (the step runs `<script> --self-test`)
 # Groups, by where each self-test runs:
-#   tooling        the gate, always; CI's `tooling` job
+#   tooling        the gate, always; CI's `tooling` job   (listed in self-tests-tooling.list)
 #   macos          the gate, always; CI's `ios-main` job
 #   ios-swiftlint  the gate's iOS steps, when swiftlint is installed; CI's `ios-main` job
-tooling	self-test list self-test	scripts/checks/self-tests.sh
-tooling	PR base self-test	scripts/ci/pr-base.sh
-tooling	scripts index self-test	scripts/checks/scripts-index.sh
-tooling	protected paths self-test	scripts/check-protected-paths.sh
-tooling	change classification self-test	scripts/classify-changes.sh
-tooling	heavy scripts check self-test	scripts/check-heavy-scripts.sh
-tooling	reviewer workflow self-test	scripts/check-pr-review-workflow.sh
-tooling	skill rule-change self-test	scripts/check-skill-rule-changes.sh
-tooling	kover floors self-test	scripts/check-kover-floors.sh
-tooling	room schema self-test	scripts/check-room-schema.sh
-tooling	iOS scope self-test	scripts/check-ios-scope.sh
-tooling	variant API check self-test	scripts/check-variant-api.sh
-tooling	scrub-env self-test	scripts/scrub-env.sh
-tooling	xcode log filter self-test	scripts/filter-xcode-log.sh
-tooling	CI verdict reader self-test	scripts/read-ci-verdict.sh
-tooling	CI re-run guard self-test	scripts/rerun-failed-once.sh
-tooling	local review gate self-test	scripts/local-review-gate.sh
-tooling	local review hook self-test	scripts/claude-hooks/require-local-review.sh
-tooling	CI wait self-test	scripts/wait-for-checks.sh
-tooling	main CI status self-test	scripts/main-ci-status.sh
-tooling	board check self-test	scripts/check-board.sh
-tooling	push hook self-test	scripts/claude-hooks/block-git-push.sh
-tooling	prune merged branches self-test	scripts/prune-merged-branches.sh
-tooling	branch-create hook self-test	scripts/claude-hooks/block-branch-create-while-merged-branches.sh
-tooling	skill changes digest self-test	scripts/skill-changes-digest.sh
-tooling	PR description helper self-test	scripts/set-pr-body.sh
-tooling	clean agent workspace self-test	scripts/dev/clean-agent-workspace.sh
-tooling	heavy run lock self-test	scripts/heavy-run.sh
-tooling	PR queue self-test	scripts/queue/queue.sh
-tooling	subagent worktree self-test	scripts/subagent/worktree.sh
-tooling	subagent guard self-test	scripts/subagent/guard.sh
-tooling	PR watcher self-test	scripts/queue/watch-prs.sh
-tooling	branch update fallback self-test	scripts/queue/update-branch.sh
-tooling	merge-only check self-test	scripts/queue/merge-only-check.sh
-tooling	local verdict for head self-test	scripts/queue/local-verdict-for-head.sh
 macos	production framework check self-test	scripts/check-production-framework.sh
 ios-swiftlint	localized strings rules self-test	scripts/check-localized-strings.sh
 ios-swiftlint	optional_try rule self-test	scripts/check-optional-try.sh
-tooling	local review prepare self-test	scripts/local-review-prepare.sh
-tooling	local review verdict recorder self-test	scripts/local-review-record-verdict.sh

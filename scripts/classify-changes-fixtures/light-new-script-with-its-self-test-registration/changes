@@ -1,0 +1,5 @@
+A	scripts/new-tool.sh
+M	scripts/checks/self-tests-tooling.list
+M	scripts/README.md
+M	scripts/checks/scripts-index.sh
+M	scripts/checks/scripts-index-fixtures/x/expect

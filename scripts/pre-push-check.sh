@@ -143,8 +143,8 @@ run_step "scripts index check" scripts/checks/scripts-index.sh --check
 # runs the same check first and fails its step.
 run_step "heavy scripts check" scripts/check-heavy-scripts.sh
 
-# Script self-tests: the one list, scripts/checks/self-tests.list, which CI runs too. Its check
-# fails when a script with a --self-test is not on it. One gate step per line, so the output
+# Script self-tests: the lists scripts/checks/self-tests-tooling.list and scripts/checks/self-tests.list, which
+# CI runs too. Their check fails when a script with a --self-test is on neither. One gate step per line, so the output
 # still names each self-test; the list is read on fd 3, so a self-test cannot read it from
 # stdin. Fail closed: a list that cannot be read is a failure, not zero steps.
 run_step "self-test list check" scripts/checks/self-tests.sh --check

@@ -1,0 +1,5 @@
+decision: light
+contains: scripts/checks/self-tests-tooling.list  (scripts/**)
+contains: scripts/checks/scripts-index.sh  (scripts/**)
+contains: scripts/checks/scripts-index-fixtures/x/expect  (scripts/**)
+absent: heavy script

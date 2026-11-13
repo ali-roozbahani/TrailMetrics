@@ -1,0 +1,2 @@
+decision: light
+contains: scripts/checks/self-tests.list.bak  (scripts/**)
