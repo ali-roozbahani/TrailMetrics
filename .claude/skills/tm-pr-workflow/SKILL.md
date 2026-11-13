@@ -387,7 +387,7 @@ step of the gate and of CI's `tooling` job.
      or design; an epic, and the follow-ups its final board PR records (rule 5); a change only
      the owner can push (a workflow file this token can't push); an item the queue refuses
      because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
-     at count 3 ("Flake log"). An `[important]` reviewer finding not fixed in the PR is deferred as
+     at count 3 ("Flake log"; a runner-not-acquired failure never is). An `[important]` reviewer finding not fixed in the PR is deferred as
      `queued <slug>` (a queue entry and a PR of its own, the push hook checks that the entry exists)
      or, when it is one of the items above, as `board record <slug>`.
      Each record states that one-line reason in its Problem; a record whose only reason is
@@ -452,7 +452,11 @@ format). It is not protected, and a PR that touches only that file is not a boar
 - At count 3 for an `open` entry, add a `BOARD.md` record in the PR you are working on (type
   task, slug `flake-<slug>`, Problem with the occurrences, Done when: the flake no longer fails
   or the runner/test is changed so it cannot, shown on 5 consecutive runs) and mark the entry
-  `escalated: flake-<slug>`. At most one record per entry.
+  `escalated: flake-<slug>`. At most one record per entry. The exception: a failure of the kind
+  "job not acquired by a runner" (the runner never started the job, so no test and no code is involved: infra)
+  is counted and never escalates, at count 3 or any other: no record and no `escalated:` line. The owner
+  decides on pinning the runner label when the count shows a pattern (the entry `ios-2a-job-not-acquired` of
+  `CI_FLAKES.md` is the one for the macOS jobs).
 - The PR that fixes a flake sets the entry to `fixed (unverified)`, the status of a board record
   until its Done when is shown, with `Fix: #<PR number>` (the number once the PR exists, never the
   branch name) and one line of what was learned, deletes the `BOARD.md` record, and adds an entry

@@ -9,7 +9,9 @@ exists; for a fixed entry the Fix (`#<PR number>`) and Learned (one line, the fu
 `LEARNINGS.md`). A PR that fixes a flake sets `fixed (unverified)`, the status of a board record
 until its Done when is shown (5 consecutive green runs of the job on `main` after the fix's merge
 commit); `fixed` only once they are. A failure with the signature of a `fixed (unverified)` or
-`fixed` entry reopens it to `open` and adds the occurrence.
+`fixed` entry reopens it to `open` and adds the occurrence. A failure of the kind "job not acquired by a
+runner" (infra: no test or code involved) is counted and never escalated to a board record (`tm-pr-workflow`,
+"Flake log").
 
 ## ios-ui-route-map-press-lost
 
@@ -197,8 +199,9 @@ run, and the jobs it hit are counted below.
     (16:20:01 to 16:35:02) and were cancelled; `iOS 3` was skipped
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
-  ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner's note: if
-  it keeps recurring we revisit pinning the macOS label (not changed now; a workflow change only the owner can push).
+  ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
+  pinning the macOS label when the count shows a pattern (a workflow change only the owner can push); this kind of
+  failure is counted and never escalated to a board record.
 
 ## ios-ui-probe-refresh-timeout
 
