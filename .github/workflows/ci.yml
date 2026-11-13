@@ -355,7 +355,7 @@ jobs:
       - name: Production framework check
         run: scripts/check-production-framework.sh
 
-      # iOS simulator tests can't run on the ubuntu android job. data's
+      # iOS simulator tests can't run on the ubuntu android-build job. data's
       # ActivityHistoryRepositoryImplTest runs in both jobs; only this run uses
       # the app's BundledSQLiteDriver (the host run uses AndroidSQLiteDriver).
       # shared-uitest, the test-only framework variant, has only iOS tests: those of its UI-test fakes
