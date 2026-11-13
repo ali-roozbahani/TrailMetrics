@@ -214,3 +214,19 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
   run on the same head. The signature differs from `ios-ui-route-map-press-lost` (a map press) and
   `ios-ui-details-launch-timeout` (a launch).
 
+
+## ios-ui-details-failed-delete-error-alert-not-shown
+
+- Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, test
+  `DetailsFailedDeleteUITests.test_failedDelete_showsErrorAndKeepsDetails`, first error line
+  "XCTAssertTrue failed - Error alert not shown" (`DetailsFailedDeleteUITests.swift:38`, after 87.1 s)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-12, run 43318989709 (PR #273, head `9922b1a`; a change to `scripts/queue/queue.sh` and
+    `queue.md` only), re-run: yes, fixed it (attempt 2 green). The test before it
+    (`DetailsDeleteTwiceUITests`, 43.2 s) and the seven after it passed
+- Notes: the test took 87.1 s; the same test class passed in the re-run and in the later runs of #274 and
+  #272. Not shown whether the alert never appeared or the run was slow: the signature differs from
+  `ios-ui-details-failed-delete-row-not-found` (the seeded row, line 26) and from the launch stalls of
+  `ios-ui-details-launch-timeout`, which fail before a test body runs.
