@@ -27,6 +27,10 @@
 #   the deny rules of .claude/settings.json name, so reading the link through the worktree needs its
 #   own deny rule (the guard also refuses it).
 #   The branch name has the `chore/` prefix, is local only and is never pushed (no queue entry, no PR).
+#   The implementer's task file goes next to the worktree, `<main clone>/.claude/worktrees/<name>.task.md`
+#   (written by the orchestrator, git-ignored with the folder, inside the project directory so the
+#   subagent can read it, and outside the worktree so it never shows up in its `git status`); `create`
+#   prints the path and `remove` deletes the file.
 #
 # take <name>: brings the commits the implementer made since the last take (or since the start) into
 #   the branch the worktree was created from, which must be checked out and clean in the main clone,
@@ -171,6 +175,7 @@ cmd_create() {
     sed 's/^/  /' "$rec/allowed"
     [ "$ios" = 0 ] || echo "iOS secrets config: linked, not read"
     [ "$android" = 0 ] || echo "local.properties: linked, not read"
+    echo "task file for the implementer: $(wt_root_dir)/$name.task.md (write it before starting the implementer)"
     echo "The implementer works in $dir; the orchestrator brings its commits back with: scripts/subagent/worktree.sh take $name"
 }
 
@@ -242,6 +247,7 @@ cmd_remove() {
         git worktree remove "$WT" || refuse "git worktree remove failed (untracked files? --force)"
     fi
     git worktree prune
+    rm -f -- "$(wt_root_dir)/$name.task.md"
     if git branch -D "$BRANCH" >/dev/null 2>&1; then
         echo "removed worktree $WT and branch $BRANCH"
     else
@@ -315,9 +321,11 @@ self_test() {
     check "create refuses --android without local.properties" "local.properties is missing" 1 w create impl --from chore/task --allow src --android
     : > "$repo/iosApp/TrailMetrics/Secrets.xcconfig"; : > "$repo/local.properties"
     check "create makes the worktree" "created worktree $wt" 0 w create impl --from chore/task --allow src --allow docs/new.txt --ios --android
+    check "create named the task file next to the worktree" "$tmp/wts/impl.task.md" 0 printf '%s' "$out"
     check "the allowed paths are stored, a directory with a slash" "src/" 0 cat "$repo/.git/worktrees/impl/tm-subagent/allowed"
     check "a file entry is stored as given" "docs/new.txt" 0 cat "$repo/.git/worktrees/impl/tm-subagent/allowed"
     check "the secrets link is a symbolic link" "link" 0 bash -c "[ -L '$wt/iosApp/TrailMetrics/Secrets.xcconfig' ] && [ -L '$wt/local.properties' ] && echo link"
+    echo task > "$tmp/wts/impl.task.md"
     check "the branch is chore/wt-impl" "chore/wt-impl" 0 git -C "$wt" symbolic-ref --short HEAD
     check "create refuses a second worktree of the same name" "already exists" 1 w create impl --from chore/task --allow src
     check "check-path: a file under an allowed directory" "" 0 w check-path "$wt" src/deep/x.kt
@@ -366,6 +374,7 @@ self_test() {
     git -C "$wt" reset -q --hard "$(cat "$repo/.git/worktrees/impl/tm-subagent/base")"
 
     check "remove removes the worktree and its branch" "removed worktree $wt" 0 w remove impl
+    check "remove deleted the task file" "gone" 0 bash -c "[ ! -e '$tmp/wts/impl.task.md' ] && echo gone"
     check "the directory is gone" "gone" 0 bash -c "[ ! -e '$wt' ] && echo gone"
     check "the branch is gone" "" 1 git -C "$repo" show-ref --verify --quiet refs/heads/chore/wt-impl
     check "the clone's secrets config is untouched" "ok" 0 bash -c "[ -f '$repo/iosApp/TrailMetrics/Secrets.xcconfig' ] && [ -f '$repo/local.properties' ] && echo ok"

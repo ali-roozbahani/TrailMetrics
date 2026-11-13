@@ -39,9 +39,18 @@ Before reviewing, check all of these. If one fails, the whole report is the sing
   is its name (for example `diff` or `rule-changes`).
 - `HEAD_OR_BASE_MISMATCH`: `head` does not equal `SHA`, or `base` does not equal `BASE`.
 - `TREE_NOT_CLEAN`: `status` is not empty (the working tree is not clean).
-- `GIT_HEAD_MISMATCH`: `<repo>/.git` is a directory and `.git/HEAD` does not name a branch
-  whose SHA (from `.git/refs/heads/<branch>`, or `.git/packed-refs` if that file is missing)
-  equals `SHA`.
+- `GIT_HEAD_MISMATCH`: the checkout's own `HEAD`, read from its git directory, does not name a
+  branch whose SHA equals `SHA`. Where the git directory is depends on `<repo>/.git`:
+  - A directory (the main clone): `.git/HEAD` names the branch, and its SHA is in
+    `.git/refs/heads/<branch>`, or in `.git/packed-refs` if that file is missing.
+  - A file (a linked worktree): its first line is `gitdir: <path>`, the worktree's git directory.
+    `<path>/HEAD` names the branch. The branches live in the common git directory, which is the path
+    in `<path>/commondir` (relative to `<path>`; for a worktree of the main clone it is the clone's
+    `.git`): its SHA is in `<common>/refs/heads/<branch>`, or in `<common>/packed-refs` if that file
+    is missing.
+  A `.git` file without a `gitdir:` first line, an unreadable `HEAD` or `commondir`, a `HEAD` that
+  names no branch (a detached HEAD included) or a branch with no SHA in either place is a mismatch
+  too: the check is never skipped because `.git` is not a directory.
 - `CLASSIFIER_ERROR`: `protected` does not start with `protected` or `unprotected`.
 
 No other code and no free-text reason. Anything that is not one of these input failures is
