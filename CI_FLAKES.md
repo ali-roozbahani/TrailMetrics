@@ -221,13 +221,32 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
   `DetailsFailedDeleteUITests.test_failedDelete_showsErrorAndKeepsDetails`, first error line
   "XCTAssertTrue failed - Error alert not shown" (the assertion on the error alert in
   `DetailsFailedDeleteUITests.swift`, after 87.1 s)
-- Count: 1
+- Count: 2
 - Status: open
 - Occurrences:
   - 2026-11-12, run 43318989709 (PR #273, head `9922b1a`; a change to `scripts/queue/queue.sh` and
     `queue.md` only), re-run: yes, fixed it (attempt 2 green). The test before it
     (`DetailsDeleteTwiceUITests`, 43.2 s) and the seven after it passed
+  - 2026-11-13, run 43431312123 (push to `main`, the merge of #280, head `c318851`; a change to scripts and skills only), re-run:
+    no (the owner acknowledged the red run and classified it as this entry). The test took 84.0 s; the other eight tests passed;
+    the stall was 18 s plus 33 s of "Wait for <app> to idle" around the tap on Delete
 - Notes: the test took 87.1 s; the same test class passed in the re-run and in the later runs of #274 and
   #272. Not shown whether the alert never appeared or the run was slow: the signature differs from
   `ios-ui-details-failed-delete-row-not-found` (the seeded row assertion) and from the launch stalls of
   `ios-ui-details-launch-timeout`, which fail before a test body runs.
+  Cause class `ui-test-idle-stall`, trigger unknown (board: ui-test-app-idle-stalls): three failures on two signatures (this one twice, `ios-ui-restored-session-offer-not-offered` once) took 87.1, 84.0 and 84.1 s on different tests, and each holds one long stall inside XCTest's own "Wait for <app> to idle" step before the test's last 10 s wait: 49 s, 18 s plus 33 s, and exactly 60.0 s. Every wait in the UI tests is 10 s and the CI step sets no per-test allowance (the gate's 90 s is not set in ci.yml), so no wait or timeout of about 80 s explains it; the 60.0 s looks like XCTest's own app-idle wait giving up. What keeps the app busy is not shown. No retry and no longer wait was added.
+
+## ios-ui-restored-session-offer-not-offered
+
+- Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, test
+  `RestoredSessionOfferUITests.test_storedPausedSession_isOfferedAtLaunchAsTheTrackingScreen`, first error line "XCTAssertTrue
+  failed - The restored session was not offered: no Resume" (`RestoredSessionOfferUITests.swift`, after the 10 s wait for the
+  Resume button, 84.1 s into the test)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-13, run 43451417675 (PR #281, head `e2c725f`; a change to the self-test lists, the classifier and its fixtures),
+    re-run: yes, fixed it (attempt 2 green). The other eight tests passed; the stall was exactly 60.0 s of "Wait for <app> to
+    idle" at the start of the test (after 4.3 s)
+- Notes: the test passed in the same run's attempt 2 and in earlier runs (about 9 to 10 s).
+  Cause class `ui-test-idle-stall`, trigger unknown (board: ui-test-app-idle-stalls): three failures on two signatures (this one twice, `ios-ui-restored-session-offer-not-offered` once) took 87.1, 84.0 and 84.1 s on different tests, and each holds one long stall inside XCTest's own "Wait for <app> to idle" step before the test's last 10 s wait: 49 s, 18 s plus 33 s, and exactly 60.0 s. Every wait in the UI tests is 10 s and the CI step sets no per-test allowance (the gate's 90 s is not set in ci.yml), so no wait or timeout of about 80 s explains it; the 60.0 s looks like XCTest's own app-idle wait giving up. What keeps the app busy is not shown. No retry and no longer wait was added.
