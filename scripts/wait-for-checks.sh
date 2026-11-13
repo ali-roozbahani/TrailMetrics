@@ -110,7 +110,8 @@
 # output), `expected-exit`, optionally `expected-stderr` (text the error output must contain), and
 # `gh-fail` for a `gh` that always fails or `gh-fail-calls` (numbers of the `gh` calls that fail), and
 # optionally `verdict` (the line the verdict reader prints; default APPROVE; the self-test replaces
-# scripts/read-ci-verdict.sh by scripts/wait-for-checks-fixtures/verdict-stub, which prints it).
+# scripts/read-ci-verdict.sh by scripts/wait-for-checks-fixtures/verdict-stub, which prints it, through
+# WAIT_FOR_CHECKS_VERDICT_CMD together with WAIT_FOR_CHECKS_SELF_TEST; either alone is ignored).
 # Bash 3.2 compatible.
 set -u
 
@@ -136,7 +137,12 @@ die() {
 elapsed=0
 fails=0
 VERDICT_LINE=""
-VERDICT_CMD="${WAIT_FOR_CHECKS_VERDICT_CMD:-$ROOT/scripts/read-ci-verdict.sh}"
+VERDICT_CMD="$ROOT/scripts/read-ci-verdict.sh"
+# Only the self-test may replace the verdict reader (it sets both variables): a leaked
+# WAIT_FOR_CHECKS_VERDICT_CMD must not be able to hide a reviewer verdict in a real run.
+if [ -n "${WAIT_FOR_CHECKS_SELF_TEST:-}" ] && [ -n "${WAIT_FOR_CHECKS_VERDICT_CMD:-}" ]; then
+    VERDICT_CMD="$WAIT_FOR_CHECKS_VERDICT_CMD"
+fi
 
 # read_verdict: reads the reviewer's verdict for $PR and $SHA into VERDICT_LINE (up to 3 reads, one fast
 # step apart, while it says UNKNOWN) and prints it.
@@ -290,7 +296,7 @@ self_test() {
         state="$(mktemp -d)"
         err="$state/stderr"
         actual="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$dir" FAKE_GH_STATE="$state" \
-            WAIT_FOR_CHECKS_VERDICT_CMD="$FIXTURES/verdict-stub" WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
+            WAIT_FOR_CHECKS_SELF_TEST=1 WAIT_FOR_CHECKS_VERDICT_CMD="$FIXTURES/verdict-stub" WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
             WAIT_FOR_CHECKS_FAST_STEP=1 WAIT_FOR_CHECKS_SLOW_STEP=1 "$0" $(cat "$dir/arg") 2>"$err")"
         code=$?
         if [ -e "$dir/expected-stderr" ] && ! grep -qF -- "$(cat "$dir/expected-stderr")" "$err"; then
@@ -311,6 +317,15 @@ self_test() {
     "$0" > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL no argument does not exit 2"; failed=1; }
     "$0" abc > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric, non-SHA argument does not exit 2"; failed=1; }
     "$0" --review-first > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-first without a PR or SHA does not exit 2"; failed=1; }
+    # A leaked override of the verdict reader is ignored outside the self-test: with the stub (APPROVE) honored this
+    # case would go on to ALL_GREEN (exit 0); with the real reader it needs the PR, which the fake gh does not serve.
+    state="$(mktemp -d)"
+    out="$(PATH="$FIXTURES:$PATH" FAKE_GH_DIR="$FIXTURES/verdict-approve-keeps-waiting" FAKE_GH_STATE="$state" \
+        WAIT_FOR_CHECKS_VERDICT_CMD="$FIXTURES/verdict-stub" WAIT_FOR_CHECKS_MAX_SECONDS=3 WAIT_FOR_CHECKS_FAST_SECONDS=2 \
+        WAIT_FOR_CHECKS_FAST_STEP=1 WAIT_FOR_CHECKS_SLOW_STEP=1 "$0" 77 2>/dev/null)"; code=$?
+    rm -rf "$state"
+    if [ "$code" = 4 ] && printf '%s' "$out" | grep -q '^REVIEW_ACTION UNKNOWN'; then echo "ok   the verdict reader cannot be replaced outside the self-test"; else
+        echo "FAIL a leaked WAIT_FOR_CHECKS_VERDICT_CMD was honored (exit $code): $out"; failed=1; fi
     "$0" --review-acked > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --review-acked without a PR or SHA does not exit 2"; failed=1; }
     "$0" --max-seconds > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL --max-seconds without a value does not exit 2"; failed=1; }
     "$0" --max-seconds x 12 > /dev/null 2>&1; [ $? = 2 ] || { echo "FAIL a non-numeric --max-seconds does not exit 2"; failed=1; }
