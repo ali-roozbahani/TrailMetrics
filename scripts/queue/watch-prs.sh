@@ -193,9 +193,9 @@ self_test() {
     A="aaaaaaa$(printf '1%.0s' $(seq 33))"; B="bbbbbbb$(printf '2%.0s' $(seq 33))"; C2="ccccccc$(printf '3%.0s' $(seq 33))"
     M1="ddddddd$(printf '4%.0s' $(seq 33))"; M2="eeeeeee$(printf '5%.0s' $(seq 33))"
     run_() { printf '{"name":"%s","status":"%s","conclusion":%s,"head_sha":"x","id":1}' "$1" "$2" "$3"; }
-    G="{\"check_runs\":[$(run_ 'Android — Lint, Detekt, Tests, Build' completed '"success"'),$(run_ 'iOS — all stages' completed '"success"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
-    R="{\"check_runs\":[$(run_ 'Android — Lint, Detekt, Tests, Build' completed '"success"'),$(run_ 'iOS — all stages' completed '"failure"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
-    RUN="{\"check_runs\":[$(run_ 'Android — Lint, Detekt, Tests, Build' in_progress null),$(run_ 'iOS — all stages' completed '"success"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
+    G="{\"check_runs\":[$(run_ 'Android — all stages' completed '"success"'),$(run_ 'iOS — all stages' completed '"success"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
+    R="{\"check_runs\":[$(run_ 'Android — all stages' completed '"success"'),$(run_ 'iOS — all stages' completed '"failure"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
+    RUN="{\"check_runs\":[$(run_ 'Android — all stages' in_progress null),$(run_ 'iOS — all stages' completed '"success"'),$(run_ 'Repo tooling — policy checks and script self-tests' completed '"success"'),$(run_ 'Review — pr-reviewer' completed '"success"')]}"
     MISS='{"check_runs":[]}'
     pr_() { # pr_ <number> <head sha> [<author>] [<base>]
         printf '{"number":%s,"user":{"login":"%s"},"base":{"ref":"%s"},"head":{"ref":"chore/pr-%s","sha":"%s"},"draft":false}' \

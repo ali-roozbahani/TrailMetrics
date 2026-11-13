@@ -125,7 +125,9 @@ runner" (infra: no test or code involved) is counted and never escalated to a bo
 
 ## android-package-debug-incremental-failure
 
-- Signature: job `Android — Lint, Detekt, Tests, Build`, step `Build`, task
+- Signature: job `Android build — lint, Detekt, tests, coverage, debug build, Room export` (named `Android —
+  Lint, Detekt, Tests, Build` when the occurrences below ran, then `Android 2 — Lint, Detekt, Tests, Build`),
+  step `Build`, task
   `:androidApp:app:packageDebug`, first error line "A failure occurred while executing
   com.android.build.gradle.tasks.PackageAndroidArtifact$IncrementalSplitterRunnable" (24 s, no cause
   line in the log)

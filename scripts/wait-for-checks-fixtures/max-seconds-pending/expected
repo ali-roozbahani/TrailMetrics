@@ -1,5 +1,5 @@
-Android — Lint, Detekt, Tests, Build	in_progress	-
+Android — all stages	in_progress	-
 iOS — all stages	completed	success
 Review — pr-reviewer	queued	-
 Repo tooling — policy checks and script self-tests	completed	success
-PENDING Android — Lint, Detekt, Tests, Build; Review — pr-reviewer
+PENDING Android — all stages; Review — pr-reviewer

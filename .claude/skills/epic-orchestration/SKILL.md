@@ -196,7 +196,7 @@ The plan file's format, and a worked example (personal records on History), are 
 ### Protection
 
 `main` today (as set by the human on 2026-10-18): PR required, required status checks
-`Android — Lint, Detekt, Tests, Build`, `iOS — all stages`,
+`Android — all stages`, `iOS — all stages`,
 `Repo tooling — policy checks and script self-tests` and `Review — pr-reviewer` with
 **strict** (up-to-date) on, 0 approvals, `enforce_admins` on, no force pushes, no deletions.
 `pr-review.yml` has no branch filter, so `Review — pr-reviewer` runs for pull requests into

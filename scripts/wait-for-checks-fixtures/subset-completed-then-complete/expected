@@ -1,6 +1,6 @@
 Review — pr-reviewer	completed	success
-iOS 1 — plan	completed	success
-Android — Lint, Detekt, Tests, Build	completed	success
+CI plan — light or full	completed	success
+Android — all stages	completed	success
 iOS — all stages	completed	success
 Repo tooling — policy checks and script self-tests	completed	success
 ALL_GREEN

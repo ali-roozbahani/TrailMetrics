@@ -122,7 +122,7 @@ FIXTURES="$ROOT/scripts/wait-for-checks-fixtures"
 # (.github/workflows/pr-review.yml). One name per line (names contain commas). If a check is
 # renamed, the run waits until the timeout and names it as missing instead of turning green:
 # update this list with the rename.
-REQUIRED_CHECKS="Android — Lint, Detekt, Tests, Build
+REQUIRED_CHECKS="Android — all stages
 iOS — all stages
 Repo tooling — policy checks and script self-tests
 Review — pr-reviewer"
