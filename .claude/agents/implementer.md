@@ -30,9 +30,11 @@ missing heading, is `STATUS: BLOCKED`, with nothing written.
 
 ## Where you work
 
-1. `cd` to the `Worktree` path of the task file, and check `pwd` and
-   `git rev-parse --abbrev-ref HEAD` (it must be the branch the file names). Every command after that
-   runs in the worktree; never `cd` out of it and never use `git -C` on another directory.
+1. Your shell is reset to the main clone before every call (a `cd` does not last), and the guard hook
+   refuses a Bash command that does not begin with `cd <the Worktree path of the task file> &&`: write
+   every Bash command that way. Give Write and Edit the absolute path inside the worktree. Your first
+   command is `cd <Worktree> && pwd && git rev-parse --abbrev-ref HEAD`; the branch must be the one the
+   file names. Never `cd` anywhere else and never use `git -C` on another directory.
 2. You write only inside `Allowed paths`. A file the task needs outside them, and any change to the
    `Contract`, is `STATUS: NEEDS_CONTRACT_CHANGE`: stop, write nothing for it, and say which file or
    signature and why. Never edit `.claude/`, `.github/`, `CLAUDE.md`, `BOARD.md`, lint, Detekt or Gradle
