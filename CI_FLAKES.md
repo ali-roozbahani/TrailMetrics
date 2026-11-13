@@ -249,4 +249,8 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
     re-run: yes, fixed it (attempt 2 green). The other eight tests passed; the stall was exactly 60.0 s of "Wait for <app> to
     idle" at the start of the test (after 4.3 s)
 - Notes: the test passed in the same run's attempt 2 and in earlier runs (about 9 to 10 s).
-  Cause class `ui-test-idle-stall`, trigger unknown (board: ui-test-app-idle-stalls): three failures on two signatures (this one twice, `ios-ui-restored-session-offer-not-offered` once) took 87.1, 84.0 and 84.1 s on different tests, and each holds one long stall inside XCTest's own "Wait for <app> to idle" step before the test's last 10 s wait: 49 s, 18 s plus 33 s, and exactly 60.0 s. Every wait in the UI tests is 10 s and the CI step sets no per-test allowance (the gate's 90 s is not set in ci.yml), so no wait or timeout of about 80 s explains it; the 60.0 s looks like XCTest's own app-idle wait giving up. What keeps the app busy is not shown. No retry and no longer wait was added.
+  Cause class `ui-test-idle-stall`, trigger unknown: the stall here was exactly 60.0 s inside XCTest's "Wait for <app> to
+  idle" step at the start of the test, before its last 10 s wait. The measurements of all three failures, why no wait or
+  timeout of about 80 s explains them, and what is not shown are in the Notes of
+  `ios-ui-details-failed-delete-error-alert-not-shown` (that signature occurred twice, this one once) and the board record
+  `ui-test-app-idle-stalls`.
