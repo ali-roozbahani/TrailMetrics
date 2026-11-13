@@ -19,7 +19,8 @@
 #   secrets config, `local.properties`, `.env*`). The worktree path of such a file is not covered by the
 #   rooted deny rules of .claude/settings.json; that is why this exists.
 # Bash: refused when the command has, as a word of a simple command: `git push`, `git remote`,
-#   `git config`, `git credential`, `git update-ref`, `git worktree`, `git fetch`, `git pull`; `gh`
+#   `git config`, `git credential`, `git update-ref`, `git worktree`, `git fetch`, `git pull`, and
+#   `git -c`, `--config-env`, `--exec-path` or an `alias.` (an alias can be a push); `gh`
 #   (pull requests, merges, the API); `claude`; `curl`, `wget`, `ssh`, `scp`, `rsync`; the orchestrator's
 #   scripts (`scripts/subagent/worktree.sh`, `scripts/queue/`, `scripts/local-review`,
 #   `scripts/set-pr-body.sh`, `scripts/pre-push-check.sh`, the gate); or a `cd`/`pushd` whose target
@@ -92,6 +93,9 @@ guard() {
             [ -n "$cmd" ] || exit 0
             if printf '%s' "$cmd" | grep -Eq '(^|[^[:alnum:]_.-])git[^;&|]*[[:space:]](push|remote|config|credential|update-ref|worktree|fetch|pull)([[:space:]]|$)'; then
                 deny "a git command that pushes, changes remotes, config, refs or worktrees, or fetches is not allowed here; commit in this worktree and stop (the orchestrator takes the commits). If this was a harmless command that only spells one of those words, rephrase it."
+            fi
+            if printf '%s' "$cmd" | grep -Eq '(^|[^[:alnum:]_.-])git[^;&|]*[[:space:]](-c|--config-env|--exec-path)([[:space:]=]|$)|alias\.'; then
+                deny "git -c, --config-env, --exec-path and aliases can run another command under git's name: not allowed here"
             fi
             if printf '%s' "$cmd" | grep -Eq '(^|[^[:alnum:]_.-])([^[:space:];&|]*/)?(gh|claude|curl|wget|ssh|scp|rsync)([[:space:]]|$)'; then
                 deny "gh, claude, curl, wget, ssh, scp and rsync are not allowed here: opening, reviewing or merging a PR and anything that leaves the machine is the orchestrator's"
@@ -171,6 +175,8 @@ self_test() {
     expect "git push" 2 "$wt" Bash "$(bash_in 'git push origin HEAD')" "pushes"
     expect "git -C . push" 2 "$wt" Bash "$(bash_in 'git -C . push -u origin chore/x')"
     expect "a push after other commands" 2 "$wt" Bash "$(bash_in 'echo hi && git push')"
+    expect "an alias that stands for the push" 2 "$wt" Bash "$(bash_in 'git -c alias.p=push p origin HEAD')" "under git's name"
+    expect "git -c with another setting" 2 "$wt" Bash "$(bash_in 'git -c core.editor=true commit')"
     expect "git remote" 2 "$wt" Bash "$(bash_in 'git remote add x y')"
     expect "git fetch" 2 "$wt" Bash "$(bash_in 'git fetch origin')"
     expect "gh pr create" 2 "$wt" Bash "$(bash_in 'gh pr create --fill')" "orchestrator's"
