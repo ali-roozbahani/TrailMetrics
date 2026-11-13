@@ -219,7 +219,8 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
 
 - Signature: job `iOS 3 — run UI tests (after 2a)`, step `Run iOS UI tests`, test
   `DetailsFailedDeleteUITests.test_failedDelete_showsErrorAndKeepsDetails`, first error line
-  "XCTAssertTrue failed - Error alert not shown" (`DetailsFailedDeleteUITests.swift:38`, after 87.1 s)
+  "XCTAssertTrue failed - Error alert not shown" (the assertion on the error alert in
+  `DetailsFailedDeleteUITests.swift`, after 87.1 s)
 - Count: 1
 - Status: open
 - Occurrences:
@@ -228,5 +229,5 @@ commit); `fixed` only once they are. A failure with the signature of a `fixed (u
     (`DetailsDeleteTwiceUITests`, 43.2 s) and the seven after it passed
 - Notes: the test took 87.1 s; the same test class passed in the re-run and in the later runs of #274 and
   #272. Not shown whether the alert never appeared or the run was slow: the signature differs from
-  `ios-ui-details-failed-delete-row-not-found` (the seeded row, line 26) and from the launch stalls of
+  `ios-ui-details-failed-delete-row-not-found` (the seeded row assertion) and from the launch stalls of
   `ios-ui-details-launch-timeout`, which fail before a test body runs.
