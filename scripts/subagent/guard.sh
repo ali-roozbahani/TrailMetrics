@@ -47,9 +47,10 @@
 # script the implementer wrote and runs, or a path built from a variable is not seen, and a Bash call
 # that leaves the worktree without `cd` text (`git -C /elsewhere`) is not caught except for the words
 # above. `worktree.sh take` refuses afterwards any commit outside the allowed paths, and the
-# orchestrator reviews the diff, which is the check that does not depend on this hook. Whether this
-# hook fires for a subagent's tool calls, and what `.cwd` holds there, are in the report of the PR that
-# added it as "not verified" until a real run shows them.
+# orchestrator reviews the diff, which is the check that does not depend on this hook. Three real
+# implementer runs showed that this hook fires for a subagent's tool calls, that its message reaches the
+# subagent, and that `.cwd` is the main clone on every call (see the paragraph above). Not verified:
+# that `agent_id` is in the hook input of a front-matter hook (it would tell two implementers apart).
 #
 # Needs jq. BREAK-GLASS (human only): remove the `hooks:` block from .claude/agents/implementer.md.
 # Bash 3.2 compatible.
@@ -123,6 +124,7 @@ guard() {
                 read -r -a words <<< "$first"
                 { [ "${words[0]:-}" = cd ] && [ -n "${words[1]:-}" ]; } || deny "$mainmsg"
                 case "${words[1]}" in *'$'* | *'`'* | *'*'* | *'?'* | *'['* | '~'*) deny "$mainmsg" ;; esac
+                case "${words[1]}" in /*) ;; *) deny "cd '${words[1]}' is not an absolute path. $mainmsg" ;; esac
                 target="$(cd "${words[1]}" 2>/dev/null && pwd -P)" || deny "cd '${words[1]}': no such directory. $mainmsg"
                 case "$target" in "$wts"/*) case "${target#"$wts"/}" in */*) deny "cd '${words[1]}' is not the root of a worktree. $mainmsg" ;; esac ;; *) deny "cd '${words[1]}' is not one of the worktrees under $wts. $mainmsg" ;; esac
                 root="$target"
@@ -308,6 +310,7 @@ self_test() {
     expect "main clone: cd, then a refused command" 2 "$repo" Bash "$(bash_in "cd $wt && gh pr list")" "orchestrator's"
     expect "main clone: cd, then a command that names a secrets file" 2 "$repo" Bash "$(bash_in "cd $wt && cat local.properties")" "secrets file"
     expect "main clone: cd into a subdirectory of the worktree" 2 "$repo" Bash "$(bash_in "cd $wt/src && ls")" "not the root of a worktree"
+    expect "main clone: cd with a relative path" 2 "$repo" Bash "$(bash_in "cd .claude/worktrees/impl")" "not an absolute path"
     expect "main clone: cd somewhere else" 2 "$repo" Bash "$(bash_in 'cd /tmp && ls')" "not one of the worktrees"
     expect "main clone: a command that does not start with cd" 2 "$repo" Bash "$(bash_in "ls && cd $wt")" "begin every Bash command with cd"
     expect "main clone: cd to a variable" 2 "$repo" Bash "$(bash_in 'cd $HOME')"
