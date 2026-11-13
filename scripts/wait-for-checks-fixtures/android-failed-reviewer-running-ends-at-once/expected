@@ -1,5 +1,5 @@
-Android — Lint, Detekt, Tests, Build	completed	failure
+Android — all stages	completed	failure
 iOS — all stages	completed	success
 Review — pr-reviewer	in_progress	-
 Repo tooling — policy checks and script self-tests	completed	success
-FAILED Android — Lint, Detekt, Tests, Build; still running: Review — pr-reviewer
+FAILED Android — all stages; still running: Review — pr-reviewer

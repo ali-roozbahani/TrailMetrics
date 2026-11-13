@@ -38,7 +38,7 @@ For the head SHA `$SHA` of PR `$N` (section 8; condition 5 for a merge-only upda
 
 ```bash
 gh api "repos/{owner}/{repo}/commits/$SHA/check-runs?filter=latest" \
-  --jq '.check_runs[] | select(.name == "Android — Lint, Detekt, Tests, Build" or .name == "iOS — all stages" or .name == "Repo tooling — policy checks and script self-tests") | [.name, .status, .conclusion] | @tsv'
+  --jq '.check_runs[] | select(.name == "Android — all stages" or .name == "iOS — all stages" or .name == "Repo tooling — policy checks and script self-tests") | [.name, .status, .conclusion] | @tsv'
 gh pr view "$N" --json isCrossRepository,author,headRefOid,baseRefName,state
 cat "$(git rev-parse --path-format=absolute --git-path .review-verdict)"   # "<SHA> APPROVE"
 git fetch origin

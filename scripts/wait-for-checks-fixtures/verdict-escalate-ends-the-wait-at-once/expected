@@ -1,6 +1,6 @@
 REVIEW_VERDICT ESCALATE_TO_HUMAN
-Android — Lint, Detekt, Tests, Build	in_progress	-
+Android — all stages	in_progress	-
 iOS — all stages	queued	-
 Review — pr-reviewer	completed	success
 Repo tooling — policy checks and script self-tests	completed	success
-REVIEW_ACTION ESCALATE_TO_HUMAN; still running: Android — Lint, Detekt, Tests, Build; iOS — all stages
+REVIEW_ACTION ESCALATE_TO_HUMAN; still running: Android — all stages; iOS — all stages

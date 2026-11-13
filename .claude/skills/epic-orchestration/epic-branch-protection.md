@@ -35,7 +35,7 @@ Read from `SKILL.md`, "Protection". The rules are there; this file holds the rea
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": true,
         "required_status_checks": [
-          { "context": "Android — Lint, Detekt, Tests, Build", "integration_id": 15368 },
+          { "context": "Android — all stages", "integration_id": 15368 },
           { "context": "iOS — all stages", "integration_id": 15368 },
           { "context": "Repo tooling — policy checks and script self-tests", "integration_id": 15368 },
           { "context": "Review — pr-reviewer", "integration_id": 15368 } ] } },

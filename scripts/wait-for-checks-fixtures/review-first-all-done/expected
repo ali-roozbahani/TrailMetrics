@@ -1,2 +1,2 @@
 Review — pr-reviewer	completed	skipped
-REVIEW_DONE skipped; still running: (none); missing: Android — Lint, Detekt, Tests, Build; iOS — all stages; Repo tooling — policy checks and script self-tests
+REVIEW_DONE skipped; still running: (none); missing: Android — all stages; iOS — all stages; Repo tooling — policy checks and script self-tests

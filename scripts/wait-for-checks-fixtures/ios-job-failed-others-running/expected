@@ -1,6 +1,6 @@
-Android — Lint, Detekt, Tests, Build	in_progress	-
+Android — all stages	in_progress	-
 iOS 2b — lint, app build, package tests	completed	failure
 iOS 3 — run UI tests (after 2a)	queued	-
 Review — pr-reviewer	completed	success
 Repo tooling — policy checks and script self-tests	completed	success
-FAILED iOS 2b — lint, app build, package tests; still running: Android — Lint, Detekt, Tests, Build; iOS 3 — run UI tests (after 2a); missing: iOS — all stages
+FAILED iOS 2b — lint, app build, package tests; still running: Android — all stages; iOS 3 — run UI tests (after 2a); missing: iOS — all stages

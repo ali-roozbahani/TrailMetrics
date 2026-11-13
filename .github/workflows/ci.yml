@@ -19,7 +19,7 @@ jobs:
   # changes are chosen, not inherited from ubuntu-latest. This applies to every Ubuntu job below.
   # The Android build and tests. Skipped when the plan job (ios-plan, below) decides "light": no changed
   # file can affect the Android or iOS build or tests (the allowlist of scripts/classify-changes.sh, minus
-  # its heavy scripts). The required check "Android — Lint, Detekt, Tests, Build" is the aggregator `android`
+  # its heavy scripts). The required check "Android — all stages" is the aggregator `android`
   # at the end of this file, which also passes when this job was skipped on a light decision.
   android-build:
     name: Android build — lint, Detekt, tests, coverage, debug build, Room export
@@ -152,7 +152,7 @@ jobs:
   # check name "iOS — all stages". The iOS wall time is the longer of two chains: ios-main alone
   # (SwiftLint, simulator tests, app build, package tests), or ios-build-ui then ios-ui.
   ios-plan:
-    name: iOS 1 — plan
+    name: CI plan — light or full
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
@@ -456,11 +456,11 @@ jobs:
           echo "verdict=$verdict"
           [ "$verdict" = PASS ]
 
-  # The required check "Android — Lint, Detekt, Tests, Build". if: always() so that it reports when the
+  # The required check "Android — all stages". if: always() so that it reports when the
   # build job is skipped (a light decision) or fails, as `ios` does for the iOS stages: the build job
   # may be skipped only while the decision is "light".
   android:
-    name: Android — Lint, Detekt, Tests, Build
+    name: Android — all stages
     if: always()
     needs: [ios-plan, android-build]
     runs-on: ubuntu-26.04

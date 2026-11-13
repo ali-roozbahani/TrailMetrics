@@ -8,7 +8,7 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   required, so a PR that touches an owned path in `.github/CODEOWNERS` can't merge without
   the code owner's approval, and stale approvals are dismissed when new commits are pushed.
   Branches must be up to date before merging. The required checks are
-  `Android — Lint, Detekt, Tests, Build`, `iOS — all stages` (the `ios` aggregator job),
+  `Android — all stages`, `iOS — all stages` (the `ios` aggregator job),
   `Repo tooling — policy checks and script self-tests` (the `tooling` job)
   and `Review — pr-reviewer`, so a PR can't merge with red CI or while it's behind `main`.
   "Require approvals" is off (approval count **0**), so a PR that touches no owned path
