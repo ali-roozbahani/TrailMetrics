@@ -48,9 +48,13 @@ Before reviewing, check all of these. If one fails, the whole report is the sing
     in `<path>/commondir` (relative to `<path>`; for a worktree of the main clone it is the clone's
     `.git`): its SHA is in `<common>/refs/heads/<branch>`, or in `<common>/packed-refs` if that file
     is missing.
-  A `.git` file without a `gitdir:` first line, an unreadable `HEAD` or `commondir`, a `HEAD` that
-  names no branch (a detached HEAD included) or a branch with no SHA in either place is a mismatch
-  too: the check is never skipped because `.git` is not a directory.
+  - Nothing (no `.git` at all): the check does not apply. CI's reviewer works in a copy of the head's
+    files made without `.git` (`.github/workflows/pr-review.yml`, which itself checks that `HEAD` is the
+    PR head before it writes the inputs), so there is no git directory to read; the other input checks
+    still apply.
+  Where a `.git` exists, a `.git` file without a `gitdir:` first line, an unreadable `HEAD` or
+  `commondir`, a `HEAD` that names no branch (a detached HEAD included) or a branch with no SHA in
+  either place is a mismatch too: the check is not skipped because `.git` is a file.
 - `CLASSIFIER_ERROR`: `protected` does not start with `protected` or `unprotected`.
 
 No other code and no free-text reason. Anything that is not one of these input failures is
