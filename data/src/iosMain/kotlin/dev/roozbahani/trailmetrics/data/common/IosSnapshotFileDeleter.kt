@@ -22,7 +22,8 @@ import platform.Foundation.NSUserDomainMask
  * container UUID is not stable across reinstalls: the old absolute path then points at a container
  * that no longer exists while the file itself carries over under the same name. So only the file
  * name of the stored path is used, resolved against [applicationSupportDirectory], the current
- * Application Support directory ([resolve], which the iOS History screen calls to show the image). A blank, missing or undeletable path is not an error.
+ * Application Support directory ([resolve], which the iOS History screen calls to show the image).
+ * A blank, missing or undeletable path is not an error.
  */
 class IosSnapshotFileDeleter(
     private val ioDispatcher: CoroutineDispatcher,

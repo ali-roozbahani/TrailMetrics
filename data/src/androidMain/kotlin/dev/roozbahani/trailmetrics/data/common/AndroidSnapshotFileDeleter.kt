@@ -7,9 +7,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Deletes the stored snapshot file (a regular file only) on [ioDispatcher]. The delete is not cancellable: a caller that
- * is being cleared (a ViewModel's `onCleared` runs after its scope is cancelled) still gets the file
- * removed, and the work is one short file operation.
+ * Deletes the stored snapshot file (a regular file only) on [ioDispatcher]. The delete is not
+ * cancellable: a caller that is being cleared (a ViewModel's `onCleared` runs after its scope is
+ * cancelled) still gets the file removed, and the work is one short file operation.
  */
 class AndroidSnapshotFileDeleter(
     private val ioDispatcher: CoroutineDispatcher
