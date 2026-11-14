@@ -36,8 +36,11 @@
 # out; detail: seconds waited and the holder), `start` (the command starts; detail: seconds waited,
 # 0s when the lock was free), `end` (detail: the exit status). A run that waited has a `wait` line and
 # a `start` line with more than 0s. The command and the holder are logged word by word, and a word
-# with `=`, `://` or `@` is logged as `<value>`, so a token or a URL with credentials never reaches the
-# log. The log only grows by a few lines per run; the owner may delete it.
+# with `=`, `://` or `@` is logged as `<value>` (the same rule as scripts/subagent/guard.sh,
+# `redact_words`: change both together), so a token or a URL with credentials never reaches the log.
+# The rule is by word: a secret passed as a separate word (`--token abc`) is not recognized, so a
+# command that takes a secret that way does not go through this script. The log is local, outside the
+# repository. The log only grows by a few lines per run; the owner may delete it.
 #
 # Re-entry: the command runs with TM_HEAVY_RUN_HELD=<holder pid>. A heavy command that starts
 # another one (the gate runs Gradle and xcodebuild; Xcode's build phase runs Gradle) calls this

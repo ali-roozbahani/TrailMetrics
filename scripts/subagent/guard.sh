@@ -56,10 +56,12 @@
 # ${TM_GUARD_LOG:-$HOME/agent-workspace/queue/subagent/guard.log} (outside the repository, in the
 # queue folder that scripts/dev/clean-agent-workspace.sh keeps), and `scripts/subagent/guard.sh --log
 # [<n>]` prints its last n lines (default 40). Columns: time, ALLOW or BLOCK, tool, agent_id,
-# agent_type, the key names of the hook input, the call's cwd, and for a BLOCK the reason and the
-# command or path that was blocked (at most 200 characters; a word with `=`, `://` or `@` is replaced by
-# `<value>`, and none is logged when the block is the secrets rule, as the text may hold a secret
-# value). So a run answers, from the file:
+# agent_type, the key names of the hook input, the call's cwd, and for a BLOCK the reason (at most 300
+# characters) and the command or path that was blocked (at most 200). In both a word with `=`, `://` or
+# `@` is replaced by `<value>` (the same rule as in scripts/heavy-run.sh, `redact`: change both together),
+# and no command or path is logged when the block is the secrets rule, as the text may hold a secret
+# value. The rule is by word: a secret passed as a separate word (`--token abc`) is not recognized. The
+# log is local, outside the repository. So a run answers, from the file:
 #   - whether the hook input carries the subagent's id: the `agent_id` column is `-` when it does not,
 #     and the key names show every field the input had;
 #   - what a block inside a subagent was (the BLOCK lines, which the subagent only sees as a message);
@@ -82,17 +84,21 @@ LOG_BLOCKED=""  # the command or path of the call, for a BLOCK line
 
 # One line per call (see "What it records"). It runs as the EXIT trap, so every path out of guard() is
 # logged, and it can never change the decision: its own failures are ignored and its status is dropped.
+# redact_words: one line on stdin, the same line on stdout with every word that may carry a value (an
+# assignment, a URL, a user@host) replaced by `<value>`. The one copy of the rule in this script; the
+# Perl `redact` of scripts/heavy-run.sh is the other, and the two must stay the same.
+redact_words() { tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }'; }
+
 log_call() { # log_call <exit status of the guard> [<reason>]
     local verdict=ALLOW reason="${2:-}" blocked="$LOG_BLOCKED"
     [ "$1" = 0 ] || verdict=BLOCK
     # A command or path that names a secrets file may hold a secret value: its text is not logged.
     case "$reason" in *"secrets file"*) blocked="(not logged: it names a secrets file)" ;; esac
     [ -n "$LOG_PREFIX" ] || LOG_PREFIX="-	-	-	-	-"
-    # A word that may carry a value (an assignment, a URL, a user@host) is replaced, so a token or a URL
-    # with credentials never reaches the log, whether in the blocked command or in the reason (many reasons
-    # quote a word of the call); the rest of the words stay.
-    reason="$(printf '%s' "$reason" | tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }' | cut -c1-300)"
-    blocked="$(printf '%s' "$blocked" | tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }' | cut -c1-200)"
+    # Value-like words never reach the log, in the reason (many reasons quote a word of the call) or in
+    # the blocked command; the rest of the words stay.
+    reason="$(printf '%s' "$reason" | redact_words | cut -c1-300)"
+    blocked="$(printf '%s' "$blocked" | redact_words | cut -c1-200)"
     mkdir -p "$(dirname "$GUARD_LOG")" 2>/dev/null || return 0
     if [ "$verdict" = BLOCK ]; then
         printf '%s\t%s\t%s\t%s\t%s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$verdict" "$LOG_PREFIX" "$reason" "$blocked" >> "$GUARD_LOG" 2>/dev/null
