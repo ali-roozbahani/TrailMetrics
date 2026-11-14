@@ -189,17 +189,32 @@ self_test() {
     out="$(bash "$SELF" --status)"; rc=$?
     if [ "$rc" = 0 ] && [ "$out" = free ]; then ok "status says free when nothing runs"; else bad "status free: exit $rc" "$out"; fi
 
-    # Two callers: the second one starts only after the first one has finished.
-    local log="$tmp/log"
+    # Two callers: the second one starts only after the first one has finished. Nothing here depends on
+    # how fast the machine is: the first run holds the lock until the test releases it (a file; at most 60 s
+    # as a guard against a hung test), the second is started while it is held, and the release comes only
+    # after the second one's `wait` event is in the event log and a fixed minimum of 2 s has passed, so a
+    # slow runner only makes the waits longer, never shorter than the assertions need.
+    local log="$tmp/log" release="$tmp/release" bout="$tmp/b.out" b_wait=0
     : > "$log"
-    bash "$SELF" bash -c "echo A-start >> '$log'; sleep 2; echo A-end >> '$log'" &
+    rm -f "$release"
+    bash "$SELF" bash -c "echo A-start >> '$log'; n=0; while [ ! -e '$release' ] && [ \$n -lt 300 ]; do sleep 0.2; n=\$((n + 1)); done; echo A-end >> '$log'" &
     local a=$!
     if wait_for_file "$tmp/locks/heavy-run.info"; then
         out="$(bash "$SELF" --status)"; rc=$?
         if [ "$rc" = 3 ] && printf '%s' "$out" | grep -q 'held by pid .*A-start'; then ok "status names the holder while a run is going"; else bad "status held: exit $rc" "$out"; fi
         expect_rc "--max-wait gives up with 75 while the lock is held" 75 bash "$SELF" --max-wait 1 true
-        out="$(bash "$SELF" bash -c "echo B-start >> '$log'" 2>&1)"
+        bash "$SELF" bash -c "echo B-start >> '$log'" > "$bout" 2>&1 &
+        local bpid=$!
+        for i in $(seq 1 100); do   # up to 20 s for B to report that it waits
+            if grep -q "	wait	.*B-start" "$tmp/locks/heavy-run.log" 2>/dev/null; then b_wait=1; break; fi
+            sleep 0.2
+        done
+        if [ "$b_wait" = 1 ]; then ok "the second caller reports that it waits"; else bad "the second caller never logged a wait"; fi
+        sleep 2   # a minimum: the second caller has now waited at least 2 s whatever the machine's speed
+        : > "$release"
         wait "$a"
+        wait "$bpid"
+        out="$(cat "$bout")"
         if [ "$(tr '\n' ' ' < "$log")" = "A-start A-end B-start " ]; then ok "a second caller waits for the first"; else bad "order of the two runs" "$(cat "$log")"; fi
         if printf '%s' "$out" | grep -Eq '^heavy-run: got the lock after waiting [1-9][0-9]*s$'; then ok "the waiter says how long it waited"; else bad "no waited-seconds line" "$out"; fi
         if grep -Eq "	wait	pid [0-9]+ since .*A-start.*	.*B-start" "$tmp/locks/heavy-run.log"; then ok "the event log has the wait, with the holder"; else bad "no wait event" "$(cat "$tmp/locks/heavy-run.log")"; fi
