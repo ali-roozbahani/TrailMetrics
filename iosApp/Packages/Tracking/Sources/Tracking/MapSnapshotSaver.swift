@@ -20,8 +20,8 @@ func renderMapSnapshot(_ mapView: UIView) -> UIImage {
     }
 }
 
-/// The directory the snapshot files live in (`SnapshotFile.swift` in History resolves stored paths
-/// against the same one).
+/// The directory the snapshot files live in (Kotlin's `IosSnapshotFileDeleter.resolve` resolves
+/// stored paths against the same one).
 func snapshotDirectory() -> URL? {
     guard let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
         snapshotLogger.error("No Application Support directory: the map snapshot is not saved")

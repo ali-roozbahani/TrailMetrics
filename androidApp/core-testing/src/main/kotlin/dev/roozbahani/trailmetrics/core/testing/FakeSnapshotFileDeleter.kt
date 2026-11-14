@@ -29,6 +29,8 @@ class FakeSnapshotFileDeleter(
      */
     var failure: Throwable? = null
 
+    override fun resolve(storedPath: String?): String? = storedPath?.takeIf { it.isNotBlank() }
+
     override suspend fun delete(storedPath: String?) {
         requestedPaths += storedPath
         // Like the real deleter, the wait is not cancellable: a caller being cleared still completes it.
