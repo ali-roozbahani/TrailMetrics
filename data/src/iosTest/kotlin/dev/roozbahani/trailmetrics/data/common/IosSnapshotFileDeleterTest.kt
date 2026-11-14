@@ -36,12 +36,17 @@ class IosSnapshotFileDeleterTest {
 
     @BeforeTest
     fun createSupportDirectory() {
-        fileManager.createDirectoryAtPath(supportDirectory, withIntermediateDirectories = true, attributes = null, error = null)
+        fileManager.createDirectoryAtPath(
+            supportDirectory,
+            withIntermediateDirectories = true,
+            attributes = null,
+            error = null
+        )
     }
 
     @AfterTest
     fun removeSupportDirectory() {
-        makeWritable(supportDirectory)
+        setPermissions(supportDirectory, WRITABLE)
         fileManager.removeItemAtPath(supportDirectory, error = null)
     }
 
@@ -51,8 +56,12 @@ class IosSnapshotFileDeleterTest {
         return path
     }
 
-    private fun makeWritable(path: String) {
-        fileManager.setAttributes(mapOf(NSFilePosixPermissions to NSNumber(int = 0b111_101_101)), ofItemAtPath = path, error = null)
+    private fun setPermissions(path: String, mode: Int) {
+        fileManager.setAttributes(
+            mapOf(NSFilePosixPermissions to NSNumber(int = mode)),
+            ofItemAtPath = path,
+            error = null
+        )
     }
 
     @Test
@@ -98,7 +107,7 @@ class IosSnapshotFileDeleterTest {
     fun `a file that cannot be removed is not an error`() = runTest {
         val path = snapshotFile()
         // A directory without write permission refuses to unlink its entries.
-        fileManager.setAttributes(mapOf(NSFilePosixPermissions to NSNumber(int = 0b101_101_101)), ofItemAtPath = supportDirectory, error = null)
+        setPermissions(supportDirectory, READ_ONLY)
 
         deleter.delete(path)
 
@@ -128,5 +137,10 @@ class IosSnapshotFileDeleterTest {
         }.join()
 
         assertFalse(fileManager.fileExistsAtPath(path))
+    }
+
+    private companion object {
+        const val WRITABLE = 0b111_101_101
+        const val READ_ONLY = 0b101_101_101
     }
 }
