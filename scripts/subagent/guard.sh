@@ -88,9 +88,10 @@ log_call() { # log_call <exit status of the guard> [<reason>]
     # A command or path that names a secrets file may hold a secret value: its text is not logged.
     case "$reason" in *"secrets file"*) blocked="(not logged: it names a secrets file)" ;; esac
     [ -n "$LOG_PREFIX" ] || LOG_PREFIX="-	-	-	-	-"
-    reason="$(printf '%s' "$reason" | tr '\t\r\n' '   ' | cut -c1-300)"
     # A word that may carry a value (an assignment, a URL, a user@host) is replaced, so a token or a URL
-    # with credentials in a blocked command never reaches the log; the rest of the words stay.
+    # with credentials never reaches the log, whether in the blocked command or in the reason (many reasons
+    # quote a word of the call); the rest of the words stay.
+    reason="$(printf '%s' "$reason" | tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }' | cut -c1-300)"
     blocked="$(printf '%s' "$blocked" | tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }' | cut -c1-200)"
     mkdir -p "$(dirname "$GUARD_LOG")" 2>/dev/null || return 0
     if [ "$verdict" = BLOCK ]; then
@@ -383,6 +384,9 @@ self_test() {
     expect "a blocked remote command with a credential in it" 2 "$wt" Bash "$(bash_in 'git remote add https://user:pw123@example.com/r.git TOKEN=tok456 HEAD')" "remotes"
     if grep -q "BLOCK.*git remote add <value> <value> HEAD" "$tmp/guard.log" && ! grep -Eq 'pw123|tok456' "$tmp/guard.log"; then echo "ok   log: a value-like word of a blocked command is redacted"; else
         echo "FAIL log: the credential reached the log, or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    expect "a read of a secrets path with a credential in it" 2 "$wt" Read "$(file_in "$wt/https://user:pw789@example.com/local.properties")" "secrets file"
+    if grep -q "BLOCK.*<value> names a git-ignored secrets file" "$tmp/guard.log" && ! grep -q 'pw789' "$tmp/guard.log"; then echo "ok   log: a value-like word in a reason is redacted"; else
+        echo "FAIL log: the credential reached the log through the reason, or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
     # An unwritable log changes no decision.
     TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a blocked call is still blocked" 2 "$wt" Bash "$(bash_in 'git remote add x y')" "remotes"
     TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a normal read is still allowed" 0 "$wt" Read "$(file_in "$wt/src/a.txt")"
