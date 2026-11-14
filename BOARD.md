@@ -62,9 +62,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: androidApp/feature-tracking, data
 - Order: 40
 - Source: PR for tm-robustness-skill
-- Problem: Seven places name a dispatcher themselves, which `tm-robustness` D1 forbids (neither a DI module nor the application root): `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `TrackingViewModel`, `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`, and `DatabaseBuilder.kt` calls `setQueryCoroutineContext(Dispatchers.IO)`; the PR that moved the map snapshot save off the main thread added two more `Dispatchers.IO` defaults, the `ioDispatcher` parameter of `saveSnapshotToFile` (`util/MapSnapshotSaver.kt`) and the `snapshotDispatcher` parameter of `TrackingRoot` (`TrackingScreen.kt`). Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
-- Done when: only DI modules and the application root name `Dispatchers.*`; the seven places receive their dispatcher or scope from Koin (the database builder gets its query context passed in; `TrackingRoot` gets the snapshot dispatcher and passes it to `saveSnapshotToFile`); existing tests pass a test dispatcher.
-- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `androidApp/feature-tracking/.../TrackingViewModel.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt` (`saveSnapshotToFile`); `androidApp/feature-tracking/.../TrackingScreen.kt` (`TrackingRoot`'s `snapshotDispatcher`); `tm-robustness` D1.
+- Problem: Six places name a dispatcher themselves, which `tm-robustness` D1 forbids (neither a DI module nor the application root): `TrackingService` builds `CoroutineScope(SupervisorJob() + Dispatchers.Default)`, and `UserProfileRepositoryImpl` and `ActivityHistoryRepositoryImpl` default a constructor parameter to `Dispatchers.IO`, and `DatabaseBuilder.kt` calls `setQueryCoroutineContext(Dispatchers.IO)`; the PR that moved the map snapshot save off the main thread added two more `Dispatchers.IO` defaults (`TrackingViewModel`'s own default went with the snapshot file deleter, which now gets its IO dispatcher from `AndroidCommonModule`, the model for the rest), the `ioDispatcher` parameter of `saveSnapshotToFile` (`util/MapSnapshotSaver.kt`) and the `snapshotDispatcher` parameter of `TrackingRoot` (`TrackingScreen.kt`). Moving the names into the Koin modules changes constructors and their tests across three modules, a different subject from the skill text.
+- Done when: only DI modules and the application root name `Dispatchers.*`; the six places receive their dispatcher or scope from Koin (the database builder gets its query context passed in; `TrackingRoot` gets the snapshot dispatcher and passes it to `saveSnapshotToFile`); existing tests pass a test dispatcher.
+- Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt` (`saveSnapshotToFile`); `androidApp/feature-tracking/.../TrackingScreen.kt` (`TrackingRoot`'s `snapshotDispatcher`); `tm-robustness` D1.
 
 ### strictmode-leak-detection-debug
 - Type: task
@@ -84,15 +84,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
 - Refs: `config/detekt/detekt.yml`; `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
 
-### tracking-viewmodel-snapshot-file-access
-- Type: task
-- Area: androidApp/feature-tracking
-- Order: 51
-- Source: PR for tm-robustness-cleanup
-- Problem: Android `TrackingViewModel` deletes snapshot files itself (`deleteSnapshotFile`, `fileScope`, `File(path).delete()`), a ViewModel touching a file, which the Architecture rules of `tm-android` mark `blocking`. Moving it behind a `domain` interface changes constructors, Koin wiring and tests, so it is not fixed in a skills PR.
-- Done when: the ViewModel has no `java.io` use and no file scope; the deletion sits behind an interface (a domain use case or a data class) that the ViewModel receives, with its test.
-- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`deleteSnapshotFile`, `fileScope`); `tm-android` Architecture; `tm-robustness` D3.
-
 ### ios-launcher-depends-on-concrete-location-repository
 - Type: task
 - Area: data, domain
@@ -110,15 +101,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The metrics extraction from `TrackingState` and the calorie recompute are hand-written in both `TrackingViewModel`s (Android's and iOS `TrackingViewModel.swift`: `currentMetrics`, `recomputeCalories`); `tm-kmp-shared` ("Where logic lives") puts derived state both platforms need in `domain`. Moving it changes both ViewModels and adds a use case with tests, so it is a task of its own.
 - Done when: one pure function or use case in `domain` with `kotlin.test` coverage computes them, and both ViewModels only adapt it.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentMetrics`, `recomputeCalories`); `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-kmp-shared` ("Where logic lives").
-
-### history-details-snapshot-delete-on-main
-- Type: task
-- Area: androidApp/feature-history
-- Order: 54
-- Source: PR for tm-robustness-cleanup
-- Problem: `HistoryViewModel.deleteActivity` and `DetailsViewModel.deleteActivity` call `deleteSnapshotFile` (`File(path).delete()`) inside `viewModelScope.launch`, which runs on the main thread after the repository call returns; `tm-robustness` C1 and D3 make that a blocking violation. The fix changes constructors and tests of two ViewModels, so it is a task of its own.
-- Done when: the file delete runs off the main thread (or behind the same interface as `tracking-viewmodel-snapshot-file-access`), with the failure path tested.
-- Refs: `androidApp/feature-history/.../HistoryViewModel.kt`, `.../DetailsViewModel.kt`, `.../util/SnapshotFileDeleter.kt`; `tm-robustness` C1, D3.
 
 ### ios-live-activity-ticker
 - Type: task
@@ -357,15 +339,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
 - Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
-### ios-history-details-snapshot-delete-on-main-actor
-- Type: task
-- Area: iosApp/History
-- Order: 290
-- Source: sweep tm-robustness
-- Problem: `tm-robustness` D7 (blocking when it blocks the main actor) and C1 (blocking). `HistoryViewModel.onDeleteActivity` and `DetailsViewModel.onDeleteConfirmed` are `@MainActor` and call `deleteSnapshotFile(forStoredPath:)` (`FileManager.default.removeItem`) inside a plain `Task { }`. That task inherits the main actor, so the file delete runs on the main thread. Count 2 (one cause, the shared helper in `SnapshotFile.swift`). The Android twin is `history-details-snapshot-delete-on-main`, which names only the Kotlin ViewModels. Recorded, not fixed: this sweep changes no code, and the fix (`Task.detached` or an injected deleter) should be chosen together with that record's design.
-- Done when: in `iosApp/Packages/History/Sources/History/`, `grep -n 'deleteSnapshotFile' HistoryViewModel.swift DetailsViewModel.swift` shows each call inside `Task.detached` or behind an injected deleter that is not on the main actor; a package test covers the delete after a successful repository delete.
-- Refs: `iosApp/Packages/History/Sources/History/HistoryViewModel.swift` (`onDeleteActivity`), `.../DetailsViewModel.swift` (`onDeleteConfirmed`), `.../SnapshotFile.swift` (`deleteSnapshotFile`); `iosApp/Packages/History/Tests/HistoryTests/`; `tm-robustness` C1, D7; `history-details-snapshot-delete-on-main`.
-
 ### tracking-session-store-failures-not-surfaced
 - Type: task
 - Area: domain, data
@@ -464,15 +437,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `tm-android` "No dead code": unused `internal`/`public` code is not caught by detekt, so check it yourself (no severity given; read as `important`). `core-ui`'s `Color.kt` keeps six default-template colors (`Purple80`, `PurpleGrey80`, `Pink80`, `Purple40`, `PurpleGrey40`, `Pink40`) under "Default template colors". `git grep` finds each name only in its own declaration, so none is used by any module, test or resource. Count 6, one file. Recorded, not fixed: this sweep changes no code (and `UnusedPrivateProperty` would not flag a public `val`).
 - Done when: `git grep -n -E 'Purple80|PurpleGrey80|Pink80|Purple40|PurpleGrey40|Pink40' -- . ':!BOARD.md'` returns nothing and the "Default template colors" comment is gone.
 - Refs: `androidApp/core-ui/src/main/kotlin/dev/roozbahani/trailmetrics/core/designsystem/theme/Color.kt`; `tm-android` ("No dead code").
-
-### ios-viewmodels-delete-snapshot-files
-- Type: task
-- Area: iosApp/History
-- Order: 450
-- Source: sweep tm-ios
-- Problem: `tm-ios` "Architecture" (Violation: `blocking` for data access): a ViewModel holds presentation state only, with no file, database or HTTP access of its own. `HistoryViewModel.onDeleteActivity` and `DetailsViewModel.onDeleteConfirmed` call `deleteSnapshotFile(forStoredPath:)`, a free function in `SnapshotFile.swift` that resolves the path against Application Support and calls `FileManager.default.removeItem`. Count 2, one cause. This is the architecture side of `ios-history-details-snapshot-delete-on-main-actor` (rule `tm-robustness` D7/C1, the thread it runs on): a `Task.detached` there would fix the thread and leave the ViewModels touching files. Android's twin is `tracking-viewmodel-snapshot-file-access`. Recorded, not fixed: the fix adds an injected deleter (a protocol with a default-parameter `init`, and a fake for the package tests), a design that belongs with the two records above.
-- Done when: `grep -n 'deleteSnapshotFile\|FileManager' iosApp/Packages/History/Sources/History/HistoryViewModel.swift iosApp/Packages/History/Sources/History/DetailsViewModel.swift` returns nothing, the deletion sits behind an injected type the package tests fake, and it runs off the main actor (so `ios-history-details-snapshot-delete-on-main-actor` is also done).
-- Refs: `iosApp/Packages/History/Sources/History/HistoryViewModel.swift`, `.../DetailsViewModel.swift`, `.../SnapshotFile.swift`; `iosApp/Packages/History/Tests/HistoryTests/`; `tm-ios` ("Architecture"); `ios-history-details-snapshot-delete-on-main-actor`; `tracking-viewmodel-snapshot-file-access`.
 
 ### ios-tracking-viewmodel-switch-default-on-kotlin-enum
 - Type: task
