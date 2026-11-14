@@ -218,13 +218,20 @@ cmd_task() {
 # (<workspace>/queue/queue.tsv), best effort, so a long queue session cleans the workspace as entries
 # finish and not only at the start of a task. The cleaner never deletes what an open entry uses, and
 # refuses a directory that is not the agent workspace (a test's temporary queue), so this is safe to
-# run here; its failure never fails the `set`. It prints the cleaner's summary line.
+# run here; its failure never fails the `set`, but it is not silent: a cleaner that exits with a status
+# other than 0 (done) or 2 (the guard refused a directory that is not the agent workspace) leaves a
+# one-line warning on stderr, with the cleaner's own first error line. It prints the cleaner's summary line.
 clean_workspace() {
-    local cleaner out
+    local cleaner all rc=0 summary problem
     cleaner="$(dirname "$SELF")/../dev/clean-agent-workspace.sh"
     [ -f "$cleaner" ] || return 0
-    out="$(bash "$cleaner" "$(dirname "$(dirname "$QUEUE_FILE")")" 2>/dev/null | tail -n 1)" || true
-    [ -z "$out" ] || echo "$out"
+    all="$(bash "$cleaner" "$(dirname "$(dirname "$QUEUE_FILE")")" 2>&1)" || rc=$?
+    summary="$(printf '%s\n' "$all" | grep -E '^clean-agent-workspace: (removed|would remove) ' | tail -n 1)"
+    [ -z "$summary" ] || echo "$summary"
+    if [ "$rc" != 0 ] && [ "$rc" != 2 ]; then
+        problem="$(printf '%s\n' "$all" | grep -E '^clean-agent-workspace: could not' | head -n 1)"
+        echo "queue: warning: the workspace cleaner exited with status $rc${problem:+ ($problem)}; run scripts/dev/clean-agent-workspace.sh to see it" >&2
+    fi
 }
 
 # print_next: the line `next` would print, after the change just made.
@@ -494,7 +501,7 @@ self_test() {
     # `set` runs the workspace cleaner when an entry becomes merged or dropped (and only then), on the
     # workspace the queue file lives in; the cleaner's own guard refuses a directory without TrailMetrics/.
     fresh wsq
-    local wsd="$tmp/wsq" mout
+    local wsd="$tmp/wsq" mout mrc
     mkdir -p "$wsd/TrailMetrics" "$wsd/queue"; echo '#!/bin/sh' >"$wsd/start-agent.sh"
     QF="$wsd/queue/queue.tsv"
     printf 'Task.\n' >"$tmp/wsq-task.txt"
@@ -519,6 +526,14 @@ self_test() {
     q add d --branch chore/d --task "$tmp/wsq-task.txt" >/dev/null
     q set d status=dropped >/dev/null
     check "cleaner: a file newer than the oldest open entry's text survives another entry's end" "kept" 0 sh -c "[ -e '$wsd/used-by-c.md' ] && echo kept"
+    # A cleaner that fails is not silent: a warning on stderr, the set itself still succeeds.
+    q set c status=building >/dev/null; q set c status=ready >/dev/null; q set c status=pushed pr=9 >/dev/null
+    mkdir -p "$wsd/queue/subagent"; printf '2000-01-01T00:00:00\told\n' >"$wsd/queue/subagent/guard.log"; chmod 000 "$wsd/queue/subagent/guard.log"
+    mout="$(q set c status=merged pr=9 2>&1)" && mrc=0 || mrc=$?
+    chmod 600 "$wsd/queue/subagent/guard.log"
+    check "cleaner: a failing cleaner does not fail the set" "0" 0 printf '%s\n' "$mrc"
+    check "cleaner: a failing cleaner leaves a warning" "queue: warning: the workspace cleaner exited with status 1 (clean-agent-workspace: could not read queue/subagent/guard.log; it is not trimmed); run scripts/dev/clean-agent-workspace.sh to see it" 0 printf '%s\n' "$mout"
+    check "cleaner: the set still prints its summary and next lines after a failing cleaner" "2" 0 sh -c "printf '%s\n' '$mout' | grep -c '^clean-agent-workspace: removed\|^next: '"
     check "cleaner: a set that is refused runs no cleaner" "quiet" 0 sh -c "QUEUE_FILE='$tmp/nowhere/queue.tsv' bash '$SELF' set zz status=merged pr=1 2>&1 | grep -q clean-agent || echo quiet"
 
     # The task text: required, copied next to the queue file, printed by `task`.
