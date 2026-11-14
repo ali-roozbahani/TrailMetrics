@@ -7,7 +7,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## The gate
 
 - `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1").
-- `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time.
+- `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time; a run that waits says for how long, and every run appends to an event log (`--log`).
 
 ## Checks of a diff (gate and CI)
 
@@ -66,7 +66,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## Subagents (the orchestrator's tools, `tm-agent-loop`, "Subagents")
 
 - `scripts/subagent/worktree.sh`: creates an implementer's git worktree from a local branch with its allowed paths, takes its commits back into the task branch, removes it.
-- `scripts/subagent/guard.sh`: the implementer's own PreToolUse hook (its agent file names it): keeps it in its worktree and allowed paths, off push, `gh` and the orchestrator's scripts.
+- `scripts/subagent/guard.sh`: the implementer's own PreToolUse hook (its agent file names it): keeps it in its worktree and allowed paths, off push, `gh` and the orchestrator's scripts. Records every call and block in a log the orchestrator reads with `--log`.
 
 ## Claude Code hooks (named by `.claude/settings.json`)
 

@@ -6,6 +6,7 @@
 #
 #   scripts/heavy-run.sh [--max-wait <seconds>] [--] <command> [<args>...]
 #   scripts/heavy-run.sh --status       prints `free`, or the holder's line, and exits 0 / 3
+#   scripts/heavy-run.sh --log [<n>]    prints the last n (default 40) lines of the event log
 #   scripts/heavy-run.sh --self-test
 #
 # The command's exit status is this script's (a signal's is 128 + its number). Other exits:
@@ -25,8 +26,16 @@
 # out: a holder killed with SIGKILL frees it at once (its command, if still running, is then no
 # longer counted). Gradle daemons started by the command do not keep the lock either. The info file
 # next to the lock (holder pid, start time, directory, command) is for the waiting callers' message
-# only; the lock is the flock, never that file. A waiter prints who it waits for at once and every
-# 60 seconds.
+# only; the lock is the flock, never that file. A waiter prints who it waits for and how long it has
+# waited at once and every 60 seconds, and when it gets the lock it says how long it waited.
+#
+# The event log, ${TM_LOCK_DIR:-$HOME/agent-workspace/queue/locks}/heavy-run.log, is appended by every
+# run, so a later reader (the orchestrator, after a subagent's run, whose stderr it never saw) can tell
+# whether two runs really waited for each other. One tab-separated line per event: time, pid, event,
+# detail, command. Events: `wait` (the lock was held; detail: the holder), `gave-up` (--max-wait ran
+# out; detail: seconds waited and the holder), `start` (the command starts; detail: seconds waited,
+# 0s when the lock was free), `end` (detail: the exit status). A run that waited has a `wait` line and
+# a `start` line with more than 0s. The log only grows by a few lines per run; the owner may delete it.
 #
 # Re-entry: the command runs with TM_HEAVY_RUN_HELD=<holder pid>. A heavy command that starts
 # another one (the gate runs Gradle and xcodebuild; Xcode's build phase runs Gradle) calls this
@@ -42,19 +51,29 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]
 LOCK_DIR="${TM_LOCK_DIR:-$HOME/agent-workspace/queue/locks}"
 LOCK="$LOCK_DIR/heavy-run.lock"
 INFO="$LOCK_DIR/heavy-run.info"
+EVENT_LOG="$LOCK_DIR/heavy-run.log"
 USAGE="usage: scripts/heavy-run.sh [--max-wait <seconds>] [--] <command> [<args>...]
-       scripts/heavy-run.sh --status | --self-test"
+       scripts/heavy-run.sh --status | --log [<n>] | --self-test"
 
 usage() { echo "$USAGE" >&2; exit 2; }
 
-# The holder. Arguments: lock file, info file, max wait (-1 = none), then the command.
+# The holder. Arguments: lock file, info file, event log, max wait (-1 = none), then the command.
 # With the max wait "status": try the lock once, report, exit 0 (free) or 3 (held).
 PERL_HOLDER='
 use strict; use warnings; no warnings "exec";
 use Fcntl qw(:flock);
 use POSIX qw(strftime);
-my ($lock, $info, $maxwait, @cmd) = @ARGV;
+my ($lock, $info, $evlog, $maxwait, @cmd) = @ARGV;
 $| = 1;
+my $cmdline = join(" ", @cmd); $cmdline =~ s/[\t\r\n]+/ /g;
+# One line per event; never a reason to fail the run, so an unwritable log is ignored.
+sub logev {
+    my ($ev, $detail) = @_;
+    return if $maxwait eq "status";
+    open(my $l, ">>", $evlog) or return;
+    print $l join("\t", strftime("%Y-%m-%dT%H:%M:%S", localtime), $$, $ev, $detail // "-", $cmdline), "\n";
+    close $l;
+}
 open(my $fh, ">>", $lock) or do { print STDERR "heavy-run: cannot open $lock: $!\n"; exit 2 };
 sub holder_line {
     open(my $in, "<", $info) or return "another heavy run (no details)";
@@ -71,18 +90,26 @@ if ($maxwait eq "status") {
 }
 my $start = time;
 my $last = 0;
+my $waited = 0;
 until (flock($fh, LOCK_EX | LOCK_NB)) {
     my $now = time;
+    logev("wait", holder_line()) unless $waited;
+    $waited = 1;
     if ($maxwait >= 0 && $now - $start >= $maxwait) {
-        print STDERR "heavy-run: gave up after ${maxwait}s, held by ", holder_line(), "\n";
+        my $held = holder_line();
+        print STDERR "heavy-run: gave up after ", $now - $start, "s, held by $held\n";
+        logev("gave-up", ($now - $start) . "s; held by $held");
         exit 75;
     }
     if ($now - $last >= 60) {
-        print STDERR "heavy-run: waiting for ", holder_line(), "\n";
+        print STDERR "heavy-run: waiting for ", holder_line(), " (waited ", $now - $start, "s so far)\n";
         $last = $now;
     }
     select(undef, undef, undef, 1);
 }
+my $waited_s = time - $start;
+print STDERR "heavy-run: got the lock after waiting ${waited_s}s\n" if $waited;
+logev("start", "${waited_s}s");
 if (open(my $out, ">", $info)) {
     my $cwd = $ENV{PWD} // "?";
     my $c = join(" ", @cmd); $c =~ s/[\t\r\n]+/ /g;
@@ -102,12 +129,14 @@ my $r;
 do { $r = waitpid($pid, 0) } while ($r == -1 && $!{EINTR});
 my $st = $?;
 unlink $info;
-exit(($st & 127) ? 128 + ($st & 127) : $st >> 8);
+my $code = ($st & 127) ? 128 + ($st & 127) : $st >> 8;
+logev("end", "exit $code");
+exit $code;
 '
 
 holder() { # holder <max wait|status> [command...]
     mkdir -p "$LOCK_DIR" || { echo "heavy-run: cannot create $LOCK_DIR" >&2; exit 2; }
-    exec perl -e "$PERL_HOLDER" "$LOCK" "$INFO" "$@"
+    exec perl -e "$PERL_HOLDER" "$LOCK" "$INFO" "$EVENT_LOG" "$@"
 }
 
 run() {
@@ -169,9 +198,13 @@ self_test() {
         out="$(bash "$SELF" --status)"; rc=$?
         if [ "$rc" = 3 ] && printf '%s' "$out" | grep -q 'held by pid .*A-start'; then ok "status names the holder while a run is going"; else bad "status held: exit $rc" "$out"; fi
         expect_rc "--max-wait gives up with 75 while the lock is held" 75 bash "$SELF" --max-wait 1 true
-        bash "$SELF" bash -c "echo B-start >> '$log'"
+        out="$(bash "$SELF" bash -c "echo B-start >> '$log'" 2>&1)"
         wait "$a"
         if [ "$(tr '\n' ' ' < "$log")" = "A-start A-end B-start " ]; then ok "a second caller waits for the first"; else bad "order of the two runs" "$(cat "$log")"; fi
+        if printf '%s' "$out" | grep -Eq '^heavy-run: got the lock after waiting [1-9][0-9]*s$'; then ok "the waiter says how long it waited"; else bad "no waited-seconds line" "$out"; fi
+        if grep -Eq "	wait	pid [0-9]+ since .*A-start.*	.*B-start" "$tmp/locks/heavy-run.log"; then ok "the event log has the wait, with the holder"; else bad "no wait event" "$(cat "$tmp/locks/heavy-run.log")"; fi
+        if grep -Eq "	start	[1-9][0-9]*s	.*B-start" "$tmp/locks/heavy-run.log"; then ok "the event log has the start of B after its wait"; else bad "no start-after-wait event" "$(cat "$tmp/locks/heavy-run.log")"; fi
+        if grep -Eq "	start	0s	.*A-start" "$tmp/locks/heavy-run.log"; then ok "the run that found the lock free logs a 0s start"; else bad "no 0s start event" "$(cat "$tmp/locks/heavy-run.log")"; fi
     else
         bad "the first run never started"; wait "$a"
     fi
@@ -202,6 +235,11 @@ self_test() {
 case "${1:-}" in
     --self-test) [ $# -eq 1 ] || usage; self_test; exit $? ;;
     --status) [ $# -eq 1 ] || usage; holder status ;;
+    --log)
+        [ $# -le 2 ] || usage
+        n="${2:-40}"; [[ "$n" =~ ^[0-9]+$ ]] || usage
+        [ -f "$EVENT_LOG" ] && tail -n "$n" "$EVENT_LOG" || echo "heavy-run: no event log yet ($EVENT_LOG)"
+        exit 0 ;;
     "") usage ;;
     *) run "$@" ;;
 esac
