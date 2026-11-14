@@ -41,6 +41,10 @@ The procedure, for each implementer, all from the main clone with the task branc
    git-ignored secrets configs without reading them). It prints the task file's path.
 2. Write the task file there with the Write tool, with the headings `implementer.md` defines
    (`Goal`, `Worktree`, `Allowed paths`, `Contract`, `Read first`, `Tests to run`, `Commit trailer`).
+   Under `Worktree` it carries, besides the path and the branch, the start SHA that `create` printed
+   (`from <task branch> at <sha>`): the range `<sha>..<worktree branch>` is what `take` brings in and
+   what a restore after an undone take (`remove --force`, `create` again from the new tip) has to
+   compare against, and the task file is the one record of it that outlives the worktree.
    The subagent gets its task through this file and its prompt is only `TASK_FILE: <path>`: a hook
    blocks any command that merely contains the text of a push or of a PR creation, so a task is never
    spelled out in a command (the file is written with the Write tool, not through the shell).
