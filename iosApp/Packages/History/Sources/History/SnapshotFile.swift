@@ -22,11 +22,20 @@ func resolvedSnapshotURL(forStoredPath path: String?) -> URL? {
     return supportDirectory.appendingPathComponent(fileName)
 }
 
-/// Best effort, silent on purpose: callers run this only after the activity record is
-/// deleted, so a file that can't be removed is just an orphaned image, not worth an error
-/// the user can't act on (an exception to `tm-ios`'s "never drop an error" rule).
-func deleteSnapshotFile(forStoredPath path: String?) {
-    guard let url = resolvedSnapshotURL(forStoredPath: path) else { return }
-    // swiftlint:disable:next optional_try - the record is already deleted; a file left behind is only an orphaned image
-    try? FileManager.default.removeItem(at: url)
+/// Removes the snapshot file with `FileManager`, off the main actor. Best effort, silent on
+/// purpose: callers run this only after the activity record is deleted, so a file that can't be
+/// removed is just an orphaned image, not worth an error the user can't act on (an exception to
+/// `tm-ios`'s "never drop an error" rule).
+public struct FileSnapshotDeleter: SnapshotFileDeleting {
+    public init() {}
+
+    public func delete(storedPath: String?) async {
+        guard let url = resolvedSnapshotURL(forStoredPath: storedPath) else { return }
+        // Explicitly detached: without approachable concurrency an `async` function would run
+        // on the caller's (main) actor.
+        await Task.detached {
+            // swiftlint:disable:next optional_try - record already deleted; a leftover file is only an orphaned image
+            try? FileManager.default.removeItem(at: url)
+        }.value
+    }
 }

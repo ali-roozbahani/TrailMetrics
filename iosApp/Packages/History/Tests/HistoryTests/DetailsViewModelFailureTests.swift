@@ -41,13 +41,12 @@ final class DetailsViewModelFailureTests: XCTestCase {
         XCTAssertEqual(repository.deletedIds.filter { $0 != 43 }, [42])
     }
 
-    func test_onDeleteConfirmed_failedDelete_keepsSnapshotShowsErrorAndStaysOpen() async throws {
-        let snapshot = try SnapshotFileFixture.make()
-        defer { snapshot.remove() }
+    func test_onDeleteConfirmed_failedDelete_keepsSnapshotShowsErrorAndStaysOpen() async {
         let repository = FakeActivityHistoryRepository(
-            activities: [.fixture(id: 42, snapshotFilePath: snapshot.storedPath)]
+            activities: [.fixture(id: 42, snapshotFilePath: "/stored/snapshot-42.png")]
         )
-        let viewModel = await loadedViewModel(activityId: 42, repository: repository)
+        let deleter = FakeSnapshotFileDeleter()
+        let viewModel = await loadedViewModel(activityId: 42, repository: repository, deleter: deleter)
         repository.setFailing(true)
 
         var onDeletedCallCount = 0
@@ -57,17 +56,16 @@ final class DetailsViewModelFailureTests: XCTestCase {
 
         XCTAssertEqual(viewModel.errorMessage, generalErrorMessage)
         XCTAssertEqual(onDeletedCallCount, 0)
-        XCTAssertTrue(snapshot.exists)
+        XCTAssertTrue(deleter.storedPaths.isEmpty)
         XCTAssertTrue(repository.deletedIds.isEmpty)
     }
 
-    func test_onDeleteConfirmed_afterFailedDelete_deletesOnRetry() async throws {
-        let snapshot = try SnapshotFileFixture.make()
-        defer { snapshot.remove() }
+    func test_onDeleteConfirmed_afterFailedDelete_deletesOnRetry() async {
         let repository = FakeActivityHistoryRepository(
-            activities: [.fixture(id: 42, snapshotFilePath: snapshot.storedPath)]
+            activities: [.fixture(id: 42, snapshotFilePath: "/stored/snapshot-42.png")]
         )
-        let viewModel = await loadedViewModel(activityId: 42, repository: repository)
+        let deleter = FakeSnapshotFileDeleter()
+        let viewModel = await loadedViewModel(activityId: 42, repository: repository, deleter: deleter)
         repository.setFailing(true)
         var onDeletedCallCount = 0
         viewModel.onDeleteConfirmed { onDeletedCallCount += 1 }
@@ -81,14 +79,19 @@ final class DetailsViewModelFailureTests: XCTestCase {
         await Task.yield()
         XCTAssertEqual(onDeletedCallCount, 1)
         XCTAssertEqual(repository.deletedIds, [42])
-        XCTAssertFalse(snapshot.exists)
+        XCTAssertEqual(deleter.storedPaths, ["/stored/snapshot-42.png"])
     }
 
     private func loadedViewModel(
         activityId: Int64,
-        repository: FakeActivityHistoryRepository
+        repository: FakeActivityHistoryRepository,
+        deleter: FakeSnapshotFileDeleter = FakeSnapshotFileDeleter()
     ) async -> DetailsViewModel {
-        let viewModel = DetailsViewModel(activityId: activityId, activityHistoryRepository: repository)
+        let viewModel = DetailsViewModel(
+            activityId: activityId,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: deleter
+        )
         await waitUntil { !viewModel.isLoading }
         return viewModel
     }

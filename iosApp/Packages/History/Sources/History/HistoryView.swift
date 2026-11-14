@@ -10,12 +10,16 @@ import SharedKit
 import SwiftUI
 
 public struct HistoryView: View {
-    @StateObject private var viewModel = HistoryViewModel()
+    @StateObject private var viewModel: HistoryViewModel
     @State private var activityPendingDelete: ActivityRecord?
 
     let onActivitySelected: (Int64) -> Void
 
-    public init(onActivitySelected: @escaping (Int64) -> Void) {
+    public init(
+        snapshotFileDeleter: SnapshotFileDeleting = FileSnapshotDeleter(),
+        onActivitySelected: @escaping (Int64) -> Void
+    ) {
+        _viewModel = StateObject(wrappedValue: HistoryViewModel(snapshotFileDeleter: snapshotFileDeleter))
         self.onActivitySelected = onActivitySelected
     }
 

@@ -12,8 +12,10 @@ public struct DetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirmation = false
 
-    public init(activityId: Int64) {
-        _viewModel = StateObject(wrappedValue: DetailsViewModel(activityId: activityId))
+    public init(activityId: Int64, snapshotFileDeleter: SnapshotFileDeleting = FileSnapshotDeleter()) {
+        _viewModel = StateObject(
+            wrappedValue: DetailsViewModel(activityId: activityId, snapshotFileDeleter: snapshotFileDeleter)
+        )
     }
 
     public var body: some View {
