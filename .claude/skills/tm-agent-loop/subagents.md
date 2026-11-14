@@ -60,6 +60,10 @@ The procedure, for each implementer, all from the main clone with the task branc
    the worktrees that started from the old tip (`remove --force`, `create`), do the piece yourself, or
    drop it. Never widen the allowed paths of a running implementer.
 6. `scripts/subagent/worktree.sh remove <name>` once its commits are taken, before the review.
+   Before it, and when a run was blocked or ran beside another heavy run, read what the mechanism
+   recorded: `scripts/subagent/guard.sh --log` (every call the guard saw, with the subagent's id and
+   the input's key names, and each block with its reason and command) and `scripts/heavy-run.sh --log`
+   (a `wait` and a `start` after more than 0 s show that a run waited for the lock).
 
 The result is still **one PR with one review and one gate run**: the local review (section 4) and the
 gate (section 5) run once on the final HEAD, in the main clone, after every implementer's commits are
