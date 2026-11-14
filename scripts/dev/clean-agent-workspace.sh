@@ -163,7 +163,11 @@ trim_log() {
     counts="$(awk -F '\t' -v c="$CUTOFF" '
         { t++ }
         $1 >= c || $1 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ { k++ }
-        END { print t + 0, k + 0 }' "$f")" || return 0
+        END { print t + 0, k + 0 }' "$f")" || {
+        echo "clean-agent-workspace: could not read $name; it is not trimmed" >&2
+        FAILED=1
+        return 0
+    }
     total="${counts% *}"; keep="${counts#* }"
     [ "$total" -gt "$keep" ] || return 0
     if [ "$DRY_RUN" = 1 ]; then
@@ -425,6 +429,16 @@ STUB
     printf '%s\tnew\n' "$now_stamp" >"$qdir/subagent/guard.log"; touch -t "$OLD" "$qdir/subagent/guard.log"
     run "$ws" >/dev/null 2>&1
     check "queue: a log with nothing old is not touched" [ "$(mtime_of "$qdir/subagent/guard.log")" = "$(mtime_of "$qdir/queue.tsv")" ]
+
+    # A log that cannot be read is reported (exit 1), not skipped silently.
+    make_queue_ws "$tmp/ws6u"
+    chmod 000 "$qdir/subagent/guard.log"
+    out="$(run "$ws" 2>&1)" && rc=0 || rc=$?
+    chmod 600 "$qdir/subagent/guard.log"
+    check "queue: an unreadable log exits 1" [ "$rc" = 1 ]
+    check "queue: an unreadable log is reported" grep -q "could not read queue/subagent/guard.log; it is not trimmed" <<<"$out"
+    check "queue: the other log is still trimmed" grep -qxF "trimmed queue/locks/heavy-run.log: removed 1 lines older than 3 days" <<<"$out"
+    check "queue: the texts are still cleaned" gone "$qdir/tasks/done-merged.md"
 
     # --dry-run deletes and trims nothing, and says what it would.
     make_queue_ws "$tmp/ws6d"
