@@ -49,8 +49,24 @@
 # above. `worktree.sh take` refuses afterwards any commit outside the allowed paths, and the
 # orchestrator reviews the diff, which is the check that does not depend on this hook. Three real
 # implementer runs showed that this hook fires for a subagent's tool calls, that its message reaches the
-# subagent, and that `.cwd` is the main clone on every call (see the paragraph above). Not verified:
-# that `agent_id` is in the hook input of a front-matter hook (it would tell two implementers apart).
+# subagent, and that `.cwd` is the main clone on every call (see the paragraph above). Whether `agent_id`
+# (it would tell two implementers apart) is in the hook input is what the log below records.
+#
+# What it records. Every call, allowed or blocked, appends one tab-separated line to the guard log,
+# ${TM_GUARD_LOG:-$HOME/agent-workspace/queue/subagent/guard.log} (outside the repository, in the
+# queue folder that scripts/dev/clean-agent-workspace.sh keeps), and `scripts/subagent/guard.sh --log
+# [<n>]` prints its last n lines (default 40). Columns: time, ALLOW or BLOCK, tool, agent_id,
+# agent_type, the key names of the hook input, the call's cwd, and for a BLOCK the reason (at most 300
+# characters) and the command or path that was blocked (at most 200). In both a word with `=`, `://` or
+# `@` is replaced by `<value>` (the same rule as in scripts/heavy-run.sh, `redact`: change both together),
+# and no command or path is logged when the block is the secrets rule, as the text may hold a secret
+# value. The rule is by word: a secret passed as a separate word (`--token abc`) is not recognized. The
+# log is local, outside the repository. So a run answers, from the file:
+#   - whether the hook input carries the subagent's id: the `agent_id` column is `-` when it does not,
+#     and the key names show every field the input had;
+#   - what a block inside a subagent was (the BLOCK lines, which the subagent only sees as a message);
+# A call that gets no line never reached the hook. Nothing else is recorded (no file content, no
+# command output). Writing the log can never change a decision: a log that cannot be written is ignored.
 #
 # Needs jq. BREAK-GLASS (human only): remove the `hooks:` block from .claude/agents/implementer.md.
 # Bash 3.2 compatible.
@@ -62,14 +78,48 @@ SECRETS_RE='(Secrets\.xcconfig|(^|/)local\.properties|(^|/)\.env([^/]*)?$)'
 # The same names found anywhere in a command line (a word, not only a path component).
 BASH_SECRETS_RE='(Secrets\.xcconfig|(^|[^[:alnum:]_.-])local\.properties|(^|[^[:alnum:]_])\.env([^[:alnum:]]|$))'
 
-deny() { echo "implementer guard: $*" >&2; exit 2; }
+GUARD_LOG="${TM_GUARD_LOG:-$HOME/agent-workspace/queue/subagent/guard.log}"
+LOG_PREFIX=""   # tool, agent_id, agent_type, input keys, cwd: set once the input is read
+LOG_BLOCKED=""  # the command or path of the call, for a BLOCK line
+
+# One line per call (see "What it records"). It runs as the EXIT trap, so every path out of guard() is
+# logged, and it can never change the decision: its own failures are ignored and its status is dropped.
+# redact_words: one line on stdin, the same line on stdout with every word that may carry a value (an
+# assignment, a URL, a user@host) replaced by `<value>`. The one copy of the rule in this script; the
+# Perl `redact` of scripts/heavy-run.sh is the other, and the two must stay the same.
+redact_words() { tr '\t\r\n' '   ' | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /=|:\/\/|@/) $i = "<value>"; print }'; }
+
+log_call() { # log_call <exit status of the guard> [<reason>]
+    local verdict=ALLOW reason="${2:-}" blocked="$LOG_BLOCKED"
+    [ "$1" = 0 ] || verdict=BLOCK
+    # A command or path that names a secrets file may hold a secret value: its text is not logged.
+    case "$reason" in *"secrets file"*) blocked="(not logged: it names a secrets file)" ;; esac
+    [ -n "$LOG_PREFIX" ] || LOG_PREFIX="-	-	-	-	-"
+    # Value-like words never reach the log, in the reason (many reasons quote a word of the call) or in
+    # the blocked command; the rest of the words stay.
+    reason="$(printf '%s' "$reason" | redact_words | cut -c1-300)"
+    blocked="$(printf '%s' "$blocked" | redact_words | cut -c1-200)"
+    mkdir -p "$(dirname "$GUARD_LOG")" 2>/dev/null || return 0
+    if [ "$verdict" = BLOCK ]; then
+        printf '%s\t%s\t%s\t%s\t%s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$verdict" "$LOG_PREFIX" "$reason" "$blocked" >> "$GUARD_LOG" 2>/dev/null
+    else
+        printf '%s\t%s\t%s\t-\t-\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$verdict" "$LOG_PREFIX" >> "$GUARD_LOG" 2>/dev/null
+    fi
+    return 0
+}
+
+DENY_REASON=""
+deny() { DENY_REASON="$*"; echo "implementer guard: $*" >&2; exit 2; }
 
 guard() {
     local input tool cwd root gitdir common rec p abs real dir rest base rel cmd seg word
     local -a words
     local wts mainmsg first target check_record
     input="$(cat)"
+    trap 'log_call $? "$DENY_REASON"' EXIT
     command -v jq >/dev/null 2>&1 || deny "jq is missing, so this hook cannot read the call"
+    LOG_PREFIX="$(printf '%s' "$input" | jq -r '[.tool_name // "-", .agent_id // "-", .agent_type // "-", (keys | join(",")), .cwd // "-"] | @tsv' 2>/dev/null)" || LOG_PREFIX=""
+    LOG_BLOCKED="$(printf '%s' "$input" | jq -r '.tool_input.command // .tool_input.file_path // .tool_input.notebook_path // .tool_input.path // .tool_input.pattern // empty' 2>/dev/null)" || LOG_BLOCKED=""
     tool="$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)" || deny "unreadable hook input"
     cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)" || deny "unreadable hook input"
     [ -n "$cwd" ] && [ -d "$cwd" ] || deny "the hook input has no readable working directory"
@@ -205,7 +255,7 @@ self_test() {
     tmp="$(cd "$(mktemp -d)" && pwd -P)"
     TMP_ROOT="$tmp"
     trap 'rm -rf -- "$TMP_ROOT"' EXIT
-    export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null TM_WORKTREE_DIR="$tmp/wts"
+    export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null TM_WORKTREE_DIR="$tmp/wts" TM_GUARD_LOG="$tmp/guard.log"
     command -v jq >/dev/null 2>&1 || { echo "guard self-test: jq is needed" >&2; return 1; }
     repo="$tmp/repo"
     git init -q -b main "$repo"
@@ -320,11 +370,43 @@ self_test() {
     expect "a worktree without a record is refused" 2 "$tmp/plain" Write "$(file_in "$tmp/plain/src/x")" "tm-subagent record"
     expect "a directory outside git is refused" 2 "$other" Bash "$(bash_in 'ls')" "not inside a git work tree"
 
+    # The guard log: what the hook received and every block, readable afterwards.
+    local tab last
+    tab="$(printf '\t')"
+    jq -n --arg cwd "$wt" --arg p "$wt/src/a.txt" '{tool_name: "Read", tool_input: {file_path: $p}, cwd: $cwd, agent_id: "agent-42", agent_type: "implementer"}' | bash "${BASH_SOURCE[0]}" 2>/dev/null
+    if grep -Eq "ALLOW${tab}Read${tab}agent-42${tab}implementer${tab}agent_id,agent_type,cwd,tool_input,tool_name${tab}$wt${tab}-${tab}-$" "$tmp/guard.log"; then echo "ok   log: an allowed call records the agent id, type and input keys"; else
+        echo "FAIL log: no line with agent-42 and the keys" >&2; tail -n 3 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    if grep -Eq "ALLOW${tab}Read${tab}-${tab}-${tab}cwd,tool_input,tool_name${tab}" "$tmp/guard.log"; then echo "ok   log: an input without agent_id logs a dash and its keys"; else
+        echo "FAIL log: no dash line for an input without agent_id" >&2; tail -n 3 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    expect "a blocked call for the log" 2 "$wt" Bash "$(bash_in 'git remote add x y')" "remotes"
+    if grep -Eq "BLOCK${tab}Bash${tab}.*${tab}a git command that pushes.*${tab}git remote add x y$" "$tmp/guard.log"; then echo "ok   log: a block records its reason and the command"; else
+        echo "FAIL log: no BLOCK line with reason and command" >&2; tail -n 3 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    last="$(bash "${BASH_SOURCE[0]}" --log 2)"
+    if [ "$(printf '%s\n' "$last" | wc -l | tr -d ' ')" = 2 ] && printf '%s' "$last" | grep -q 'BLOCK'; then echo "ok   log: --log prints the last lines"; else
+        echo "FAIL log: --log 2" >&2; printf '%s\n' "$last" >&2; fails=$((fails + 1)); fi
+    expect "a blocked secrets command for the log" 2 "$wt" Bash "$(bash_in 'echo TOKEN=abc123 > local.properties')" "secrets file"
+    if grep -q "BLOCK.*(not logged: it names a secrets file)" "$tmp/guard.log" && ! grep -q 'abc123' "$tmp/guard.log"; then echo "ok   log: a secrets block does not log the command text"; else
+        echo "FAIL log: the secrets block logged the command or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    expect "a blocked remote command with a credential in it" 2 "$wt" Bash "$(bash_in 'git remote add https://user:pw123@example.com/r.git TOKEN=tok456 HEAD')" "remotes"
+    if grep -q "BLOCK.*git remote add <value> <value> HEAD" "$tmp/guard.log" && ! grep -Eq 'pw123|tok456' "$tmp/guard.log"; then echo "ok   log: a value-like word of a blocked command is redacted"; else
+        echo "FAIL log: the credential reached the log, or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    expect "a read of a secrets path with a credential in it" 2 "$wt" Read "$(file_in "$wt/https://user:pw789@example.com/local.properties")" "secrets file"
+    if grep -q "BLOCK.*<value> names a git-ignored secrets file" "$tmp/guard.log" && ! grep -q 'pw789' "$tmp/guard.log"; then echo "ok   log: a value-like word in a reason is redacted"; else
+        echo "FAIL log: the credential reached the log through the reason, or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
+    # An unwritable log changes no decision.
+    TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a blocked call is still blocked" 2 "$wt" Bash "$(bash_in 'git remote add x y')" "remotes"
+    TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a normal read is still allowed" 0 "$wt" Read "$(file_in "$wt/src/a.txt")"
+
     if [ "$fails" -eq 0 ]; then echo "guard.sh self-test: all passed"; else echo "guard.sh self-test: $fails failed" >&2; fi
     [ "$fails" -eq 0 ]
 }
 
 case "${1:-}" in
+    --log)
+        [ $# -le 2 ] || { echo "usage: scripts/subagent/guard.sh --log [<n>]" >&2; exit 2; }
+        n="${2:-40}"; case "$n" in '' | *[!0-9]*) echo "usage: scripts/subagent/guard.sh --log [<n>]" >&2; exit 2 ;; esac
+        if [ -f "$GUARD_LOG" ]; then tail -n "$n" "$GUARD_LOG"; else echo "guard: no log yet ($GUARD_LOG)"; fi
+        exit 0 ;;
     --self-test) [ $# -eq 1 ] || { echo "usage: scripts/subagent/guard.sh --self-test (a hook otherwise: JSON on stdin)" >&2; exit 2; }; self_test; exit $? ;;
     "") guard ;;
     *) echo "usage: scripts/subagent/guard.sh --self-test (a hook otherwise: JSON on stdin)" >&2; exit 2 ;;

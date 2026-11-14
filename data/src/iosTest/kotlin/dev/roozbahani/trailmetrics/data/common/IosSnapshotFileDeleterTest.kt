@@ -17,7 +17,9 @@ import platform.Foundation.NSFilePosixPermissions
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -56,6 +58,15 @@ class IosSnapshotFileDeleterTest {
         return path
     }
 
+    private fun makeDirectory(name: String) {
+        fileManager.createDirectoryAtPath(
+            "$supportDirectory/$name",
+            withIntermediateDirectories = true,
+            attributes = null,
+            error = null
+        )
+    }
+
     private fun setPermissions(path: String, mode: Int) {
         fileManager.setAttributes(
             mapOf(NSFilePosixPermissions to NSNumber(int = mode)),
@@ -77,7 +88,7 @@ class IosSnapshotFileDeleterTest {
     fun `a stored path of a container that no longer exists finds the file by its name`() = runTest {
         val path = snapshotFile("snapshot-7.png")
 
-        deleter.delete("/var/mobile/Containers/Data/Application/OLD-UUID/Library/Application Support/snapshot-7.png")
+        deleter.delete("$OLD_CONTAINER_DIRECTORY/snapshot-7.png")
 
         assertFalse(fileManager.fileExistsAtPath(path))
     }
@@ -92,6 +103,40 @@ class IosSnapshotFileDeleterTest {
         deleter.delete("/")
 
         assertTrue(fileManager.fileExistsAtPath(path))
+    }
+
+    @Test
+    fun `a stored path that names a directory leaves it and its contents in place`() = runTest {
+        makeDirectory("album")
+        val child = snapshotFile("album/snapshot.png")
+
+        deleter.delete("$supportDirectory/album")
+        deleter.delete("$supportDirectory/album/")
+
+        assertTrue(fileManager.fileExistsAtPath(child))
+    }
+
+    @Test
+    fun `a stored path of another container that names a directory leaves the directory`() = runTest {
+        makeDirectory("album")
+
+        deleter.delete("$OLD_CONTAINER_DIRECTORY/album")
+
+        assertTrue(fileManager.fileExistsAtPath("$supportDirectory/album"))
+    }
+
+    @Test
+    fun `resolve takes the file name against the current directory and null for none`() {
+        assertEquals("$supportDirectory/snapshot-7.png", deleter.resolve("$supportDirectory/snapshot-7.png"))
+        assertEquals(
+            "$supportDirectory/snapshot-7.png",
+            deleter.resolve("$OLD_CONTAINER_DIRECTORY/snapshot-7.png")
+        )
+        assertEquals("$supportDirectory/album", deleter.resolve("/old/album/"))
+        assertNull(deleter.resolve(null))
+        assertNull(deleter.resolve("   "))
+        assertNull(deleter.resolve("/"))
+        assertNull(deleter.resolve("/old/.."))
     }
 
     @Test
@@ -140,6 +185,8 @@ class IosSnapshotFileDeleterTest {
     }
 
     private companion object {
+        const val OLD_CONTAINER_DIRECTORY =
+            "/var/mobile/Containers/Data/Application/OLD-UUID/Library/Application Support"
         const val WRITABLE = 0b111_101_101
         const val READ_ONLY = 0b101_101_101
     }

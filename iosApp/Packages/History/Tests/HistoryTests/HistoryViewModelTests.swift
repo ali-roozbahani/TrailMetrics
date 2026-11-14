@@ -65,4 +65,28 @@ final class HistoryViewModelTests: XCTestCase {
 
         await waitUntil { repository.deletedIds == [8] }
     }
+
+    func test_snapshotURL_isTheKotlinResolutionOfTheStoredPath() {
+        let activity = ActivityRecord.fixture(id: 9, snapshotFilePath: "/old-container/snapshot-9.png")
+        let deleter = FakeSnapshotFileDeleter(resolvedPath: "/current/snapshot-9.png")
+        let viewModel = HistoryViewModel.subject(
+            repository: FakeActivityHistoryRepository(activities: [activity]),
+            snapshotFileDeleter: deleter
+        )
+
+        let url = viewModel.snapshotURL(for: activity)
+
+        XCTAssertEqual(url, URL(fileURLWithPath: "/current/snapshot-9.png"))
+        XCTAssertEqual(deleter.resolvedStoredPaths, ["/old-container/snapshot-9.png"])
+    }
+
+    func test_snapshotURL_isNilWhenKotlinResolvesNoFile() {
+        let activity = ActivityRecord.fixture(id: 10, snapshotFilePath: "/")
+        let viewModel = HistoryViewModel.subject(
+            repository: FakeActivityHistoryRepository(activities: [activity]),
+            snapshotFileDeleter: FakeSnapshotFileDeleter(resolvedPath: nil)
+        )
+
+        XCTAssertNil(viewModel.snapshotURL(for: activity))
+    }
 }

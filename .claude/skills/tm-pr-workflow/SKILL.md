@@ -277,7 +277,11 @@ user-visible changes (see #32, #35).
 
 ### PR description
 
-Required. Draft it at `~/agent-workspace/pr-body-<slug>.md` before the local review, without
+Required. It is final before the push that starts CI: CI's reviewer reads the description when the run
+starts, so a later edit is not what that run reviewed. Write the gate result and the local review's
+dispositions into it before the push, and give the PR that body at creation; only what the CI reviewer
+itself reports can come after.
+Draft it at `~/agent-workspace/pr-body-<slug>.md` before the local review, without
 `Reviewer findings`: it is the local reviewer's `TASK` (`scripts/review-task.sh <draft>`), as it
 is CI's. The PR is created from it with `--title "<PR title>"` and `--body-file`: an optional `Title:`
 first line and the blank line below it are not part of the body, so when the draft has one, write the

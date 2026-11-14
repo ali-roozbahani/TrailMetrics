@@ -57,6 +57,7 @@ public struct HistoryView: View {
                             } label: {
                                 ActivityRow(
                                     activity: activity,
+                                    snapshotURL: viewModel.snapshotURL(for: activity),
                                     onDeleteClicked: { activityPendingDelete = activity }
                                 )
                             }
@@ -95,6 +96,7 @@ public struct HistoryView: View {
 
 private struct ActivityRow: View {
     let activity: ActivityRecord
+    let snapshotURL: URL?
     let onDeleteClicked: () -> Void
 
     private static let dateFormatter: DateFormatter = {
@@ -166,14 +168,6 @@ private struct ActivityRow: View {
         } else {
             Color(.tertiarySystemBackground)
         }
-    }
-
-    // See `resolvedSnapshotURL(forStoredPath:)` (SnapshotFile.swift) for why this
-    // re-resolves the filename against the current Application Support directory
-    // rather than trusting the stored absolute path (which goes stale across
-    // reinstalls, causing AsyncImage to fail with NSURLErrorFileDoesNotExist).
-    private var snapshotURL: URL? {
-        resolvedSnapshotURL(forStoredPath: activity.snapshotFilePath)
     }
 
     private var activityTypeBadge: some View {

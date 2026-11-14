@@ -62,6 +62,11 @@ public class HistoryViewModel: ObservableObject {
         }
     }
 
+    /// The image file of the activity's snapshot, resolved by the same Kotlin rule that deletes it.
+    public func snapshotURL(for activity: ActivityRecord) -> URL? {
+        snapshotFileDeleter.snapshotURL(forStoredPath: activity.snapshotFilePath)
+    }
+
     public func onErrorDismissed() {
         errorMessage = nil
     }

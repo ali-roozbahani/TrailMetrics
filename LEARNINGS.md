@@ -732,9 +732,10 @@ overlay buttons.
    container that no longer exists. Fix: treat the stored value as a
    filename only, and re-join it against the *current* Application Support
    directory at read time; both display and deletion go through the same
-   resolver, and nothing about what's stored had to change. See
-   `SnapshotFile.swift` (`iosApp/Packages/History/Sources/History/`); the
-   path is originally captured in `MapSnapshotSaver.swift`
+   resolver (Kotlin's `SnapshotFileDeleter.resolve`, implemented by
+   `IosSnapshotFileDeleter` in `data/src/iosMain`; the History package calls it
+   through `SnapshotFile.swift`), and nothing about what's stored had to
+   change. The path is originally captured in `MapSnapshotSaver.swift`
    (`iosApp/Packages/Tracking/Sources/Tracking/`).
 
 2. **Live Text can silently swallow taps on an image inside a `Button`.**

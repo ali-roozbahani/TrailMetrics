@@ -41,6 +41,10 @@ The procedure, for each implementer, all from the main clone with the task branc
    git-ignored secrets configs without reading them). It prints the task file's path.
 2. Write the task file there with the Write tool, with the headings `implementer.md` defines
    (`Goal`, `Worktree`, `Allowed paths`, `Contract`, `Read first`, `Tests to run`, `Commit trailer`).
+   Under `Worktree` it carries, besides the path and the branch, the start SHA that `create` printed
+   (`from <task branch> at <sha>`): the range `<sha>..<worktree branch>` is what `take` brings in and
+   what a restore after an undone take (`remove --force`, `create` again from the new tip) has to
+   compare against, and the task file is the one record of it that outlives the worktree.
    The subagent gets its task through this file and its prompt is only `TASK_FILE: <path>`: a hook
    blocks any command that merely contains the text of a push or of a PR creation, so a task is never
    spelled out in a command (the file is written with the Write tool, not through the shell).
@@ -56,6 +60,10 @@ The procedure, for each implementer, all from the main clone with the task branc
    the worktrees that started from the old tip (`remove --force`, `create`), do the piece yourself, or
    drop it. Never widen the allowed paths of a running implementer.
 6. `scripts/subagent/worktree.sh remove <name>` once its commits are taken, before the review.
+   Before it, and when a run was blocked or ran beside another heavy run, read what the mechanism
+   recorded: `scripts/subagent/guard.sh --log` (every call the guard saw, with the subagent's id and
+   the input's key names, and each block with its reason and command) and `scripts/heavy-run.sh --log`
+   (a `wait` and a `start` after more than 0 s show that a run waited for the lock).
 
 The result is still **one PR with one review and one gate run**: the local review (section 4) and the
 gate (section 5) run once on the final HEAD, in the main clone, after every implementer's commits are

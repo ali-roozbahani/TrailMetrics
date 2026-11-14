@@ -528,6 +528,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the cause is shown for the Details-after-delete and the restored-session Tracking screens (which element, timer or animation keeps the app busy, from a CI run's recorded UI hierarchy or a sample of the app), the owner has decided whether the UI-test variant (`shared-uitest`, the launch-time seam) can avoid it, for example by disabling animations or stopping a ticking timer in the test variant, and the change is made so that `iOS 3` shows no idle stall of 18 s or more on 5 consecutive runs of `main`. No retry and no longer wait is added. For the SpringBoard stall the cause is shown too (the simulator's state, the runner's load or the simulator settings), and the owner has decided what the CI step or the runner may change.
 - Refs: `CI_FLAKES.md` (the entries `ios-ui-details-failed-delete-error-alert-not-shown`, `ios-ui-restored-session-offer-not-offered` and `ios-ui-probe-refresh-timeout`); `iosApp/TrailMetricsUITests/DetailsFailedDeleteUITests.swift`; `iosApp/TrailMetricsUITests/Tracking/RestoredSessionOfferUITests.swift`; `iosApp/TrailMetricsUITests/Support/UITestProbe.swift`; `shared-uitest`.
 
+### ios-history-row-snapshot-image-ui-test
+- Type: task
+- Area: iosApp/TrailMetricsUITests, shared-uitest, iosApp/Packages/History
+- Order: 620
+- Source: PR #290 (CI reviewer, Tier 2 reason 2), 2026-11-14
+- Problem: Needs the owner's decision and a design (what the UI-test variant may seed). No automated test observes the map snapshot image of a History row: `HistoryViewModelTests` cover `snapshotURL(for:)`, but `ActivityRow` draws it with `AsyncImage`, and the UI-test seam's `FakeActivityHistoryRepository` emits a fixed list whose records carry no snapshot file, so a UI test cannot show or miss an image. The behavior (a stored path of an old container still shows its image) is checked by hand after a reinstall until then.
+- Done when: the owner has decided whether the UI-test variant seeds a snapshot file for a History record, and a `TrailMetricsUITests` scenario shows the row's image (an element that exists only when the image loaded, for example an accessibility identifier on the loaded image) and fails when the stored path no longer resolves, shown on a deliberately broken version.
+- Refs: `iosApp/Packages/History/Sources/History/HistoryView.swift` (`ActivityRow`); `iosApp/Packages/History/Sources/History/HistoryViewModel.swift` (`snapshotURL(for:)`); `shared-uitest`; `docs/epics/ios-ui-tests.md`; `.claude/skills/tm-testing` ("XCUITest").
+
 ## Drift
 
 ### data-kover-comment-stale-figure
