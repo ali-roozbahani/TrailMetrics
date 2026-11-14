@@ -35,7 +35,9 @@
 # detail, command. Events: `wait` (the lock was held; detail: the holder), `gave-up` (--max-wait ran
 # out; detail: seconds waited and the holder), `start` (the command starts; detail: seconds waited,
 # 0s when the lock was free), `end` (detail: the exit status). A run that waited has a `wait` line and
-# a `start` line with more than 0s. The log only grows by a few lines per run; the owner may delete it.
+# a `start` line with more than 0s. The command and the holder are logged word by word, and a word
+# with `=`, `://` or `@` is logged as `<value>`, so a token or a URL with credentials never reaches the
+# log. The log only grows by a few lines per run; the owner may delete it.
 #
 # Re-entry: the command runs with TM_HEAVY_RUN_HELD=<holder pid>. A heavy command that starts
 # another one (the gate runs Gradle and xcodebuild; Xcode's build phase runs Gradle) calls this
@@ -65,13 +67,16 @@ use Fcntl qw(:flock);
 use POSIX qw(strftime);
 my ($lock, $info, $evlog, $maxwait, @cmd) = @ARGV;
 $| = 1;
-my $cmdline = join(" ", @cmd); $cmdline =~ s/[\t\r\n]+/ /g;
+# A word that may carry a value (an assignment, a URL, a user@host) is replaced in what the event log
+# stores, so a token or a URL with credentials in a command line never reaches it.
+sub redact { return join(" ", map { m{=|://|@} ? "<value>" : $_ } split(/\s+/, $_[0] // "")) }
+my $cmdline = redact(join(" ", @cmd));
 # One line per event; never a reason to fail the run, so an unwritable log is ignored.
 sub logev {
     my ($ev, $detail) = @_;
     return if $maxwait eq "status";
     open(my $l, ">>", $evlog) or return;
-    print $l join("\t", strftime("%Y-%m-%dT%H:%M:%S", localtime), $$, $ev, $detail // "-", $cmdline), "\n";
+    print $l join("\t", strftime("%Y-%m-%dT%H:%M:%S", localtime), $$, $ev, redact($detail // "-"), $cmdline), "\n";
     close $l;
 }
 open(my $fh, ">>", $lock) or do { print STDERR "heavy-run: cannot open $lock: $!\n"; exit 2 };
@@ -223,6 +228,11 @@ self_test() {
     else
         bad "the first run never started"; wait "$a"
     fi
+
+    # A value-like word of the command line never reaches the event log.
+    bash "$SELF" true https://user:pw123@example.com/r.git TOKEN=tok456 plainword
+    if grep -q "	start	.*	true <value> <value> plainword$" "$tmp/locks/heavy-run.log" && ! grep -Eq 'pw123|tok456' "$tmp/locks/heavy-run.log"; then ok "the event log redacts value-like words of the command"; else
+        bad "a credential reached the event log, or no redacted line" "$(tail -n 3 "$tmp/locks/heavy-run.log")"; fi
 
     # Re-entry: a heavy command that starts another heavy command does not wait for itself.
     expect_rc "a nested call runs at once" 0 bash "$SELF" bash -c "\"$SELF\" --max-wait 3 true"
