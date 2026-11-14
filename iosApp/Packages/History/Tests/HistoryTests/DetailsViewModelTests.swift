@@ -14,7 +14,8 @@ final class DetailsViewModelTests: XCTestCase {
     func test_init_isLoadingUntilActivityArrives() {
         let viewModel = DetailsViewModel(
             activityId: 42,
-            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)])
+            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)]),
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
         )
 
         XCTAssertTrue(viewModel.isLoading)
@@ -23,7 +24,11 @@ final class DetailsViewModelTests: XCTestCase {
 
     func test_init_loadsActivityById() async {
         let repository = FakeActivityHistoryRepository(activities: [.fixture(id: 41), .fixture(id: 42)])
-        let viewModel = DetailsViewModel(activityId: 42, activityHistoryRepository: repository)
+        let viewModel = DetailsViewModel(
+            activityId: 42,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
+        )
 
         await waitUntil { !viewModel.isLoading }
 
@@ -34,7 +39,8 @@ final class DetailsViewModelTests: XCTestCase {
     func test_init_unknownId_stopsLoadingWithoutActivity() async {
         let viewModel = DetailsViewModel(
             activityId: 99,
-            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)])
+            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)]),
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
         )
 
         await waitUntil { !viewModel.isLoading }

@@ -20,12 +20,12 @@ public class HistoryViewModel: ObservableObject {
 
     private let activityHistoryRepository: ActivityHistoryRepository
     private let observeActivitiesUseCase: ObserveActivitiesUseCase
-    private let snapshotFileDeleter: SnapshotFileDeleting
+    private let snapshotFileDeleter: SnapshotFileDeleter
 
     public init(
         activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository(),
         observeActivitiesUseCase: ObserveActivitiesUseCase = KoinHelper().observeActivitiesUseCase(),
-        snapshotFileDeleter: SnapshotFileDeleting = FileSnapshotDeleter()
+        snapshotFileDeleter: SnapshotFileDeleter = KoinHelper().snapshotFileDeleter()
     ) {
         self.activityHistoryRepository = activityHistoryRepository
         self.observeActivitiesUseCase = observeActivitiesUseCase
@@ -58,7 +58,7 @@ public class HistoryViewModel: ObservableObject {
                 errorMessage = HistoryErrorMessage.general
                 return
             }
-            await snapshotFileDeleter.delete(storedPath: activity.snapshotFilePath)
+            await snapshotFileDeleter.deleteBestEffort(storedPath: activity.snapshotFilePath)
         }
     }
 

@@ -16,7 +16,11 @@ final class DetailsViewModelFailureTests: XCTestCase {
     func test_init_failedLoad_stopsLoadingWithoutActivityAndShowsError() async {
         let repository = FakeActivityHistoryRepository(activities: [.fixture(id: 42)])
         repository.setFailing(true)
-        let viewModel = DetailsViewModel(activityId: 42, activityHistoryRepository: repository)
+        let viewModel = DetailsViewModel(
+            activityId: 42,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
+        )
 
         await waitUntil { !viewModel.isLoading }
 

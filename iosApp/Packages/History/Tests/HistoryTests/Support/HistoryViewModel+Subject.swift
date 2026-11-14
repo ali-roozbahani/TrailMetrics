@@ -11,7 +11,7 @@ extension HistoryViewModel {
     /// A ViewModel whose every dependency is backed by `repository`.
     static func subject(
         repository: FakeActivityHistoryRepository,
-        snapshotFileDeleter: SnapshotFileDeleting = FakeSnapshotFileDeleter()
+        snapshotFileDeleter: SnapshotFileDeleter = FakeSnapshotFileDeleter()
     ) -> HistoryViewModel {
         HistoryViewModel(
             activityHistoryRepository: repository,

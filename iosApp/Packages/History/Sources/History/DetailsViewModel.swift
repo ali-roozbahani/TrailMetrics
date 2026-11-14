@@ -14,7 +14,7 @@ public class DetailsViewModel: ObservableObject {
 
     private let activityId: Int64
     private let activityHistoryRepository: ActivityHistoryRepository
-    private let snapshotFileDeleter: SnapshotFileDeleting
+    private let snapshotFileDeleter: SnapshotFileDeleter
     // Set synchronously before the delete `Task` starts, so a second confirmation that
     // arrives while the first delete is in flight is ignored (as Android's
     // `DetailsViewModel.isDeleteStarted`). Cleared when the delete fails, to allow a retry.
@@ -23,7 +23,7 @@ public class DetailsViewModel: ObservableObject {
     public init(
         activityId: Int64,
         activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository(),
-        snapshotFileDeleter: SnapshotFileDeleting = FileSnapshotDeleter()
+        snapshotFileDeleter: SnapshotFileDeleter = KoinHelper().snapshotFileDeleter()
     ) {
         self.activityId = activityId
         self.activityHistoryRepository = activityHistoryRepository
@@ -52,7 +52,7 @@ public class DetailsViewModel: ObservableObject {
                 errorMessage = HistoryErrorMessage.general
                 return
             }
-            await snapshotFileDeleter.delete(storedPath: activity?.snapshotFilePath)
+            await snapshotFileDeleter.deleteBestEffort(storedPath: activity?.snapshotFilePath)
             onDeleted()
         }
     }

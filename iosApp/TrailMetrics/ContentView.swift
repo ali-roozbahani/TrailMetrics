@@ -15,7 +15,6 @@ import Tracking
 struct ContentView: View {
     @State private var selectedTab: AppTab = .route
     @StateObject private var savedSessionOffer = SavedSessionOfferModel()
-    private let snapshotFileDeleter = FileSnapshotDeleter()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -25,7 +24,7 @@ struct ContentView: View {
                 }
                 .tag(AppTab.route)
 
-            HistoryTab(snapshotFileDeleter: snapshotFileDeleter)
+            HistoryTab()
                 .tabItem {
                     Label { Text("History", bundle: .main) } icon: { Image(systemName: "clock.arrow.circlepath") }
                 }
@@ -140,12 +139,11 @@ private struct TrackingDestination: Hashable {
 }
 
 private struct HistoryTab: View {
-    let snapshotFileDeleter: SnapshotFileDeleting
     @State private var path = NavigationPath()
 
     var body: some View {
         NavigationStack(path: $path) {
-            HistoryView(snapshotFileDeleter: snapshotFileDeleter) { activityId in
+            HistoryView { activityId in
                 path.append(
                     ActivityDetailsDestination(
                         route: AppRouteActivityDetails(activityId: activityId)
@@ -153,7 +151,7 @@ private struct HistoryTab: View {
                 )
             }
             .navigationDestination(for: ActivityDetailsDestination.self) { destination in
-                DetailsView(activityId: destination.route.activityId, snapshotFileDeleter: snapshotFileDeleter)
+                DetailsView(activityId: destination.route.activityId)
             }
         }
     }
