@@ -11,7 +11,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
@@ -55,14 +57,21 @@ class AndroidSnapshotFileDeleterTest {
         assertFalse(missing.exists())
     }
 
-    // File.delete removes an empty directory; no production check restricts it to files.
     @Test
-    fun `a path to an empty directory deletes the directory`() = runTest {
+    fun `a path to an empty directory leaves the directory`() = runTest {
         val directory = tempFolder.newFolder("snapshots")
 
         deleter.delete(directory.absolutePath)
 
-        assertFalse(directory.exists())
+        assertTrue(directory.isDirectory)
+    }
+
+    @Test
+    fun `resolve returns the stored path as it is and null for none`() {
+        assertEquals("/data/files/snapshot.png", deleter.resolve("/data/files/snapshot.png"))
+        assertNull(deleter.resolve(null))
+        assertNull(deleter.resolve(""))
+        assertNull(deleter.resolve("   "))
     }
 
     @Test
