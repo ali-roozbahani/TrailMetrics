@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Deletes the agent workspace's files of finished work: PR description drafts, commit messages,
-# merge-check comments, reviewer messages, gate logs and old local review records. Run at the
-# start of a task, after main is synced (tm-agent-loop, "Preconditions"); never mid-task.
+# Deletes the agent workspace's files of finished work, whatever their names: PR description drafts,
+# commit messages, merge-check comments, reviewer messages, gate and CI logs, scratch scripts and
+# diffs, and old review records. Run at the start of every task (tm-agent-loop, "Preconditions") and
+# by `scripts/queue/queue.sh set` whenever an entry becomes merged or dropped, so a long queue session
+# cleans as it goes. What is in use is never deleted (see "A loose file"), which makes a run safe at
+# any time; only the rewrite of the two logs under queue/ is not (see below).
 #
 # Usage:
 #   scripts/dev/clean-agent-workspace.sh [--dry-run] [<workspace dir>]   (default ~/agent-workspace)
@@ -11,12 +14,28 @@
 # `start-agent.sh`. Only the entries directly inside the dir are looked at, symlinks are never
 # followed or deleted, and `TrailMetrics/` is never entered.
 #
-# Deleted when older than 3 days (modification time), regular files only:
-#   pr-body-*  commit-*  merge-check-*  review-msg-*  gate-*.log
-# Always kept: TrailMetrics/, start-agent.sh, main-ci-ack (state of scripts/main-ci-status.sh --ack),
-#   hook-debug/ (kept to its newest 10 files by scripts/claude-hooks/require-local-review.sh),
-#   queue/ itself, its queue file (queue.tsv, which `add` and `set` use for the slugs and the order),
-#   its lock files and the folder structure; what is cleaned inside it is listed next.
+# A loose file (a regular file directly in the dir) is deleted when ALL of these hold:
+#   - it is not state: never `start-agent.sh`, `main-ci-ack` (state of scripts/main-ci-status.sh
+#     --ack), `auto-mode-defaults.json`, a name starting with `keep-` (the way to keep a file of any
+#     name), nor a file with a configuration or secret extension (.json .plist .xcconfig .properties
+#     .env .pem .key: kept and printed as unknown);
+#   - it is older than 3 days (modification time);
+#   - it is not in use by an open entry of the PR queue. In use means any of: (a) it is newer than
+#     the oldest open entry's task text (`queue/tasks/<slug>.md`, written when the entry was added), so
+#     whatever was made since an open entry was queued stays until that entry is merged or dropped;
+#     (b) its name contains the slug of an open entry; (c) its name contains the PR number of an open
+#     entry as a number of its own (`mc-293.md`, `pr-293`). When the queue cannot be read (`queue/`
+#     exists but its queue file is missing, a link or not a well-formed queue) or an open entry has no
+#     task text, no loose file is deleted at all: what is in use cannot be known. With no `queue/`
+#     folder only the state and age rules apply.
+# The name does not matter: `mc-*.md`, `t-push-*`, `edit-*.py`, `*.diff`, `ios3-*.log`, `spike-*` and
+# the drafts, commit messages and gate logs are all loose files. A hidden entry, a symlink and a
+# directory other than the ones named below are never deleted and are printed as unknown.
+#
+# Always kept: TrailMetrics/, hook-debug/ (kept to its newest 10 files by
+#   scripts/claude-hooks/require-local-review.sh), queue/ itself, its queue file (queue.tsv, which
+#   `add` and `set` use for the slugs and the order), its lock files and the folder structure; what is
+#   cleaned inside it is listed next, and the review records below.
 #
 # queue/ (the PR queue's folder, scripts/queue/queue.sh), cleaned on every run:
 #   - tasks/<slug>.md, the task text of an entry: deleted only when the queue file's row for <slug> says
@@ -28,10 +47,8 @@
 #   - subagent/guard.log (scripts/subagent/guard.sh) and locks/heavy-run.log (scripts/heavy-run.sh): the
 #     lines whose leading timestamp (local time, `YYYY-MM-DDTHH:MM:SS`) is older than 3 days are removed;
 #     a line without such a timestamp is kept; a log with nothing old is not touched. The rewrite is not
-#     safe against a writer at the same moment, which is why this runs at the start of a task, never
-#     mid-task: a line appended while it runs may be lost, and a log is not a decision input.
-# Any other entry, a symlink or a pattern name that is not a regular file is kept and printed as
-#   `kept, unknown: <name>`.
+#     safe against a writer at the same moment: a line appended while it runs may be lost, and a log
+#     is not a decision input.
 #
 # local-reviews/ (the records of scripts/local-review-gate.sh, one directory per SHA): a record is
 # deleted only when it is older than 3 days (its directory and every file directly in it) AND its
@@ -216,6 +233,46 @@ clean_records() {
     done
 }
 
+# The PR queue's state, read once per run (see "A loose file" in the header). QUEUE_STATE is `none` (no
+# queue/ folder), `ok`, or `bad` (queue/ exists and its queue file cannot be read as a queue, or an open
+# entry has no task text, so what is in use cannot be known). OPEN_FLOOR is the modification time of the
+# oldest open entry's task text; OPEN_SLUGS and OPEN_PRS list the open entries' slugs and PR numbers.
+load_queue_state() {
+    local q="$WS/queue" qf="$WS/queue/queue.tsv" slug pr st m
+    QUEUE_STATE=none OPEN_FLOOR=99999999999 OPEN_SLUGS="" OPEN_PRS=""
+    { [ -d "$q" ] && [ ! -L "$q" ]; } || return 0
+    QUEUE_STATE=bad
+    queue_file_ok "$qf" || return 0
+    while IFS=$'\t' read -r _ slug _ _ _ st pr; do
+        case "$st" in merged | dropped) continue ;; esac
+        { [ -f "$q/tasks/$slug.md" ] && [ ! -L "$q/tasks/$slug.md" ]; } || return 0
+        m="$(mtime_of "$q/tasks/$slug.md")" || return 0
+        [ "$m" -ge "$OPEN_FLOOR" ] || OPEN_FLOOR="$m"
+        OPEN_SLUGS="$OPEN_SLUGS $slug"
+        [ "$pr" = - ] || OPEN_PRS="$OPEN_PRS $pr"
+    done < <(awk -F '\t' '!/^#/ && NF == 7' "$qf")
+    QUEUE_STATE=ok
+}
+
+file_in_use() { # file_in_use <name> <path>: used by an open entry of the queue (or not knowable)
+    local name="$1" e="$2" m slug pr
+    [ "$QUEUE_STATE" = bad ] && return 0
+    [ "$QUEUE_STATE" = none ] && return 1
+    m="$(mtime_of "$e")" || return 0
+    [ "$m" -ge "$OPEN_FLOOR" ] && return 0
+    for slug in $OPEN_SLUGS; do
+        case "$name" in *"$slug"*) return 0 ;; esac
+    done
+    for pr in $OPEN_PRS; do
+        [[ "$name" =~ (^|[^0-9])${pr}([^0-9]|$) ]] && return 0
+    done
+    return 1
+}
+
+clean_loose_file() { # clean_loose_file <path> <name>: a loose regular file of the workspace, whatever its name
+    if is_old "$1" && ! file_in_use "$2" "$1"; then remove "$1" "$2" file; else FRESH=$((FRESH + 1)); fi
+}
+
 clean() {
     local e name
     if [ ! -d "$WS/TrailMetrics" ] || [ -L "$WS/TrailMetrics" ] || [ ! -f "$WS/start-agent.sh" ] || [ -L "$WS/start-agent.sh" ]; then
@@ -224,20 +281,21 @@ clean() {
     fi
     NOW="$(date +%s)" FILES=0 RECORDS=0 FRESH=0 UNKNOWN=0 FAILED=0
     CUTOFF="$(time_string $((NOW - MAX_AGE_SECONDS)))"
+    load_queue_state
+    if [ "$QUEUE_STATE" = bad ]; then
+        echo "clean-agent-workspace: the queue could not be read, or an open entry has no task text; no loose file deleted" >&2
+    fi
     for e in "$WS"/* "$WS"/.[!.]*; do
         [ -e "$e" ] || [ -L "$e" ] || continue
         name="${e##*/}"
         if [ ! -L "$e" ]; then
             case "$name" in
-                TrailMetrics | start-agent.sh | main-ci-ack | hook-debug) continue ;;
+                TrailMetrics | hook-debug) continue ;;
                 queue) clean_queue "$e"; continue ;;
                 local-reviews) if [ -d "$e" ]; then clean_records "$e"; continue; fi ;;
-                pr-body-* | commit-* | merge-check-* | review-msg-* | gate-*.log)
-                    if [ -f "$e" ]; then
-                        if is_old "$e"; then remove "$e" "$name" file; else FRESH=$((FRESH + 1)); fi
-                        continue
-                    fi
-                    ;;
+                start-agent.sh | main-ci-ack | auto-mode-defaults.json | keep-*) continue ;;
+                .* | *.json | *.plist | *.xcconfig | *.properties | *.env | *.pem | *.key) ;;
+                *) if [ -f "$e" ]; then clean_loose_file "$e" "$name"; continue; fi ;;
             esac
         fi
         echo "kept, unknown: $name"
@@ -278,7 +336,7 @@ STUB
     make_ws() {
         local w="$1" p r
         mkdir -p "$w/TrailMetrics" "$w/hook-debug" "$w/local-reviews" "$w/queue"
-        echo old >"$w/queue/queue.tsv"; touch -t "$OLD" "$w/queue/queue.tsv" "$w/queue"
+        : >"$w/queue/queue.tsv"; touch -t "$OLD" "$w/queue/queue.tsv" "$w/queue"   # a well-formed queue with no entry
         repo="$w/TrailMetrics"
         git init -q -b main "$repo"
         git -C "$repo" config user.email t@example.com
@@ -330,9 +388,8 @@ STUB
     done
     for f in TrailMetrics start-agent.sh main-ci-ack hook-debug queue/queue.tsv; do check "protected $f kept" there "$ws/$f"; done
     check "the repo inside is untouched" [ -d "$ws/TrailMetrics/.git" ]
-    check "unknown notes.md kept" there "$ws/notes.md"
-    check "gate-x.txt (not .log) kept" there "$ws/gate-x.txt"
-    check "unknown printed" grep -qxF "kept, unknown: notes.md" <<<"$out"
+    check "any name: the old notes.md is deleted" gone "$ws/notes.md"
+    check "any name: the old gate-x.txt (not .log) is deleted" gone "$ws/gate-x.txt"
     check "symlink untouched" [ -L "$ws/pr-body-link.md" ]
     check "symlink target untouched" there "$tmp/target"
     check "symlink printed as unknown" grep -qxF "kept, unknown: pr-body-link.md" <<<"$out"
@@ -342,9 +399,9 @@ STUB
     check "record of an open-PR head kept" there "$ws/local-reviews/$sha_open"
     check "record of an unmerged local branch head kept" there "$ws/local-reviews/$sha_branch"
     check "record with a fresh file kept" there "$ws/local-reviews/$(printf 'b%.0s' $(seq 40))"
-    check "summary counts" grep -qxF "clean-agent-workspace: removed 5 files, 2 review records; kept 8 fresh or in use, 3 unknown" <<<"$out"
+    check "summary counts" grep -qxF "clean-agent-workspace: removed 7 files, 2 review records; kept 8 fresh or in use, 1 unknown" <<<"$out"
     out="$(run "$ws" 2>&1)" && rc=0 || rc=$?
-    check "a second run removes nothing" grep -qxF "clean-agent-workspace: removed 0 files, 0 review records; kept 8 fresh or in use, 3 unknown" <<<"$out"
+    check "a second run removes nothing" grep -qxF "clean-agent-workspace: removed 0 files, 0 review records; kept 8 fresh or in use, 1 unknown" <<<"$out"
 
     # 2. --dry-run deletes nothing.
     ws="$tmp/ws2"; make_ws "$ws"
@@ -353,7 +410,7 @@ STUB
     check "--dry-run keeps old files" there "$ws/pr-body-x.md"
     check "--dry-run keeps old records" there "$ws/local-reviews/$sha_old"
     check "--dry-run prints would delete" grep -qxF "would delete gate-x.log" <<<"$out"
-    check "--dry-run summary" grep -qxF "clean-agent-workspace: would remove 5 files, 2 review records; kept 8 fresh or in use, 3 unknown" <<<"$out"
+    check "--dry-run summary" grep -qxF "clean-agent-workspace: would remove 7 files, 2 review records; kept 8 fresh or in use, 1 unknown" <<<"$out"
 
     # 3. A gh failure keeps every record (old files still go).
     ws="$tmp/ws3"; make_ws "$ws"
@@ -481,6 +538,91 @@ STUB
         check "queue.sh: the texts of the entries still open are kept" bash -c "[ -e '$ws/queue/tasks/two.md' ] && [ -e '$ws/queue/tasks/three.md' ]"
         QUEUE_FILE="$rq" bash "$qsh" task two >/dev/null && echo "ok   queue.sh: task prints the text that is kept" || { echo "FAIL queue.sh: task of a kept text" >&2; fails=$((fails + 1)); }
     fi
+
+    # 7. A loose file of any name is cleaned; state and what an open entry uses are not.
+    local fresh_names old_names d7
+    ago() { # ago <days> <path>: the modification time <days> days ago
+        local t=$(($(date +%s) - $1 * 86400))
+        if date -d @0 >/dev/null 2>&1; then touch -d "@$t" "$2"; else touch -t "$(date -r "$t" +%Y%m%d%H%M.%S)" "$2"; fi
+    }
+    scratch_names="mc-264.md t-push-1.txt t-merge-1.txt edit-x.py make-x.py a.diff ios3-270.log ui-full-local.log spike-gate-a.log spike-t0 close-277.md scratch"
+    make_loose_ws() { # make_loose_ws <dir> [no-queue]: scratch files 5 days and 1 day old, state files 40 days old
+        local w="$1" n
+        mkdir -p "$w/TrailMetrics"
+        echo '#!/bin/sh' >"$w/start-agent.sh"; echo 1 >"$w/main-ci-ack"; echo '{}' >"$w/auto-mode-defaults.json"
+        echo k >"$w/keep-notes.txt"; echo '{}' >"$w/other.json"; echo h >"$w/.hidden"; mkdir "$w/somedir"
+        echo x >"$tmp/loose-target"; ln -s "$tmp/loose-target" "$w/linked.md"
+        for n in start-agent.sh main-ci-ack auto-mode-defaults.json keep-notes.txt other.json .hidden; do ago 40 "$w/$n"; done
+        for n in $scratch_names; do echo old >"$w/$n"; ago 5 "$w/$n"; echo new >"$w/fresh-$n"; ago 1 "$w/fresh-$n"; done
+        echo 'odd' >"$w/Weird Name (1).txt"; ago 5 "$w/Weird Name (1).txt"
+        if [ "${2:-}" != no-queue ]; then mkdir -p "$w/queue"; : >"$w/queue/queue.tsv"; fi
+    }
+    d7="$tmp/ws7a"; make_loose_ws "$d7"
+    out="$(run "$d7" 2>&1)" && rc=0 || rc=$?
+    check "loose: a run exits 0" [ "$rc" = 0 ]
+    for f in $scratch_names "Weird Name (1).txt"; do check "loose: the old '$f' is deleted, whatever its name" gone "$d7/$f"; done
+    for f in $scratch_names; do check "loose: the fresh '$f' is kept" there "$d7/fresh-$f"; done
+    for f in start-agent.sh main-ci-ack auto-mode-defaults.json keep-notes.txt other.json .hidden somedir; do
+        check "loose: '$f' is kept (state, keep-, configuration extension, hidden, directory)" there "$d7/$f"
+    done
+    check "loose: a symlink is kept" [ -L "$d7/linked.md" ]
+    check "loose: its target is kept" there "$tmp/loose-target"
+    check "loose: other.json, .hidden and somedir are printed as unknown" bash -c "grep -qxF 'kept, unknown: other.json' <<<'$out' && grep -qxF 'kept, unknown: .hidden' <<<'$out' && grep -qxF 'kept, unknown: somedir' <<<'$out'"
+    check "loose: the state files are not printed" bash -c "! grep -q 'start-agent.sh\|main-ci-ack\|auto-mode-defaults\|keep-notes' <<<'$out'"
+    d7="$tmp/ws7n"; make_loose_ws "$d7" no-queue
+    run "$d7" >/dev/null 2>&1
+    check "loose: with no queue/ folder the age rule applies: old deleted" gone "$d7/mc-264.md"
+    check "loose: with no queue/ folder the fresh file is kept" there "$d7/fresh-mc-264.md"
+    check "loose: with no queue/ folder the state is kept" bash -c "[ -e '$d7/start-agent.sh' ] && [ -e '$d7/auto-mode-defaults.json' ]"
+    d7="$tmp/ws7d"; make_loose_ws "$d7"
+    out="$(run --dry-run "$d7" 2>&1)"
+    check "loose: --dry-run deletes nothing" there "$d7/mc-264.md"
+    check "loose: --dry-run says what it would delete" grep -qxF "would delete mc-264.md" <<<"$out"
+
+    # What an open entry uses is kept: newer than its task text, its slug or PR number in the name.
+    qrow() { printf '%s\t%s\tchore/%s\t-\tagent\t%s\t%s\n' "$1" "$2" "$2" "$3" "$4" >>"$d7/queue/queue.tsv"; }
+    d7="$tmp/ws7o"; make_loose_ws "$d7"
+    mkdir -p "$d7/queue/tasks"
+    qrow 1 open-one pushed 293; qrow 2 open-two planned -; qrow 3 done-entry merged 12
+    echo t >"$d7/queue/tasks/open-one.md"; ago 5 "$d7/queue/tasks/open-one.md"
+    echo t >"$d7/queue/tasks/open-two.md"; ago 4 "$d7/queue/tasks/open-two.md"
+    for f in older-than-the-entry.md mid-session.md x-open-one-y.log mc-293.md mc-2930.md pr-293-x.md two-open-two.txt done-entry.md; do echo x >"$d7/$f"; done
+    ago 8 "$d7/older-than-the-entry.md"; ago 4 "$d7/mid-session.md"; ago 9 "$d7/x-open-one-y.log"; ago 9 "$d7/mc-293.md"
+    ago 9 "$d7/mc-2930.md"; ago 9 "$d7/pr-293-x.md"; ago 9 "$d7/two-open-two.txt"; ago 9 "$d7/done-entry.md"
+    out="$(run "$d7" 2>&1)" && rc=0 || rc=$?
+    check "in use: a run exits 0" [ "$rc" = 0 ]
+    check "in use: a file older than the oldest open entry is deleted" gone "$d7/older-than-the-entry.md"
+    check "in use: a file of a finished entry's name and age is deleted" gone "$d7/done-entry.md"
+    check "in use: a file whose number only contains the PR number is deleted" gone "$d7/mc-2930.md"
+    check "in use: a file newer than the oldest open entry's text is kept" there "$d7/mid-session.md"
+    check "in use: a file named for an open entry's slug is kept" there "$d7/x-open-one-y.log"
+    check "in use: a second open slug is kept" there "$d7/two-open-two.txt"
+    check "in use: a file named for an open entry's PR number is kept" there "$d7/mc-293.md"
+    check "in use: pr-293-x.md is kept" there "$d7/pr-293-x.md"
+    check "in use: the open entries' task texts are kept" bash -c "[ -e '$d7/queue/tasks/open-one.md' ] && [ -e '$d7/queue/tasks/open-two.md' ]"
+    check "in use: the state files are kept" bash -c "[ -e '$d7/start-agent.sh' ] && [ -e '$d7/main-ci-ack' ]"
+    # Once the entries are finished the same files go.
+    printf '1\topen-one\tchore/open-one\t-\tagent\tmerged\t293\n2\topen-two\tchore/open-two\t-\tagent\tdropped\t-\n3\tdone-entry\tchore/done-entry\t-\tagent\tmerged\t12\n' >"$d7/queue/queue.tsv"
+    run "$d7" >/dev/null 2>&1
+    check "in use: after the entries finish, the file named for a slug goes" gone "$d7/x-open-one-y.log"
+    check "in use: after the entries finish, the mid-session file goes" gone "$d7/mid-session.md"
+    check "in use: after the entries finish, the file named for the PR goes" gone "$d7/mc-293.md"
+    check "in use: after the entries finish, the fresh file is still kept" there "$d7/fresh-mc-264.md"
+
+    # When what is in use cannot be known, no loose file is deleted.
+    for bad in no-text malformed missing link; do
+        d7="$tmp/ws7-$bad"; make_loose_ws "$d7"; mkdir -p "$d7/queue/tasks"
+        case "$bad" in
+            no-text) qrow 1 open-one planned - ;;
+            malformed) printf 'not a queue\n' >"$d7/queue/queue.tsv" ;;
+            missing) rm -f "$d7/queue/queue.tsv" ;;
+            link) rm -f "$d7/queue/queue.tsv"; echo x >"$tmp/q-$bad"; ln -s "$tmp/q-$bad" "$d7/queue/queue.tsv" ;;
+        esac
+        out="$(run "$d7" 2>&1)" && rc=0 || rc=$?
+        check "unknown queue ($bad): exits 0" [ "$rc" = 0 ]
+        check "unknown queue ($bad): the old loose files are kept" bash -c "[ -e '$d7/mc-264.md' ] && [ -e '$d7/scratch' ] && [ -e '$d7/Weird Name (1).txt' ]"
+        check "unknown queue ($bad): said so" grep -q "no loose file deleted" <<<"$out"
+    done
 
     # 5. The guard refuses a wrong dir.
     mkdir -p "$tmp/wrong/TrailMetrics"

@@ -53,6 +53,11 @@
 # from the script, not from its own plan: after `add` of the first entry it says BUILD, after `set
 # <slug> status=ready` it says PUSH, and a second entry is built only while the first is pushed.
 #
+# set also runs the workspace cleaner (scripts/dev/clean-agent-workspace.sh) when an entry becomes `merged`
+# or `dropped`, and prints its summary line before the `next:` line: the workspace is cleaned as a long
+# queue session goes. The cleaner keeps everything an open entry uses and refuses a directory that is not
+# the agent workspace, so it does nothing for a queue file outside it; its failure never fails the `set`.
+#
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Lock: `add` and `set` read the file, validate against it and replace it, so two of them at the same
@@ -209,6 +214,19 @@ cmd_task() {
     cat -- "$(task_file "$slug")"
 }
 
+# clean_workspace: runs scripts/dev/clean-agent-workspace.sh on the workspace the queue file lives in
+# (<workspace>/queue/queue.tsv), best effort, so a long queue session cleans the workspace as entries
+# finish and not only at the start of a task. The cleaner never deletes what an open entry uses, and
+# refuses a directory that is not the agent workspace (a test's temporary queue), so this is safe to
+# run here; its failure never fails the `set`. It prints the cleaner's summary line.
+clean_workspace() {
+    local cleaner out
+    cleaner="$(dirname "$SELF")/../dev/clean-agent-workspace.sh"
+    [ -f "$cleaner" ] || return 0
+    out="$(bash "$cleaner" "$(dirname "$(dirname "$QUEUE_FILE")")" 2>/dev/null | tail -n 1)" || true
+    [ -z "$out" ] || echo "$out"
+}
+
 # print_next: the line `next` would print, after the change just made.
 print_next() { echo "next: $(cmd_next)"; }
 
@@ -257,6 +275,7 @@ cmd_set() {
     write_file "$tmp"
     rm -f -- "$tmp"
     echo "set $slug: status $status, pr $pr, branch $branch"
+    case "$status" in merged | dropped) [ "$old" = "$status" ] || clean_workspace ;; esac
     print_next
 }
 
@@ -471,6 +490,36 @@ self_test() {
 
     check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
     check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 q add x
+
+    # `set` runs the workspace cleaner when an entry becomes merged or dropped (and only then), on the
+    # workspace the queue file lives in; the cleaner's own guard refuses a directory without TrailMetrics/.
+    fresh wsq
+    local wsd="$tmp/wsq" mout
+    mkdir -p "$wsd/TrailMetrics" "$wsd/queue"; echo '#!/bin/sh' >"$wsd/start-agent.sh"
+    QF="$wsd/queue/queue.tsv"
+    printf 'Task.\n' >"$tmp/wsq-task.txt"
+    q add a --branch chore/a --task "$tmp/wsq-task.txt" >/dev/null
+    echo old >"$wsd/scratch-old.md"; touch -t 200001010000 "$wsd/scratch-old.md"
+    echo old >"$wsd/mc-1.md"; touch -t 200001010000 "$wsd/mc-1.md"
+    q set a status=building >/dev/null; q set a status=ready >/dev/null; q set a status=pushed pr=7 >/dev/null
+    check "cleaner: setting an entry pushed does not run it" "kept" 0 sh -c "[ -e '$wsd/scratch-old.md' ] && echo kept"
+    mout="$(q set a status=merged pr=7 2>&1)"
+    check "cleaner: setting an entry merged deletes the old scratch file" "gone" 0 sh -c "[ ! -e '$wsd/scratch-old.md' ] && [ ! -e '$wsd/mc-1.md' ] && echo gone"
+    check "cleaner: its summary line is printed before next" "clean-agent-workspace: removed 2 files, 0 review records; kept 1 fresh or in use, 0 unknown" 0 printf '%s\n' "$mout"
+    check "cleaner: the queue file and the task text are kept" "kept" 0 sh -c "[ -e '$wsd/queue/queue.tsv' ] && [ -e '$wsd/queue/tasks/a.md' ] && echo kept"
+    q add b --branch chore/b --task "$tmp/wsq-task.txt" >/dev/null
+    echo old >"$wsd/older-than-b.md"; touch -t 200001010000 "$wsd/older-than-b.md"
+    touch -t 200001010000 "$wsd/queue/tasks/b.md"
+    out="$(q set b status=dropped 2>&1)"
+    check "cleaner: dropping an entry runs it too" "gone" 0 sh -c "[ ! -e '$wsd/older-than-b.md' ] && echo gone"
+    echo old >"$wsd/open-guard.md"; touch -t 200001010000 "$wsd/open-guard.md"
+    q add c --branch chore/c --task "$tmp/wsq-task.txt" >/dev/null
+    touch -t 200201010000 "$wsd/queue/tasks/c.md"
+    echo old >"$wsd/used-by-c.md"; touch -t 200301010000 "$wsd/used-by-c.md"
+    q add d --branch chore/d --task "$tmp/wsq-task.txt" >/dev/null
+    q set d status=dropped >/dev/null
+    check "cleaner: a file newer than the oldest open entry's text survives another entry's end" "kept" 0 sh -c "[ -e '$wsd/used-by-c.md' ] && echo kept"
+    check "cleaner: a set that is refused runs no cleaner" "quiet" 0 sh -c "QUEUE_FILE='$tmp/nowhere/queue.tsv' bash '$SELF' set zz status=merged pr=1 2>&1 | grep -q clean-agent || echo quiet"
 
     # The task text: required, copied next to the queue file, printed by `task`.
     fresh txt

@@ -88,6 +88,10 @@ next action. The file is the only state a later session gets (besides GitHub).
 | merged (by the agent, or `MERGED` from the watch)| `status=merged`                         |
 | `CLOSED` (closed unmerged), or abandoned         | `status=dropped`                        |
 
+`set ... status=merged` and `status=dropped` also run the workspace cleaner and print its summary line
+before the `next:` line, so the workspace is cleaned as the queue goes (`SKILL.md`, "Preconditions"). It
+keeps state and every file an open entry uses, so it is safe in the middle of the queue.
+
 Events of `watch-prs.sh --wait` that do not change the status are acted on:
 
 - `CHECKS_DONE green|red`: sections 6 to 8 for that PR (verdict, failed jobs, merge conditions).

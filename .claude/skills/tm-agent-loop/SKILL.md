@@ -17,7 +17,10 @@ Do the start-of-run steps of `tm-pr-workflow`, "Before starting" (login, clean t
 pulled, merged branches deleted, `fetch --prune`).
 
 Then, before any new work, run `scripts/dev/clean-agent-workspace.sh` and say in the report how many
-files it removed; nothing in the workspace is deleted mid-task.
+files it removed. It also runs by itself whenever `queue.sh set` records an entry as merged or dropped, so a
+long queue session cleans as it goes; it deletes loose files of any name once they are over 3 days old, never
+state and never what an open entry uses (`clean-agent-workspace.sh`, header). A file you want kept for good
+starts with `keep-`.
 
 A run whose gate will run the iOS steps needs the git-ignored iOS secrets config (README
 "iOS", step 2) in the clone. The gate checks that it exists and stops at once if it is
