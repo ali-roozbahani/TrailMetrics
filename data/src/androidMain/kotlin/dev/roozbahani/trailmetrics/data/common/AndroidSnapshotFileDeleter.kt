@@ -17,12 +17,7 @@ class AndroidSnapshotFileDeleter(
 
     override suspend fun delete(storedPath: String?) {
         if (storedPath.isNullOrBlank()) return
-        withContext(NonCancellable + ioDispatcher) {
-            try {
-                File(storedPath).delete()
-            } catch (_: SecurityException) {
-                // Best effort: a file this process may not remove stays where it is.
-            }
-        }
+        // Best effort: `delete()` returns false for a file that is missing or cannot be removed.
+        withContext(NonCancellable + ioDispatcher) { File(storedPath).delete() }
     }
 }
