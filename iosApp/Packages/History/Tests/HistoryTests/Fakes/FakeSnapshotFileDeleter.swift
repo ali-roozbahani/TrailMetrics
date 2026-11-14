@@ -17,8 +17,21 @@ final class FakeSnapshotFileDeleter: NSObject, SnapshotFileDeleter {
     private var isHolding: Bool
     private var heldCall: CheckedContinuation<Void, Never>?
 
-    init(isHolding: Bool = false) {
+    private var recordedResolutions: [String?] = []
+    private let resolvedPath: String?
+
+    /// `resolvedPath` is what `resolve` answers for every stored path.
+    init(isHolding: Bool = false, resolvedPath: String? = nil) {
         self.isHolding = isHolding
+        self.resolvedPath = resolvedPath
+    }
+
+    /// The stored paths `resolve` was asked about.
+    var resolvedStoredPaths: [String?] { lock.withLock { recordedResolutions } }
+
+    func resolve(storedPath: String?) -> String? {
+        lock.withLock { recordedResolutions.append(storedPath) }
+        return resolvedPath
     }
 
     var storedPaths: [String?] { lock.withLock { recordedPaths } }
