@@ -15,7 +15,21 @@
 #   pr-body-*  commit-*  merge-check-*  review-msg-*  gate-*.log
 # Always kept: TrailMetrics/, start-agent.sh, main-ci-ack (state of scripts/main-ci-status.sh --ack),
 #   hook-debug/ (kept to its newest 10 files by scripts/claude-hooks/require-local-review.sh),
-#   queue/ (the queue file of scripts/queue/queue.sh).
+#   queue/ itself, its queue file (queue.tsv, which `add` and `set` use for the slugs and the order),
+#   its lock files and the folder structure; what is cleaned inside it is listed next.
+#
+# queue/ (the PR queue's folder, scripts/queue/queue.sh), cleaned on every run:
+#   - tasks/<slug>.md, the task text of an entry: deleted only when the queue file's row for <slug> says
+#     `merged` or `dropped` (read right before the delete) AND the text is older than 3 days. The text of
+#     an open entry (planned, building, ready, pushed) is never deleted, however old it is. A text whose
+#     slug has no row, and any other name, is kept and printed as unknown. If the queue file is missing,
+#     is a link or is not a well-formed queue (every line a comment, blank, or 7 tab-separated fields with
+#     a known status), no text is deleted at all.
+#   - subagent/guard.log (scripts/subagent/guard.sh) and locks/heavy-run.log (scripts/heavy-run.sh): the
+#     lines whose leading timestamp (local time, `YYYY-MM-DDTHH:MM:SS`) is older than 3 days are removed;
+#     a line without such a timestamp is kept; a log with nothing old is not touched. The rewrite is not
+#     safe against a writer at the same moment, which is why this runs at the start of a task, never
+#     mid-task: a line appended while it runs may be lost, and a log is not a decision input.
 # Any other entry, a symlink or a pattern name that is not a regular file is kept and printed as
 #   `kept, unknown: <name>`.
 #
@@ -27,7 +41,9 @@
 # not a SHA-named directory is kept as unknown.
 #
 # Output: `deleted <name>` (with --dry-run: `would delete <name>`) per deleted file or record,
-# `kept, unknown: <name>` per unknown entry, then one summary line:
+# `trimmed <log>: removed <n> lines older than 3 days` (`would trim` with --dry-run) per trimmed log,
+# `kept, unknown: <name>` per unknown entry, then one summary line (a deleted task text counts as a file,
+# a kept one as fresh or in use; trimmed lines are not in it):
 #   clean-agent-workspace: removed <n> files, <m> review records; kept <f> fresh or in use, <u> unknown
 # (`would remove` with --dry-run). --dry-run deletes nothing.
 #
@@ -44,6 +60,13 @@ if stat -c %Y / >/dev/null 2>&1; then STAT_MTIME=(stat -c %Y); else STAT_MTIME=(
 mtime_of() { # seconds since the epoch, of the entry itself (never a symlink's target)
     "${STAT_MTIME[@]}" "$1"
 }
+
+# The logs' timestamps are local time, `YYYY-MM-DDTHH:MM:SS`; GNU date takes -d @epoch, BSD date -r epoch.
+if date -d @0 >/dev/null 2>&1; then
+    time_string() { date -d "@$1" +%Y-%m-%dT%H:%M:%S; }
+else
+    time_string() { date -r "$1" +%Y-%m-%dT%H:%M:%S; }
+fi
 
 is_old() { # is_old <path>: older than MAX_AGE_SECONDS
     local m
@@ -92,6 +115,80 @@ kept_shas() {
     done <<<"$heads"
 }
 
+# queue_file_ok <file>: a regular file, no link, that is a well-formed queue (see the header).
+queue_file_ok() {
+    [ -f "$1" ] && [ ! -L "$1" ] || return 1
+    awk -F '\t' '/^#/ || /^[[:space:]]*$/ { next }
+        NF != 7 || $6 !~ /^(planned|building|ready|pushed|merged|dropped)$/ { bad = 1 }
+        END { exit bad }' "$1"
+}
+
+queue_status_of() { # queue_status_of <queue file> <slug>: the status in the slug's row, or nothing
+    awk -F '\t' -v s="$2" '!/^#/ && NF == 7 && $2 == s { print $6 }' "$1"
+}
+
+clean_task_texts() { # clean_task_texts <tasks dir> <queue file>
+    local dir="$1" qf="$2" e name slug st
+    [ -d "$dir" ] && [ ! -L "$dir" ] || return 0
+    if ! queue_file_ok "$qf"; then
+        echo "clean-agent-workspace: the queue file could not be read as a queue; no task text deleted" >&2
+        return 0
+    fi
+    for e in "$dir"/*; do
+        [ -e "$e" ] || [ -L "$e" ] || continue
+        name="${e##*/}"
+        if [ -L "$e" ] || [ ! -f "$e" ] || ! [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*\.md$ ]]; then
+            echo "kept, unknown: queue/tasks/$name"
+            UNKNOWN=$((UNKNOWN + 1))
+            continue
+        fi
+        slug="${name%.md}"
+        st="$(queue_status_of "$qf" "$slug")"
+        if [ -z "$st" ]; then
+            echo "kept, unknown: queue/tasks/$name"
+            UNKNOWN=$((UNKNOWN + 1))
+        elif { [ "$st" = merged ] || [ "$st" = dropped ]; } && is_old "$e"; then
+            remove "$e" "queue/tasks/$name" file
+        else
+            FRESH=$((FRESH + 1))
+        fi
+    done
+}
+
+# trim_log <log file> <name>: remove the lines older than MAX_AGE_SECONDS (the leading timestamp is
+# compared with CUTOFF, in the same local-time format); a line without a timestamp is kept.
+trim_log() {
+    local f="$1" name="$2" counts total keep tmp
+    [ -f "$f" ] && [ ! -L "$f" ] || return 0
+    counts="$(awk -F '\t' -v c="$CUTOFF" '
+        { t++ }
+        $1 >= c || $1 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ { k++ }
+        END { print t + 0, k + 0 }' "$f")" || return 0
+    total="${counts% *}"; keep="${counts#* }"
+    [ "$total" -gt "$keep" ] || return 0
+    if [ "$DRY_RUN" = 1 ]; then
+        echo "would trim $name: removed $((total - keep)) lines older than 3 days"
+        return 0
+    fi
+    tmp="$(mktemp "$f.tmp.XXXXXX")" || { FAILED=1; return 0; }
+    if awk -F '\t' -v c="$CUTOFF" '
+        $1 >= c || $1 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ { print }' "$f" > "$tmp" && mv -f "$tmp" "$f"; then
+        echo "trimmed $name: removed $((total - keep)) lines older than 3 days"
+    else
+        rm -f -- "$tmp"
+        echo "clean-agent-workspace: could not trim $name" >&2
+        FAILED=1
+    fi
+}
+
+clean_queue() { # the queue/ folder: task texts of finished entries, old lines of the two logs
+    local q="$1"
+    [ -d "$q" ] && [ ! -L "$q" ] || return 0
+    clean_task_texts "$q/tasks" "$q/queue.tsv"
+    trim_log "$q/subagent/guard.log" "queue/subagent/guard.log"
+    trim_log "$q/locks/heavy-run.log" "queue/locks/heavy-run.log"
+}
+
 clean_records() {
     local dir="$1" keep e name
     [ -d "$dir" ] && [ ! -L "$dir" ] || return 0
@@ -122,12 +219,14 @@ clean() {
         return 2
     fi
     NOW="$(date +%s)" FILES=0 RECORDS=0 FRESH=0 UNKNOWN=0 FAILED=0
+    CUTOFF="$(time_string $((NOW - MAX_AGE_SECONDS)))"
     for e in "$WS"/* "$WS"/.[!.]*; do
         [ -e "$e" ] || [ -L "$e" ] || continue
         name="${e##*/}"
         if [ ! -L "$e" ]; then
             case "$name" in
-                TrailMetrics | start-agent.sh | main-ci-ack | hook-debug | queue) continue ;;
+                TrailMetrics | start-agent.sh | main-ci-ack | hook-debug) continue ;;
+                queue) clean_queue "$e"; continue ;;
                 local-reviews) if [ -d "$e" ]; then clean_records "$e"; continue; fi ;;
                 pr-body-* | commit-* | merge-check-* | review-msg-* | gate-*.log)
                     if [ -f "$e" ]; then
@@ -274,6 +373,100 @@ STUB
     check "no origin/main: exits 0" [ "$rc" = 0 ]
     check "no origin/main: old record kept" there "$ws/local-reviews/$sha_old"
     check "no origin/main: said so" grep -q "no review record deleted" <<<"$out"
+
+    # 6. The queue/ folder: task texts of finished entries only, old log lines only.
+    local now_stamp qline qdir
+    now_stamp="$(date +%Y-%m-%dT%H:%M:%S)"
+    qline() { printf '%s\t%s\tchore/%s\t-\tagent\t%s\t-\n' "$1" "$2" "$2" "$3" >>"$ws/queue/queue.tsv"; }
+    make_queue_ws() { # make_queue_ws <dir>: open and finished entries with old texts, two logs with old and new lines
+        local w="$1" s
+        make_ws "$w"
+        ws="$w"; qdir="$w/queue"
+        mkdir -p "$qdir/tasks" "$qdir/subagent" "$qdir/locks"
+        : >"$qdir/queue.tsv"
+        qline 1 open-planned planned; qline 2 open-building building; qline 3 open-ready ready; qline 4 open-pushed pushed
+        qline 5 done-merged merged; qline 6 done-dropped dropped; qline 7 merged-fresh merged
+        for s in open-planned open-building open-ready open-pushed done-merged done-dropped orphan-text; do
+            echo "text of $s" >"$qdir/tasks/$s.md"; touch -t "$OLD" "$qdir/tasks/$s.md"
+        done
+        echo "text of merged-fresh" >"$qdir/tasks/merged-fresh.md"
+        echo x >"$tmp/linktarget"; ln -s "$tmp/linktarget" "$qdir/tasks/open-link.md"
+        echo x >"$qdir/tasks/Bad_Name.md"; touch -t "$OLD" "$qdir/tasks/Bad_Name.md"
+        printf '2000-01-01T00:00:00\told1\n2000-01-02T00:00:00\told2\n%s\tnew1\nno timestamp here\n' "$now_stamp" >"$qdir/subagent/guard.log"
+        printf '2000-01-01T00:00:00\tpid\twait\tx\tcmd\n%s\tpid\tstart\t0s\tcmd\n' "$now_stamp" >"$qdir/locks/heavy-run.log"
+        touch -t "$OLD" "$qdir/queue.tsv" "$qdir/locks"
+    }
+    make_queue_ws "$tmp/ws6"
+    out="$(run "$ws" 2>&1)" && rc=0 || rc=$?
+    check "queue: a run exits 0" [ "$rc" = 0 ]
+    for f in open-planned open-building open-ready open-pushed; do
+        check "queue: the old text of the open entry $f is kept" there "$qdir/tasks/$f.md"
+    done
+    check "queue: the old text of a merged entry is deleted" gone "$qdir/tasks/done-merged.md"
+    check "queue: the old text of a dropped entry is deleted" gone "$qdir/tasks/done-dropped.md"
+    check "queue: the fresh text of a merged entry is kept" there "$qdir/tasks/merged-fresh.md"
+    check "queue: a text with no row is kept" there "$qdir/tasks/orphan-text.md"
+    check "queue: a text with no row is printed as unknown" grep -qxF "kept, unknown: queue/tasks/orphan-text.md" <<<"$out"
+    check "queue: a link in tasks/ is kept" [ -L "$qdir/tasks/open-link.md" ]
+    check "queue: a link's target is kept" there "$tmp/linktarget"
+    check "queue: a file that is not a slug.md is kept" there "$qdir/tasks/Bad_Name.md"
+    check "queue: the deleted text is printed" grep -qxF "deleted queue/tasks/done-merged.md" <<<"$out"
+    check "queue: the queue file is kept" there "$qdir/queue.tsv"
+    check "queue: the old guard log lines are gone" bash -c "! grep -q 'old1' '$qdir/subagent/guard.log' && ! grep -q 'old2' '$qdir/subagent/guard.log'"
+    check "queue: the new guard log line is kept" grep -q 'new1' "$qdir/subagent/guard.log"
+    check "queue: a guard log line without a timestamp is kept" grep -q 'no timestamp here' "$qdir/subagent/guard.log"
+    check "queue: the old heavy-run log line is gone" bash -c "! grep -q 'wait' '$qdir/locks/heavy-run.log'"
+    check "queue: the new heavy-run log line is kept" grep -q 'start' "$qdir/locks/heavy-run.log"
+    check "queue: the trim is printed" grep -qxF "trimmed queue/subagent/guard.log: removed 2 lines older than 3 days" <<<"$out"
+    check "queue: the folder and its locks dir are kept" bash -c "[ -d '$qdir' ] && [ -d '$qdir/locks' ]"
+    out="$(run "$ws" 2>&1)"
+    check "queue: a second run deletes and trims nothing" bash -c "! grep -q '^deleted queue/\|^trimmed' <<<'$out'"
+    # A log with nothing old is not rewritten (its modification time stays).
+    printf '%s\tnew\n' "$now_stamp" >"$qdir/subagent/guard.log"; touch -t "$OLD" "$qdir/subagent/guard.log"
+    run "$ws" >/dev/null 2>&1
+    check "queue: a log with nothing old is not touched" [ "$(mtime_of "$qdir/subagent/guard.log")" = "$(mtime_of "$qdir/queue.tsv")" ]
+
+    # --dry-run deletes and trims nothing, and says what it would.
+    make_queue_ws "$tmp/ws6d"
+    out="$(run --dry-run "$ws" 2>&1)" && rc=0 || rc=$?
+    check "queue: --dry-run exits 0" [ "$rc" = 0 ]
+    check "queue: --dry-run keeps the finished text" there "$qdir/tasks/done-merged.md"
+    check "queue: --dry-run keeps the old log lines" grep -q 'old1' "$qdir/subagent/guard.log"
+    check "queue: --dry-run says what it would delete" grep -qxF "would delete queue/tasks/done-merged.md" <<<"$out"
+    check "queue: --dry-run says what it would trim" grep -qxF "would trim queue/subagent/guard.log: removed 2 lines older than 3 days" <<<"$out"
+
+    # No text is deleted when the queue file cannot be read as a queue.
+    for bad in malformed missing link badstatus; do
+        make_queue_ws "$tmp/ws6-$bad"
+        case "$bad" in
+            malformed) printf 'this is not a queue\n' >"$qdir/queue.tsv" ;;
+            missing) rm -f "$qdir/queue.tsv" ;;
+            link) mv "$qdir/queue.tsv" "$tmp/real-queue-$bad.tsv"; ln -s "$tmp/real-queue-$bad.tsv" "$qdir/queue.tsv" ;;
+            badstatus) qline 8 odd-one finished ;;
+        esac
+        out="$(run "$ws" 2>&1)" && rc=0 || rc=$?
+        check "queue: $bad queue file: exits 0" [ "$rc" = 0 ]
+        check "queue: $bad queue file: the finished text is kept" there "$qdir/tasks/done-merged.md"
+        check "queue: $bad queue file: every open text is kept" bash -c "[ -e '$qdir/tasks/open-planned.md' ] && [ -e '$qdir/tasks/open-pushed.md' ]"
+        check "queue: $bad queue file: said so" grep -q "no task text deleted" <<<"$out"
+    done
+
+    # With the real queue.sh: an entry's text survives while the entry is open and goes once it is finished and old.
+    local qsh rq
+    qsh="$(cd "$(dirname "$script")/../queue" && pwd)/queue.sh"
+    if [ -f "$qsh" ]; then
+        make_ws "$tmp/ws7"; ws="$tmp/ws7"; rq="$ws/queue/queue.tsv"
+        rm -f "$rq"; printf 'Task text.\n' >"$tmp/t.txt"
+        for f in one two three; do QUEUE_FILE="$rq" bash "$qsh" add "$f" --branch "chore/$f" --task "$tmp/t.txt" >/dev/null; done
+        touch -t "$OLD" "$ws/queue/tasks/one.md" "$ws/queue/tasks/two.md" "$ws/queue/tasks/three.md"
+        run "$ws" >/dev/null 2>&1
+        check "queue.sh: the old texts of three open entries are kept" bash -c "[ -e '$ws/queue/tasks/one.md' ] && [ -e '$ws/queue/tasks/two.md' ] && [ -e '$ws/queue/tasks/three.md' ]"
+        QUEUE_FILE="$rq" bash "$qsh" set one status=dropped >/dev/null
+        run "$ws" >/dev/null 2>&1
+        check "queue.sh: the text of the entry dropped since is deleted" gone "$ws/queue/tasks/one.md"
+        check "queue.sh: the texts of the entries still open are kept" bash -c "[ -e '$ws/queue/tasks/two.md' ] && [ -e '$ws/queue/tasks/three.md' ]"
+        QUEUE_FILE="$rq" bash "$qsh" task two >/dev/null && echo "ok   queue.sh: task prints the text that is kept" || { echo "FAIL queue.sh: task of a kept text" >&2; fails=$((fails + 1)); }
+    fi
 
     # 5. The guard refuses a wrong dir.
     mkdir -p "$tmp/wrong/TrailMetrics"

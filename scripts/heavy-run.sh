@@ -40,7 +40,8 @@
 # `redact_words`: change both together), so a token or a URL with credentials never reaches the log.
 # The rule is by word: a secret passed as a separate word (`--token abc`) is not recognized, so a
 # command that takes a secret that way does not go through this script. The log is local, outside the
-# repository. The log only grows by a few lines per run; the owner may delete it.
+# repository. The log grows by a few lines per run; scripts/dev/clean-agent-workspace.sh removes the
+# lines older than 3 days at the start of every task, so nobody has to delete it.
 #
 # Re-entry: the command runs with TM_HEAVY_RUN_HELD=<holder pid>. A heavy command that starts
 # another one (the gate runs Gradle and xcodebuild; Xcode's build phase runs Gradle) calls this

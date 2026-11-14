@@ -54,7 +54,8 @@
 #
 # What it records. Every call, allowed or blocked, appends one tab-separated line to the guard log,
 # ${TM_GUARD_LOG:-$HOME/agent-workspace/queue/subagent/guard.log} (outside the repository, in the
-# queue folder that scripts/dev/clean-agent-workspace.sh keeps), and `scripts/subagent/guard.sh --log
+# queue folder, where scripts/dev/clean-agent-workspace.sh removes the lines older than 3 days at the
+# start of every task), and `scripts/subagent/guard.sh --log
 # [<n>]` prints its last n lines (default 40). Columns: time, ALLOW or BLOCK, tool, agent_id,
 # agent_type, the key names of the hook input, the call's cwd, and for a BLOCK the reason (at most 300
 # characters) and the command or path that was blocked (at most 200). In both a word with `=`, `://` or

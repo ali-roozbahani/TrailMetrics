@@ -12,7 +12,8 @@
 #   scripts/queue/queue.sh --self-test
 #
 # The queue file: ${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}, outside the repository
-# (scripts/dev/clean-agent-workspace.sh always keeps the `queue/` folder). One tab-separated line per
+# (scripts/dev/clean-agent-workspace.sh keeps this file and the `queue/` folder, and cleans inside the
+# folder only what its header lists). One tab-separated line per
 # entry, lines starting with `#` ignored:
 #   order  slug  branch  after  kind  status  pr
 #   order   integer given by `add` (insertion order)    after   a slug, or `-`
@@ -23,11 +24,12 @@
 #
 # The task text. Every entry carries the text of its task, so a session that did not queue it can build
 # it: `add` needs `--task <file>` (or `--task -` for stdin) and copies the text to `tasks/<slug>.md` in
-# the folder of the queue file (the `queue/` folder the cleaner keeps); `task <slug>` prints it. The text
+# the folder of the queue file; `task <slug>` prints it. The cleaner deletes a text only once its entry is
+# `merged` or `dropped` and the text is older than 3 days, never the text of an open entry. The text
 # is what the task template (`task-template.md`) asks for: what to do, its scope, when it is done.
 #
-# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a sixth open entry, a slug already in the file, an --after slug that is not in the
-#   file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
+# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a sixth
+#   open entry, a slug already in the file, an --after slug that is not in the file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
 #   without a feature/, bugfix/ or chore/ prefix. A new entry is `planned` with PR `-`.
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
 #   without a PR number, for an entry that is not `ready`, while another entry is pushed, for an
