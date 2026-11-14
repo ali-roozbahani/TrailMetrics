@@ -14,14 +14,18 @@ Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review
 ## What goes in
 
 - **The task's own PR** is the queue's first entry: once its branch is committed and its PR
-  description drafted, `scripts/queue/queue.sh add <slug> --branch <branch> --kind agent|owner`
+  description drafted, `scripts/queue/queue.sh add <slug> --branch <branch> --task <file> --kind agent|owner`
   and `set <slug> status=ready`; it is then pushed when `next` says `PUSH`, like any entry. Add
   the follow-ups one at a time as they are found, and read the `next:` line that `add` and `set`
   print: after the first entry is `ready` it is `PUSH`, so the first PR is pushed before any
   follow-up is built (in the C3 dry run all four entries were built first and the first PR waited
   36 minutes).
+- **Every entry carries its task text**, so a session that did not queue it can build it: `add` needs
+  `--task <file>` (or `--task -` for stdin) and refuses without a text, an empty one included. The text
+  is kept in `tasks/<slug>.md` next to the queue file and printed by `queue.sh task <slug>`. Write it as
+  the task template asks (what to do, its scope, when it is done).
 - **Every follow-up and drift the agent can do** (`tm-pr-workflow`, "Board", rule 1) is an entry
-  of its own: `add <slug> --branch <type>/<slug> [--after <parent slug>] [--kind owner]`.
+  of its own: `add <slug> --branch <type>/<slug> --task <file> [--after <parent slug>] [--kind owner]`.
   `--after` only when it needs the parent's change; `--kind owner` when its PR will touch a
   protected path or needs the owner's review. The slug is its name in the parent's PR description
   (`(queue: <slug>)`) until its PR exists.
@@ -44,12 +48,13 @@ Repeat until `next` prints `DONE`, or the owner wait below runs out, or a stop c
 Every `add` and `set` ends with `next: <line>`, the answer `next` would give after that change.
 Act on it: the scripts decide the order, not the plan you made earlier.
 
-- `BUILD <slug>`: `set <slug> status=building` first. Create its branch from the local `main`, or,
+- `BUILD <slug>`: read its task with `queue.sh task <slug>`, then `set <slug> status=building`. Create its branch from the local `main`, or,
   for an entry with a parent, from the parent's local branch. Do the work as sections 2 and 3 say
   (code skills, sweep, board, protected paths), commit, draft its PR description with a line
   `Follow-up of #<parent PR>` under "What changed", then
   `set <slug> status=ready`. No local review and no gate yet: they run once, at `PUSH`.
-- `FINISH_BUILD <slug>`: the entry was left `building` (an earlier session, an interruption). Check
+- `FINISH_BUILD <slug>`: the entry was left `building` (an earlier session, an interruption; its task is
+  `queue.sh task <slug>`). Check
   out its branch, read what is committed, finish it as for `BUILD`.
 - `PUSH <slug>`: check out its branch, `git fetch origin`, and when the branch is behind
   `origin/main` (always for an entry with a parent, which is pushed only after the parent's merge),

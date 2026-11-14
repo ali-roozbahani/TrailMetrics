@@ -4,7 +4,8 @@
 # on its parent's local branch, and pushed against `main` only after its parent is merged. Entries
 # that need the owner (kind `owner`: a protected path, ESCALATE_TO_HUMAN) come last.
 #
-#   scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]
+#   scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
+#   scripts/queue/queue.sh task <slug>
 #   scripts/queue/queue.sh set <slug> <field>=<value>...     fields: status, pr, branch
 #   scripts/queue/queue.sh show
 #   scripts/queue/queue.sh next
@@ -20,7 +21,12 @@
 # An entry is open while its status is not `merged` or `dropped`. Queue order: agent entries before
 # owner entries, then by `order`.
 #
-# add refuses: a sixth open entry, a slug already in the file, an --after slug that is not in the
+# The task text. Every entry carries the text of its task, so a session that did not queue it can build
+# it: `add` needs `--task <file>` (or `--task -` for stdin) and copies the text to `tasks/<slug>.md` in
+# the folder of the queue file (the `queue/` folder the cleaner keeps); `task <slug>` prints it. The text
+# is what the task template (`task-template.md`) asks for: what to do, its scope, when it is done.
+#
+# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a sixth open entry, a slug already in the file, an --after slug that is not in the
 #   file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
 #   without a feature/, bugfix/ or chore/ prefix. A new entry is `planned` with PR `-`.
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
@@ -63,7 +69,8 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]
 QUEUE_FILE="${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}"
 MAX_OPEN=5
 TAB="$(printf '\t')"
-USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]
+USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
+       scripts/queue/queue.sh task <slug>
        scripts/queue/queue.sh set <slug> <field>=<value>...   (status, pr, branch)
        scripts/queue/queue.sh show | next | --self-test"
 
@@ -134,8 +141,11 @@ write_file() { # write_file <content file>: atomic replace
     cp -- "$1" "$QUEUE_FILE.tmp.$$" && mv -- "$QUEUE_FILE.tmp.$$" "$QUEUE_FILE" || die "cannot write $QUEUE_FILE"
 }
 
+# task_file <slug>: where the task text of an entry is kept.
+task_file() { echo "$(dirname "$QUEUE_FILE")/tasks/$1.md"; }
+
 cmd_add() {
-    local slug="${1:-}" branch="" after="-" kind="agent" n open order pkind pstatus tmp
+    local slug="${1:-}" branch="" after="-" kind="agent" task="" text n open order pkind pstatus tmp
     [ -n "$slug" ] || usage
     shift
     while [ "$#" -gt 0 ]; do
@@ -143,6 +153,7 @@ cmd_add() {
             --branch) [ "$#" -ge 2 ] || usage; branch="$2"; shift 2 ;;
             --after) [ "$#" -ge 2 ] || usage; after="$2"; shift 2 ;;
             --kind) [ "$#" -ge 2 ] || usage; kind="$2"; shift 2 ;;
+            --task) [ "$#" -ge 2 ] || usage; task="$2"; shift 2 ;;
             *) usage ;;
         esac
     done
@@ -150,6 +161,12 @@ cmd_add() {
     [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || refuse "slug '$slug' is not kebab-case"
     [[ "$branch" =~ ^(feature|bugfix|chore)/[A-Za-z0-9._/-]+$ ]] || refuse "branch '$branch' has no feature/, bugfix/ or chore/ prefix"
     case "$kind" in agent | owner) ;; *) refuse "kind '$kind' is not agent or owner" ;; esac
+    [ -n "$task" ] || refuse "an entry needs its task text: --task <file> (or --task - for stdin)"
+    if [ "$task" = - ]; then text="$(cat)"; else
+        [ -f "$task" ] || refuse "the task text file '$task' does not exist"
+        text="$(cat -- "$task")" || refuse "cannot read the task text file '$task'"
+    fi
+    [ -n "$(printf '%s' "$text" | tr -d '[:space:]')" ] || refuse "the task text is empty"
     entries > /dev/null
     [ -z "$(field "$slug" 2)" ] || refuse "slug '$slug' is already in the queue"
     n="$(entries | awk -F '\t' -v b="$branch" '$3 == b' | wc -l | tr -d ' ')"
@@ -167,6 +184,11 @@ cmd_add() {
     open="$(entries | awk -F '\t' '$6 != "merged" && $6 != "dropped"' | wc -l | tr -d ' ')"
     [ "$open" -lt "$MAX_OPEN" ] || refuse "the queue already has $open open entries (maximum $MAX_OPEN)"
     order="$(entries | awk -F '\t' 'BEGIN { m = 0 } $1 > m { m = $1 } END { print m + 1 }')"
+    # The text first, so an entry in the file always has its text; written whole, then moved into place.
+    mkdir -p "$(dirname "$(task_file "$slug")")" || die "cannot create $(dirname "$(task_file "$slug")")"
+    tmp="$(mktemp)"
+    printf '%s\n' "$text" > "$tmp" && cp -- "$tmp" "$(task_file "$slug").tmp.$$" && mv -- "$(task_file "$slug").tmp.$$" "$(task_file "$slug")" || die "cannot write $(task_file "$slug")"
+    rm -f -- "$tmp"
     tmp="$(mktemp)"
     { [ -f "$QUEUE_FILE" ] && cat -- "$QUEUE_FILE"
       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$order" "$slug" "$branch" "$after" "$kind" planned -; } > "$tmp"
@@ -174,6 +196,15 @@ cmd_add() {
     rm -f -- "$tmp"
     if [ "$after" = - ]; then echo "added $slug ($kind, order $order)"; else echo "added $slug ($kind, order $order, after $after)"; fi
     print_next
+}
+
+cmd_task() {
+    local slug="${1:-}"
+    [ -n "$slug" ] || usage
+    entries > /dev/null
+    [ -n "$(field "$slug" 2)" ] || refuse "'$slug' is not in the queue"
+    [ -f "$(task_file "$slug")" ] || refuse "'$slug' has no task text ($(task_file "$slug") is missing)"
+    cat -- "$(task_file "$slug")"
 }
 
 # print_next: the line `next` would print, after the change just made.
@@ -301,7 +332,15 @@ self_test() {
     else
         echo "ok   the comparison is whole-line (BUILD a does not match FINISH_BUILD a)"
     fi
-    q() { QUEUE_FILE="$QF" bash "$SELF" "$@"; }
+    printf 'Do the thing.\nScope: this file.\n' > "$tmp/task.txt"
+    # An add without its own --task gets the common text file, so the cases below stay about their subject.
+    q() {
+        case " $* " in
+            " add "*" --task "*) QUEUE_FILE="$QF" bash "$SELF" "$@" ;;
+            " add "*) QUEUE_FILE="$QF" bash "$SELF" "$@" --task "$tmp/task.txt" ;;
+            *) QUEUE_FILE="$QF" bash "$SELF" "$@" ;;
+        esac
+    }
     fresh() { QF="$tmp/$1/queue.tsv"; }
     # line <order> <slug> <after> <kind> <status> <pr>: one entry, written straight into the file
     line() { mkdir -p "$(dirname "$QF")"; printf '%s\t%s\tchore/%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$2" "$3" "$4" "$5" "$6" >> "$QF"; }
@@ -428,8 +467,29 @@ self_test() {
     wait "$holder"
     check "the same add works once the lock is free" "added a (agent, order 1)" 0 q add a --branch chore/a
 
-    check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
-    check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 q add x
+    check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
+    check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 q add x
+
+    # The task text: required, copied next to the queue file, printed by `task`.
+    fresh txt
+    nt() { QUEUE_FILE="$QF" bash "$SELF" "$@"; }   # no common text file added
+    check "add without --task is refused" "queue: refused: an entry needs its task text: --task <file> (or --task - for stdin)" 1 nt add a --branch chore/a
+    check "a task file that is not there is refused" "queue: refused: the task text file '$tmp/nope.txt' does not exist" 1 nt add a --branch chore/a --task "$tmp/nope.txt"
+    printf 'Other text.\n' > "$tmp/other.txt"
+    : > "$tmp/empty.txt"; printf ' \n\t\n' > "$tmp/blank.txt"
+    check "an empty task text is refused" "queue: refused: the task text is empty" 1 nt add a --branch chore/a --task "$tmp/empty.txt"
+    check "a blank task text is refused" "queue: refused: the task text is empty" 1 nt add a --branch chore/a --task "$tmp/blank.txt"
+    check "stdin text, empty, is refused" "queue: refused: the task text is empty" 1 sh -c "printf '' | QUEUE_FILE='$QF' bash '$SELF' add a --branch chore/a --task -"
+    if [ ! -e "$QF" ] && [ ! -e "$(dirname "$QF")/tasks/a.md" ]; then echo "ok   a refused add writes neither the entry nor the text"; else echo "FAIL a refused add left a file" >&2; fails=$((fails + 1)); fi
+    check "add with a task file" "added a (agent, order 1)" 0 nt add a --branch chore/a --task "$tmp/task.txt"
+    check "the text is kept next to the queue file" "Scope: this file." 0 cat "$(dirname "$QF")/tasks/a.md"
+    check "task prints it" "Do the thing." 0 nt task a
+    check "add with the text on stdin" "added b (agent, order 2)" 0 sh -c "printf 'From stdin.\n' | QUEUE_FILE='$QF' bash '$SELF' add b --branch chore/b --task -"
+    check "task prints the stdin text" "From stdin." 0 nt task b
+    check "task of an unknown slug" "queue: refused: 'zz' is not in the queue" 1 nt task zz
+    rm -f "$(dirname "$QF")/tasks/b.md"
+    check "task of an entry whose text is gone" "queue: refused: 'b' has no task text ($(dirname "$QF")/tasks/b.md is missing)" 1 nt task b
+    check "a refused add (duplicate slug) keeps the first text" "Do the thing." 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' add a --branch chore/a2 --task '$tmp/other.txt' >/dev/null 2>&1; cat '$(dirname "$QF")/tasks/a.md' | head -1"
     if [ "$fails" = 0 ]; then echo "queue.sh self-test: all passed"; else echo "queue.sh self-test: $fails failed" >&2; fi
     [ "$fails" = 0 ]
     exit $?
@@ -440,6 +500,7 @@ case "${1:-}" in
     add) shift; locked add "$@" ;;
     set) shift; locked set "$@" ;;
     show) [ "$#" = 1 ] || usage; cmd_show ;;
+    task) [ "$#" = 2 ] || usage; cmd_task "$2" ;;
     next) [ "$#" = 1 ] || usage; cmd_next ;;
     *) usage ;;
 esac
