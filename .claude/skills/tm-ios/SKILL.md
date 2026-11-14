@@ -422,7 +422,7 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   covers `try!`). Handle the error with `do`/`catch`; a deliberate `try?` needs the
   `swiftlint:disable:next optional_try - <reason>` comment on the line above, allowed only for a
   best-effort side effect whose failure the user can't act on, the reason saying why the error can
-  be dropped there. The only two in production code are `FileSnapshotDeleter` (an orphaned image
+  be dropped there. The only two in production code are `SnapshotFileDeleter.deleteBestEffort` (an orphaned image
   file after the record is gone) and `ActivityKitLiveActivityClient`'s `Activity.request` (Live
   Activities can be turned off); the test helpers `waitUntil` (TestSupport) and
   `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no other `try?` is left
