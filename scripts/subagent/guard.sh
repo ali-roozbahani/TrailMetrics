@@ -57,7 +57,8 @@
 # queue folder that scripts/dev/clean-agent-workspace.sh keeps), and `scripts/subagent/guard.sh --log
 # [<n>]` prints its last n lines (default 40). Columns: time, ALLOW or BLOCK, tool, agent_id,
 # agent_type, the key names of the hook input, the call's cwd, and for a BLOCK the reason and the
-# command or path that was blocked (at most 200 characters). So a run answers, from the file:
+# command or path that was blocked (at most 200 characters; none when the block is the secrets rule, as
+# the text may hold a secret value). So a run answers, from the file:
 #   - whether the hook input carries the subagent's id: the `agent_id` column is `-` when it does not,
 #     and the key names show every field the input had;
 #   - what a block inside a subagent was (the BLOCK lines, which the subagent only sees as a message);
@@ -83,6 +84,8 @@ LOG_BLOCKED=""  # the command or path of the call, for a BLOCK line
 log_call() { # log_call <exit status of the guard> [<reason>]
     local verdict=ALLOW reason="${2:-}" blocked="$LOG_BLOCKED"
     [ "$1" = 0 ] || verdict=BLOCK
+    # A command or path that names a secrets file may hold a secret value: its text is not logged.
+    case "$reason" in *"secrets file"*) blocked="(not logged: it names a secrets file)" ;; esac
     [ -n "$LOG_PREFIX" ] || LOG_PREFIX="-	-	-	-	-"
     reason="$(printf '%s' "$reason" | tr '\t\r\n' '   ' | cut -c1-300)"
     blocked="$(printf '%s' "$blocked" | tr '\t\r\n' '   ' | cut -c1-200)"
@@ -371,6 +374,9 @@ self_test() {
     last="$(bash "${BASH_SOURCE[0]}" --log 2)"
     if [ "$(printf '%s\n' "$last" | wc -l | tr -d ' ')" = 2 ] && printf '%s' "$last" | grep -q 'BLOCK'; then echo "ok   log: --log prints the last lines"; else
         echo "FAIL log: --log 2" >&2; printf '%s\n' "$last" >&2; fails=$((fails + 1)); fi
+    expect "a blocked secrets command for the log" 2 "$wt" Bash "$(bash_in 'echo TOKEN=abc123 > local.properties')" "secrets file"
+    if grep -q "BLOCK.*(not logged: it names a secrets file)" "$tmp/guard.log" && ! grep -q 'abc123' "$tmp/guard.log"; then echo "ok   log: a secrets block does not log the command text"; else
+        echo "FAIL log: the secrets block logged the command or no line" >&2; tail -n 2 "$tmp/guard.log" >&2; fails=$((fails + 1)); fi
     # An unwritable log changes no decision.
     TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a blocked call is still blocked" 2 "$wt" Bash "$(bash_in 'git remote add x y')" "remotes"
     TM_GUARD_LOG=/dev/null/x/guard.log expect "an unwritable log: a normal read is still allowed" 0 "$wt" Read "$(file_in "$wt/src/a.txt")"
