@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -13,6 +14,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
 import dev.roozbahani.trailmetrics.core.testing.FakeClock
@@ -30,7 +32,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
-import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /**
@@ -74,21 +75,7 @@ class TrackingScreenFixture {
                     single { CalorieCalculator() }
                     single<Clock> { clock }
                     single { SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock) }
-                    // Replaces trackingUiModule's definition, which leaves ioDispatcher at Dispatchers.IO: the
-                    // ViewModel's snapshot file deletes then run on a real thread that waitForIdle() does not wait
-                    // for. On this dispatcher a delete has run when the call that asked for it returns.
-                    viewModel { params ->
-                        TrackingViewModel(
-                            trackingSessionManager = get(),
-                            userProfileRepository = get(),
-                            calorieCalculator = get(),
-                            saveActivityUseCase = get(),
-                            activityType = params.get(),
-                            plannedRoutePoints = params.get(),
-                            clock = get(),
-                            ioDispatcher = UnconfinedTestDispatcher(testScheduler)
-                        )
-                    }
+                    single<SnapshotFileDeleter> { FakeSnapshotFileDeleter(deleteFromDisk = true) }
                 }
             )
         }

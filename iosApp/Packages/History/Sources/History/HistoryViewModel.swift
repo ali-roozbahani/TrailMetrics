@@ -20,13 +20,16 @@ public class HistoryViewModel: ObservableObject {
 
     private let activityHistoryRepository: ActivityHistoryRepository
     private let observeActivitiesUseCase: ObserveActivitiesUseCase
+    private let snapshotFileDeleter: SnapshotFileDeleter
 
     public init(
         activityHistoryRepository: ActivityHistoryRepository = KoinHelper().getActivityHistoryRepository(),
-        observeActivitiesUseCase: ObserveActivitiesUseCase = KoinHelper().observeActivitiesUseCase()
+        observeActivitiesUseCase: ObserveActivitiesUseCase = KoinHelper().observeActivitiesUseCase(),
+        snapshotFileDeleter: SnapshotFileDeleter = KoinHelper().snapshotFileDeleter()
     ) {
         self.activityHistoryRepository = activityHistoryRepository
         self.observeActivitiesUseCase = observeActivitiesUseCase
+        self.snapshotFileDeleter = snapshotFileDeleter
     }
 
     /// Observes through `ObserveActivitiesUseCase`, not the repository's Flow directly: SKIE
@@ -55,7 +58,7 @@ public class HistoryViewModel: ObservableObject {
                 errorMessage = HistoryErrorMessage.general
                 return
             }
-            deleteSnapshotFile(forStoredPath: activity.snapshotFilePath)
+            await snapshotFileDeleter.deleteBestEffort(storedPath: activity.snapshotFilePath)
         }
     }
 

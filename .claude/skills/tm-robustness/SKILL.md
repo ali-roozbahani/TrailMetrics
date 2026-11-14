@@ -214,17 +214,15 @@ tools that are not enabled today are in the PR that wrote this skill and in the 
 Don't copy these as a pattern for new code. Each names its board record.
 - No `StrictMode` policy and no LeakCanary anywhere in the app (M8; `strictmode-leak-detection-debug`).
 - `TrackingService` creates `CoroutineScope(SupervisorJob() + Dispatchers.Default)` itself;
-  `TrackingViewModel`, `UserProfileRepositoryImpl`, `ActivityHistoryRepositoryImpl`,
+  `UserProfileRepositoryImpl`, `ActivityHistoryRepositoryImpl`,
   `saveSnapshotToFile` and `TrackingRoot` (`snapshotDispatcher`) name
   `Dispatchers.IO` as a default argument, and `DatabaseBuilder.kt` (`getRoomDatabase`) passes
   `Dispatchers.IO` to `setQueryCoroutineContext`; it is neither a DI module nor the application
   root (D1; `inject-dispatchers-from-di`).
-- Android `TrackingViewModel` deletes snapshot files itself, file access in a ViewModel
-  (`tracking-viewmodel-snapshot-file-access`); `IosTrackingServiceLauncher` takes the concrete
+- `IosTrackingServiceLauncher` takes the concrete
   `IosLocationRepositoryImpl` (`ios-launcher-depends-on-concrete-location-repository`); the iOS
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`
-  (`tracking-metrics-calories-to-domain`); `HistoryViewModel` and `DetailsViewModel` delete the
-  snapshot file on the main thread (C1; `history-details-snapshot-delete-on-main`).
+  (`tracking-metrics-calories-to-domain`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)
   and the polyline is rebuilt from it; no conflation or distance filter on either platform (P4,
   P6; `tracking-location-update-path-cost`).

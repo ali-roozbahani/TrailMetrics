@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.tracking.di
 
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -13,6 +14,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingAction
 import dev.roozbahani.trailmetrics.feature.tracking.TrackingViewModel
@@ -73,6 +75,7 @@ class TrackingUiModuleTest {
         single<ActivityHistoryRepository> { activityHistoryRepository }
         single { CalorieCalculator() }
         single<Clock> { clock }
+        single<SnapshotFileDeleter> { FakeSnapshotFileDeleter() }
         single { SaveActivityUseCase(get(), get(), get()) }
     }
 

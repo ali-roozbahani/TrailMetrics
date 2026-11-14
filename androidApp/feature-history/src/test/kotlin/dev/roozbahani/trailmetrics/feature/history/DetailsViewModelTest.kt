@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.history
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -45,9 +46,12 @@ class DetailsViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private val snapshotFileDeleter = FakeSnapshotFileDeleter(deleteFromDisk = true)
+
     private fun createViewModel(activityId: Long) = DetailsViewModel(
         activityId = activityId,
-        activityHistoryRepository = activityHistoryRepository
+        activityHistoryRepository = activityHistoryRepository,
+        snapshotFileDeleter = snapshotFileDeleter
     )
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
@@ -253,6 +257,38 @@ class DetailsViewModelTest {
             assertEquals(listOf(1L), activityHistoryRepository.deletedIds)
             assertFalse(snapshot.exists())
         }
+
+    @Test
+    fun `Deleted is sent only after the snapshot delete returns`() = runTest(testScheduler) {
+        activityHistoryRepository.setActivities(listOf(activityRecord(id = 1L, snapshotFilePath = "/files/s.png")))
+        val viewModel = createViewModel(activityId = 1L)
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        val gate = CompletableDeferred<Unit>()
+        snapshotFileDeleter.gate = gate
+
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<String?>("/files/s.png"), snapshotFileDeleter.requestedPaths)
+        assertEquals(emptyList(), events)
+        gate.complete(Unit)
+        testScheduler.runCurrent()
+        assertEquals(listOf<DetailsEvent>(DetailsEvent.Deleted), events)
+    }
+
+    @Test
+    fun `a failed record delete never asks the deleter`() = runTest(testScheduler) {
+        activityHistoryRepository.setActivities(listOf(activityRecord(id = 1L, snapshotFilePath = "/files/s.png")))
+        val viewModel = createViewModel(activityId = 1L)
+        testScheduler.runCurrent()
+        activityHistoryRepository.deleteActivityFailure = IllegalStateException("database locked")
+
+        viewModel.onAction(DetailsAction.DeleteConfirmed)
+        testScheduler.runCurrent()
+
+        assertEquals(emptyList(), snapshotFileDeleter.requestedPaths)
+    }
 
     @Test
     fun `state keeps the loaded activity after delete`() = runTest(testScheduler) {

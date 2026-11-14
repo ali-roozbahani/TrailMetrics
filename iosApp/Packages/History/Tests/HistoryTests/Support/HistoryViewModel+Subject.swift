@@ -9,10 +9,14 @@ import TestSupport
 
 extension HistoryViewModel {
     /// A ViewModel whose every dependency is backed by `repository`.
-    static func subject(repository: FakeActivityHistoryRepository) -> HistoryViewModel {
+    static func subject(
+        repository: FakeActivityHistoryRepository,
+        snapshotFileDeleter: SnapshotFileDeleter = FakeSnapshotFileDeleter()
+    ) -> HistoryViewModel {
         HistoryViewModel(
             activityHistoryRepository: repository,
-            observeActivitiesUseCase: ObserveActivitiesUseCase(activityHistoryRepository: repository)
+            observeActivitiesUseCase: ObserveActivitiesUseCase(activityHistoryRepository: repository),
+            snapshotFileDeleter: snapshotFileDeleter
         )
     }
 }

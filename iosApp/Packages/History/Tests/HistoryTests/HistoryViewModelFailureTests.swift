@@ -40,20 +40,19 @@ final class HistoryViewModelFailureTests: XCTestCase {
         XCTAssertFalse(viewModel.isLoading)
     }
 
-    func test_onDeleteActivity_failedDelete_keepsSnapshotAndShowsError() async throws {
-        let snapshot = try SnapshotFileFixture.make()
-        defer { snapshot.remove() }
-        let activity = ActivityRecord.fixture(id: 7, snapshotFilePath: snapshot.storedPath)
+    func test_onDeleteActivity_failedDelete_keepsSnapshotAndShowsError() async {
+        let activity = ActivityRecord.fixture(id: 7, snapshotFilePath: "/stored/snapshot-7.png")
         let repository = FakeActivityHistoryRepository(activities: [activity])
         repository.setFailing(true)
-        let viewModel = HistoryViewModel.subject(repository: repository)
+        let deleter = FakeSnapshotFileDeleter()
+        let viewModel = HistoryViewModel.subject(repository: repository, snapshotFileDeleter: deleter)
 
         viewModel.onDeleteActivity(activity)
 
         await waitUntil { viewModel.errorMessage != nil }
         await Task.yield()
         XCTAssertEqual(viewModel.errorMessage, generalErrorMessage)
-        XCTAssertTrue(snapshot.exists)
+        XCTAssertTrue(deleter.storedPaths.isEmpty)
         XCTAssertTrue(repository.deletedIds.isEmpty)
 
         viewModel.onErrorDismissed()

@@ -10,6 +10,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -24,6 +25,7 @@ class KoinHelper : KoinComponent {
     private val calorieCalculatorDep: CalorieCalculator by inject()
     private val clockDep: Clock by inject()
     private val routeDraftKeeperDep: RouteDraftKeeper by inject()
+    private val snapshotFileDeleterDep: SnapshotFileDeleter by inject()
 
     fun getActivityHistoryRepository(): ActivityHistoryRepository = activityHistoryRepository
     fun getCurrentLocationUseCase(): GetCurrentLocationUseCase = currentLocationUseCase
@@ -34,6 +36,7 @@ class KoinHelper : KoinComponent {
     fun observeActivitiesUseCase(): ObserveActivitiesUseCase = observeActivitiesUseCaseDep
     fun calorieCalculator(): CalorieCalculator = calorieCalculatorDep
     fun clock(): Clock = clockDep
+    fun snapshotFileDeleter(): SnapshotFileDeleter = snapshotFileDeleterDep
 
     /** A new keeper for each KoinHelper (a factory binding): one per route screen. */
     fun routeDraftKeeper(): RouteDraftKeeper = routeDraftKeeperDep

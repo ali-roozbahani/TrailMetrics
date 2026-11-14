@@ -16,12 +16,11 @@ import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +32,6 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
 
 class TrackingViewModel(
     private val trackingSessionManager: TrackingSessionManager,
@@ -43,15 +41,8 @@ class TrackingViewModel(
     private val activityType: ActivityType,
     private val plannedRoutePoints: List<Coordinates>,
     private val clock: Clock,
-    ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val snapshotFileDeleter: SnapshotFileDeleter
 ) : ViewModel() {
-
-    /**
-     * Runs the snapshot file deletes. Not [viewModelScope]: [onCleared] deletes a retained file, and
-     * by then that scope is cancelled, so a delete launched in it would never run. Each launch is a
-     * short, self-completing job; nothing waits for it.
-     */
-    private val fileScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
     /**
      * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
@@ -263,8 +254,13 @@ class TrackingViewModel(
         }
     }
 
+    /**
+     * ATOMIC: [onCleared] deletes a retained file after [viewModelScope] is cancelled, and the launch
+     * must still start then. The deleter's delete is not cancellable, so it then completes.
+     */
+    @OptIn(DelicateCoroutinesApi::class) // ATOMIC is the point: see above
     private fun deleteSnapshotFile(path: String) {
-        fileScope.launch { File(path).delete() }
+        viewModelScope.launch(start = CoroutineStart.ATOMIC) { snapshotFileDeleter.delete(path) }
     }
 
     override fun onCleared() {

@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SharedKit
 
 // `ActivityRecord.snapshotFilePath` is a full path captured at save time (see
 // MapSnapshotSaver.swift), but the Application Support directory's container UUID is not
@@ -22,11 +23,12 @@ func resolvedSnapshotURL(forStoredPath path: String?) -> URL? {
     return supportDirectory.appendingPathComponent(fileName)
 }
 
-/// Best effort, silent on purpose: callers run this only after the activity record is
-/// deleted, so a file that can't be removed is just an orphaned image, not worth an error
-/// the user can't act on (an exception to `tm-ios`'s "never drop an error" rule).
-func deleteSnapshotFile(forStoredPath path: String?) {
-    guard let url = resolvedSnapshotURL(forStoredPath: path) else { return }
-    // swiftlint:disable:next optional_try - the record is already deleted; a file left behind is only an orphaned image
-    try? FileManager.default.removeItem(at: url)
+extension SnapshotFileDeleter {
+    /// Best effort: the callers run this only after the activity record is deleted, so a file that
+    /// can't be removed is just an orphaned image, not worth an error the user can't act on (an
+    /// exception to `tm-ios`'s "never drop an error" rule).
+    func deleteBestEffort(storedPath: String?) async {
+        // swiftlint:disable:next optional_try - record already deleted; a leftover file is only an orphaned image
+        try? await delete(storedPath: storedPath)
+    }
 }

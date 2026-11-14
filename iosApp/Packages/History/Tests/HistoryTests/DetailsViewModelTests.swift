@@ -14,7 +14,8 @@ final class DetailsViewModelTests: XCTestCase {
     func test_init_isLoadingUntilActivityArrives() {
         let viewModel = DetailsViewModel(
             activityId: 42,
-            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)])
+            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)]),
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
         )
 
         XCTAssertTrue(viewModel.isLoading)
@@ -23,7 +24,11 @@ final class DetailsViewModelTests: XCTestCase {
 
     func test_init_loadsActivityById() async {
         let repository = FakeActivityHistoryRepository(activities: [.fixture(id: 41), .fixture(id: 42)])
-        let viewModel = DetailsViewModel(activityId: 42, activityHistoryRepository: repository)
+        let viewModel = DetailsViewModel(
+            activityId: 42,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
+        )
 
         await waitUntil { !viewModel.isLoading }
 
@@ -34,7 +39,8 @@ final class DetailsViewModelTests: XCTestCase {
     func test_init_unknownId_stopsLoadingWithoutActivity() async {
         let viewModel = DetailsViewModel(
             activityId: 99,
-            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)])
+            activityHistoryRepository: FakeActivityHistoryRepository(activities: [.fixture(id: 42)]),
+            snapshotFileDeleter: FakeSnapshotFileDeleter()
         )
 
         await waitUntil { !viewModel.isLoading }
@@ -42,22 +48,25 @@ final class DetailsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.activity)
     }
 
-    func test_onDeleteConfirmed_deletesRecordAndSnapshotThenCallsOnDeletedOnce() async throws {
-        let snapshot = try SnapshotFileFixture.make()
-        defer { snapshot.remove() }
+    func test_onDeleteConfirmed_deletesRecordAndSnapshotThenCallsOnDeletedOnce() async {
         let repository = FakeActivityHistoryRepository(
-            activities: [.fixture(id: 42, snapshotFilePath: snapshot.storedPath)]
+            activities: [.fixture(id: 42, snapshotFilePath: "/stored/snapshot-42.png")]
         )
-        let viewModel = DetailsViewModel(activityId: 42, activityHistoryRepository: repository)
+        let deleter = FakeSnapshotFileDeleter()
+        let viewModel = DetailsViewModel(
+            activityId: 42,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: deleter
+        )
         await waitUntil { !viewModel.isLoading }
 
         var onDeletedCallCount = 0
         var deletedIdsWhenCalled: [Int64] = []
-        var snapshotExistedWhenCalled = true
+        var deletedPathsWhenCalled: [String?] = []
         viewModel.onDeleteConfirmed {
             onDeletedCallCount += 1
             deletedIdsWhenCalled = repository.deletedIds
-            snapshotExistedWhenCalled = snapshot.exists
+            deletedPathsWhenCalled = deleter.storedPaths
         }
 
         await waitUntil { onDeletedCallCount > 0 }
@@ -65,6 +74,31 @@ final class DetailsViewModelTests: XCTestCase {
 
         XCTAssertEqual(onDeletedCallCount, 1)
         XCTAssertEqual(deletedIdsWhenCalled, [42])
-        XCTAssertFalse(snapshotExistedWhenCalled)
+        XCTAssertEqual(deletedPathsWhenCalled, ["/stored/snapshot-42.png"])
+    }
+
+    func test_onDeleteConfirmed_callsOnDeletedOnlyAfterTheSnapshotDeleterReturned() async {
+        let repository = FakeActivityHistoryRepository(
+            activities: [.fixture(id: 42, snapshotFilePath: "/stored/snapshot-42.png")]
+        )
+        let deleter = FakeSnapshotFileDeleter(isHolding: true)
+        let viewModel = DetailsViewModel(
+            activityId: 42,
+            activityHistoryRepository: repository,
+            snapshotFileDeleter: deleter
+        )
+        await waitUntil { !viewModel.isLoading }
+
+        var onDeletedCallCount = 0
+        viewModel.onDeleteConfirmed { onDeletedCallCount += 1 }
+        await waitUntil { !deleter.storedPaths.isEmpty }
+        await Task.yield()
+        XCTAssertEqual(onDeletedCallCount, 0)
+
+        deleter.release()
+
+        await waitUntil { onDeletedCallCount > 0 }
+        await Task.yield()
+        XCTAssertEqual(onDeletedCallCount, 1)
     }
 }

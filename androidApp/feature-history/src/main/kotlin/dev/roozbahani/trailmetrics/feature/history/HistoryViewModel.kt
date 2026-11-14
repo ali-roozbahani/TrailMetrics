@@ -7,7 +7,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivitiesUpdate
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
-import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +21,8 @@ import kotlinx.coroutines.launch
 
 class HistoryViewModel(
     private val activityHistoryRepository: ActivityHistoryRepository,
-    private val observeActivitiesUseCase: ObserveActivitiesUseCase
+    private val observeActivitiesUseCase: ObserveActivitiesUseCase,
+    private val snapshotFileDeleter: SnapshotFileDeleter
 ) : ViewModel() {
 
     private val _events = Channel<HistoryEvent>(Channel.BUFFERED)
@@ -75,7 +76,7 @@ class HistoryViewModel(
                 _events.send(HistoryEvent.ShowError(RouteUiError.General))
                 return@launch
             }
-            deleteSnapshotFile(activity.snapshotFilePath)
+            snapshotFileDeleter.delete(activity.snapshotFilePath)
         }
     }
 }

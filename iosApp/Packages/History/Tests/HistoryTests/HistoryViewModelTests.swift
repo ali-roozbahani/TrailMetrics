@@ -43,16 +43,16 @@ final class HistoryViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isEmpty)
     }
 
-    func test_onDeleteActivity_deletesRecordAndItsSnapshotFile() async throws {
-        let snapshot = try SnapshotFileFixture.make()
-        defer { snapshot.remove() }
-        let activity = ActivityRecord.fixture(id: 7, snapshotFilePath: snapshot.storedPath)
+    func test_onDeleteActivity_deletesRecordThenItsSnapshotFileByStoredPath() async {
+        let activity = ActivityRecord.fixture(id: 7, snapshotFilePath: "/stored/snapshot-7.png")
         let repository = FakeActivityHistoryRepository(activities: [activity])
-        let viewModel = HistoryViewModel.subject(repository: repository)
+        let deleter = FakeSnapshotFileDeleter()
+        let viewModel = HistoryViewModel.subject(repository: repository, snapshotFileDeleter: deleter)
 
         viewModel.onDeleteActivity(activity)
 
-        await waitUntil { !snapshot.exists }
+        await waitUntil { !deleter.storedPaths.isEmpty }
+        XCTAssertEqual(deleter.storedPaths, ["/stored/snapshot-7.png"])
         XCTAssertEqual(repository.deletedIds, [7])
     }
 

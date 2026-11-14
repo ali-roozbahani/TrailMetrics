@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.history.di
 
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.feature.history.DetailsViewModel
 import dev.roozbahani.trailmetrics.feature.history.HistoryViewModel
 import org.koin.core.module.dsl.viewModel
@@ -11,13 +12,15 @@ val historyUiModule = module {
     viewModel {
         HistoryViewModel(
             activityHistoryRepository = get<ActivityHistoryRepository>(),
-            observeActivitiesUseCase = get<ObserveActivitiesUseCase>()
+            observeActivitiesUseCase = get<ObserveActivitiesUseCase>(),
+            snapshotFileDeleter = get<SnapshotFileDeleter>()
         )
     }
     viewModel { params ->
         DetailsViewModel(
             activityId = params.get(),
-            activityHistoryRepository = get<ActivityHistoryRepository>()
+            activityHistoryRepository = get<ActivityHistoryRepository>(),
+            snapshotFileDeleter = get<SnapshotFileDeleter>()
         )
     }
 }

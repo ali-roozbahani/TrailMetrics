@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -20,11 +21,10 @@ import dev.roozbahani.trailmetrics.core.testing.FakeLogger
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -53,8 +53,7 @@ class TrackingViewModelSnapshotFileTest {
     val temporaryFolder = TemporaryFolder()
 
     private val testScheduler = TestCoroutineScheduler()
-    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private var ioDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(testScheduler)
+    private val snapshotFileDeleter = FakeSnapshotFileDeleter(deleteFromDisk = true)
     private val locationRepository = FakeLocationRepository()
     private val clock = FakeClock(nowMillis = 1_000_000L, elapsedRealtimeMillis = 5_000L)
     private val userProfileRepository = FakeUserProfileRepository()
@@ -98,7 +97,7 @@ class TrackingViewModelSnapshotFileTest {
                     activityType = ActivityType.Cycling,
                     plannedRoutePoints = emptyList(),
                     clock = clock,
-                    ioDispatcher = ioDispatcher
+                    snapshotFileDeleter = snapshotFileDeleter
                 )
             }
         })[TrackingViewModel::class]
@@ -226,35 +225,47 @@ class TrackingViewModelSnapshotFileTest {
         assertEquals(emptyList(), filesInDir())
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
-    fun `the delete runs on the injected I O dispatcher, not on the calling one`() = runTest(testScheduler) {
-        // Its own scheduler: nothing the main (test) scheduler runs executes this dispatcher's work.
-        val ioScheduler = TestCoroutineScheduler()
-        ioDispatcher = StandardTestDispatcher(ioScheduler)
-        val viewModel = createViewModel()
-        val file = newSnapshotFile()
-        viewModel.onAction(TrackingAction.Start(START))
-        testScheduler.runCurrent()
-
-        finish(viewModel, file)
-
-        assertEquals(listOf(file), filesInDir(), "the calling dispatcher did not delete the surplus file")
-        ioScheduler.runCurrent()
-        assertEquals(emptyList(), filesInDir())
-    }
-
-    @Test
-    fun `a file retained after a failed save is still deleted when the ViewModel is cleared`() =
+    fun `a held delete of a surplus file does not block the save and finishes when released`() =
         runTest(testScheduler) {
-            val ioScheduler = TestCoroutineScheduler()
-            ioDispatcher = StandardTestDispatcher(ioScheduler)
             val viewModel = createFinishedSession()
+            val events = mutableListOf<TrackingEvent>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.events.toList(events) }
+            val first = newSnapshotFile()
+            val second = newSnapshotFile()
+            val gate = CompletableDeferred<Unit>()
+            snapshotFileDeleter.gate = gate
+
+            finish(viewModel, first)
+            finish(viewModel, second)
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.Saved), events, "the save did not wait for a delete")
+            assertEquals(listOf<String?>(second), snapshotFileDeleter.requestedPaths)
+            assertEquals(listOf(first, second).sorted(), filesInDir(), "the held delete has not removed the file")
+            gate.complete(Unit)
+            testScheduler.runCurrent()
+            assertEquals(listOf(first), filesInDir())
+        }
+
+    @Test
+    fun `a file retained after a failed save is deleted through the deleter when the ViewModel is cleared`() =
+        runTest(testScheduler) {
+            val viewModel = createFinishedSession()
+            val gate = CompletableDeferred<Unit>()
+            snapshotFileDeleter.gate = gate
             activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
-            finish(viewModel, newSnapshotFile())
+            val file = newSnapshotFile()
+            finish(viewModel, file)
+            assertEquals(emptyList(), snapshotFileDeleter.requestedPaths, "kept while a retry can use it")
 
             viewModelStore.clear()
-            ioScheduler.runCurrent()
 
+            // viewModelScope is cancelled by now: the delete was still started (ATOMIC) and is held at the gate.
+            assertEquals(listOf<String?>(file), snapshotFileDeleter.requestedPaths)
+            assertEquals(listOf(file), filesInDir())
+            gate.complete(Unit)
+            testScheduler.runCurrent()
             assertEquals(emptyList(), filesInDir())
         }
 

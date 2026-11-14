@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.tracking
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -85,7 +86,8 @@ class TrackingViewModelFailureTest {
             saveActivityUseCase = SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock),
             activityType = ActivityType.Cycling,
             plannedRoutePoints = PLANNED_ROUTE,
-            clock = clock
+            clock = clock,
+            snapshotFileDeleter = FakeSnapshotFileDeleter()
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
         testScheduler.runCurrent()

@@ -1,8 +1,10 @@
 package dev.roozbahani.trailmetrics.feature.history.di
 
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.feature.history.DetailsState
 import dev.roozbahani.trailmetrics.feature.history.DetailsViewModel
 import dev.roozbahani.trailmetrics.feature.history.HistoryState
@@ -33,6 +35,7 @@ class HistoryUiModuleTest {
     private val collaboratorsModule = module {
         single<ActivityHistoryRepository> { activityHistoryRepository }
         factory { ObserveActivitiesUseCase(activityHistoryRepository = get()) }
+        single<SnapshotFileDeleter> { FakeSnapshotFileDeleter() }
     }
 
     private val koin = koinApplication { modules(historyUiModule, collaboratorsModule) }.koin
