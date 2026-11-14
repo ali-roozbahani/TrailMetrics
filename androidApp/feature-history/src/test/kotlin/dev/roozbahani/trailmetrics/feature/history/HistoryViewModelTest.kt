@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.feature.history
 
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.Dispatchers
@@ -46,9 +47,12 @@ class HistoryViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private val snapshotFileDeleter = FakeSnapshotFileDeleter(deleteFromDisk = true)
+
     private fun createViewModel() = HistoryViewModel(
         activityHistoryRepository = activityHistoryRepository,
-        observeActivitiesUseCase = ObserveActivitiesUseCase(activityHistoryRepository)
+        observeActivitiesUseCase = ObserveActivitiesUseCase(activityHistoryRepository),
+        snapshotFileDeleter = snapshotFileDeleter
     )
 
     // The state is stateIn(WhileSubscribed): keep a subscriber for the whole test.

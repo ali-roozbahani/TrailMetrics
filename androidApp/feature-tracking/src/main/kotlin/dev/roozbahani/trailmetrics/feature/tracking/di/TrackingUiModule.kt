@@ -15,7 +15,8 @@ val trackingUiModule = module {
             saveActivityUseCase = get(),
             activityType = params.get(),
             plannedRoutePoints = params.get(),
-            clock = get()
+            clock = get(),
+            snapshotFileDeleter = get()
         )
     }
 }

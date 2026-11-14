@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
-import dev.roozbahani.trailmetrics.feature.history.util.deleteSnapshotFile
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +18,8 @@ import kotlinx.coroutines.launch
 
 class DetailsViewModel(
     private val activityId: Long,
-    private val activityHistoryRepository: ActivityHistoryRepository
+    private val activityHistoryRepository: ActivityHistoryRepository,
+    private val snapshotFileDeleter: SnapshotFileDeleter
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DetailsState())
@@ -67,7 +68,7 @@ class DetailsViewModel(
                 _events.send(DetailsEvent.ShowError(RouteUiError.General))
                 return@launch
             }
-            deleteSnapshotFile(_state.value.activity?.snapshotFilePath)
+            snapshotFileDeleter.delete(_state.value.activity?.snapshotFilePath)
             _events.send(DetailsEvent.Deleted)
         }
     }

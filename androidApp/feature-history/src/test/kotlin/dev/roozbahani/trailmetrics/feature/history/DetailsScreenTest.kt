@@ -3,8 +3,10 @@ package dev.roozbahani.trailmetrics.feature.history
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
+import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
+import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.feature.history.di.historyUiModule
 import dev.roozbahani.trailmetrics.feature.history.fakes.activityRecord
 import kotlinx.coroutines.CompletableDeferred
@@ -53,6 +55,7 @@ class DetailsScreenTest {
                 module {
                     single<ActivityHistoryRepository> { activityHistoryRepository }
                     factory { ObserveActivitiesUseCase(activityHistoryRepository = get()) }
+                    single<SnapshotFileDeleter> { FakeSnapshotFileDeleter(deleteFromDisk = true) }
                 }
             )
         }
