@@ -424,8 +424,8 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   best-effort side effect whose failure the user can't act on, the reason saying why the error can
   be dropped there. The only two in production code are `SnapshotFileDeleter.deleteBestEffort` (an orphaned image
   file after the record is gone) and `ActivityKitLiveActivityClient`'s `Activity.request` (Live
-  Activities can be turned off); the test helpers `waitUntil` (TestSupport) and
-  `SnapshotFileFixture.remove` (HistoryTests) carry the same comment; no other `try?` is left
+  Activities can be turned off); the test helper `waitUntil` (TestSupport)
+  carries the same comment; no other `try?` is left
   under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
   'optional_try' rule" and turns the rule off, without failing `--strict`; `scripts/check-optional-try.sh --self-test`
   (in the gate's iOS steps and CI's `ios-main`) lints fixtures with the committed config, fails on that message,
