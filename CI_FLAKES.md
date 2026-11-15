@@ -289,8 +289,8 @@ run, and the jobs it hit are counted below.
 
 - Signature: job `iOS 2b — lint, app build, package tests`, step `Run iOS package tests`, test
   `HistoryViewModelFailureTests.test_onDeleteActivity_failedDelete_keepsSnapshotAndShowsError`, first error line
-  "failed - Condition not met within 10.0 seconds" (`HistoryViewModelFailureTests.swift:52`, the `waitUntil` for
-  `errorMessage`)
+  "failed - Condition not met within 10.0 seconds" (`HistoryViewModelFailureTests.swift`, the `waitUntil` for
+  `errorMessage` in that test)
 - Count: 1
 - Status: open
 - Occurrences:
