@@ -98,6 +98,11 @@ run_suite() { # <label> <limit> <script> <logfile>: prints pass or fail
     echo "main-ui-run: $label ..." >&2
     "$ROOT/scripts/heavy-run.sh" "$ROOT/scripts/run-limited.sh" "$limit" "$ROOT/scripts/$script" >"$log" 2>&1
     status=$?
+    # Recorded by scripts/ui-flake.sh: a red that goes green later with no related change is a local flake.
+    if [ -x "$ROOT/scripts/ui-flake.sh" ]; then
+        "$ROOT/scripts/ui-flake.sh" --record --platform "$(case "$script" in android*) echo android ;; *) echo ios ;; esac)" \
+            --result "$([ "$status" -eq 0 ] && echo pass || echo fail)" --log "$log" --context main >&2 || true
+    fi
     if [ "$status" -eq 0 ]; then echo pass; else echo "fail"; echo "main-ui-run: $label failed (status $status), log $log" >&2; fi
     return 0
 }
@@ -182,6 +187,11 @@ cmd_status() {
     if [ -n "$LAST_SHA" ]; then echo "last full UI run on main: $(short "$LAST_SHA") $LAST_RESULT at $LAST_TIME ($LAST_ANDROID $LAST_IOS)"
     else echo "last full UI run on main: none recorded"; fi
     decide || true
+    if [ -x "$ROOT/scripts/ui-flake.sh" ]; then
+        local pending
+        pending="$("$ROOT/scripts/ui-flake.sh" --pending-count 2>/dev/null)"
+        [ "${pending:-0}" = 0 ] || echo "local UI flakes not yet logged in CI_FLAKES.md: $pending (scripts/ui-flake.sh --pending)"
+    fi
     return 0
 }
 
@@ -197,6 +207,7 @@ self_test() {
     cp "$SELF" "$clone/scripts/main-ui-run.sh"
     cp "$ROOT/scripts/classify-changes.sh" "$clone/scripts/classify-changes.sh"
     cp "$ROOT/scripts/run-limited.sh" "$clone/scripts/run-limited.sh"
+    cp "$ROOT/scripts/ui-flake.sh" "$clone/scripts/ui-flake.sh"
     printf '#!/usr/bin/env bash\nexec "$@"\n' > "$clone/scripts/heavy-run.sh"
     for s in android ios; do
         printf '#!/usr/bin/env bash\necho ran >> "$TM_TEST_RAN"\n[ "${TM_TEST_FAIL:-}" = %s ] && exit 1\nexit 0\n' "$s" > "$clone/scripts/$s-ui-tests.sh"
@@ -206,7 +217,7 @@ self_test() {
     echo base > "$clone/README.md"
     git -C "$clone" add -A && git -C "$clone" commit -q -m base && git -C "$clone" push -q origin main 2>/dev/null
     local run="$clone/scripts/main-ui-run.sh"
-    export TM_MAIN_UI_STATE="$tmp/state" TM_MAIN_UI_LOG_DIR="$tmp/logs" TM_TEST_RAN="$tmp/ran" TM_TEST_QUEUE="$tmp/queue"
+    export TM_MAIN_UI_STATE="$tmp/state" TM_MAIN_UI_LOG_DIR="$tmp/logs" TM_TEST_RAN="$tmp/ran" TM_TEST_QUEUE="$tmp/queue" TM_UI_FLAKE_DIR="$tmp/flakes"
     : > "$TM_TEST_RAN"; : > "$TM_TEST_QUEUE"
 
     t() { # name wanted-exit wanted-fragment command...
@@ -248,6 +259,9 @@ self_test() {
     unset TM_TEST_FAIL
     t "main at a red run's SHA is not run again" 3 "(" "$run" --due
     t "--release refuses while the last run is red" 1 "no release" "$run" --release
+    commit docs/c.md "docs only after the red run"
+    t "a green run after a red one with no related change is a local flake" 0 "FLAKE" "$run" --run
+    t "--status reports the pending local flake" 0 "local UI flakes not yet logged in CI_FLAKES.md: 1" "$run" --status
     git -C "$clone" switch -q -c topic
     t "not on main: exit 2" 2 "not on main" "$run" --run
     git -C "$clone" switch -q main

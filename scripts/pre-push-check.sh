@@ -49,16 +49,24 @@ run_limited() {
 }
 
 # One UI-test step: the platform's runner script under a time limit, with its own elapsed time. The runner prints
-# the pins it ran on (emulator and image, simulator and runtime, Xcode). No retry: red is red (tm-testing).
+# the pins it ran on (emulator and image, simulator and runtime, Xcode). No retry: red is red (tm-testing). The run
+# is recorded by scripts/ui-flake.sh (its log, its result), which says when a pass follows a failure that nothing
+# related explains: a local flake, counted and logged like a CI flake (tm-pr-workflow, "Flake log"). The record never
+# changes the step's result.
 ui_tests_step() {
-    local label="$1" limit="$2" started=$SECONDS status
-    shift 2
-    run_limited "$limit" "$@"
-    status=$?
+    local label="$1" platform="$2" limit="$3" started=$SECONDS status log result
+    shift 3
+    log="$(mktemp)"
+    run_limited "$limit" "$@" 2>&1 | tee "$log"
+    status=${PIPESTATUS[0]}
     if [ $status -eq 124 ]; then
         echo "$label: timeout, the step was killed at the limit of ${limit} s"
     fi
     echo "$label: $((SECONDS - started)) s (limit ${limit} s)"
+    result=fail
+    [ $status -eq 0 ] && result=pass
+    scripts/ui-flake.sh --record --platform "$platform" --result "$result" --log "$log" --context gate || true
+    rm -f "$log"
     return $status
 }
 # Limits for the whole step, from the measured times on the owner's Mac (2026-11-15; iOS: 9 tests, 230 s with the
@@ -319,7 +327,7 @@ if [ "$DECISION" = full ]; then
     # The Android UI tests: the full instrumented suite on the dedicated AVD (scripts/android-ui-tests.sh boots
     # it, prints the emulator, image, API and ABI it ran on, and goes through heavy-run like every Gradle run).
     if [ "$RUN_ANDROID_UI" = true ]; then
-        run_step "Android UI tests" ui_tests_step "Android UI tests" "$ANDROID_UI_LIMIT" scripts/android-ui-tests.sh
+        run_step "Android UI tests" ui_tests_step "Android UI tests" android "$ANDROID_UI_LIMIT" scripts/android-ui-tests.sh
     else
         echo "==> Android UI tests"
         echo "    skipped: the UI scope of this branch is $UI_SCOPE"
@@ -423,7 +431,7 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     # Last in the iOS part: `--variant uitest` leaves the test-only framework at the debug path, and a normal
     # build after it rebuilds the production one.
     if [ "$RUN_IOS_UI" = true ]; then
-        run_step "iOS UI tests" ui_tests_step "iOS UI tests" "$IOS_UI_LIMIT" scripts/ios-ui-tests.sh
+        run_step "iOS UI tests" ui_tests_step "iOS UI tests" ios "$IOS_UI_LIMIT" scripts/ios-ui-tests.sh
     else
         echo "==> iOS UI tests"
         echo "    skipped: the UI scope of this branch is $UI_SCOPE (decision $DECISION)"
@@ -433,6 +441,11 @@ if [ "$RUN_IOS_STEPS" != true ]; then
     echo "==> iOS UI tests"
     echo "    skipped: the UI scope of this branch is $UI_SCOPE (decision $DECISION)"
 fi
+
+# Report only: the local UI flakes that were detected (a UI step that failed and then passed with no related change)
+# and are not yet in CI_FLAKES.md. Log them as tm-pr-workflow, "Flake log" says; never adds to FAILURES.
+echo "==> local UI flakes not yet logged (report only, never fails the gate)"
+scripts/ui-flake.sh --pending 2>&1 | sed 's/^/    /' || true
 
 # --- Review verdict (soft: reports only) ---
 # The pr-reviewer subagent's verdict, recorded by the session as one line `<full sha> <VERDICT>`

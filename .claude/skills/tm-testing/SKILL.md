@@ -97,7 +97,8 @@ Xcode versions it ran on. CI still runs the iOS UI tests in its `ios-ui` job unt
   the fix or remove the guard) and write the red evidence in the PR. A fix that spans modules is reverted
   across all of them (`MainActivity` and `TrackingService` for #301).
 - **No retries**: no `@Ignore`, no `assumeTrue` to skip, no Orchestrator or Gradle retry. Red is red; a failure
-  without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
+  without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log"): a run that fails and then
+  passes is detected and counted by `scripts/ui-flake.sh` ("Local UI flakes").
 
 ## Coroutines / Flow
 
