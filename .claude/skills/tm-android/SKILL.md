@@ -276,4 +276,4 @@ Don't copy these as a pattern for new code.
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
 - `HistoryScreen` puts the `Scaffold`'s `innerPadding` on the `Box` around its `LazyColumn` instead of
-  in the list's `contentPadding` (Insets; queue: `history-list-insets-as-content-padding`).
+  in the list's `contentPadding` (Insets; queue: `history-list-insets-content-padding`).
