@@ -34,7 +34,8 @@
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
 #   without a PR number, for an entry that is not `ready`, while another entry is pushed, for an
 #   entry that is not the first open one in queue order, or whose parent is not merged; status
-#   `merged` without a PR number, or for an entry that is not `pushed`.
+#   `merged` without a PR number, or for an entry that is not `pushed`, and status `dropped` for an entry
+#   that an open entry comes after (it would hold that entry; `set <slug> --force status=dropped` overrides).
 #
 # next prints exactly one line, from the file alone (no network, no git):
 #   PUSH <slug>                   nothing is pushed, the first open entry is `ready`, its parent (if
@@ -238,13 +239,14 @@ clean_workspace() {
 print_next() { echo "next: $(cmd_next)"; }
 
 cmd_set() {
-    local slug="${1:-}" kv key val status pr branch tmp first other parent old
+    local slug="${1:-}" kv key val status pr branch tmp first other parent old force=0
     [ -n "$slug" ] && [ "$#" -ge 2 ] || usage
     shift
     entries > /dev/null
     [ -n "$(field "$slug" 2)" ] || refuse "'$slug' is not in the queue"
     status="$(field "$slug" 6)"; old="$status"; pr="$(field "$slug" 7)"; branch="$(field "$slug" 3)"
     for kv in "$@"; do
+        if [ "$kv" = --force ]; then force=1; continue; fi
         key="${kv%%=*}"; val="${kv#*=}"
         [ "$key" != "$kv" ] || usage
         case "$key" in
@@ -260,6 +262,10 @@ cmd_set() {
             *) refuse "unknown field '$key' (status, pr, branch)" ;;
         esac
     done
+    if [ "$status" = dropped ] && [ "$old" != dropped ] && [ "$force" != 1 ]; then
+        other="$(entries | awk -F '\t' -v s="$slug" '$4 == s && $6 != "merged" && $6 != "dropped" { print $2; exit }')"
+        [ -z "$other" ] || refuse "'$other' comes after '$slug' and is open; dropping '$slug' would hold it (merged is the status of a merged PR; or add --force)"
+    fi
     if [ "$status" = pushed ] && [ "$old" != pushed ]; then
         [ "$pr" != - ] || refuse "status pushed needs pr=<number>"
         [ "$old" = ready ] || refuse "'$slug' is $old; only a ready entry is pushed"
@@ -459,6 +465,11 @@ self_test() {
     check "PUSH an owner entry once everything ahead is merged" "PUSH o" 0 q next
     fresh n16; line 1 a - agent pushed 3; line 2 b - agent dropped -
     check "WAIT ignores dropped entries" "WAIT a #3 agent" 0 q next
+    fresh n30; line 1 a - agent pushed 3; line 2 b a agent ready -
+    check "dropping an entry that an open entry comes after is refused" "queue: refused: 'b' comes after 'a' and is open; dropping 'a' would hold it (merged is the status of a merged PR; or add --force)" 1 q set a status=dropped
+    check "--force drops it" "set a: status dropped, pr 3, branch chore/a" 0 q set a --force status=dropped
+    fresh n31; line 1 a - agent pushed 3; line 2 b a agent dropped -
+    check "dropping an entry whose dependants are all closed is allowed" "set a: status dropped, pr 3, branch chore/a" 0 q set a status=dropped
     fresh n18; line 1 a - agent dropped -; line 2 b a agent ready -
     check "pushed refused while the parent is not merged" "queue: refused: the parent 'a' is not merged" 1 q set b status=pushed pr=5
     fresh n19; line 1 a - agent planned -; line 2 c - agent ready -
