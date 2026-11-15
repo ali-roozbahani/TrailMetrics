@@ -70,7 +70,7 @@ A bug found by hand on a device is not a reason for a human check: write the tes
 the unfixed code, "Bugfixes: red test first"), then fix. The UI tests of both platforms run in the local gate on
 this machine, the full suite of each platform a branch touches (`scripts/classify-changes.sh --ui-scope`:
 `androidApp/` Android, `iosApp/` and `shared-uitest/` iOS, `domain`, `data`, `core`, `shared` and the root Gradle
-and catalog files both, docs, skills and tooling scripts none); the gate prints the AVD, simulator, runtime and
+and catalog files both, docs, skills, tooling scripts and workflow files none); the gate prints the AVD, simulator, runtime and
 Xcode versions it ran on. CI still runs the iOS UI tests in its `ios-ui` job until the local mechanism is proven and the owner's step 5 removes that job; it has no Android UI job.
 
 ### Rules for `androidTest` (a flake is a failed rule)

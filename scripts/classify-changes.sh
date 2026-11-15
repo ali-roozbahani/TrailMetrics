@@ -52,8 +52,11 @@
 #   a file that is light (on the allowlist, not a heavy script): none (docs, skills, tooling scripts), except
 #     scripts/android-ui-tests.sh and scripts/ios-ui-tests.sh, the UI tests' runners: android and ios
 #   androidApp/**: android;   iosApp/** and shared-uitest/**: ios
+#   .github/workflows/*.yml and *.yaml: none. A workflow cannot change what the local UI tests do; the light or
+#     full decision of such a file is the same as before (ci.yml is `full`), and a secrets reference or a change
+#     of pr-review.yml is the workflow guard's business (scripts/check-workflow-guard.sh), not the UI scope's
 #   everything else: both. That is domain/, data/, core/, shared/, the root Gradle files and the version catalog,
-#   and, failing safe, any heavy script, the gate's own scripts, workflows and any path not mentioned here.
+#   and, failing safe, any heavy script, the gate's own scripts and any path not mentioned here.
 # A diff whose file list cannot be read exactly (the cases that make the classification `(no file list: ...)`)
 # is `both`. Callers treat anything but a first line of exactly one of the four values as `both`.
 #
@@ -159,6 +162,9 @@ ui_scope_of_path() {
     case "$1" in
         androidApp/*) echo android ;;
         iosApp/* | shared-uitest/*) echo ios ;;
+        # A workflow file (pr-review.yml is light and was answered above) cannot change what the local UI tests do:
+        # CI is not part of them. Its light or full decision is not touched; only this answer is.
+        .github/workflows/*.yml | .github/workflows/*.yaml) echo none ;;
         *) echo both ;;
     esac
 }
