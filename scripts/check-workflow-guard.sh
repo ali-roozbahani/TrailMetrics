@@ -4,7 +4,7 @@
 #   1. a diff that touches .github/workflows/pr-review.yml (that file holds the reviewer's API key step, and a
 #      pull_request run uses the file as it is on the PR head);
 #   2. a diff that adds a reference to `secrets` in any workflow file (`secrets.NAME`, `secrets[...]`,
-#      `secrets:` as in `secrets: inherit`, a bare `${{ secrets }}`, `toJSON(secrets)`, in any case). A full-line comment is not a reference; a
+#      `secrets:` as in `secrets: inherit`, a bare `${{ secrets }}`, `toJSON(secrets)`, in any case). A full-line comment is not a reference, unless it holds ${{ }} (Actions expands it even in a comment); a
 #      removed reference alone is not a violation.
 # Any other workflow change passes, the removal of CI's UI jobs included. The push hook allows a push only after
 # the gate passed, so a failing guard keeps such a branch from being pushed by the agent.
@@ -42,9 +42,17 @@ guard() {
             violations=1
         fi
         added="$(git -C "$repo" diff -U0 --no-renames "$base" "$head" -- "$file")" || return 2
-        # Added lines only, without full-line comments. A grep status of 1 is "no match"; anything else is an error
-        # and fails the check (a swallowed error would let every diff pass).
-        stripped="$(printf '%s\n' "$added" | awk '/^@@/ {inhunk = 1; next} inhunk && /^\+/ {print substr($0, 2)}' | { grep -vE '^[[:space:]]*#' || [ $? -eq 1 ]; })" || return 2
+        # Added lines only, without full-line comments that hold no ${{ }}. A grep status of 1 below is "no match"; anything else is
+        # an error and fails the check (a swallowed error would let every diff pass).
+        stripped="$(printf '%s\n' "$added" | awk '
+            /^@@/ { inhunk = 1; next }
+            inhunk && /^\+/ {
+                line = substr($0, 2)
+                # A full-line comment is not a reference, unless it holds ${{ }}: Actions expands that before the shell
+                # (or anything else) reads the line, so "# echo ${{ secrets.X }}" in a run block still reads the secret.
+                if (line ~ /^[[:space:]]*#/ && index(line, "${{") == 0) next
+                print line
+            }')" || return 2
         lines="$(printf '%s\n' "$stripped" | grep -niE "$SECRETS_RE")"
         status=$?
         [ "$status" -le 1 ] || { echo "check-workflow-guard: grep failed (status $status)" >&2; return 2; }
@@ -103,6 +111,7 @@ self_test() {
     case_ secrets-bare-context-added                1 "adds a reference to secrets" 'echo "      - run: echo \${{ secrets }}" >> .github/workflows/ci.yml'
     case_ secrets-spaced-index-added                1 "adds a reference to secrets" 'echo "      - run: echo \${{ secrets [matrix.name] }}" >> .github/workflows/ci.yml'
     case_ secrets-upper-case-added                  1 "adds a reference to secrets" 'echo "      - run: echo \${{ SECRETS.X }}" >> .github/workflows/ci.yml'
+    case_ secrets-in-a-comment-with-expression      1 "adds a reference to secrets" 'echo "          # echo \${{ secrets.X }}" >> .github/workflows/ci.yml'
     case_ other-workflow-change-passes      0 "" 'printf "  b:\n    steps:\n      - run: echo b\n" >> .github/workflows/ci.yml'
     case_ job-removal-passes                0 "" 'printf "name: CI\n" > .github/workflows/ci.yml'
     case_ secrets-removed-only-passes       0 "" 'printf "name: Old\njobs:\n  o:\n    env:\n      T: x\n" > .github/workflows/old.yml'

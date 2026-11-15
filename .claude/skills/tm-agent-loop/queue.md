@@ -35,7 +35,8 @@ Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review
   file and not dropped; it does not check that the entry fixes the finding.
 - **Not in the queue:** an item that needs an owner decision or design, an epic,
   and an item `add` refuses because 5 entries are open. Those get a `BOARD.md` record instead. A
-  change under `.github/workflows/` is an entry like any other (the owner merges its PR).
+  change under `.github/workflows/` is an entry like any other (the owner merges its PR), except the two
+  cases the owner pushes (`SKILL.md`, section 5): a change to `pr-review.yml` and one that adds a reference to `secrets`.
 - `kind` is decided when the entry is added. A pushed agent entry whose Merge check has a "no"
   (an `ESCALATE_TO_HUMAN`, a protected path found late) is handed to the owner like an owner entry;
   nothing else is pushed until the owner merges or closes it.
