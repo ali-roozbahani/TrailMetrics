@@ -142,6 +142,11 @@ run_step "board check" scripts/check-board.sh --base "$BASE_REF"
 # Protected paths (.github/CODEOWNERS): the file must be valid. Same command as CI's tooling job.
 run_step "protected paths" scripts/check-protected-paths.sh --validate
 
+# A diff that touches .github/workflows/pr-review.yml, or adds a reference to secrets in a workflow file, is pushed
+# by the owner, not the agent (tm-agent-loop, section 5). The push hook allows a push only after this gate passed,
+# so a failure here keeps the agent from pushing such a branch. Every other workflow change passes.
+run_step "workflow guard" scripts/check-workflow-guard.sh --base "$BASE_REF"
+
 # scripts/README.md indexes every script under scripts/ (one line each). Same as CI's tooling job.
 run_step "scripts index check" scripts/checks/scripts-index.sh --check
 

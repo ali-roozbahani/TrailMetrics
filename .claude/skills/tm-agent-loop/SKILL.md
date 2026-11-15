@@ -108,8 +108,17 @@ PR with `gh pr create --base main --title "<PR title>" --body-file <file>` (`tm-
 "Tier 1", "Push and PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
 
 A diff that touches `.github/workflows/` is pushed like any other, as a PR (owner decision of
-2026-11-15; it replaces Decision 1 of the agentic-dev-loop plan). The owner still merges it (a
-protected path), and still changes the branch protection and `.claude/settings.json` alone. A push
+2026-11-15; it replaces Decision 1 of the agentic-dev-loop plan; the removal of CI's UI jobs is one such
+change). The owner still merges it (a protected path), and still changes the branch protection and
+`.claude/settings.json` alone. Two cases the owner pushes, not the agent: a diff that touches
+`.github/workflows/pr-review.yml` (the file that holds the reviewer's API key step, which a `pull_request`
+run takes as it is on the PR head), and a diff that adds a reference to `secrets` in any workflow file.
+`scripts/check-workflow-guard.sh` is a gate step that fails on exactly these two, so the push hook, which
+allows a push only after a passing gate, keeps them from being pushed. When it fails, do not push and do
+not split the change to get around it: write the change as a patch file (`git format-patch` of the commit,
+or a `git diff` of the file) in `~/agent-workspace/`, and hand it to the owner with one line saying what it
+does and which file it touches. No GitHub Environments with required reviewers are used for this (a click
+for every push of every PR). A push
 authenticates through the `gh` credential helper only: the push hook blocks any `git push` unless the
 checkout's effective `credential.helper` list is exactly `!gh auth git-credential`, so no keychain login
 can answer first. When GitHub refuses the push (the machine token has no `workflow` scope: "refusing to
