@@ -131,16 +131,24 @@ runner" (infra: no test or code involved) is counted and never escalated to a bo
   `:androidApp:app:packageDebug`, first error line "A failure occurred while executing
   com.android.build.gradle.tasks.PackageAndroidArtifact$IncrementalSplitterRunnable" (24 s, no cause
   line in the log)
-- Count: 2
+- Count: 3
 - Status: open
+- escalated: flake-android-package-debug-incremental-failure
 - Occurrences:
   - 2026-10-21, run 39606497367 (push to `main`, head 90a0f7d), re-run: no
   - 2026-11-10, run 42835745551 (push to `main`, merge of #246, head 79fb11b), re-run: no
+  - 2026-11-15, run 43707938041 (push to `main`, merge of #296, head 31b71dd), re-run: no (never on `main`; the owner acknowledged the run)
 - Notes: class infra (runner or restored Gradle cache), not shown. `androidApp` and the Gradle files
   did not change between 90a0f7d and 184beba, and run 39598565016 (184beba) was green.
   Occurrence 2: the build failed in 15 s with the same first error line and no cause line in the log.
   #246 changed no `androidApp/app` file (only `androidApp/feature-tracking`, a skill doc and
   `BOARD.md`), and the previous run on `main` (42828048444, #245) was green.
+  Occurrence 3: the build failed in 21 s with the same first error line and no cause line. Unlike the
+  first two, the merge changed `androidApp/app` and `data` main sources (`MainActivity.kt`,
+  `TrackingService.kt`, a new `StopTrackingAuthorization.kt`), and the failure came in `assembleDebug`
+  after `lint`, `detekt` and the tests had built in the same job. The PR's own CI run of the same tree
+  was green. "Same first error line, no cause line" does not show the class: it stays unproven that all
+  three are one cause (see the board record for what to capture on the next one).
 
 ## ios-route-pending-events-wait
 
