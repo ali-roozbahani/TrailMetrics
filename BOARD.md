@@ -537,6 +537,88 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner has decided whether the UI-test variant seeds a snapshot file for a History record, and a `TrailMetricsUITests` scenario shows the row's image (an element that exists only when the image loaded, for example an accessibility identifier on the loaded image) and fails when the stored path no longer resolves, shown on a deliberately broken version.
 - Refs: `iosApp/Packages/History/Sources/History/HistoryView.swift` (`ActivityRow`); `iosApp/Packages/History/Sources/History/HistoryViewModel.swift` (`snapshotURL(for:)`); `shared-uitest`; `docs/epics/ios-ui-tests.md`; `.claude/skills/tm-testing` ("XCUITest").
 
+### android-first-minified-release-build
+- Type: task
+- Area: androidApp/app, config, CI
+- Order: 630
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner's decision and design, and part of it is a workflow file only the owner can push. A minified release build of the Android app has never been built or run. In `androidApp/app/build.gradle.kts` the `release` build type has `optimization { enable = false }` (R8 off), there are no keep rules and no `proguardFiles`, and CI builds `assembleDebug` only. `versionCode = 1` and `versionName = "1.0"` are hard-coded, there is no signing config and no `bundleRelease`, and nothing says who produces the AAB or where the keystore lives. The first minified build will probably break something that Robolectric cannot show, because its tests run unminified classes: type-safe navigation (`typeOf`, reflection), kotlinx-serialization, Ktor, Koin, Room 3 (`androidx.room3`), Maps and Coil 2. The Maps API key (read from `local.properties` into the `MAPS_API_KEY` manifest placeholder) ships in the manifest; its protection is a restriction by package name and signing certificate in Google Cloud Console, which nothing in the repository records.
+- Done when: R8 is on in `release` with the smallest keep rules the build needs (each with a comment saying what it protects); versioning and signing are decided and written down (who builds the AAB, where the keystore lives, how `versionCode` grows); CI builds a release variant (a workflow change the owner pushes); one human runs the minified build on a device through every screen (Route with the map, Tracking with a started and finished session, History, Details) and reports the result; and the Play App Signing certificate's SHA-1 is added to the Maps key's restriction next to the package name.
+- Refs: `androidApp/app/build.gradle.kts`; `.github/workflows/ci.yml`; `androidApp/app/src/main/AndroidManifest.xml` (`MAPS_API_KEY`); `tm-pr-workflow` (Tier 2).
+
+### android-backup-and-data-extraction-rules
+- Type: task
+- Area: androidApp/app
+- Order: 640
+- Source: spike android/skills 2026-11-15
+- Problem: Needs an owner decision on what may leave the device. `AndroidManifest.xml` has `allowBackup="true"` and points at `@xml/data_extraction_rules` and `@xml/backup_rules`, which are still the unedited sample templates, so the Room database of recorded GPS tracks and the saved map snapshot files go into cloud backup and device-to-device transfer. That is probably wrong for location history (privacy, the Play data safety answers), and a restored database lands on a device where the stored tracking session and the service state do not match.
+- Done when: the owner has decided what is backed up and transferred (nothing, the database without the snapshots, or all), `data_extraction_rules.xml` and `backup_rules.xml` say so with explicit include and exclude entries (or `allowBackup` is `false`), and the data safety answers of `android-play-release-checklist` use the decision.
+- Refs: `androidApp/app/src/main/AndroidManifest.xml`; `androidApp/app/src/main/res/xml/data_extraction_rules.xml`, `backup_rules.xml`.
+
+### android-location-permission-denial-and-disclosure
+- Type: task
+- Area: androidApp/feature-route, androidApp/feature-tracking, androidApp/core-ui
+- Order: 650
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner's design (product copy, a prominent disclosure, where the user is sent). The location permission flow has only the granted path: the launchers in `RouteScreen.kt` and `TrackingScreen.kt` request fine and coarse location together, send `LocationPermissionGranted` when either is granted and do nothing otherwise. There is no rationale and no way to the app's settings after the user has refused permanently, so a user who tapped "Don't allow" twice sees only the `MissingLocationPermission` error and cannot recover in the app. The notification permission is asked with `LaunchedEffect(Unit)` on every entry to the tracking screen with an empty result callback; a denied notification hides the foreground notification (and its Stop) and the app does not say so. No prominent disclosure explains the location use before the system dialog, which Play's location policy requires.
+- Done when: the three outcomes for location (granted, rationale needed, permanently denied with a way to the app's settings) are handled and the notification denial is explained; a disclosure text before the first request exists, in the owner's words; each outcome has a ViewModel or Compose test; the permission state is never cached (checked at the use site).
+- Refs: `androidApp/feature-route/src/main/kotlin/dev/roozbahani/trailmetrics/feature/route/RouteScreen.kt`; `androidApp/feature-tracking/src/main/kotlin/dev/roozbahani/trailmetrics/feature/tracking/TrackingScreen.kt`; `RouteViewModel` (`MissingLocationPermission`); `AndroidLocationRepositoryImpl` (`SecurityException` mapping).
+
+### android-crash-and-anr-reporting
+- Type: task
+- Area: androidApp/app, build
+- Order: 660
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner's decision: a reporting library is a third-party dependency and a privacy choice (what leaves the device, what the data safety form says). The app has no crash or ANR reporting of any kind, so a production crash or ANR is invisible and no stability data exists to diagnose from.
+- Done when: the owner has chosen a tool (or Play Console's vitals alone) and its data scope, the dependency is added by a task that names it, the choice appears in the data safety answers, and a deliberate crash in a debug build shows up in the tool.
+- Refs: `gradle/libs.versions.toml`; `tm-robustness` (C1, E4); `android-play-release-checklist`.
+
+### android-play-release-checklist
+- Type: task
+- Area: release (Play Console, not code)
+- Order: 670
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner: the steps are done in Play Console and in writing, and nothing in the repository records them. Before the first Play submission: the foreground-service declaration for the `location` type (a functional description and a video of the user impact; required for apps targeting Android 14 and later, and the app targets 37); the prominent disclosure text before the location request (`android-location-permission-denial-and-disclosure`); the data safety form (GPS tracks stored locally, requests to a directions API; the decisions of `android-backup-and-data-extraction-rules` and `android-crash-and-anr-reporting` change the answers); a privacy policy URL; content rating, target audience and an internal testing track; the target SDK deadline. Google's `play-policy-insights` skill sends the package name to play.google.com, so the agent does not run it; its location and foreground-service tables are a usable checklist.
+- Done when: each item above is done or answered, with the declaration text, the video and the policy URL kept where the owner decides, and the first internal-testing release is accepted.
+- Refs: `androidApp/app/src/main/AndroidManifest.xml` (`foregroundServiceType="location"`); `android-first-minified-release-build`.
+
+### android-tracking-service-restart-and-battery-killing
+- Type: task
+- Area: data (TrackingService), androidApp
+- Order: 680
+- Source: spike android/skills 2026-11-15
+- Problem: Needs a device and the owner's product decision; the agent has no device and no test can show it. (1) `TrackingService` returns `START_STICKY` and restores the stored session when the system restarts it after the process was killed (`onStartCommand` with a null intent, `handleRestart`; `tm-robustness` R2 promises a restore or a notice). It is not known whether a system-initiated restart of a location foreground service from the background can still read location on Android 12 and later without background location permission, so the restored session may be restored but receive no updates. (2) Doze and vendor background killers (the usual field complaint of trackers: "my run stopped") are not handled: nothing asks the user to exempt the app and nothing detects an unexpected stop. Also `startForeground(NOTIFICATION_ID, notification)` is called without the service-type argument; whether the three-argument form is required at target 37 is unverified.
+- Done when: someone ran on a device (start tracking, `adb shell am kill dev.roozbahani.trailmetrics`, watch whether the service comes back and whether location updates arrive), the result is written down, and the owner decided what the app does about it (a code fix, a notice, or the accepted limit); the same for one battery-optimised device; the `startForeground` form is checked against the documentation for target 37.
+- Refs: `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/tracking/TrackingService.kt`, `RestartAction.kt` (`handleRestart`); `tm-robustness` R2.
+
+### android-baseline-profiles-and-macrobenchmark
+- Type: task
+- Area: androidApp/app, build
+- Order: 690
+- After: android-first-minified-release-build
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner's decision (new dependencies: `androidx.profileinstaller`, a baseline-profile plugin, `androidx.benchmark`) and a device or emulator to generate and measure. The app has no Baseline Profile and no Macrobenchmark (no `baselineprofile`, `benchmark` or `profileinstaller` anywhere). Startup of a Compose, Koin, Room and Maps app is the cost a profile removes, and a performance claim needs a measurement on a release build, which does not exist yet.
+- Done when: the owner approved the dependencies, a baseline profile is generated and shipped in the release build, and a Macrobenchmark of cold start exists with its result recorded.
+- Refs: `androidApp/app/build.gradle.kts`; `gradle/libs.versions.toml`; `android-first-minified-release-build`.
+
+### android-predictive-back
+- Type: task
+- Area: androidApp/app, androidApp/feature-tracking
+- Order: 700
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner's decision (polish, and a possible new dependency). The manifest does not set `android:enableOnBackInvokedCallback`, so the system default applies: predictive back is on for API 36 and later at target 37 and not on API 33 to 35. The only back handling is `BackHandler(enabled = hasActiveSession)` in `TrackingScreen.kt`, which confirms before leaving an active session. `androidx.navigationevent`'s `NavigationBackHandler` would add the back-gesture progress for an animation; it is a new dependency.
+- Done when: the owner decided whether predictive back is wanted below API 36 (the manifest attribute set to `true`) and whether the tracking confirmation moves to `NavigationBackHandler`, and the decision is implemented or this record is deleted as declined.
+- Refs: `androidApp/app/src/main/AndroidManifest.xml`; `androidApp/feature-tracking/src/main/kotlin/dev/roozbahani/trailmetrics/feature/tracking/TrackingScreen.kt` (`BackHandler`).
+
+### android-production-gaps-unassigned
+- Type: task
+- Area: androidApp, config, CI
+- Order: 710
+- Source: spike android/skills 2026-11-15
+- Problem: Needs the owner to pick which of these to do; each is a decision, none is a defect the agent can fix alone. The Android app lacks, with no recorded decision: (1) localization: one `strings.xml` per module, no `values-xx`, no `localeConfig`, and the tracking notification's text and channel name are hard-coded English in `TrackingService` (see `android-tracking-notification-content`); unit words and number formats are shared code (`shared-metrics-formatter-user-visible-strings` and `ios-hardcoded-number-formatting` cover shared and iOS); (2) accessibility beyond the `cd_*` content descriptions: no TalkBack pass, no font-scale test, touch targets, live regions for the changing numbers, contrast; (3) a network security configuration and a written cleartext and pinning choice for the directions API; (4) a release logging policy: `AndroidLogger` calls `Log.d` for everything and `MapSnapshotSaver` logs exceptions with `Log.e`, and whether coordinates reach a log was not checked; (5) dependency vulnerability and license scanning and an update flow (no Dependabot or Renovate, no scan step in CI); (6) lint as a release gate: no `lint-baseline.xml` or severity policy seen; (7) instrumented tests on a device in CI: none by design, so the real foreground service, permission dialogs and Maps are covered only by human checks, and no process-death or startup test exists (`tm-robustness` R1); (8) in-app updates, review prompts, remote config or a kill switch; (9) scheduled background work, needed only when a sync feature exists.
+- Done when: the owner has gone through the list and, for each item, made it a record of its own (a PR narrows this record to the remaining items) or declined it; this record is then deleted.
+- Refs: `androidApp/*/src/main/res/values/strings.xml`; `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/common/AndroidLogger.kt`; `androidApp/feature-tracking/src/main/kotlin/dev/roozbahani/trailmetrics/feature/tracking/util/MapSnapshotSaver.kt`; `.github/workflows/ci.yml`; `tm-robustness` R1.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
