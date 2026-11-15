@@ -133,7 +133,8 @@ class TrackingService : Service(), KoinComponent {
     // Service, so tapping Stop matches the in-app Stop button's result exactly: it stops
     // the session AND brings Route to the front, whether the app is foregrounded,
     // backgrounded, or not running at all. MainActivity looks for ACTION_STOP_TRACKING to
-    // drive both the stop call and the navigation.
+    // drive both the stop call and the navigation. That Activity is exported (it is the launcher), so the
+    // intent carries the secret of StopTrackingAuthorization: without it any app could send the same action.
     private fun buildStopPendingIntent(): PendingIntent {
         val stopIntent = launchIntent(this).apply {
             action = ACTION_STOP_TRACKING
@@ -141,6 +142,7 @@ class TrackingService : Service(), KoinComponent {
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+        StopTrackingAuthorization.authorize(stopIntent)
         return PendingIntent.getActivity(
             this, 0, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
