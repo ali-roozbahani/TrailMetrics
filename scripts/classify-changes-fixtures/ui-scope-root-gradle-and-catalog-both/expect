@@ -1,0 +1,6 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: both
+contains: build.gradle.kts  (both)
+contains: settings.gradle.kts  (both)
+contains: gradle.properties  (both)
+contains: gradle/libs.versions.toml  (both)

@@ -1,0 +1,4 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: none
+contains: README.md  (none)
+contains: .claude/skills/tm-testing/SKILL.md  (none)

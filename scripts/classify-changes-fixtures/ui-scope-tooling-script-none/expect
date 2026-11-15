@@ -1,0 +1,3 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: none
+contains: scripts/check-board.sh  (none)

@@ -1,0 +1,3 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: both
+contains: .github/workflows/ci.yml  (both)

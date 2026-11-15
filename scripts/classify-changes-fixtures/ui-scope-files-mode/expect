@@ -1,0 +1,4 @@
+args: --ui-scope --files androidApp/x.kt docs/a.md
+decision: ui-scope: android
+contains: androidApp/x.kt  (android)
+contains: docs/a.md  (none)
