@@ -50,7 +50,7 @@
 # UI scope (`--ui-scope`, read by the gate). The first line is `ui-scope: <android|ios|both|none>`, then one line per
 # file as `<file>  (<scope>)`. The map, per file (a diff's scope is the union):
 #   a file that is light (on the allowlist, not a heavy script): none (docs, skills, tooling scripts), except
-#     scripts/android-ui-tests.sh, which is the Android UI tests' runner: android
+#     scripts/android-ui-tests.sh and scripts/ios-ui-tests.sh, the UI tests' runners: android and ios
 #   androidApp/**: android;   iosApp/** and shared-uitest/**: ios
 #   everything else: both. That is domain/, data/, core/, shared/, the root Gradle files and the version catalog,
 #   and, failing safe, any heavy script, the gate's own scripts, workflows and any path not mentioned here.
@@ -124,12 +124,15 @@ HEAVY_SCRIPTS=(
 #   pre-push-check.sh        the gate itself (CI's tooling self-tests that read it run in every run)
 #   heavy-run.sh             the gate starts itself under it and Gradle runs go through it (self-test: tooling)
 #   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment (self-tests: tooling)
+#   android-ui-tests.sh, ios-ui-tests.sh   the gate's UI test steps (no self-test: the gate runs them)
 # scripts/check-heavy-scripts.sh fails when a CI step, Gradle or the Xcode project runs one of these.
 GATE_ONLY_HEAVY_SCRIPTS=(
     'scripts/pre-push-check.sh'
     'scripts/heavy-run.sh'
     'scripts/filter-xcode-log.sh'
     'scripts/scrub-env.sh'
+    'scripts/android-ui-tests.sh'
+    'scripts/ios-ui-tests.sh'
 )
 
 # Who is classifying: `gate` (the default: the local gate, --files, --base) or `ci` (--github, or --ci).
@@ -143,6 +146,7 @@ UI_SCOPE_MODE=0
 ui_scope_of_path() {
     case "$1" in
         scripts/android-ui-tests.sh) echo android; return ;;
+        scripts/ios-ui-tests.sh) echo ios; return ;;
     esac
     if [ -z "$2" ] && [ -n "$3" ]; then
         echo none

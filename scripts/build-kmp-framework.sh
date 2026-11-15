@@ -16,7 +16,7 @@
 #   --variant      Which framework to put at the debug path. Without it: uitest when Xcode's
 #                  CONFIGURATION is Debug-UITest (pre-action and --build-phase alike), production
 #                  otherwise. Callers outside Xcode pass --variant uitest when they need the
-#                  variant (CI's ios-build-ui job, the gate's smoke UI test step); every other
+#                  variant (CI's ios-build-ui job, the gate's iOS UI tests step); every other
 #                  step builds production.
 #
 # Variants (ADR-002, "Amendment"):
