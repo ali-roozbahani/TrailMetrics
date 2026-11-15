@@ -6,6 +6,7 @@
 #   scripts/main-ui-run.sh --auto           run when due, else print why not (the form the agent loop calls)
 #   scripts/main-ui-run.sh --due            exit 0 and `DUE <reason>`, exit 3 and `NOT_DUE <reason>`
 #   scripts/main-ui-run.sh --status         the last full run and whether one is due (never fails the caller)
+#   scripts/main-ui-run.sh --state-file     print the path of the state file
 #   scripts/main-ui-run.sh --run            run now, due or not
 #   scripts/main-ui-run.sh --release        before a release: run when due, then exit 0 only when the full run
 #                                           of the current main is green
@@ -18,7 +19,8 @@
 #   - before every release (`--release`; nothing in this repository releases yet, so a release step has to call it).
 # "Code changes" is the classifier's answer (`scripts/classify-changes.sh --ui-scope --base <last SHA>`): anything
 # but `none` (docs, skills and tooling scripts) is due. The SHA of the last full run, its result and the result of
-# each suite are kept in ${TM_MAIN_UI_STATE:-~/agent-workspace/main-ui-last-run}, one line, red runs included: main
+# each suite are kept in ${TM_MAIN_UI_STATE:-~/agent-workspace/keep-main-ui-last-run}, one line, red runs included (the
+# `keep-` prefix is what scripts/dev/clean-agent-workspace.sh does not delete): main
 # at a red run's SHA is not run again (it is the queue's entry now), and the next merge makes a run due.
 #
 # A run needs the clone on a clean `main` that equals `origin/main` (the iOS secrets config lives in this clone),
@@ -35,7 +37,7 @@ set -uo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
-STATE="${TM_MAIN_UI_STATE:-$HOME/agent-workspace/main-ui-last-run}"
+STATE="${TM_MAIN_UI_STATE:-$HOME/agent-workspace/keep-main-ui-last-run}"
 LOG_DIR="${TM_MAIN_UI_LOG_DIR:-$HOME/agent-workspace}"
 ANDROID_LIMIT=420   # the gate's limits (scripts/pre-push-check.sh)
 IOS_LIMIT=720
@@ -254,17 +256,21 @@ self_test() {
     git -C "$clone" checkout -q -- README.md
     t "--status never fails" 0 "last full UI run on main" "$run" --status
     t "an unknown option is a usage error" 2 "usage" "$run" --nonsense
+    # The workspace cleaner deletes a loose file of the workspace after 3 days unless its name starts with keep-.
+    out="$(env -u TM_MAIN_UI_STATE "$run" --state-file)"
+    case "$(basename "$out")" in keep-*) echo "ok   the default state file name starts with keep-";; *) echo "FAIL the default state file is $out: the cleaner would delete it"; fails=$((fails + 1));; esac
     if [ "$fails" -eq 0 ]; then echo "main-ui-run self-test: all cases passed"; return 0; fi
     echo "main-ui-run self-test: $fails case(s) failed" >&2
     return 1
 }
 
-usage() { sed -n '2,12p' "$SELF" >&2; echo "usage: scripts/main-ui-run.sh --auto | --due | --status | --run | --release | --self-test" >&2; exit 2; }
+usage() { sed -n '2,12p' "$SELF" >&2; echo "usage: scripts/main-ui-run.sh --auto | --due | --status | --state-file | --run | --release | --self-test" >&2; exit 2; }
 
 case "${1:-}" in
     --auto) cmd_auto ;;
     --due) out="$(decide)"; rc=$?; echo "$out"; exit "$rc" ;;
     --status) cmd_status ;;
+    --state-file) echo "$STATE" ;;
     --run) do_run ;;
     --release) cmd_release ;;
     --self-test) self_test ;;
