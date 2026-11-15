@@ -34,6 +34,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -184,5 +185,27 @@ class MainActivityStopIntentTest {
 
         assertEquals(0, launcher.stopCalls)
         assertEquals(0, store.clearCallCount)
+    }
+
+    @Test
+    fun `the open action delivered to a running Activity asks to open the live session and discards nothing`() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).create()
+        scheduler.advanceUntilIdle()
+        assertFalse(controller.get().openTrackingRequested.value)
+
+        controller.newIntent(Intent(TrackingService.ACTION_OPEN_TRACKING))
+        scheduler.advanceUntilIdle()
+
+        assertTrue(controller.get().openTrackingRequested.value)
+        assertEquals(0, launcher.stopCalls)
+        assertEquals(0, store.clearCallCount)
+    }
+
+    @Test
+    fun `an Activity created with the Stop action but no secret does not ask to open the session`() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java, outsideStopIntent()).create()
+        scheduler.advanceUntilIdle()
+
+        assertFalse(controller.get().openTrackingRequested.value)
     }
 }

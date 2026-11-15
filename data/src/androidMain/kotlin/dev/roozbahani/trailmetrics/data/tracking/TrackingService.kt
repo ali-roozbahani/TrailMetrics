@@ -123,6 +123,7 @@ class TrackingService : Service(), KoinComponent {
             .setContentTitle("TrailMetrics")
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_notif_location)
+            .setContentIntent(buildOpenTrackingPendingIntent())
             .addAction(0, "Stop", buildStopPendingIntent())
             .setOngoing(true)
             .build()
@@ -148,12 +149,32 @@ class TrackingService : Service(), KoinComponent {
         )
     }
 
+    // The body of the notification brings the running session to the front. MainActivity reads
+    // ACTION_OPEN_TRACKING and navigates to the Tracking screen. The action only navigates and changes no
+    // session, so, unlike Stop, it carries no secret: any app sending it gets the screen of a session that
+    // exists, nothing more. SINGLE_TOP delivers it to a running Activity (onNewIntent) instead of a second one.
+    private fun buildOpenTrackingPendingIntent(): PendingIntent {
+        val openIntent = launchIntent(this).apply {
+            action = ACTION_OPEN_TRACKING
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        return PendingIntent.getActivity(
+            this,
+            OPEN_TRACKING_REQUEST_CODE,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     companion object {
         const val ACTION_STOP_TRACKING = "dev.roozbahani.trailmetrics.action.STOP_TRACKING"
+        const val ACTION_OPEN_TRACKING = "dev.roozbahani.trailmetrics.action.OPEN_TRACKING"
         private const val NOTIFICATION_ID: Int = 1
 
         // Different from NOTIFICATION_ID, so onDestroy's cancel of the foreground notification cannot remove it.
         internal const val RESTORED_NOTIFICATION_ID: Int = 2
+        // Not 0 (Stop) and not 1 (the restart notice's launcher intent).
+        private const val OPEN_TRACKING_REQUEST_CODE: Int = 2
         private const val CHANNEL_ID = "tracking_channel"
     }
 }

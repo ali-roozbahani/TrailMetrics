@@ -25,6 +25,9 @@ data class SavedSessionOfferState(val offer: AppRoute.Tracking? = null)
 sealed interface SavedSessionOfferAction {
     /** The nav host navigated to the offer or found the back stack already on the Tracking screen. */
     data object OfferConsumed : SavedSessionOfferAction
+
+    /** The user asked for the running session (the notification's body): offer it again. */
+    data object OpenLiveSession : SavedSessionOfferAction
 }
 
 sealed interface SavedSessionOfferEvent {
@@ -33,10 +36,11 @@ sealed interface SavedSessionOfferEvent {
 }
 
 /**
- * Restores the stored tracking session once, when the app starts, and offers a [TrackingState.Paused] or
- * [TrackingState.Finished] one with a recorded path as a navigation target. The offer stays in [state] until
- * [SavedSessionOfferAction.OfferConsumed], so a recreated Activity or a recomposition does not lose it and
- * the ViewModel never offers it a second time.
+ * Restores the stored tracking session once, when the app starts, and offers a [TrackingState.Paused],
+ * [TrackingState.Finished] or (the service outlived the Activity) still [TrackingState.Tracking] one with a
+ * recorded path as a navigation target. [SavedSessionOfferAction.OpenLiveSession] offers the current one again.
+ * The offer stays in [state] until [SavedSessionOfferAction.OfferConsumed], so a recreated Activity or a
+ * recomposition does not lose it and the ViewModel never offers it a second time.
  */
 class SavedSessionOfferViewModel(
     private val trackingSessionManager: TrackingSessionManager,
@@ -65,6 +69,8 @@ class SavedSessionOfferViewModel(
     fun onAction(action: SavedSessionOfferAction) {
         when (action) {
             SavedSessionOfferAction.OfferConsumed -> _state.update { SavedSessionOfferState() }
+            SavedSessionOfferAction.OpenLiveSession ->
+                _state.value = SavedSessionOfferState(offerFor(trackingSessionManager.currentState.value))
         }
     }
 
@@ -72,7 +78,8 @@ class SavedSessionOfferViewModel(
         val metrics = when (restored) {
             is TrackingState.Paused -> restored.metrics
             is TrackingState.Finished -> restored.metrics
-            TrackingState.Idle, is TrackingState.Tracking -> return null
+            is TrackingState.Tracking -> restored.metrics
+            TrackingState.Idle -> return null
         }
         val startPoint = metrics.path.firstOrNull() ?: return null
         return AppRoute.Tracking(
