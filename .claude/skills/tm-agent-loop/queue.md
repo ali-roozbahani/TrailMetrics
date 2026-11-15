@@ -33,9 +33,9 @@ Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review
   it first, then dispose the finding as `queued <slug>` (`tm-pr-review`, "Orchestrator's part",
   step 5). The push gate accepts the disposition only for a slug that is an entry of the queue
   file and not dropped; it does not check that the entry fixes the finding.
-- **Not in the queue:** an item that needs an owner decision or design, an epic, a change under
-  `.github/workflows/` (only the owner can push it), and an item `add` refuses because 5 entries are
-  open. Those get a `BOARD.md` record instead.
+- **Not in the queue:** an item that needs an owner decision or design, an epic,
+  and an item `add` refuses because 5 entries are open. Those get a `BOARD.md` record instead. A
+  change under `.github/workflows/` is an entry like any other (the owner merges its PR).
 - `kind` is decided when the entry is added. A pushed agent entry whose Merge check has a "no"
   (an `ESCALATE_TO_HUMAN`, a protected path found late) is handed to the owner like an owner entry;
   nothing else is pushed until the owner merges or closes it.
