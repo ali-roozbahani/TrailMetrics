@@ -1,5 +1,7 @@
 # Epic: Agentic development loop
 
+> **Superseded 2026-11-15 (owner decision):** workflow files (`.github/workflows/`) are now pushed by the agent as a PR like any other; the owner still merges them. Where this plan says the human or Ali pushes them (Decision 1), `tm-agent-loop`, section 5 is the rule.
+
 > **The trial (S6) is complete and auto-merge is in force**: the rule is `tm-agent-loop`, section 8.
 
 > **Amended 2026-10-03, approved by Ali Roozbahani.** S3 as built (workflow, check name,
