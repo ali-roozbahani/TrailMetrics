@@ -30,7 +30,7 @@ class NotificationStopEndsSessionTest {
 
         session.clickInShade(stop, "the notification's Stop action could not be tapped")
 
-        session.eventually("the session is still ${session.manager.currentState.value::class.simpleName} after the notification's Stop") {
+        session.eventually({ "the session is still ${session.manager.currentState.value::class.simpleName} after the notification's Stop" }) {
             session.manager.currentState.value == TrackingState.Idle
         }
     }

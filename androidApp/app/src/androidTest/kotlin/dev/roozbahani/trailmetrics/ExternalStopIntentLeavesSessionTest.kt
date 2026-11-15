@@ -12,7 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -36,7 +35,8 @@ class ExternalStopIntentLeavesSessionTest {
         assertTrue(!result.contains("Error"), "am start failed: $result")
 
         // A positive signal first: the Activity is on screen, so the intent has been handled.
-        assertNotNull(device.wait(Until.findObject(By.pkg(packageName)), LiveSessionRule.WAIT_MS), "MainActivity never came up")
+        val cameUp = device.wait(Until.hasObject(By.pkg(packageName)), LiveSessionRule.WAIT_MS)
+        if (!cameUp) throw AssertionError("MainActivity never came up. ${session.screenState()}")
         device.waitForIdle()
 
         assertIs<TrackingState.Tracking>(session.manager.currentState.value)
