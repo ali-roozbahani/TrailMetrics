@@ -49,24 +49,67 @@ class SavedSessionOfferViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun TestScope.createViewModel() = SavedSessionOfferViewModel(
-        trackingSessionManager = TrackingSessionManager(
-            locationRepository = FakeLocationRepository(),
-            updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
-            trackingServiceLauncher = FakeTrackingServiceLauncher(),
-            speedCalculator = SpeedCalculator(),
-            clock = FakeClock(),
-            logger = FakeLogger(),
-            trackingSessionStore = store,
-            scope = backgroundScope
-        ),
-        logger = logger
-    ).also { testScheduler.runCurrent() }
+    private fun TestScope.managerOf() = TrackingSessionManager(
+        locationRepository = FakeLocationRepository(),
+        updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
+        trackingServiceLauncher = FakeTrackingServiceLauncher(),
+        speedCalculator = SpeedCalculator(),
+        clock = FakeClock(),
+        logger = FakeLogger(),
+        trackingSessionStore = store,
+        scope = backgroundScope
+    )
+
+    private fun TestScope.createViewModel(manager: TrackingSessionManager = managerOf()) =
+        SavedSessionOfferViewModel(trackingSessionManager = manager, logger = logger)
+            .also { testScheduler.runCurrent() }
 
     private fun storeSession(state: TrackingState, activityType: ActivityType? = ActivityType.Cycling) {
         store.stored = state
         store.storedActivityType = activityType
         store.storedStartedAtEpochMillis = STARTED_AT
+    }
+
+    @Test
+    fun `a live Tracking session of this process is offered`() = runTest(testScheduler) {
+        val manager = managerOf()
+        manager.start(FIRST_POINT, ActivityType.Walking)
+        testScheduler.runCurrent()
+
+        val viewModel = createViewModel(manager)
+
+        assertEquals(
+            AppRoute.Tracking(FIRST_POINT, emptyList(), ActivityType.Walking),
+            viewModel.state.value.offer
+        )
+        assertEquals(0, store.loadCallCount)
+    }
+
+    @Test
+    fun `OpenLiveSession offers the running session again after it was consumed`() = runTest(testScheduler) {
+        val manager = managerOf()
+        val viewModel = createViewModel(manager)
+        manager.start(FIRST_POINT, ActivityType.Walking)
+        testScheduler.runCurrent()
+        assertNull(viewModel.state.value.offer)
+
+        viewModel.onAction(SavedSessionOfferAction.OpenLiveSession)
+        testScheduler.runCurrent()
+
+        assertEquals(
+            AppRoute.Tracking(FIRST_POINT, emptyList(), ActivityType.Walking),
+            viewModel.state.value.offer
+        )
+    }
+
+    @Test
+    fun `OpenLiveSession with no session offers nothing`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+
+        viewModel.onAction(SavedSessionOfferAction.OpenLiveSession)
+        testScheduler.runCurrent()
+
+        assertNull(viewModel.state.value.offer)
     }
 
     @Test

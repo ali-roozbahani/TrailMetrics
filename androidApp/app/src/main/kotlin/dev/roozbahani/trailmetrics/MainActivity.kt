@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
     // inside TrackingScreen already does.
     private val stopTrackingRequested: MutableState<Boolean> = mutableStateOf(false)
 
+    // Set when the notification's body opens this Activity: the nav host then goes to the live session.
+    internal val openTrackingRequested: MutableState<Boolean> = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -68,7 +71,10 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleStopTrackingIntent(intent)
         setContent {
             TrailMetricsTheme {
-                TrailMetricsRoot(stopTrackingRequested = stopTrackingRequested)
+                TrailMetricsRoot(
+                    stopTrackingRequested = stopTrackingRequested,
+                    openTrackingRequested = openTrackingRequested
+                )
             }
         }
     }
@@ -77,6 +83,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleStopTrackingIntent(intent)
+        if (intent.action == TrackingService.ACTION_OPEN_TRACKING) openTrackingRequested.value = true
     }
 
     // Discarding the session doesn't need Compose, so it starts immediately here rather than being
@@ -108,10 +115,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun TrailMetricsRoot(
     stopTrackingRequested: MutableState<Boolean>,
+    openTrackingRequested: MutableState<Boolean>,
     viewModel: SavedSessionOfferViewModel = koinViewModel()
 ) {
     val state: SavedSessionOfferState by viewModel.state.collectAsStateWithLifecycle()
     SavedSessionOfferEvents(viewModel.events)
+    OpenTrackingRequestEffect(openTrackingRequested) { viewModel.onAction(SavedSessionOfferAction.OpenLiveSession) }
     TrailMetricsNavHost(
         stopTrackingRequested = stopTrackingRequested,
         savedSessionOffer = state.offer,
@@ -237,5 +246,16 @@ internal fun SavedSessionOfferEffect(
         val isOnTracking = navController.currentDestination?.hasRoute<AppRoute.Tracking>() == true
         if (!isOnTracking && !stopTrackingRequested.value) navController.navigate(offer)
         onConsumed()
+    }
+}
+
+/** Forwards a request to open the live session (the notification's body) once, and resets it. */
+@Composable
+internal fun OpenTrackingRequestEffect(requested: MutableState<Boolean>, onOpen: () -> Unit) {
+    LaunchedEffect(requested.value) {
+        if (requested.value) {
+            onOpen()
+            requested.value = false
+        }
     }
 }
