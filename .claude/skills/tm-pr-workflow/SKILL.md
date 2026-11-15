@@ -27,6 +27,7 @@ git status --porcelain           # must be empty
 git fetch --prune origin && git switch main && git pull --ff-only
 scripts/prune-merged-branches.sh # deletes the local branches whose PR is merged
 scripts/main-ci-status.sh --recent 5   # the last 5 push runs on main, newest first
+scripts/main-ui-run.sh --status        # the last full UI run of main, and whether one is due
 ```
 
 - Anything else (another login or clone, a dirty tree, a pull that can't fast-forward): stop
@@ -36,6 +37,10 @@ scripts/main-ci-status.sh --recent 5   # the last 5 push runs on main, newest fi
   new branch until `scripts/prune-merged-branches.sh --check` exits 0 (exit 4 is unknown: report
   it, don't bypass). GitHub deletes the remote branch itself ("Automatically delete head
   branches" is on).
+- `scripts/main-ui-run.sh --status` prints the last full UI run of both platforms on `main` (its SHA, result and
+  time) and `DUE <reason>` or `NOT_DUE <reason>`. `DUE` is reported first; with an empty queue run
+  `scripts/main-ui-run.sh --auto` before the task (`tm-agent-loop`, section 9), so a run that was due when the
+  last session ended is not forgotten. It never fails the start of a task.
 - `scripts/main-ci-status.sh --recent 5` prints, newest first, one line per run (run id, merge SHA,
   PR number or `-`, conclusion or `running`, failed job names) and `RECENT green=<n> red=<n>
   running=<n> unacknowledged-red=<n>`; its exit code is that of the newest run (0 green, 1 red,

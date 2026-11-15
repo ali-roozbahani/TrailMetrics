@@ -42,43 +42,10 @@ run_step() {
     fi
 }
 
-# run_limited <seconds> <command> [args...]: runs the command with a hard limit for the whole step. macOS has no
-# `timeout`, so a small perl wrapper runs it in its own process group and kills the group (xcodebuild, Gradle, the
-# emulator, the simulator's test runner) when the alarm fires; exit code 124 then means the limit was hit. Ctrl-C
-# (INT), TERM and HUP reach only the gate's own group, so the wrapper catches them and kills the step's group the
-# same way (exit 130, 143, 129); signals are blocked until the child's pid is known.
+# run_limited <seconds> <command> [args...]: runs the command with a hard limit for the whole step
+# (scripts/run-limited.sh: it kills the command's process group when the limit is hit, exit code 124).
 run_limited() {
-    perl -e '
-        use POSIX qw(sigprocmask SIG_BLOCK SIG_UNBLOCK SIGINT SIGTERM SIGHUP SIGALRM);
-        my $limit = shift;
-        my $pid = 0;
-        my $stop = sub {
-            $SIG{$_} = "IGNORE" for qw(INT TERM HUP ALRM);
-            if ($pid) { kill "TERM", -$pid; sleep 3; kill "KILL", -$pid; waitpid($pid, 0); }
-            exit shift;
-        };
-        $SIG{ALRM} = sub { $stop->(124) };
-        $SIG{INT} = sub { $stop->(130) };
-        $SIG{TERM} = sub { $stop->(143) };
-        $SIG{HUP} = sub { $stop->(129) };
-        my $signals = POSIX::SigSet->new(SIGINT, SIGTERM, SIGHUP, SIGALRM);
-        sigprocmask(SIG_BLOCK, $signals);
-        $pid = fork();
-        die "fork failed: $!" unless defined $pid;
-        if (!$pid) {
-            $SIG{$_} = "DEFAULT" for qw(INT TERM HUP ALRM);
-            sigprocmask(SIG_UNBLOCK, $signals);
-            setpgrp(0, 0);
-            exec @ARGV;
-            exit 127;
-        }
-        alarm $limit;
-        sigprocmask(SIG_UNBLOCK, $signals);
-        waitpid($pid, 0);
-        my $status = $?;
-        $pid = 0;
-        exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
-    ' "$@"
+    scripts/run-limited.sh "$@"
 }
 
 # One UI-test step: the platform's runner script under a time limit, with its own elapsed time. The runner prints
