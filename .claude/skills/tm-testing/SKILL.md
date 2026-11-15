@@ -25,12 +25,13 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   entries plus `:androidApp:core-testing`; a new Android module's first test adds the same
   lines to its `build.gradle.kts` (not a new dependency).
 - Compose UI tests run on the JVM under Robolectric inside `testDebugUnitTest` (no emulator,
-  no `androidTest`) in all three feature modules. The one `androidTest` source set is in `androidApp/app`
-  ("Which test goes where"); it adds `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`)
-  and the existing `kotlin-test` to that module only. Their `build.gradle.kts` lists the catalog
+  no `androidTest`) in all three feature modules. Their `build.gradle.kts` lists the catalog
   entries (`robolectric`, `androidx-compose-ui-test-*`) and sets
   `testOptions.unitTests.isIncludeAndroidResources = true` so tests can read string
   resources. See "Compose UI tests".
+- The one `androidTest` source set is in `androidApp/app` ("Which test goes where"); it adds
+  `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`) and the existing `kotlin-test`
+  to that module only.
 - Ktor `MockEngine` is a `data` commonTest dependency (Android host and iOS simulator).
   Build the real repository on `HttpClient(MockEngine { respond(...) })` with the same
   `ContentNegotiation`/`Json` setup as `networkModule` and JSON shaped like the DTO (see
