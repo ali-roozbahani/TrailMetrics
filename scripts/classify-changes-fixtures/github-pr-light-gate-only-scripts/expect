@@ -1,0 +1,9 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA={BASE}
+decision: light
+contains: scripts/pre-push-check.sh  (scripts/**)
+contains: scripts/heavy-run.sh  (scripts/**)
+contains: scripts/filter-xcode-log.sh  (scripts/**)
+contains: scripts/scrub-env.sh  (scripts/**)
+output: decision=light

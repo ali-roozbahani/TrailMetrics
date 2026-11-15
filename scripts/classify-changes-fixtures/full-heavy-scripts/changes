@@ -1,6 +1,5 @@
 M	scripts/build-kmp-framework.sh
 M	scripts/check-variant-api.sh
-M	scripts/check-variant-api-fixtures/cases/x/expect
 M	scripts/check-production-framework.sh
 M	scripts/check-room-schema.sh
 M	scripts/check-room-schema.py
@@ -13,7 +12,6 @@ M	scripts/scrub-env.sh
 M	scripts/pre-push-check.sh
 M	scripts/heavy-run.sh
 M	scripts/classify-changes.sh
-M	scripts/classify-changes-fixtures/x/expect
 M	scripts/ci/pr-base.sh
 M	scripts/checks/self-tests.list
 M	scripts/checks/self-tests.sh

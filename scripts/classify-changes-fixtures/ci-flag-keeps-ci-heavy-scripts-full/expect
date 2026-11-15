@@ -1,0 +1,2 @@
+args: --ci --files scripts/ci/pr-base.sh scripts/classify-changes.sh scripts/check-heavy-scripts.py scripts/checks/self-tests.list scripts/build-kmp-framework.sh
+decision: full

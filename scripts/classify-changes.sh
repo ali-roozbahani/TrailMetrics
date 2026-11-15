@@ -14,6 +14,7 @@
 #                                                  `decision=<light|full>` to $GITHUB_OUTPUT and
 #                                                  the result to $GITHUB_STEP_SUMMARY.
 #   scripts/classify-changes.sh --self-test        run the fixtures in scripts/classify-changes-fixtures/
+#   --ci           (before --base or --files) classify as CI does: the gate-only scripts are light
 #   --root <dir>   (first) run git in another repository (used by the fixtures)
 #
 # --base compares two trees (`<ref>` and HEAD), so <ref> is the merge-base (the gate) or the
@@ -39,6 +40,11 @@
 # allowlist. `scripts/check-heavy-scripts.sh` fails when something that those steps start is not on the
 # list, so a script added later is not missed silently; `--github` runs it first (below).
 #
+# Gate or CI. A script can be one that only the local gate runs. GATE_ONLY_HEAVY_SCRIPTS names those:
+# full for the gate (`--base`, `--files`: the default, the stricter reading) and light for CI (`--github`, or `--ci` with `--base`/`--files`), where no Android or iOS job
+# runs them and their self-tests run in the always-run `tooling` job. The reading is chosen by the caller,
+# never by the diff, and an error or an unknown mode is the stricter one.
+#
 # Bash 3.2 (macOS /bin/bash) compatible; needs nothing but git.
 set -uo pipefail
 
@@ -60,28 +66,28 @@ ALLOWLIST=(
     'scripts/**'
 )
 
-# The scripts that stay full although scripts/** is allowlisted (same three forms). Why each is here:
+# The scripts that stay full although scripts/** is allowlisted (same three forms), for the gate and for CI.
+# Why each is here (what CI's Android and iOS jobs run or depend on):
 #   build-kmp-framework.sh   run by the Xcode project's build phases and scheme pre-actions, by CI's iOS jobs
 #                            and by the gate's iOS steps; it runs check-variant-api.sh
-#   check-variant-api.sh     run by build-kmp-framework.sh --variant uitest
+#   check-variant-api.sh     run by build-kmp-framework.sh --variant uitest (its fixtures are read only by its
+#                            --self-test, a `tooling` self-test: light)
 #   check-production-framework.sh   a step of CI's iOS job; its self-test runs only there (group macos)
 #   check-room-schema.*      `--check-export-fresh` is a step after the Android build, in CI and the gate
 #   check-localized-strings.*, check-optional-try.*   SwiftLint rules; their self-tests run only in
 #                            CI's iOS job (group ios-swiftlint)
-#   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment
-#   pre-push-check.sh        the gate itself: a change to it is exercised by running it in full
-#   heavy-run.sh             the gate starts itself under it and Gradle runs go through it
-#   classify-changes.sh      this script and its fixtures (a wrong list would make everything light)
+#   classify-changes.sh      CI's ios-plan job runs it and its decision gates the Android and iOS jobs; also the
+#                            gate's (a wrong list would make everything light). Its fixtures are read only by its
+#                            --self-test, a `tooling` self-test: light
 #   ci/**                    pr-base.sh, which the classification and CI's base-comparing steps use
 #   checks/self-tests.sh, checks/self-tests.list, checks/self-tests-fixtures/**   what the iOS job runs: the
 #                            runner and the list of the groups it runs. The tooling list and scripts-index.sh
 #                            are light: only the always-run jobs and the gate read them
-#   check-heavy-scripts.*    the check that keeps this list complete; `--github` runs it
+#   check-heavy-scripts.*    the check that keeps this list complete; `--github` (CI's ios-plan job) runs it
 # Keep the list in step with what runs: scripts/check-heavy-scripts.sh checks it.
 HEAVY_SCRIPTS=(
     'scripts/build-kmp-framework.sh'
     'scripts/check-variant-api.sh'
-    'scripts/check-variant-api-fixtures/**'
     'scripts/check-production-framework.sh'
     'scripts/check-room-schema.sh'
     'scripts/check-room-schema.py'
@@ -89,12 +95,7 @@ HEAVY_SCRIPTS=(
     'scripts/check-localized-strings-fixtures/**'
     'scripts/check-optional-try.sh'
     'scripts/check-optional-try-fixtures/**'
-    'scripts/filter-xcode-log.sh'
-    'scripts/scrub-env.sh'
-    'scripts/pre-push-check.sh'
-    'scripts/heavy-run.sh'
     'scripts/classify-changes.sh'
-    'scripts/classify-changes-fixtures/**'
     'scripts/ci/**'
     'scripts/checks/self-tests.sh'
     'scripts/checks/self-tests.list'
@@ -102,6 +103,25 @@ HEAVY_SCRIPTS=(
     'scripts/check-heavy-scripts.sh'
     'scripts/check-heavy-scripts.py'
 )
+
+# The scripts that only the local gate runs: full when the gate classifies (CLASSIFY_FOR=gate, the default),
+# light when CI does (CLASSIFY_FOR=ci). No step of .github/workflows/ci.yml, no Xcode build phase and no
+# Gradle file runs them, and their self-tests are in scripts/checks/self-tests-tooling.list (run by CI's
+# `tooling` job in every run, and by the gate in every run). For the gate they stay full so that a change to
+# them is exercised by running the gate in full.
+#   pre-push-check.sh        the gate itself (CI's tooling self-tests that read it run in every run)
+#   heavy-run.sh             the gate starts itself under it and Gradle runs go through it (self-test: tooling)
+#   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment (self-tests: tooling)
+# scripts/check-heavy-scripts.sh fails when a CI step, Gradle or the Xcode project runs one of these.
+GATE_ONLY_HEAVY_SCRIPTS=(
+    'scripts/pre-push-check.sh'
+    'scripts/heavy-run.sh'
+    'scripts/filter-xcode-log.sh'
+    'scripts/scrub-env.sh'
+)
+
+# Who is classifying: `gate` (the default: the local gate, --files, --base) or `ci` (--github, or --ci).
+CLASSIFY_FOR=gate
 
 # Returns 0 when path $2 matches allowlist entry $1, 1 when it does not, 2 when the entry has
 # none of the three forms.
@@ -131,7 +151,7 @@ entry_matches() {
 # Classifies the NUL-separated paths in file $1 and prints the result (format in the header).
 classify_list() {
     local list="$1" path entry matched rc count=0 light_lines="" full_lines="" heavy
-    for entry in "${HEAVY_SCRIPTS[@]}"; do
+    for entry in "${HEAVY_SCRIPTS[@]}" "${GATE_ONLY_HEAVY_SCRIPTS[@]}"; do
         entry_matches "$entry" "x"
         if [ $? -eq 2 ]; then
             printf 'full\n(no file list: heavy-script entry %s has no supported form)\n' "$entry"
@@ -156,6 +176,15 @@ classify_list() {
                 break
             fi
         done
+        if [ -z "$heavy" ] && [ "$CLASSIFY_FOR" != ci ]; then
+            for entry in "${GATE_ONLY_HEAVY_SCRIPTS[@]}"; do
+                entry_matches "$entry" "$path"
+                if [ $? -eq 0 ]; then
+                    heavy="$entry"
+                    break
+                fi
+            done
+        fi
         if [ -z "$heavy" ]; then
             for entry in "${ALLOWLIST[@]}"; do
                 entry_matches "$entry" "$path"
@@ -220,6 +249,7 @@ classify_files() {
 # for CI's other base-comparing steps; this function only words its answer.
 github_mode() {
     local result decision=full event="${EVENT_NAME:-}" base rc heavy_report="" heavy_failed=0
+    CLASSIFY_FOR=ci
     # The list of heavy scripts must be complete before any decision is trusted (see the header).
     if [ -x "$SCRIPT_DIR/check-heavy-scripts.sh" ]; then
         heavy_report="$("$SCRIPT_DIR/check-heavy-scripts.sh" --root "$ROOT" 2>&1)" || heavy_failed=1
@@ -420,7 +450,7 @@ self_test() {
 
 usage_error() {
     printf 'full\n(no file list: usage error: %s)\n' "$1"
-    echo "usage: classify-changes.sh [--root <dir>] (--base <ref> | --files <path>... | --github | --self-test)" >&2
+    echo "usage: classify-changes.sh [--root <dir>] [--ci] (--base <ref> | --files <path>... | --github | --self-test)" >&2
     exit 2
 }
 
@@ -433,6 +463,10 @@ main() {
                 [ $# -ge 2 ] || usage_error "--root needs a directory"
                 ROOT="$2"
                 shift 2
+                ;;
+            --ci)
+                CLASSIFY_FOR=ci
+                shift
                 ;;
             --base)
                 [ $# -ge 2 ] && [ -n "$2" ] || usage_error "--base needs a ref"

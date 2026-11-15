@@ -1,0 +1,2 @@
+args: --ci --files scripts/pre-push-check.sh scripts/heavy-run.sh scripts/filter-xcode-log.sh scripts/scrub-env.sh
+decision: light

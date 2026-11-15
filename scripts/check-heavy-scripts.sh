@@ -126,6 +126,51 @@ EOF
     expect "the gate runs an unlisted script inside a heavy block" 1 "scripts/new-tool.sh is started by scripts/pre-push-check.sh"
 
     fresh
+    printf '#!/bin/sh\n' > "$repo/scripts/heavy-run.sh"
+    put .github/workflows/ci.yml <<'EOF'
+jobs:
+  ios-main:
+    if: needs.ios-plan.outputs.decision != 'light'
+    steps:
+      - name: Build
+        run: scripts/heavy-run.sh ./gradlew assembleDebug
+EOF
+    expect "a CI step skipped on light runs a gate-only script (light for CI)" 1 "scripts/heavy-run.sh is started by .github/workflows/ci.yml, step 'Build' but classify-changes.sh (for CI)"
+    put .github/workflows/ci.yml <<'EOF'
+jobs:
+  tooling:
+    steps:
+      - name: Always
+        run: scripts/heavy-run.sh --self-test
+EOF
+    expect "an always-run CI step may run a gate-only script" 0 "OK"
+
+    fresh
+    printf '#!/bin/sh\n' > "$repo/scripts/filter-xcode-log.sh"
+    put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'
+shellScript = "scripts/filter-xcode-log.sh";
+EOF
+    expect "the Xcode project runs a gate-only script" 1 "scripts/filter-xcode-log.sh is started by iosApp/TrailMetrics.xcodeproj/project.pbxproj"
+
+    fresh
+    printf '#!/bin/sh\n' > "$repo/scripts/scrub-env.sh"
+    printf '#!/bin/sh\nscripts/scrub-env.sh\n' > "$repo/scripts/build-kmp-framework.sh"
+    put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'
+shellScript = "scripts/build-kmp-framework.sh";
+EOF
+    expect "a script that a CI heavy step runs starts a gate-only script" 1 "scripts/scrub-env.sh is started by scripts/build-kmp-framework.sh"
+
+    fresh
+    printf '#!/bin/sh\n' > "$repo/scripts/scrub-env.sh"
+    put scripts/pre-push-check.sh <<'EOF'
+#!/usr/bin/env bash
+if [ "$RUN_IOS_STEPS" = true ]; then
+    run_step "x" scripts/scrub-env.sh
+fi
+EOF
+    expect "the gate's heavy block runs a gate-only script: full for the gate, ok" 0 "OK"
+
+    fresh
     printf '#!/bin/sh\n# scripts/new-tool.sh is not started here\nscripts/new-tool.sh\n' > "$repo/scripts/build-kmp-framework.sh"
     put iosApp/TrailMetrics.xcodeproj/project.pbxproj <<'EOF'
 shellScript = "scripts/build-kmp-framework.sh";

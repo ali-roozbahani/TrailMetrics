@@ -1,0 +1,5 @@
+decision: full
+contains: scripts/pre-push-check.sh  (heavy script: scripts/pre-push-check.sh)
+contains: scripts/heavy-run.sh  (heavy script: scripts/heavy-run.sh)
+contains: scripts/filter-xcode-log.sh  (heavy script: scripts/filter-xcode-log.sh)
+contains: scripts/scrub-env.sh  (heavy script: scripts/scrub-env.sh)
