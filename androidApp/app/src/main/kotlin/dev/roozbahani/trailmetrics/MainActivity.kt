@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.navigation.AppRoute
+import dev.roozbahani.trailmetrics.data.tracking.StopTrackingAuthorization
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
 import dev.roozbahani.trailmetrics.di.APPLICATION_SCOPE
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -82,8 +83,12 @@ class MainActivity : ComponentActivity() {
     // deferred into the LaunchedEffect below. It runs in the application scope, not in the Activity's:
     // the Activity may be recreated or gone before the stored session is cleared. Only the resulting
     // navigation (which needs the NavHostController) is deferred into Compose via `stopTrackingRequested`.
+    //
+    // This Activity is exported (it is the launcher), so the action alone proves nothing: any app can send it.
+    // Only the notification's own Stop carries the secret of StopTrackingAuthorization.
     private fun handleStopTrackingIntent(intent: Intent?) {
-        if (intent?.action == TrackingService.ACTION_STOP_TRACKING) {
+        val isStop = intent?.action == TrackingService.ACTION_STOP_TRACKING
+        if (isStop && StopTrackingAuthorization.isAuthorized(intent)) {
             applicationScope.launch {
                 try {
                     trackingSessionManager.discard()

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.os.Bundle
 import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
+import dev.roozbahani.trailmetrics.data.tracking.StopTrackingAuthorization
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
 import dev.roozbahani.trailmetrics.di.APPLICATION_SCOPE
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -84,7 +85,11 @@ class MainActivityStopIntentTest {
         stopKoin()
     }
 
-    private fun stopIntent() = Intent(TrackingService.ACTION_STOP_TRACKING)
+    // What the notification's Stop sends: the action plus the secret of this process.
+    private fun stopIntent() = StopTrackingAuthorization.authorize(Intent(TrackingService.ACTION_STOP_TRACKING))
+
+    // What any other app can send: the public action and nothing else.
+    private fun outsideStopIntent() = Intent(TrackingService.ACTION_STOP_TRACKING)
 
     @Test
     fun `the Stop intent discards the session once`() {
@@ -138,6 +143,38 @@ class MainActivityStopIntentTest {
 
         assertEquals(1, launcher.stopCalls)
         assertEquals(1, store.clearCallCount)
+    }
+
+    @Test
+    fun `a Stop intent from outside discards nothing`() {
+        Robolectric.buildActivity(MainActivity::class.java, outsideStopIntent()).create()
+        scheduler.advanceUntilIdle()
+
+        assertEquals(0, launcher.stopCalls)
+        assertEquals(0, store.clearCallCount)
+    }
+
+    @Test
+    fun `a Stop intent from outside delivered to a running Activity discards nothing`() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).create()
+        scheduler.advanceUntilIdle()
+
+        controller.newIntent(outsideStopIntent())
+        scheduler.advanceUntilIdle()
+
+        assertEquals(0, launcher.stopCalls)
+        assertEquals(0, store.clearCallCount)
+    }
+
+    @Test
+    fun `a Stop intent with a guessed secret discards nothing`() {
+        val guessed = outsideStopIntent().putExtra("dev.roozbahani.trailmetrics.extra.STOP_TOKEN", "0".repeat(32))
+
+        Robolectric.buildActivity(MainActivity::class.java, guessed).create()
+        scheduler.advanceUntilIdle()
+
+        assertEquals(0, launcher.stopCalls)
+        assertEquals(0, store.clearCallCount)
     }
 
     @Test
