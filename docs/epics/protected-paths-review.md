@@ -1,5 +1,7 @@
 # Epic: Protected paths review
 
+> **Superseded 2026-11-15 (owner decision):** workflow files (`.github/workflows/`) are now pushed by the agent as a PR like any other; the owner still merges them. Where this plan says the human or Ali pushes them (Decision 1), `tm-agent-loop`, section 5 is the rule.
+
 > **The auto-merge trial is complete and auto-merge is in force**: the rule is `tm-agent-loop`,
 > section 8.
 

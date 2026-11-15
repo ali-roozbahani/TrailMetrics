@@ -1,5 +1,7 @@
 # Epic: iOS UI tests (XCUITest) for double taps, stale results and the delete error
 
+> **Superseded 2026-11-15 (owner decision):** workflow files (`.github/workflows/`) are now pushed by the agent as a PR like any other; the owner still merges them. Where this plan says the human or Ali pushes them (Decision 1), `tm-agent-loop`, section 5 is the rule.
+
 - **Slug:** ios-ui-tests
 - **Status:** first approved with #138 (S0 results in #139, UI-test target in #140). Rewritten
   on 2026-10-13 around a test-only XCFramework variant after the human decided that the UI-test

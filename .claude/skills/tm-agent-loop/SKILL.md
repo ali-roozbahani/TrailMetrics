@@ -107,12 +107,15 @@ Run `scripts/pre-push-check.sh` until green within the retry budget, then push a
 PR with `gh pr create --base main --title "<PR title>" --body-file <file>` (`tm-pr-workflow`,
 "Tier 1", "Push and PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
 
-If the diff touches `.github/workflows/`, you can't push it (the machine token has no
-`workflow` scope, Decision 1). This holds in practice because a push authenticates through the
-`gh` credential helper only: the push hook blocks any `git push` unless the checkout's effective
-`credential.helper` list is exactly `!gh auth git-credential`, so no keychain login can answer
-first. Stop after the gate, write the PR description to
-`~/agent-workspace/pr-body-<branch-slug>.md` and hand over to the human.
+A diff that touches `.github/workflows/` is pushed like any other, as a PR (owner decision of
+2026-11-15; it replaces Decision 1 of the agentic-dev-loop plan). The owner still merges it (a
+protected path), and still changes the branch protection and `.claude/settings.json` alone. A push
+authenticates through the `gh` credential helper only: the push hook blocks any `git push` unless the
+checkout's effective `credential.helper` list is exactly `!gh auth git-credential`, so no keychain login
+can answer first. When GitHub refuses the push (the machine token has no `workflow` scope: "refusing to
+allow an OAuth App to create or update workflow"), or a hook stops it, stop after the gate: report the
+exact refusal and the exact change the owner has to make (the token's scope, the hook). Never work
+around it: no other login, no `git -c`, no API call that writes the file.
 
 ## 6. After every push: watch CI
 
@@ -383,7 +386,7 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
 
 - The task's PR is the first entry; every follow-up and drift the agent can do is an entry and a
   PR of its own (`tm-pr-workflow`, "Board", rule 1). Board instead: owner decision or design, an
-  epic, a workflow-file change, an entry over the limit of 5.
+  epic, an entry over the limit of 5.
 - Do what `scripts/queue/queue.sh next` prints (`add` and `set` end with a `next:` line that is the
   same answer: follow it, not your own plan, so a second entry is built only while the first is
   pushed), and record every change of an entry's state with

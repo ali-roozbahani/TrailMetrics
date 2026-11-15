@@ -37,7 +37,7 @@ runner" (infra: no test or code involved) is counted and never escalated to a bo
   launch" / "Timed out while launching application via Xcode" (73.5 s and 80.9 s) in
   `XCUIApplication+Scenario.swift`; in one run `DetailsFailedDeleteUITests` also failed to launch
   ("Failed to get background assertion for target app", 43.0 s)
-- Count: 6
+- Count: 7
 - Status: open
 - escalated: flake-ios-ui-details-launch-timeout
 - Occurrences:
@@ -58,6 +58,10 @@ runner" (infra: no test or code involved) is counted and never escalated to a bo
   - 2026-11-12, run 43204374961 (PR #266, head `218ee91`; iOS package code, no UI-test change), re-run:
     yes, fixed it (attempt 2 green). Same signature: `DetailsDeleteTwiceUITests` "Failed to launch"
     (84.6 s), then `DetailsFailedDeleteUITests` "Failed to get background assertion for target app"
+  - 2026-11-15, run 43738508036 (push to `main`, merge of #301; Android code and tests only, no iOS
+    change), re-run: no (pushes to `main` are never re-run). Same signature:
+    `DetailsDeleteTwiceUITests` "Failed to launch" / "Timed out while launching application via
+    Xcode" (129.3 s); `DetailsFailedDeleteUITests` passed
 - Notes: no test body ran and the Route tests passed. Runner image, Xcode and simulator matched
   seven green runs; the automation-session setup in the first test of green runs took 5.9 to 56.4 s
   against a limit of about 60 s. Reading: a launch stall on the runner, about 80% sure, not proven.
@@ -210,7 +214,7 @@ run, and the jobs it hit are counted below.
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
   ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
-  pinning the macOS label when the count shows a pattern (a workflow change only the owner can push); this kind of
+  pinning the macOS label when the count shows a pattern (a workflow change the owner merges); this kind of
   failure is counted and never escalated to a board record.
 
 ## ios-ui-probe-refresh-timeout

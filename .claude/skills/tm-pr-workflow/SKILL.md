@@ -362,7 +362,7 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
   Fix in the same PR every hit of the task's own subject: a line now wrong because of the
   change, or the CI, gate or CODEOWNERS wiring of a script or file the change adds or
   changes. That is part of the task, not a side effect, so it needs no separate
-  authorization, a protected path (a workflow file the human has to push) included; the PR
+  authorization, a protected path (a workflow file, which the agent pushes as a PR) included; the PR
   is then the human's to merge. The bound is 10 changed lines in 2 files per hit and 30
   lines for all hits. The authorization never covers changing a rule's content or
   strength, adding a rule or weakening a check. Drift about code this task didn't change,
@@ -402,8 +402,8 @@ step of the gate and of CI's `tooling` job.
      owner merges): a queue entry and a PR of its own (`tm-agent-loop`, section 9), never a
      record.
    - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
-     or design; an epic, and the follow-ups its final board PR records (rule 5); a change only
-     the owner can push (a workflow file this token can't push); an item the queue refuses
+     or design; an epic, and the follow-ups its final board PR records (rule 5); an item the
+     queue refuses
      because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
      at count 3 ("Flake log"; a runner-not-acquired failure never is). An `[important]` reviewer finding not fixed in the PR is deferred as
      `queued <slug>` (a queue entry and a PR of its own, the push hook checks that the entry exists)
