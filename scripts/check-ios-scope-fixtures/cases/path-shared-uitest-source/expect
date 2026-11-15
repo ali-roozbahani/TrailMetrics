@@ -1,5 +1,4 @@
 # the shared-uitest/ prefix (the test-only framework variant); shared/ alone does not match it
 touches: true
-ui: true
 warning: none
 files: shared-uitest/src/iosMain/kotlin/X.kt

@@ -111,7 +111,7 @@ here. Run the script itself, not a hand-picked command.
   step when the clone is shallow (CI's checkout is exempt); the fix is `git fetch --unshallow`. No
   script fetches at depth in a full clone: `scripts/check-board.py` and `scripts/ci/pr-base.sh` do it
   only when the checkout is already shallow, so setting CI's variables by hand is safe.
-- **A failing step** (a timeout of the iOS smoke UI test counts) fails the gate, which prints
+- **A failing step** (a timeout of a UI-test step counts) fails the gate, which prints
   the failed steps and "Do not push". Fix it within the "Retry budget".
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:
   `xcodebuild` echoes its arguments, and the gate's log filter hides only Xcode's

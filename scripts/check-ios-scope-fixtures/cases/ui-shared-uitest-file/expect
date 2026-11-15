@@ -1,5 +1,4 @@
-# a shared-uitest/ file (the test-only variant) runs the smoke UI test
+# a shared-uitest/ file (the test-only variant) runs the iOS steps
 touches: true
-ui: true
 warning: none
 files: shared-uitest/src/iosMain/kotlin/Seam.kt

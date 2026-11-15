@@ -1,0 +1,4 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: none
+contains: androidApp/app/README.md  (none)
+contains: iosApp/README.md  (none)

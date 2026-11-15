@@ -15,6 +15,8 @@
 #                                                  the result to $GITHUB_STEP_SUMMARY.
 #   scripts/classify-changes.sh --self-test        run the fixtures in scripts/classify-changes-fixtures/
 #   --ci           (before --base or --files) classify as CI does: the gate-only scripts are light
+#   --ui-scope     (before --base or --files) print which platform's UI tests the diff needs, instead of
+#                  light or full (see "UI scope" below)
 #   --root <dir>   (first) run git in another repository (used by the fixtures)
 #
 # --base compares two trees (`<ref>` and HEAD), so <ref> is the merge-base (the gate) or the
@@ -44,6 +46,16 @@
 # full for the gate (`--base`, `--files`: the default, the stricter reading) and light for CI (`--github`, or `--ci` with `--base`/`--files`), where no Android or iOS job
 # runs them and their self-tests run in the always-run `tooling` job. The reading is chosen by the caller,
 # never by the diff, and an error or an unknown mode is the stricter one.
+#
+# UI scope (`--ui-scope`, read by the gate). The first line is `ui-scope: <android|ios|both|none>`, then one line per
+# file as `<file>  (<scope>)`. The map, per file (a diff's scope is the union):
+#   a file that is light (on the allowlist, not a heavy script): none (docs, skills, tooling scripts), except
+#     scripts/android-ui-tests.sh and scripts/ios-ui-tests.sh, the UI tests' runners: android and ios
+#   androidApp/**: android;   iosApp/** and shared-uitest/**: ios
+#   everything else: both. That is domain/, data/, core/, shared/, the root Gradle files and the version catalog,
+#   and, failing safe, any heavy script, the gate's own scripts, workflows and any path not mentioned here.
+# A diff whose file list cannot be read exactly (the cases that make the classification `(no file list: ...)`)
+# is `both`. Callers treat anything but a first line of exactly one of the four values as `both`.
 #
 # Bash 3.2 (macOS /bin/bash) compatible; needs nothing but git.
 set -uo pipefail
@@ -112,16 +124,40 @@ HEAVY_SCRIPTS=(
 #   pre-push-check.sh        the gate itself (CI's tooling self-tests that read it run in every run)
 #   heavy-run.sh             the gate starts itself under it and Gradle runs go through it (self-test: tooling)
 #   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment (self-tests: tooling)
+#   android-ui-tests.sh, ios-ui-tests.sh   the gate's UI test steps (no self-test: the gate runs them)
 # scripts/check-heavy-scripts.sh fails when a CI step, Gradle or the Xcode project runs one of these.
 GATE_ONLY_HEAVY_SCRIPTS=(
     'scripts/pre-push-check.sh'
     'scripts/heavy-run.sh'
     'scripts/filter-xcode-log.sh'
     'scripts/scrub-env.sh'
+    'scripts/android-ui-tests.sh'
+    'scripts/ios-ui-tests.sh'
 )
 
 # Who is classifying: `gate` (the default: the local gate, --files, --base) or `ci` (--github, or --ci).
 CLASSIFY_FOR=gate
+
+# `--ui-scope`: classify_list prints the UI scope instead of the light/full decision (see "UI scope").
+UI_SCOPE_MODE=0
+
+# The UI scope of one path: $1 the path, $2 the heavy-script entry it matched (or ""), $3 the allowlist entry
+# it matched (or ""). Prints android, ios, both or none.
+ui_scope_of_path() {
+    case "$1" in
+        scripts/android-ui-tests.sh) echo android; return ;;
+        scripts/ios-ui-tests.sh) echo ios; return ;;
+    esac
+    if [ -z "$2" ] && [ -n "$3" ]; then
+        echo none
+        return
+    fi
+    case "$1" in
+        androidApp/*) echo android ;;
+        iosApp/* | shared-uitest/*) echo ios ;;
+        *) echo both ;;
+    esac
+}
 
 # Returns 0 when path $2 matches allowlist entry $1, 1 when it does not, 2 when the entry has
 # none of the three forms.
@@ -151,6 +187,7 @@ entry_matches() {
 # Classifies the NUL-separated paths in file $1 and prints the result (format in the header).
 classify_list() {
     local list="$1" path entry matched rc count=0 light_lines="" full_lines="" heavy
+    local ui_lines="" ui_android=0 ui_ios=0 ui_one ui_result
     for entry in "${HEAVY_SCRIPTS[@]}" "${GATE_ONLY_HEAVY_SCRIPTS[@]}"; do
         entry_matches "$entry" "x"
         if [ $? -eq 2 ]; then
@@ -195,6 +232,15 @@ classify_list() {
                 fi
             done
         fi
+        if [ "$UI_SCOPE_MODE" -eq 1 ]; then
+            ui_one="$(ui_scope_of_path "$path" "$heavy" "$matched")"
+            ui_lines="$ui_lines$path  ($ui_one)"$'\n'
+            case "$ui_one" in
+                android) ui_android=1 ;;
+                ios) ui_ios=1 ;;
+                both) ui_android=1; ui_ios=1 ;;
+            esac
+        fi
         if [ -n "$heavy" ]; then
             full_lines="$full_lines$path  (heavy script: $heavy)"$'\n'
         elif [ -n "$matched" ]; then
@@ -203,7 +249,14 @@ classify_list() {
             full_lines="$full_lines$path  (not on the allowlist)"$'\n'
         fi
     done <"$list"
-    if [ "$count" -eq 0 ]; then
+    if [ "$UI_SCOPE_MODE" -eq 1 ] && [ "$count" -gt 0 ]; then
+        if [ "$ui_android" -eq 1 ] && [ "$ui_ios" -eq 1 ]; then ui_result=both
+        elif [ "$ui_android" -eq 1 ]; then ui_result=android
+        elif [ "$ui_ios" -eq 1 ]; then ui_result=ios
+        else ui_result=none
+        fi
+        printf 'ui-scope: %s\n%s' "$ui_result" "$ui_lines"
+    elif [ "$count" -eq 0 ]; then
         printf 'full\n(no file list: the list of changed files is empty)\n'
     elif [ -z "$full_lines" ]; then
         printf 'light\n%s' "$light_lines"
@@ -450,8 +503,24 @@ self_test() {
 
 usage_error() {
     printf 'full\n(no file list: usage error: %s)\n' "$1"
-    echo "usage: classify-changes.sh [--root <dir>] [--ci] (--base <ref> | --files <path>... | --github | --self-test)" >&2
+    echo "usage: classify-changes.sh [--root <dir>] [--ci] [--ui-scope] (--base <ref> | --files <path>... | --github | --self-test)" >&2
     exit 2
+}
+
+# Runs a classification function. Without --ui-scope its output is the decision. With it, a result that is not
+# a `ui-scope:` line (the function answered `full` with `(no file list: ...)`: an unreadable list, an empty diff,
+# a bad entry) is `both`, the fail-safe, and the reason line is kept.
+ui_scope_wrap() {
+    local out
+    if [ "$UI_SCOPE_MODE" -ne 1 ]; then
+        "$@"
+        return
+    fi
+    out="$("$@")"
+    case "$out" in
+        'ui-scope: '*) printf '%s\n' "$out" ;;
+        *) printf 'ui-scope: both\n%s\n' "${out#*$'\n'}" ;;
+    esac
 }
 
 main() {
@@ -466,6 +535,10 @@ main() {
                 ;;
             --ci)
                 CLASSIFY_FOR=ci
+                shift
+                ;;
+            --ui-scope)
+                UI_SCOPE_MODE=1
                 shift
                 ;;
             --base)
@@ -490,8 +563,8 @@ main() {
         esac
     done
     case "$mode" in
-        base) classify_git "$base" ;;
-        files) classify_files ${files[@]+"${files[@]}"} ;;
+        base) ui_scope_wrap classify_git "$base" ;;
+        files) ui_scope_wrap classify_files ${files[@]+"${files[@]}"} ;;
         github) github_mode ;;
         self-test) self_test ;;
         *) usage_error "no mode given" ;;

@@ -1,0 +1,4 @@
+setup: no-repo
+args: --ui-scope --base {BASE}
+decision: ui-scope: both
+contains: is not a git repository)

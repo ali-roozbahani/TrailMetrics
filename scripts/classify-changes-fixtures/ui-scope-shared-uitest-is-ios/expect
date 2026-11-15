@@ -1,0 +1,3 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: ios
+contains: shared-uitest/src/iosMain/kotlin/X.kt  (ios)

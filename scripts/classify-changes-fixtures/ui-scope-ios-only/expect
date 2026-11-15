@@ -1,0 +1,4 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: ios
+contains: iosApp/TrailMetrics/A.swift  (ios)
+contains: iosApp/Packages/B/Sources/C.swift  (ios)
