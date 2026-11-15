@@ -189,7 +189,8 @@ stale behavior right after a shared-module change, suspect this first.
 - Per-feature types: see the MVI naming above. Koin modules: `<feature>Module` /
   `<feature>UiModule` in `di/<Feature>Module.kt`.
 - Test names are backtick sentences (`` `saves activity with recalculated calories`() ``),
-  never `test1`. See `tm-testing`.
+  never `test1`. See `tm-testing`. The exception is `androidTest`, where names are camelCase (a name
+  with a space does not dex at `minSdk` 26).
 
 ## No deprecated APIs (Kotlin)
 
