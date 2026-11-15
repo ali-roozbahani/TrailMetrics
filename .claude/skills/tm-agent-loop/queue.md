@@ -88,6 +88,10 @@ next action. The file is the only state a later session gets (besides GitHub).
 | merged (by the agent, or `MERGED` from the watch)| `status=merged`                         |
 | `CLOSED` (closed unmerged), or abandoned         | `status=dropped`                        |
 
+`set <slug> status=dropped` is refused while an open entry comes after `<slug>` (dropping it would hold that
+entry; a merged PR is `status=merged`, not dropped). Drop the dependant or re-point it first, or give
+`--force` (`queue.sh set <slug> --force status=dropped`) when the owner decided that.
+
 `set ... status=merged` and `status=dropped` also run the workspace cleaner and print its summary line
 before the `next:` line, so the workspace is cleaned as the queue goes (`SKILL.md`, "Preconditions"). It
 keeps state and every file an open entry uses, so it is safe in the middle of the queue.
