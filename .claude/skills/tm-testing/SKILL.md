@@ -25,7 +25,9 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   entries plus `:androidApp:core-testing`; a new Android module's first test adds the same
   lines to its `build.gradle.kts` (not a new dependency).
 - Compose UI tests run on the JVM under Robolectric inside `testDebugUnitTest` (no emulator,
-  no `androidTest`) in all three feature modules. Their `build.gradle.kts` lists the catalog
+  no `androidTest`) in all three feature modules. The one `androidTest` source set is in `androidApp/app`
+  ("Which test goes where"); it adds `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`)
+  and the existing `kotlin-test` to that module only. Their `build.gradle.kts` lists the catalog
   entries (`robolectric`, `androidx-compose-ui-test-*`) and sets
   `testOptions.unitTests.isIncludeAndroidResources = true` so tests can read string
   resources. See "Compose UI tests".
@@ -42,6 +44,54 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
 
 No JUnit5 anywhere in this project (evaluated and rejected, see `docs/architecture`). No
 AssertK. No Truth (removed from `data`, its only user; no `com.google.truth` import remains).
+
+## Which test goes where
+
+Every feature and every bug fix is proven by a test, never by a hand check. Pick the lowest tier that
+can fail on the defect:
+
+1. **`domain` / `data` (`kotlin.test`, commonTest)**: logic, state machines, repositories. The default for
+   anything with no Android or UI framework.
+2. **Android JVM tests (JUnit4 + Robolectric + fakes)**: ViewModels, Compose screens and Roots, a `Service`
+   or `Activity` built by Robolectric, intents and the contents of a `PendingIntent`. The default for Android
+   behavior; a feature or a fix starts here.
+3. **Android instrumented tests (`androidApp/app/src/androidTest`, a real emulator)**: only when the defect or
+   feature depends on something Robolectric does not run: the real notification shade and the system's
+   handling of a `PendingIntent`, an Activity and task that the system creates, real window insets and input
+   method, the foreground-service lifecycle, a process boundary. The PR says why ("not provable on the JVM
+   because ..."). If a Robolectric test can fail on the defect, write that one, even when an instrumented one
+   would also be possible.
+4. **XCUITest**: the iOS counterpart of tier 3 ("XCUITest" below).
+5. **Human check** (Tier 2 of `tm-pr-workflow`): only what no tier can show (real GPS in the field, what the
+   Maps SDK draws, a human judgement of design), with the reason in the PR.
+
+A bug found by hand on a device is not a reason for a human check: write the test that reproduces it (red on
+the unfixed code, "Bugfixes: red test first"), then fix.
+
+### Rules for `androidTest` (a flake is a failed rule)
+
+- **Run.** `scripts/android-ui-tests.sh [--tests <class>]`: a dedicated AVD of its own (`TrailMetrics_UITest`,
+  headless, its own port, `ANDROID_SERIAL` pinned). The developer's emulator (`Pixel_10` or any other) is
+  never started, wiped or installed on; never run `connectedDebugAndroidTest` by hand against whatever device
+  is attached.
+- **Names** are camelCase, not backtick sentences (a name with a space does not dex below API 30; `minSdk` is 26).
+  Other naming as elsewhere.
+- **Find nodes by visible text** (`By.text`, `By.textContains`, `By.desc`). A `testTag` is a production
+  change, only when nothing else identifies the node.
+- **Waits are bounded polls**: `device.wait(Until..., WAIT_MS)` or `LiveSessionRule.eventually(message) { }`
+  (a deadline and a failure message that names what never happened). No fixed sleep; the poll interval inside
+  the bounded loop is the only one. For an absence, wait for a positive signal first (the Activity is on
+  screen), then assert it.
+- **Isolation.** One real tracking session per test, started and discarded by `LiveSessionRule`
+  (`manager.discard()` in `after`), so no test leaves a live or stored session: the real graph is shared by
+  every test of the process. A test never depends on another or on device state; a scenario that needs a
+  process boundary is not an ordinary test (it belongs to a host-driven design of its own).
+- **Permissions** are granted in the test (`uiAutomation.grantRuntimePermission`), not by the host.
+- **Red first, once.** Check in the working tree that the test fails when the guarded behavior breaks (revert
+  the fix or remove the guard) and write the red evidence in the PR. A fix that spans modules is reverted
+  across all of them (`MainActivity` and `TrackingService` for #301).
+- **No retries**: no `@Ignore`, no `assumeTrue` to skip, no Orchestrator or Gradle retry. Red is red; a failure
+  without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
 
 ## Coroutines / Flow
 
