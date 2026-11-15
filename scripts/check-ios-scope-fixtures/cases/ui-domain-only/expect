@@ -1,4 +1,4 @@
-# a domain-only change runs the iOS steps but not the smoke UI test
+# a domain-only change runs the iOS steps
 touches: true
 warning: none
 files: domain/src/commonMain/kotlin/Z.kt
