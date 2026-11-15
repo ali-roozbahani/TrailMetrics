@@ -275,5 +275,3 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
-- `HistoryScreen` puts the `Scaffold`'s `innerPadding` on the `Box` around its `LazyColumn` instead of
-  in the list's `contentPadding` (Insets; queue: `history-list-insets-content-padding`).

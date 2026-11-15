@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -125,20 +126,16 @@ fun HistoryScreen(
         bottomBar = bottomBar,
         snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             when {
                 state.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).padding(innerPadding))
                 }
 
                 state.isEmpty -> {
                     Text(
                         text = stringResource(R.string.msg_no_activities),
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier.align(Alignment.Center).padding(innerPadding),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -146,7 +143,8 @@ fun HistoryScreen(
 
                 else -> {
                     LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
+                        // The insets are the list's content padding, so it scrolls under the bars.
+                        contentPadding = listContentPadding(innerPadding),
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -187,6 +185,19 @@ fun HistoryScreen(
         )
     }
 }
+
+@Composable
+private fun listContentPadding(insets: PaddingValues): PaddingValues {
+    val direction = LocalLayoutDirection.current
+    return PaddingValues.Absolute(
+        left = insets.calculateLeftPadding(direction) + LIST_PADDING,
+        top = insets.calculateTopPadding() + LIST_PADDING,
+        right = insets.calculateRightPadding(direction) + LIST_PADDING,
+        bottom = insets.calculateBottomPadding() + LIST_PADDING
+    )
+}
+
+private val LIST_PADDING = 16.dp
 
 @Composable
 private fun ActivityRow(
