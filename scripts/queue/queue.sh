@@ -4,14 +4,16 @@
 # on its parent's local branch, and pushed against `main` only after its parent is merged. Entries
 # that need the owner (kind `owner`: a protected path, ESCALATE_TO_HUMAN) come last.
 #
-#   scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]
+#   scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
+#   scripts/queue/queue.sh task <slug>
 #   scripts/queue/queue.sh set <slug> <field>=<value>...     fields: status, pr, branch
 #   scripts/queue/queue.sh show
 #   scripts/queue/queue.sh next
 #   scripts/queue/queue.sh --self-test
 #
 # The queue file: ${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}, outside the repository
-# (scripts/dev/clean-agent-workspace.sh always keeps the `queue/` folder). One tab-separated line per
+# (scripts/dev/clean-agent-workspace.sh keeps this file and the `queue/` folder, and cleans inside the
+# folder only what its header lists). One tab-separated line per
 # entry, lines starting with `#` ignored:
 #   order  slug  branch  after  kind  status  pr
 #   order   integer given by `add` (insertion order)    after   a slug, or `-`
@@ -20,8 +22,14 @@
 # An entry is open while its status is not `merged` or `dropped`. Queue order: agent entries before
 # owner entries, then by `order`.
 #
-# add refuses: a sixth open entry, a slug already in the file, an --after slug that is not in the
-#   file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
+# The task text. Every entry carries the text of its task, so a session that did not queue it can build
+# it: `add` needs `--task <file>` (or `--task -` for stdin) and copies the text to `tasks/<slug>.md` in
+# the folder of the queue file; `task <slug>` prints it. The cleaner deletes a text only once its entry is
+# `merged` or `dropped` and the text is older than 3 days, never the text of an open entry. The text
+# is what the task template (`task-template.md`) asks for: what to do, its scope, when it is done.
+#
+# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a sixth
+#   open entry, a slug already in the file, an --after slug that is not in the file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
 #   without a feature/, bugfix/ or chore/ prefix. A new entry is `planned` with PR `-`.
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
 #   without a PR number, for an entry that is not `ready`, while another entry is pushed, for an
@@ -45,6 +53,11 @@
 # from the script, not from its own plan: after `add` of the first entry it says BUILD, after `set
 # <slug> status=ready` it says PUSH, and a second entry is built only while the first is pushed.
 #
+# set also runs the workspace cleaner (scripts/dev/clean-agent-workspace.sh) when an entry becomes `merged`
+# or `dropped`, and prints its summary line before the `next:` line: the workspace is cleaned as a long
+# queue session goes. The cleaner keeps everything an open entry uses and refuses a directory that is not
+# the agent workspace, so it does nothing for a queue file outside it; its failure never fails the `set`.
+#
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Lock: `add` and `set` read the file, validate against it and replace it, so two of them at the same
@@ -63,7 +76,8 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]
 QUEUE_FILE="${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}"
 MAX_OPEN=5
 TAB="$(printf '\t')"
-USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]
+USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
+       scripts/queue/queue.sh task <slug>
        scripts/queue/queue.sh set <slug> <field>=<value>...   (status, pr, branch)
        scripts/queue/queue.sh show | next | --self-test"
 
@@ -134,8 +148,11 @@ write_file() { # write_file <content file>: atomic replace
     cp -- "$1" "$QUEUE_FILE.tmp.$$" && mv -- "$QUEUE_FILE.tmp.$$" "$QUEUE_FILE" || die "cannot write $QUEUE_FILE"
 }
 
+# task_file <slug>: where the task text of an entry is kept.
+task_file() { echo "$(dirname "$QUEUE_FILE")/tasks/$1.md"; }
+
 cmd_add() {
-    local slug="${1:-}" branch="" after="-" kind="agent" n open order pkind pstatus tmp
+    local slug="${1:-}" branch="" after="-" kind="agent" task="" text n open order pkind pstatus tmp
     [ -n "$slug" ] || usage
     shift
     while [ "$#" -gt 0 ]; do
@@ -143,6 +160,7 @@ cmd_add() {
             --branch) [ "$#" -ge 2 ] || usage; branch="$2"; shift 2 ;;
             --after) [ "$#" -ge 2 ] || usage; after="$2"; shift 2 ;;
             --kind) [ "$#" -ge 2 ] || usage; kind="$2"; shift 2 ;;
+            --task) [ "$#" -ge 2 ] || usage; task="$2"; shift 2 ;;
             *) usage ;;
         esac
     done
@@ -150,6 +168,12 @@ cmd_add() {
     [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || refuse "slug '$slug' is not kebab-case"
     [[ "$branch" =~ ^(feature|bugfix|chore)/[A-Za-z0-9._/-]+$ ]] || refuse "branch '$branch' has no feature/, bugfix/ or chore/ prefix"
     case "$kind" in agent | owner) ;; *) refuse "kind '$kind' is not agent or owner" ;; esac
+    [ -n "$task" ] || refuse "an entry needs its task text: --task <file> (or --task - for stdin)"
+    if [ "$task" = - ]; then text="$(cat)"; else
+        [ -f "$task" ] || refuse "the task text file '$task' does not exist"
+        text="$(cat -- "$task")" || refuse "cannot read the task text file '$task'"
+    fi
+    [ -n "$(printf '%s' "$text" | tr -d '[:space:]')" ] || refuse "the task text is empty"
     entries > /dev/null
     [ -z "$(field "$slug" 2)" ] || refuse "slug '$slug' is already in the queue"
     n="$(entries | awk -F '\t' -v b="$branch" '$3 == b' | wc -l | tr -d ' ')"
@@ -167,6 +191,11 @@ cmd_add() {
     open="$(entries | awk -F '\t' '$6 != "merged" && $6 != "dropped"' | wc -l | tr -d ' ')"
     [ "$open" -lt "$MAX_OPEN" ] || refuse "the queue already has $open open entries (maximum $MAX_OPEN)"
     order="$(entries | awk -F '\t' 'BEGIN { m = 0 } $1 > m { m = $1 } END { print m + 1 }')"
+    # The text first, so an entry in the file always has its text; written whole, then moved into place.
+    mkdir -p "$(dirname "$(task_file "$slug")")" || die "cannot create $(dirname "$(task_file "$slug")")"
+    tmp="$(mktemp)"
+    printf '%s\n' "$text" > "$tmp" && cp -- "$tmp" "$(task_file "$slug").tmp.$$" && mv -- "$(task_file "$slug").tmp.$$" "$(task_file "$slug")" || die "cannot write $(task_file "$slug")"
+    rm -f -- "$tmp"
     tmp="$(mktemp)"
     { [ -f "$QUEUE_FILE" ] && cat -- "$QUEUE_FILE"
       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$order" "$slug" "$branch" "$after" "$kind" planned -; } > "$tmp"
@@ -174,6 +203,35 @@ cmd_add() {
     rm -f -- "$tmp"
     if [ "$after" = - ]; then echo "added $slug ($kind, order $order)"; else echo "added $slug ($kind, order $order, after $after)"; fi
     print_next
+}
+
+cmd_task() {
+    local slug="${1:-}"
+    [ -n "$slug" ] || usage
+    entries > /dev/null
+    [ -n "$(field "$slug" 2)" ] || refuse "'$slug' is not in the queue"
+    [ -f "$(task_file "$slug")" ] || refuse "'$slug' has no task text ($(task_file "$slug") is missing)"
+    cat -- "$(task_file "$slug")"
+}
+
+# clean_workspace: runs scripts/dev/clean-agent-workspace.sh on the workspace the queue file lives in
+# (<workspace>/queue/queue.tsv), best effort, so a long queue session cleans the workspace as entries
+# finish and not only at the start of a task. The cleaner never deletes what an open entry uses, and
+# refuses a directory that is not the agent workspace (a test's temporary queue), so this is safe to
+# run here; its failure never fails the `set`, but it is not silent: a cleaner that exits with a status
+# other than 0 (done) or 2 (the guard refused a directory that is not the agent workspace) leaves a
+# one-line warning on stderr, with the cleaner's own first error line. It prints the cleaner's summary line.
+clean_workspace() {
+    local cleaner all rc=0 summary problem
+    cleaner="$(dirname "$SELF")/../dev/clean-agent-workspace.sh"
+    [ -f "$cleaner" ] || return 0
+    all="$(bash "$cleaner" "$(dirname "$(dirname "$QUEUE_FILE")")" 2>&1)" || rc=$?
+    summary="$(printf '%s\n' "$all" | grep -E '^clean-agent-workspace: (removed|would remove) ' | tail -n 1)"
+    [ -z "$summary" ] || echo "$summary"
+    if [ "$rc" != 0 ] && [ "$rc" != 2 ]; then
+        problem="$(printf '%s\n' "$all" | grep -E '^clean-agent-workspace: could not' | head -n 1)"
+        echo "queue: warning: the workspace cleaner exited with status $rc${problem:+ ($problem)}; run scripts/dev/clean-agent-workspace.sh to see it" >&2
+    fi
 }
 
 # print_next: the line `next` would print, after the change just made.
@@ -224,6 +282,7 @@ cmd_set() {
     write_file "$tmp"
     rm -f -- "$tmp"
     echo "set $slug: status $status, pr $pr, branch $branch"
+    case "$status" in merged | dropped) [ "$old" = "$status" ] || clean_workspace ;; esac
     print_next
 }
 
@@ -301,7 +360,15 @@ self_test() {
     else
         echo "ok   the comparison is whole-line (BUILD a does not match FINISH_BUILD a)"
     fi
-    q() { QUEUE_FILE="$QF" bash "$SELF" "$@"; }
+    printf 'Do the thing.\nScope: this file.\n' > "$tmp/task.txt"
+    # An add without its own --task gets the common text file, so the cases below stay about their subject.
+    q() {
+        case " $* " in
+            " add "*" --task "*) QUEUE_FILE="$QF" bash "$SELF" "$@" ;;
+            " add "*) QUEUE_FILE="$QF" bash "$SELF" "$@" --task "$tmp/task.txt" ;;
+            *) QUEUE_FILE="$QF" bash "$SELF" "$@" ;;
+        esac
+    }
     fresh() { QF="$tmp/$1/queue.tsv"; }
     # line <order> <slug> <after> <kind> <status> <pr>: one entry, written straight into the file
     line() { mkdir -p "$(dirname "$QF")"; printf '%s\t%s\tchore/%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$2" "$3" "$4" "$5" "$6" >> "$QF"; }
@@ -428,8 +495,67 @@ self_test() {
     wait "$holder"
     check "the same add works once the lock is free" "added a (agent, order 1)" 0 q add a --branch chore/a
 
-    check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
-    check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> [--after <slug>] [--kind agent|owner]" 2 q add x
+    check "usage error exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 bash "$SELF" bogus
+    check "add without --branch exits 2" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 q add x
+
+    # `set` runs the workspace cleaner when an entry becomes merged or dropped (and only then), on the
+    # workspace the queue file lives in; the cleaner's own guard refuses a directory without TrailMetrics/.
+    fresh wsq
+    local wsd="$tmp/wsq" mout mrc
+    mkdir -p "$wsd/TrailMetrics" "$wsd/queue"; echo '#!/bin/sh' >"$wsd/start-agent.sh"
+    QF="$wsd/queue/queue.tsv"
+    printf 'Task.\n' >"$tmp/wsq-task.txt"
+    q add a --branch chore/a --task "$tmp/wsq-task.txt" >/dev/null
+    echo old >"$wsd/scratch-old.md"; touch -t 200001010000 "$wsd/scratch-old.md"
+    echo old >"$wsd/mc-1.md"; touch -t 200001010000 "$wsd/mc-1.md"
+    q set a status=building >/dev/null; q set a status=ready >/dev/null; q set a status=pushed pr=7 >/dev/null
+    check "cleaner: setting an entry pushed does not run it" "kept" 0 sh -c "[ -e '$wsd/scratch-old.md' ] && echo kept"
+    mout="$(q set a status=merged pr=7 2>&1)"
+    check "cleaner: setting an entry merged deletes the old scratch file" "gone" 0 sh -c "[ ! -e '$wsd/scratch-old.md' ] && [ ! -e '$wsd/mc-1.md' ] && echo gone"
+    check "cleaner: its summary line is printed before next" "clean-agent-workspace: removed 2 files, 0 review records; kept 1 fresh or in use, 0 unknown" 0 printf '%s\n' "$mout"
+    check "cleaner: the queue file and the task text are kept" "kept" 0 sh -c "[ -e '$wsd/queue/queue.tsv' ] && [ -e '$wsd/queue/tasks/a.md' ] && echo kept"
+    q add b --branch chore/b --task "$tmp/wsq-task.txt" >/dev/null
+    echo old >"$wsd/older-than-b.md"; touch -t 200001010000 "$wsd/older-than-b.md"
+    touch -t 200001010000 "$wsd/queue/tasks/b.md"
+    out="$(q set b status=dropped 2>&1)"
+    check "cleaner: dropping an entry runs it too" "gone" 0 sh -c "[ ! -e '$wsd/older-than-b.md' ] && echo gone"
+    echo old >"$wsd/open-guard.md"; touch -t 200001010000 "$wsd/open-guard.md"
+    q add c --branch chore/c --task "$tmp/wsq-task.txt" >/dev/null
+    touch -t 200201010000 "$wsd/queue/tasks/c.md"
+    echo old >"$wsd/used-by-c.md"; touch -t 200301010000 "$wsd/used-by-c.md"
+    q add d --branch chore/d --task "$tmp/wsq-task.txt" >/dev/null
+    q set d status=dropped >/dev/null
+    check "cleaner: a file newer than the oldest open entry's text survives another entry's end" "kept" 0 sh -c "[ -e '$wsd/used-by-c.md' ] && echo kept"
+    # A cleaner that fails is not silent: a warning on stderr, the set itself still succeeds.
+    q set c status=building >/dev/null; q set c status=ready >/dev/null; q set c status=pushed pr=9 >/dev/null
+    mkdir -p "$wsd/queue/subagent"; printf '2000-01-01T00:00:00\told\n' >"$wsd/queue/subagent/guard.log"; chmod 000 "$wsd/queue/subagent/guard.log"
+    mout="$(q set c status=merged pr=9 2>&1)" && mrc=0 || mrc=$?
+    chmod 600 "$wsd/queue/subagent/guard.log"
+    check "cleaner: a failing cleaner does not fail the set" "0" 0 printf '%s\n' "$mrc"
+    check "cleaner: a failing cleaner leaves a warning" "queue: warning: the workspace cleaner exited with status 1 (clean-agent-workspace: could not read queue/subagent/guard.log; it is not trimmed); run scripts/dev/clean-agent-workspace.sh to see it" 0 printf '%s\n' "$mout"
+    check "cleaner: the set still prints its summary and next lines after a failing cleaner" "2" 0 sh -c "printf '%s\n' '$mout' | grep -c '^clean-agent-workspace: removed\|^next: '"
+    check "cleaner: a set that is refused runs no cleaner" "quiet" 0 sh -c "QUEUE_FILE='$tmp/nowhere/queue.tsv' bash '$SELF' set zz status=merged pr=1 2>&1 | grep -q clean-agent || echo quiet"
+
+    # The task text: required, copied next to the queue file, printed by `task`.
+    fresh txt
+    nt() { QUEUE_FILE="$QF" bash "$SELF" "$@"; }   # no common text file added
+    check "add without --task is refused" "queue: refused: an entry needs its task text: --task <file> (or --task - for stdin)" 1 nt add a --branch chore/a
+    check "a task file that is not there is refused" "queue: refused: the task text file '$tmp/nope.txt' does not exist" 1 nt add a --branch chore/a --task "$tmp/nope.txt"
+    printf 'Other text.\n' > "$tmp/other.txt"
+    : > "$tmp/empty.txt"; printf ' \n\t\n' > "$tmp/blank.txt"
+    check "an empty task text is refused" "queue: refused: the task text is empty" 1 nt add a --branch chore/a --task "$tmp/empty.txt"
+    check "a blank task text is refused" "queue: refused: the task text is empty" 1 nt add a --branch chore/a --task "$tmp/blank.txt"
+    check "stdin text, empty, is refused" "queue: refused: the task text is empty" 1 sh -c "printf '' | QUEUE_FILE='$QF' bash '$SELF' add a --branch chore/a --task -"
+    if [ ! -e "$QF" ] && [ ! -e "$(dirname "$QF")/tasks/a.md" ]; then echo "ok   a refused add writes neither the entry nor the text"; else echo "FAIL a refused add left a file" >&2; fails=$((fails + 1)); fi
+    check "add with a task file" "added a (agent, order 1)" 0 nt add a --branch chore/a --task "$tmp/task.txt"
+    check "the text is kept next to the queue file" "Scope: this file." 0 cat "$(dirname "$QF")/tasks/a.md"
+    check "task prints it" "Do the thing." 0 nt task a
+    check "add with the text on stdin" "added b (agent, order 2)" 0 sh -c "printf 'From stdin.\n' | QUEUE_FILE='$QF' bash '$SELF' add b --branch chore/b --task -"
+    check "task prints the stdin text" "From stdin." 0 nt task b
+    check "task of an unknown slug" "queue: refused: 'zz' is not in the queue" 1 nt task zz
+    rm -f "$(dirname "$QF")/tasks/b.md"
+    check "task of an entry whose text is gone" "queue: refused: 'b' has no task text ($(dirname "$QF")/tasks/b.md is missing)" 1 nt task b
+    check "a refused add (duplicate slug) keeps the first text" "Do the thing." 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' add a --branch chore/a2 --task '$tmp/other.txt' >/dev/null 2>&1; cat '$(dirname "$QF")/tasks/a.md' | head -1"
     if [ "$fails" = 0 ]; then echo "queue.sh self-test: all passed"; else echo "queue.sh self-test: $fails failed" >&2; fi
     [ "$fails" = 0 ]
     exit $?
@@ -440,6 +566,7 @@ case "${1:-}" in
     add) shift; locked add "$@" ;;
     set) shift; locked set "$@" ;;
     show) [ "$#" = 1 ] || usage; cmd_show ;;
+    task) [ "$#" = 2 ] || usage; cmd_task "$2" ;;
     next) [ "$#" = 1 ] || usage; cmd_next ;;
     *) usage ;;
 esac

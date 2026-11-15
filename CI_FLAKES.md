@@ -271,3 +271,16 @@ run, and the jobs it hit are counted below.
   timeout of about 80 s explains them, and what is not shown are in the Notes of
   `ios-ui-details-failed-delete-error-alert-not-shown` (that signature occurred twice, this one once) and the board record
   `ui-test-app-idle-stalls`.
+
+## ios-2a-artifact-upload-enotfound
+
+- Signature: job `iOS 2a — build UI-test app`, step `Upload UI-test products` (the upload of the artifact
+  `ios-ui-test-products.zip`), no test, first error line "Unable to make request: ENOTFOUND" (a DNS failure
+  on the runner, 16 s after the upload began; the build and the product archive had succeeded)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-14, run 43645412328 (PR #292, head `d4a887f8`; a change to two tooling scripts and a skill file, which no
+    iOS step reads), re-run: yes, fixed it (attempt 2 green, `iOS 3` then ran)
+- Notes: infrastructure (class c): the runner could not resolve a GitHub endpoint; nothing in the diff runs in that
+  step. Kept as an entry so a second occurrence is counted (`tm-pr-workflow`, "Flake log").
