@@ -619,6 +619,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner has gone through the list and, for each item, made it a record of its own (a PR narrows this record to the remaining items) or declined it; this record is then deleted.
 - Refs: `androidApp/*/src/main/res/values/strings.xml`; `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/common/AndroidLogger.kt`; `androidApp/feature-tracking/src/main/kotlin/dev/roozbahani/trailmetrics/feature/tracking/util/MapSnapshotSaver.kt`; `.github/workflows/ci.yml`; `tm-robustness` R1.
 
+### flake-android-package-debug-incremental-failure
+- Type: task
+- Area: CI (`.github/workflows/ci.yml`), androidApp/app
+- Order: 720
+- Source: CI run 43707938041 (main, push, head 31b71dd, the merge of #296), 2026-11-15; escalated at count 3 from the entry `android-package-debug-incremental-failure` in `CI_FLAKES.md`
+- Problem: Needs the owner: capturing the cause needs a change to the job in `.github/workflows/ci.yml`, a workflow file only the owner can push. `Android build — lint, Detekt, tests, coverage, debug build, Room export` failed three times on `main` in `Build` at `:androidApp:app:packageDebug` with "A failure occurred while executing com.android.build.gradle.tasks.PackageAndroidArtifact$IncrementalSplitterRunnable" and no cause line: run 39606497367 (2026-10-21, head 90a0f7d), run 42835745551 (2026-11-10, the merge of #246, head 79fb11b) and run 43707938041 (2026-11-15, the merge of #296, head 31b71dd; failed after 21 s). None was re-run. The first two merges changed no `androidApp/app` source; the third did (`MainActivity.kt`, plus `data` sources), and the PR's own run of the same tree was green, so whether all three share one cause is not shown by the identical first line. Class `infra` (runner, restored Gradle cache or the incremental packaging state) is a hypothesis, not a finding. The log of every run ends at that line because the build ran without `--stacktrace` or `--info`.
+- Done when: the next occurrence is captured with its cause (the failing task's `--stacktrace` and `--info` output, whether the Gradle cache was restored and from which key, the state of `androidApp/app/build` before `packageDebug`, and the runner image), the cause is named, and then the flake no longer fails, or the step is changed so it cannot, shown on 5 consecutive runs of the job on `main`. If it never recurs, the owner closes the record.
+- Refs: CI runs 39606497367, 42835745551 and 43707938041; `CI_FLAKES.md` (`android-package-debug-incremental-failure`); `.github/workflows/ci.yml` (the `./gradlew assembleDebug` step and `Setup Gradle`).
+
 ## Drift
 
 ### data-kover-comment-stale-figure
