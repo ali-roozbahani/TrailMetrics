@@ -68,8 +68,10 @@ MockK and Turbine are not in the catalog. No JUnit5, no AssertK, no Truth. Detai
   `scripts/classify-changes.sh` decides `light` (no changed file can affect the Android or iOS build or
   tests: docs, skills, tooling scripts that no build step runs), it runs Gradle
   `detekt`, `lint`, `allTests test` and `assembleDebug` (plus SwiftLint and the iOS build when
-  iOS code or shared code changed), a non-blocking merged Kover coverage report, and an enforced
-  `koverVerify` (per-module minimum line coverage). CI's heavy steps follow the same decision.
+  iOS code or shared code changed), a non-blocking merged Kover coverage report, an enforced
+  `koverVerify` (per-module minimum line coverage) and the full UI tests of the platform or platforms
+  the diff touches (`scripts/classify-changes.sh --ui-scope`: Android on a dedicated AVD, iOS on a
+  pinned simulator). CI's heavy steps follow the same decision.
   `./gradlew test` alone runs zero KMP tests.
 - Do not change docs/architecture, CI config, lint config or this file as a side effect
   of an unrelated task. Fixing a skill or CLAUDE.md line that describes the exact code the

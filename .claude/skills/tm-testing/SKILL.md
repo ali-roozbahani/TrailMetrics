@@ -67,7 +67,11 @@ can fail on the defect:
    Maps SDK draws, a human judgement of design), with the reason in the PR.
 
 A bug found by hand on a device is not a reason for a human check: write the test that reproduces it (red on
-the unfixed code, "Bugfixes: red test first"), then fix.
+the unfixed code, "Bugfixes: red test first"), then fix. The UI tests of both platforms run in the local gate on
+this machine, the full suite of each platform a branch touches (`scripts/classify-changes.sh --ui-scope`:
+`androidApp/` Android, `iosApp/` and `shared-uitest/` iOS, `domain`, `data`, `core`, `shared` and the root Gradle
+and catalog files both, docs, skills and tooling scripts none); the gate prints the AVD, simulator, runtime and
+Xcode versions it ran on. CI runs the JVM, package and build tests.
 
 ### Rules for `androidTest` (a flake is a failed rule)
 

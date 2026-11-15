@@ -32,10 +32,10 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   build or tests: docs, skills, tooling scripts outside its HEAVY_SCRIPTS list and, for CI, outside its gate-only list; pushes always run
   everything). Unlike the gate, CI's iOS jobs have no iOS path filter: on a non-`light` PR
   `ios-main` runs SwiftLint, the iOS build and the iOS simulator tests, and `ios-build-ui` and
-  `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. For a diff in the
-  UI scope the gate builds the `uitest` variant and runs ONE smoke UI test
-  (`DetailsFailedDeleteUITests`); CI builds the variant once in `ios-build-ui` and runs ALL UI tests
-  in `ios-ui`. So an `iosApp/` problem that already existed on `main` can make CI red on an
+  `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. For a diff whose UI
+  scope (`scripts/classify-changes.sh --ui-scope`) includes iOS the gate runs ALL iOS UI tests on its pinned
+  simulator, and for one that includes Android all Android UI tests on its dedicated AVD; CI builds the iOS
+  variant once in `ios-build-ui` and runs all iOS UI tests in `ios-ui`, and has no Android UI job. So an `iosApp/` problem that already existed on `main` can make CI red on an
   unrelated Android-only PR. CI's `android-build` job runs on Ubuntu, where the iOS simulator tests are
   skipped; they run in `ios-main`, `domain`'s and `data`'s since #34, `shared`'s since S3 of
   `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
