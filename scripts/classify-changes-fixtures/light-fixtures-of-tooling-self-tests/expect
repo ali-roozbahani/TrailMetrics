@@ -1,0 +1,3 @@
+decision: light
+contains: scripts/check-variant-api-fixtures/cases/x/expect  (scripts/**)
+contains: scripts/classify-changes-fixtures/x/expect  (scripts/**)

@@ -19,8 +19,11 @@ This check reads what the heavy steps run and fails for a script that the classi
     comment lines, and so on (the control scripts classify-changes.sh, ci/, checks/ and
     pre-push-check.sh are not followed: they name the always-run checks too)
 
-A reference counts when it is `scripts/<path>` and the path exists. The classifier is the oracle
-(`classify-changes.sh --files <path>`), so this check has no copy of the list.
+A reference counts when it is `scripts/<path>` and the path exists. The classifier is the oracle, so this
+check has no copy of the list. It asks the way the source's caller does: what CI's heavy steps, Gradle and the
+Xcode project run must be full for CI (`classify-changes.sh --ci --files`), so a script on the gate-only list
+(GATE_ONLY_HEAVY_SCRIPTS: light in CI) fails here when one of them runs it, and so must what a script started
+that way starts; what the gate's blocks run must be full for the gate (`--files`).
 
 Usage: check-heavy-scripts.py [--root <dir>]
 A source that exists but cannot be read is an error (exit 2), never a pass.
@@ -89,42 +92,45 @@ class Checker:
     def exists(self, rel):
         return os.path.exists(os.path.join(self.root, rel))
 
-    def is_heavy(self, rel):
-        if rel not in self.cache:
+    def is_heavy(self, rel, ci):
+        if (rel, ci) not in self.cache:
             probe = rel + "/_" if os.path.isdir(os.path.join(self.root, rel)) else rel
             try:
-                out = subprocess.run(["bash", self.classifier, "--files", probe], capture_output=True, text=True, check=False)
+                cmd = ["bash", self.classifier] + (["--ci"] if ci else []) + ["--files", probe]
+                out = subprocess.run(cmd, capture_output=True, text=True, check=False)
             except OSError as error:
                 print("check-heavy-scripts: cannot run the classifier: %s" % error, file=sys.stderr)
                 sys.exit(2)
             if out.returncode != 0:
                 print("check-heavy-scripts: the classifier failed for %s: %s" % (rel, out.stderr.strip()), file=sys.stderr)
                 sys.exit(2)
-            self.cache[rel] = out.stdout.splitlines()[:1] == ["full"]
-        return self.cache[rel]
+            self.cache[(rel, ci)] = out.stdout.splitlines()[:1] == ["full"]
+        return self.cache[(rel, ci)]
 
-    def require(self, rel, started_by, work):
-        """rel is started by a heavy step: it must classify full. Returns True when it was checked."""
+    def require(self, rel, started_by, work, ci):
+        """rel is started by a heavy step: it must classify full (for CI when ci, else for the gate)."""
         if not self.exists(rel):
             return False
         self.checked += 1
-        if not self.is_heavy(rel):
-            self.problems.append("%s is started by %s but classify-changes.sh would call it light: add it to HEAVY_SCRIPTS" % (rel, started_by))
+        if not self.is_heavy(rel, ci):
+            self.problems.append("%s is started by %s but classify-changes.sh%s: %s" % (
+                rel, started_by, " (for CI)" if ci else "",
+                "add it to HEAVY_SCRIPTS (not GATE_ONLY_HEAVY_SCRIPTS)" if ci else "add it to HEAVY_SCRIPTS or GATE_ONLY_HEAVY_SCRIPTS"))
         else:
-            work.append((rel, started_by))
+            work.append((rel, started_by, ci))
         return True
 
     def run(self):
         work = []
         seen = set()
 
-        def feed(refs, started_by):
+        def feed(refs, started_by, ci=True):
             for rel in refs:
-                key = (rel, started_by)
+                key = (rel, started_by, ci)
                 if key in seen:
                     continue
                 seen.add(key)
-                self.require(rel, started_by, work)
+                self.require(rel, started_by, work, ci)
 
         # Xcode project.
         xcode = os.path.join(self.root, "iosApp", "TrailMetrics.xcodeproj")
@@ -167,7 +173,7 @@ class Checker:
         gate = read(os.path.join(self.root, "scripts", "pre-push-check.sh"))
         if gate is not None:
             self.sources += 1
-            feed(refs_in(code_lines("\n".join(self.gate_blocks(gate)))), "scripts/pre-push-check.sh (its DECISION and RUN_IOS_STEPS blocks)")
+            feed(refs_in(code_lines("\n".join(self.gate_blocks(gate)))), "scripts/pre-push-check.sh (its DECISION and RUN_IOS_STEPS blocks)", ci=False)
         # The self-tests that only the iOS job runs.
         for list_name in ("self-tests-tooling.list", "self-tests.list"):
             lst = read(os.path.join(self.root, "scripts", "checks", list_name))
@@ -189,13 +195,13 @@ class Checker:
                     self.problems.append("scripts/checks/%s group '%s' (%s) is run by no step of ci.yml: say where it runs, so that the scripts of a heavy-only group can be kept on the list of heavy scripts" % (list_name, group, parts[2]))
         # What the heavy scripts start themselves.
         while work:
-            rel, _started_by = work.pop()
+            rel, _started_by, ci = work.pop()
             if rel.startswith(NOT_FOLLOWED) or not rel.endswith((".sh", ".py")):
                 continue
             text = read(os.path.join(self.root, rel))
             if text is None:
                 continue
-            feed([r for r in refs_in(code_lines(text)) if r != rel], rel)
+            feed([r for r in refs_in(code_lines(text)) if r != rel], rel, ci)
         return self.problems
 
     @staticmethod

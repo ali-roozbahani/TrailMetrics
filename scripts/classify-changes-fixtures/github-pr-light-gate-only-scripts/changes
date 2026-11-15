@@ -1,0 +1,4 @@
+M	scripts/pre-push-check.sh
+M	scripts/heavy-run.sh
+M	scripts/filter-xcode-log.sh
+M	scripts/scrub-env.sh

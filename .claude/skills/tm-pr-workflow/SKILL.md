@@ -90,10 +90,12 @@ here. Run the script itself, not a hand-picked command.
 - **`light` or full.** `scripts/classify-changes.sh` decides. `light` means no changed file can
   affect the Android or iOS build or their tests: docs, skills and agent files, CODEOWNERS, the
   reviewer's workflow and the tooling scripts under `scripts/`, except the scripts on its
-  `HEAVY_SCRIPTS` list (the ones a build or test step starts, the gate, the classifier, CI's helpers
-  and the self-tests only the iOS job runs); a heavy script's reason is in the comment above that
-  list. `scripts/check-heavy-scripts.sh` (a gate step, and run first by the CI classification)
-  fails when a script that a build or test step runs is not on the list: add it there. On `light`
+  `HEAVY_SCRIPTS` list (the ones a CI build or test step starts, the classifier, CI's helpers and the
+  self-tests only the iOS job runs) and, for the gate only, its `GATE_ONLY_HEAVY_SCRIPTS` list (the gate,
+  `heavy-run.sh`, `filter-xcode-log.sh`, `scrub-env.sh`: nothing in CI runs them, and their self-tests run in
+  the always-run tooling job, so CI calls them light and the gate calls them full); a heavy script's reason is
+  in the comment above its list. `scripts/check-heavy-scripts.sh` (a gate step, and run first by the CI classification)
+  fails when a script that a build or test step runs is not on the list (and when a CI step runs a gate-only one): add it to `HEAVY_SCRIPTS`. On `light`
   the gate skips the Gradle build and test steps and the iOS steps; the checks that need
   no build, among them the Kover floors and Room schema checks, still run. A full run adds the
   iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the

@@ -1,0 +1,10 @@
+args: --github
+env: EVENT_NAME=pull_request
+env: PR_BASE_SHA={BASE}
+decision: full
+contains: scripts/build-kmp-framework.sh  (heavy script: scripts/build-kmp-framework.sh)
+absent: scripts/pre-push-check.sh
+absent: scripts/heavy-run.sh
+absent: scripts/filter-xcode-log.sh
+absent: scripts/scrub-env.sh
+output: decision=full
