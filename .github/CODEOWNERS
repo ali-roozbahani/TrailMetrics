@@ -49,6 +49,8 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/check-workflow-guard.sh            @ali-roozbahani
 /scripts/android-ui-tests.sh                @ali-roozbahani
 /scripts/ios-ui-tests.sh                    @ali-roozbahani
+/scripts/run-limited.sh                     @ali-roozbahani
+/scripts/main-ui-run.sh                     @ali-roozbahani
 /scripts/classify-changes.sh                @ali-roozbahani
 /scripts/classify-changes-fixtures/         @ali-roozbahani
 /scripts/check-full-clone.sh                @ali-roozbahani

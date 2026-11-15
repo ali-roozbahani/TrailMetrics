@@ -637,6 +637,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decided whether the plan belongs to the session (stored with it) or is read from the route draft, and that is implemented, or this record is deleted as declined.
 - Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/SavedSessionOfferViewModel.kt` (`offerFor`); `domain` `TrackingSessionManager`; `androidApp/feature-route` `RouteDraftKeeper`.
 
+### release-step-calls-main-ui-run
+- Type: task
+- Area: scripts, release
+- Order: 910
+- Source: owner queue of 2026-11-15, step 3
+- Problem: Needs the owner's decision and design: nothing in this repository releases yet (no tag, signing or store-build step; see `android-first-minified-release-build` and `release-build-links-debug-xcframework`), so nothing calls `scripts/main-ui-run.sh --release`, which exits 0 only when the full UI run of the current `main` is green (it runs that run first when it is due). Low priority.
+- Done when: a release step exists and its first action is `scripts/main-ui-run.sh --release`; the step stops when that exits non-zero, and a test or self-test of the step shows it.
+- Refs: `scripts/main-ui-run.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (section 9).
+
 ## Drift
 
 ### data-kover-comment-stale-figure

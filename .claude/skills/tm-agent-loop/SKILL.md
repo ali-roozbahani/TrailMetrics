@@ -410,6 +410,17 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   `main` from a merge outside the queue: `scripts/queue/update-branch.sh` (the fallback).
 - Only owner PRs left: wait at most 180 minutes, then report them in queue order with their exact
   merge commands (full 40-character SHA).
+- **The full UI run on main** (owner decision of 2026-11-15). When `queue.sh next` prints `DONE`, before the
+  final report, with the clone on a clean, pulled `main`, run `scripts/main-ui-run.sh --auto`. The script
+  decides, not you: it keeps the SHA of the last full run of both platforms' UI suites and runs only when `main`
+  has code changes since (the classifier's `--ui-scope` is not `none`) or no run is recorded; a docs-only
+  history prints `NOT_DUE`. It runs the suites like the gate does (same runners, pins, limits, no retry),
+  records the result, and on a red keeps the logs and adds the queue entry `main-ui-red-<sha>`: that entry is
+  the first of the queue, and `queue.sh next` says what to do (a `bugfix/` PR through the gate). A run that was
+  due when a session ended is shown by `scripts/main-ui-run.sh --status` at the start of the next task
+  (`tm-pr-workflow`, "Before starting"): run `--auto` then if the queue is empty. Before a release (a tag, a
+  store build) run `scripts/main-ui-run.sh --release`: it runs when due and exits 0 only when the full run of
+  the current `main` is green. Nothing in this repository releases yet, so the release step must call it.
 
 ## When the permission classifier denies a command
 
@@ -464,6 +475,8 @@ The final report to the human has three parts: Done, Not done, Not verified.
 - One line with the recent status of `main`, read once at the end (`scripts/main-ci-status.sh
   --recent 5`: its summary line and any red or running run), under Done, or under Not verified when
   the read failed.
+- One line with the full UI run on `main` (section 9: the output of `scripts/main-ui-run.sh --auto`, `NOT_DUE`
+  with its reason or the result of the run), under Done, or under Not verified when it could not run.
 - The final report is sent only when the queue ends (`DONE` or the owner wait ran out) or after a
   stop-and-report condition, never between opening a PR and its Merge check; an interim line saying "continuing" is not
   a report and must be followed by the next tool call in the same turn.
