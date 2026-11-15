@@ -46,6 +46,18 @@ rule that needs it never fires there (see "Mechanical rules").
   anything longer moves to a coroutine or worker. Why: the system kills or ANRs the app. Example:
   `TrackingService.onStartCommand` calls `startForeground` first. Enforced: reviewer only.
   Severity: blocking.
+- **C6** Android: an attached `View` (a `MapView` and the callbacks of the Maps SDK included) is read
+  or changed only on the main thread. Why: a change from another thread can leave a sync barrier in
+  the main thread's message queue, which then stops handling messages with no crash and no log (an
+  ANR; fixed only from Android 17). Example: no example yet. Enforced: reviewer only. Severity:
+  blocking.
+
+**Judging C1.** A finding of C1 proves two things in its text: the thread, as the chain of callers from
+the entry point (a lifecycle callback, a composable body, a `viewModelScope` or `lifecycleScope`
+launch, which run on `Main`) down to the call, quoted caller by caller; and that the call blocks.
+These are not findings: reading `StateFlow.value` or a flow seeded with its value; a suspending call
+(it suspends, it does not block the thread); `runBlocking` on a worker thread, which blocks that
+worker only; a wait of a frame or two. Leave out what the chain does not prove.
 
 ## Exceptions
 
@@ -101,6 +113,25 @@ rule that needs it never fires there (see "Mechanical rules").
   from a doc comment. Example: #219 called `discardSnapshotFile` (`FileManager.removeItem`) in the
   cancel branch of `TrackingMapView`'s snapshot `Task`, on the main actor, until `Task.detached`.
   Enforced: reviewer only. Severity: blocking when it blocks the main actor, else important.
+
+## Intents and permissions
+
+- **S1** Android: an exported component (the launcher `Activity`, any exported service, receiver or
+  provider) never acts on a destructive or privileged action carried by its `Intent` unless only we can
+  have sent it: a non-exported target, or a secret that only our own `PendingIntent` holds. An action
+  string or an extra's name is public, so it proves nothing. A `PendingIntent` is `FLAG_IMMUTABLE` with
+  an explicit target. Why: any app can send an intent to an exported component, and the action here
+  can discard the user's recording. Example: `MainActivity.handleStopTrackingIntent` acts on the Stop
+  action only with the secret of `StopTrackingAuthorization`, which `TrackingService`'s Stop
+  `PendingIntent` (explicit, immutable) carries. Enforced: reviewer only. Severity: blocking.
+- **S2** Android: a runtime permission is handled in all three outcomes: granted; the system asks for
+  an explanation (a rationale before the next request); refused for good (a way to the app's settings).
+  A refusal is never a silent no-op, and the result is never cached: the use site asks the system, and
+  a `SecurityException` becomes the typed error (E3). Why: a user who refused twice has no other way
+  back, and a cached grant outlives the user's change in settings. Example:
+  `AndroidLocationRepositoryImpl` maps `SecurityException` to `MissingLocationPermission` and holds no
+  permission state; the launchers do not meet the rest (see deviations). Enforced: reviewer only.
+  Severity: important.
 
 ## Process death and lifecycle
 
@@ -201,6 +232,15 @@ rule that needs it never fires there (see "Mechanical rules").
   Example: `TrackingSessionManager.pause` cancels the observation. Enforced: reviewer only.
   Severity: important.
 
+- **P8** Compose: no `@Stable` or `@Immutable` and no `ImmutableList` parameter by reflex. Why: with
+  strong skipping a parameter that is not stable is compared by instance, which is cheap; an annotation
+  makes the compiler call `equals`, which on a collection walks every element and can cost more than
+  the recomposition it saves. Example: none in `androidApp`. Enforced: reviewer only. Severity: important.
+- **P10** Compose: no write to state after a read of it in composition, and none from `onSizeChanged` or
+  `onPlaced` into state that composition reads. Why: the write invalidates what was just composed, so a
+  frame is drawn wrong or composition repeats. Example: no example yet. Enforced: reviewer only. Severity:
+  important.
+
 R4, R6, M4, P7 are merged into M2, M1, R3, M5.
 
 ## Mechanical rules
@@ -213,6 +253,9 @@ tools that are not enabled today are in the PR that wrote this skill and in the 
 
 Don't copy these as a pattern for new code. Each names its board record.
 - No `StrictMode` policy and no LeakCanary anywhere in the app (M8; `strictmode-leak-detection-debug`).
+- The location launchers in `RouteScreen` and `TrackingScreen` do nothing on a refusal, there is no
+  rationale and no way to the app's settings, and the notification permission is asked on every entry
+  with an empty result (S2; `android-location-permission-denial-and-disclosure`).
 - `TrackingService` creates `CoroutineScope(SupervisorJob() + Dispatchers.Default)` itself;
   `UserProfileRepositoryImpl`, `ActivityHistoryRepositoryImpl`,
   `saveSnapshotToFile` and `TrackingRoot` (`snapshotDispatcher`) name

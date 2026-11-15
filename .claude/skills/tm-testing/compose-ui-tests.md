@@ -68,3 +68,20 @@ second tap hits nothing: the test passes with or without the guard. The check in
     and must see an uninitialized Maps SDK (`TrackingScreenTest`) calls
     `FakeGoogleMap.uninstallFactories()` first. `TrackingScreen` builds its camera update only
     once the map exists.
+
+## State restoration
+
+`StateRestorationTester` (`androidx.compose.ui.test.junit4`) composes the content, then
+`emulateSavedInstanceStateRestore()` saves and discards the composition and builds it again from the saved
+state: a test sets the state, restores, and asserts it came back. No screen saves anything today
+(`tm-robustness` R1: no `rememberSaveable` or `SavedStateHandle`), so such a test fails now. The first
+restoration test is written with the R1 fix for the state it saves, not before; a red test on `main` fails
+the gate.
+
+## Device configuration
+
+`DeviceConfigurationOverride` (`androidx.compose.ui.test`) wraps the content under test in a font scale or a
+window size, so a screen can be checked at font scale 1.5 and at a compact and an expanded width without a
+screenshot tool or an emulator. Assert on nodes (text still shown, the action still reachable), not on pixels.
+It has not been run in this repo: try it once under Robolectric (`@Config(sdk = [35])`) before a test relies
+on it, and say in the PR if the override has no effect there.

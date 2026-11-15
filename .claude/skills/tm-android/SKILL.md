@@ -127,8 +127,9 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   lambdas. Below the Root, no composable reads a ViewModel; pass data down.
 - State lives in the ViewModel's `StateFlow`, collected with
   `collectAsStateWithLifecycle()`. `remember`/`rememberSaveable` are only for view-local UI
-  state that business logic never needs: Compose-owned holders (`LazyListState`,
-  `SnackbarHostState`, `rememberCameraPositionState()`), dialog/sheet visibility
+  state that business logic never needs: Compose-owned holders (`rememberLazyListState()`, which keeps
+  the scroll position through recreation, never `remember { LazyListState() }`; `SnackbarHostState`,
+  `rememberCameraPositionState()`), dialog/sheet visibility
   (`showDeleteConfirmation`), or a text-field draft before it's submitted (`weightInput`).
   Anything that business logic reads belongs in the ViewModel. A ViewModel does not survive process
   death: what the user would lose is also in `SavedStateHandle` or persisted (`tm-robustness`, R1).
@@ -136,6 +137,13 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
 - Animate below the recomposition layer: `graphicsLayer`, offset lambdas, or
   `animateFloatAsState` feeding into `graphicsLayer` — not `Modifier.alpha(animatedValue)`
   directly.
+- Insets: the app is edge-to-edge (`enableEdgeToEdge()`, target SDK 37). A `Scaffold`'s `innerPadding`
+  goes to the scrollable's `contentPadding` (added to its own spacing), never as `Modifier.padding` on a
+  parent around the list, so the list scrolls under the bars. Apply the keyboard insets once: not both
+  `contentWindowInsets` with the IME and `imePadding()` on the same content. A screen with a text field
+  needs a human check that the keyboard does not cover it (Tier 2, `tm-pr-workflow`).
+- No `android:configChanges` and no `android:screenOrientation` in the manifest to avoid recreation: state
+  that a recreation loses is fixed by R1 of `tm-robustness`, not by suppressing the recreation.
 - Every new Screen composable gets at least one `@Preview` with realistic sample state,
   wrapped in `TrailMetricsTheme`. A preview doesn't replace running the app. Each of the
   four screens has one (`RouteScreenPreview`, `TrackingScreenPreview`,
@@ -267,3 +275,5 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
+- `HistoryScreen` puts the `Scaffold`'s `innerPadding` on the `Box` around its `LazyColumn` instead of
+  in the list's `contentPadding` (Insets; queue: `history-list-insets-content-padding`).
