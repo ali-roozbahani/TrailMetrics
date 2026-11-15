@@ -81,7 +81,8 @@ the unfixed code, "Bugfixes: red test first"), then fix.
 - **Waits are bounded polls**: `device.wait(Until..., WAIT_MS)` or `LiveSessionRule.eventually(message) { }`
   (a deadline and a failure message that names what never happened). No fixed sleep; the poll interval inside
   the bounded loop is the only one. For an absence, wait for a positive signal first (the Activity is on
-  screen), then assert it.
+  screen), then assert it. After `pressHome` wait for the Home package before the next step (`LiveSessionRule`
+  does); a failure message that names a state is a lambda, built at the deadline.
 - **Isolation.** One real tracking session per test, started and discarded by `LiveSessionRule`
   (`manager.discard()` in `after`), so no test leaves a live or stored session: the real graph is shared by
   every test of the process. A test never depends on another or on device state; a scenario that needs a
