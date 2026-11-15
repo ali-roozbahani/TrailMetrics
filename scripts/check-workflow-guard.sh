@@ -4,7 +4,7 @@
 #   1. a diff that touches .github/workflows/pr-review.yml (that file holds the reviewer's API key step, and a
 #      pull_request run uses the file as it is on the PR head);
 #   2. a diff that adds a reference to `secrets` in any workflow file (`secrets.NAME`, `secrets[...]`,
-#      `secrets:` as in `secrets: inherit`, `toJSON(secrets)`). A full-line comment is not a reference; a
+#      `secrets:` as in `secrets: inherit`, a bare `${{ secrets }}`, `toJSON(secrets)`, in any case). A full-line comment is not a reference; a
 #      removed reference alone is not a violation.
 # Any other workflow change passes, the removal of CI's UI jobs included. The push hook allows a push only after
 # the gate passed, so a failing guard keeps such a branch from being pushed by the agent.
@@ -18,8 +18,10 @@
 set -uo pipefail
 
 PR_REVIEW=".github/workflows/pr-review.yml"
-# `secrets` as a whole word, followed by a dot, a bracket or a colon (a reference), or inside toJSON(secrets).
-SECRETS_RE='(^|[^A-Za-z0-9_])secrets(\.|\[|:)|toJSON\(secrets\)'
+# `secrets` as a whole word (any case: context names are case-insensitive), then optional spaces and a dot,
+# a bracket, a colon, a closing brace or parenthesis, a comma or the end of the line: `secrets.X`, `secrets['x']`,
+# `secrets: inherit`, `${{ secrets }}`, `toJSON(secrets)`.
+SECRETS_RE='(^|[^A-Za-z0-9_])secrets[[:space:]]*(\.|\[|:|\}|\)|,|$)'
 
 usage() { sed -n '2,19p' "$0" >&2; exit 2; }
 
@@ -43,7 +45,7 @@ guard() {
         # Added lines only, without full-line comments. A grep status of 1 is "no match"; anything else is an error
         # and fails the check (a swallowed error would let every diff pass).
         stripped="$(printf '%s\n' "$added" | awk '/^@@/ {inhunk = 1; next} inhunk && /^\+/ {print substr($0, 2)}' | { grep -vE '^[[:space:]]*#' || [ $? -eq 1 ]; })" || return 2
-        lines="$(printf '%s\n' "$stripped" | grep -nE "$SECRETS_RE")"
+        lines="$(printf '%s\n' "$stripped" | grep -niE "$SECRETS_RE")"
         status=$?
         [ "$status" -le 1 ] || { echo "check-workflow-guard: grep failed (status $status)" >&2; return 2; }
         if [ -n "$lines" ]; then
@@ -98,6 +100,9 @@ self_test() {
     case_ secrets-inherit-added             1 "adds a reference to secrets" 'echo "    secrets: inherit" >> .github/workflows/ci.yml'
     case_ secrets-index-form-added          1 "adds a reference to secrets" 'echo "      - run: echo \${{ secrets[matrix.name] }}" >> .github/workflows/ci.yml'
     case_ secrets-added-after-a-plus                1 "adds a reference to secrets" 'echo "+\${{ secrets.X }}" >> .github/workflows/ci.yml'
+    case_ secrets-bare-context-added                1 "adds a reference to secrets" 'echo "      - run: echo \${{ secrets }}" >> .github/workflows/ci.yml'
+    case_ secrets-spaced-index-added                1 "adds a reference to secrets" 'echo "      - run: echo \${{ secrets [matrix.name] }}" >> .github/workflows/ci.yml'
+    case_ secrets-upper-case-added                  1 "adds a reference to secrets" 'echo "      - run: echo \${{ SECRETS.X }}" >> .github/workflows/ci.yml'
     case_ other-workflow-change-passes      0 "" 'printf "  b:\n    steps:\n      - run: echo b\n" >> .github/workflows/ci.yml'
     case_ job-removal-passes                0 "" 'printf "name: CI\n" > .github/workflows/ci.yml'
     case_ secrets-removed-only-passes       0 "" 'printf "name: Old\njobs:\n  o:\n    env:\n      T: x\n" > .github/workflows/old.yml'
