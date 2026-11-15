@@ -284,3 +284,26 @@ run, and the jobs it hit are counted below.
     iOS step reads), re-run: yes, fixed it (attempt 2 green, `iOS 3` then ran)
 - Notes: infrastructure (class c): the runner could not resolve a GitHub endpoint; nothing in the diff runs in that
   step. Kept as an entry so a second occurrence is counted (`tm-pr-workflow`, "Flake log").
+
+## ios-history-failed-delete-wait
+
+- Signature: job `iOS 2b — lint, app build, package tests`, step `Run iOS package tests`, test
+  `HistoryViewModelFailureTests.test_onDeleteActivity_failedDelete_keepsSnapshotAndShowsError`, first error line
+  "failed - Condition not met within 10.0 seconds" (`HistoryViewModelFailureTests.swift:52`, the `waitUntil` for
+  `errorMessage`)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-15, run 43657525654 (PR #294, head `57668c2`; classifier and skill text, no Swift or shared change),
+    job 132639305562, re-run: yes, fixed it (attempt 2 green). The test took 44.3 s; its wait began at 00:29:39.9 and
+    failed at 00:30:10.3, 30.4 s of wall time for a 10 s deadline
+- Notes: class runner stall, same family as `ios-route-draft-read-wait` (a 10 s bound that did not hold). The failing
+  line cannot depend on the snapshot deletion of #289: with the failing repository `onDeleteActivity` sets
+  `errorMessage` in its `catch` and returns before `snapshotFileDeleter` is called, and the fake's
+  `__deleteActivity` throws at once under a lock, with no suspension. The same process was stalled elsewhere: the
+  trivial `DetailsViewModelTests.test_init_loadsActivityById` passed in 47.0 s (12.7 s between two log lines) and the
+  trivial `DetailsViewModelFailureTests.test_onDeleteConfirmed_failedDelete_keepsSnapshotShowsErrorAndStaysOpen`
+  logged 3.0 s for 0.155 s of test, while the other 19 History tests took 0.001 to 0.3 s. A wait that outlives its
+  own deadline by 20 s means the main-actor poll loop did not run, which is the process or the machine, not the
+  condition. Why the runner stalled is not shown. Run locally on the unchanged `main` 893ac055 (`xcodebuild test
+  -only-testing` this test, `-test-iterations 300`, iPhone 17 simulator): 300 of 300 passed, 13 to 15 ms each.
