@@ -154,6 +154,14 @@ How it is enforced, and what that means for the order of operations:
 - The hook matches on command text. Any Bash call that merely *mentions* `git push` or `gh pr create` (a
   commit message or PR body passed inline) is blocked until the gate has passed. Pass long
   text through a file: `git commit -F <file>`, `gh pr create --title "<PR title>" --body-file <file>`.
+- **The deny rules match the whole command text too.** `.claude/settings.json` denies a Bash command whose
+  text matches a pattern such as `*local.properties*`, `*.env*` or `*Secrets.xcconfig*`, and the text is
+  everything in the command: a heredoc body, an `echo`, an inline commit message or PR body, not only a path
+  argument. A note or draft that merely names one of those files is denied the same way (the Maps key is read
+  from `local.properties`, so a board record or a PR text names it). Write such text with the Write or Edit tool
+  and give a command its path (`git commit -F <file>`, `--body-file <file>`, `queue.sh add --task <file>`). The
+  rules are the guard against reading those files: never weaken them, never route a denied command around them
+  (`tm-agent-loop`, "When the permission classifier denies a command").
 - **Shapes of the push and PR commands.** The hooks read the command text and the session
   directory, so use these shapes and nothing cleverer:
   - Run the gate as a command of its own, from the clone: `scripts/pre-push-check.sh`.
