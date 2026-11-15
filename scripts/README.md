@@ -8,6 +8,7 @@ a line names a file that does not exist. Each script's header says how to run it
 
 - `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1").
 - `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time; a run that waits says for how long, and every run appends to an event log (`--log`).
+- `scripts/android-ui-tests.sh`: runs the Android instrumented tests (`androidApp/app/src/androidTest`) once on a dedicated headless AVD of its own (`TrailMetrics_UITest`, port 5560, `ANDROID_SERIAL` pinned; the developer's emulators are never touched), under `heavy-run.sh`; prints the pins of the run; `--tests <class>` runs one class (`tm-testing`, "Rules for `androidTest`").
 
 ## Checks of a diff (gate and CI)
 

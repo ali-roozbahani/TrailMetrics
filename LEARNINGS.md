@@ -813,3 +813,18 @@ default is now `defaultWaitTimeout`, 10 s, the bound `tm-testing` gives the UI-t
 
 Correction (2026-11-12): the 10 s default did not end these failures. `RouteViewModelDraftTests.test_failingRead_startsEmptyPlanWithoutErrorAndKeepsStoredRow` failed again with "Condition not met within 10.0 seconds" (33.1 s test, run 43204374961, green on re-run), so a longer bound alone is not the fix for that test; its flake-log entry `ios-route-draft-read-wait` is open again.
 
+
+## Android instrumented tier: three UiAutomator gotchas (2026-11-15)
+
+- **A node found in the notification shade can be stale at the click.** The emulator's mock location
+  feed moves, so the service re-posts its notification with a new distance and the shade replaces its
+  nodes: `UiObject2.click()` threw `StaleObjectException`. `LiveSessionRule.clickInShade` finds and taps
+  inside one bounded poll, so a stale node is "not clickable yet" and the tap still happens once.
+- **`pressHome()` returns before Home is on screen.** In about 20 full runs, 4 times the external Stop
+  test's `am start` was followed by the launcher coming back to the front and `MainActivity` never was in
+  front within 15 s (all four were the first test of the process). The cause is not proven; waiting for the
+  Home package after `pressHome` (a positive signal before the next step) was followed by 20 green runs in a
+  row. `UiDevice.launcherPackageName` answers the settings app on this image: resolve the Home activity with
+  `cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME`.
+- **A failure message built before the poll names the state at call time**, not at the deadline: pass the
+  message as a lambda (`eventually({ "..." })`).
