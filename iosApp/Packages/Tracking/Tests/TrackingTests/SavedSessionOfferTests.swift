@@ -74,6 +74,30 @@ final class SavedSessionOfferTests: TrackingTestCase {
         XCTAssertNil(model.offer)
     }
 
+    func test_restoreOnce_withAStoredSessionOnAPlan_offersTheTrackingRouteWithThePlan() async {
+        let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
+        let subject = makeSubject(sessionStore: FakeTrackingSessionStore(
+            stored: TrackingFixtures.storedSession(paused, plannedRoute: TrackingFixtures.plannedRoutePoints)
+        ))
+        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+
+        await model.restoreOnce()
+
+        XCTAssertEqual(model.offer?.plannedRoutePoints, TrackingFixtures.plannedRoutePoints)
+    }
+
+    func test_restoreOnce_withAStoredSessionOnNoPlan_offersNoPlan() async {
+        let paused = TrackingStatePaused(metrics: TrackingFixtures.metrics(path: TrackingFixtures.movingPath))
+        let subject = makeSubject(sessionStore: FakeTrackingSessionStore(
+            stored: TrackingFixtures.storedSession(paused)
+        ))
+        let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)
+
+        await model.restoreOnce()
+
+        XCTAssertEqual(model.offer?.plannedRoutePoints, [])
+    }
+
     func test_restoreOnce_withNothingStored_offersNothing() async {
         let subject = makeSubject()
         let model = SavedSessionOfferModel(trackingSessionManager: subject.trackingSessionManager)

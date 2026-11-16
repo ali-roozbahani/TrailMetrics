@@ -51,13 +51,14 @@ extension TrackingFixtures {
     static func storedSession(
         _ state: TrackingState,
         activityType: ActivityType? = .cycling,
-        startedAtEpochMillis: Int64 = 1_699_999_000_000
+        startedAtEpochMillis: Int64 = 1_699_999_000_000,
+        plannedRoute: [Coordinates] = []
     ) -> StoredTrackingSession {
         StoredTrackingSession(
             state: state,
             activityType: activityType,
             startedAtEpochMillis: KotlinLong(value: startedAtEpochMillis),
-            plannedRoute: []
+            plannedRoute: plannedRoute
         )
     }
 }
