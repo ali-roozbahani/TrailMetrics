@@ -84,8 +84,7 @@ struct RouteMapView: UIViewRepresentable {
             }
             coordinator.lastCameraCoordinates = startPoint
         } else if let startPoint, coordinator.lastCameraCoordinates != startPoint {
-            mapView.animate(toLocation: startPoint.locationCoordinate)
-            mapView.animate(toZoom: Self.defaultZoom)
+            mapView.showLocation(startPoint.locationCoordinate, zoom: Self.defaultZoom)
             coordinator.lastCameraCoordinates = startPoint
         }
     }

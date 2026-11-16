@@ -60,6 +60,7 @@ private struct ActivityTypeControl: View {
         } label: {
             VStack(spacing: 2) {
                 Image(systemName: activityType.symbolName)
+                    .accessibilityHidden(true)
                 Text(activityType.displayName)
                     .font(.caption)
             }
@@ -72,6 +73,7 @@ private struct ActivityTypeControl: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
