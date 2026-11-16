@@ -240,7 +240,11 @@ public class TrackingViewModel: ObservableObject {
     public func onStartClicked() {
         guard !storedSessionReadState.isRestoring else { return }
         isSessionSaved = false
-        trackingSessionManager.start(startPoint: startPoint, activityType: activityType)
+        trackingSessionManager.start(
+            startPoint: startPoint,
+            activityType: activityType,
+            plannedRoute: plannedRoutePoints
+        )
         liveActivityController?.start(activityType: liveActivityTypeKey)
     }
 
