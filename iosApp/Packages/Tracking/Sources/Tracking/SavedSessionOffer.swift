@@ -8,13 +8,16 @@ import SharedKit
 
 /// What the app offers for the session that `TrackingSessionManager.restore()` returned, the same rule as
 /// Android's `SavedSessionOfferViewModel.offerFor`: a Paused or Finished session with a recorded path is
-/// offered as the Tracking route (start point = first path point, no planned route); Idle and Tracking
-/// (a session that is live in this process) are never offered.
+/// offered as the Tracking route (start point = first path point, the planned route the session was started
+/// on); Idle and Tracking (a session that is live in this process) are never offered.
 ///
-/// - Parameter fallbackActivityType: used for a session stored before the type was saved.
+/// - Parameters:
+///   - plannedRoute: the route the session was started on; empty for a session stored before it was kept.
+///   - fallbackActivityType: used for a session stored before the type was saved.
 func savedSessionOffer(
     for restored: TrackingState,
     activityType: ActivityType?,
+    plannedRoute: [Coordinates] = [],
     fallbackActivityType: ActivityType = .running
 ) -> AppRouteTracking? {
     let path: [Coordinates]
@@ -26,7 +29,7 @@ func savedSessionOffer(
     guard let startPoint = path.first else { return nil }
     return AppRouteTracking(
         startPoint: startPoint,
-        plannedRoutePoints: [],
+        plannedRoutePoints: plannedRoute,
         selectedActivityType: activityType ?? fallbackActivityType
     )
 }
@@ -94,9 +97,11 @@ public final class SavedSessionOfferModel: ObservableObject, StoredSessionReadSt
         await endOrphanedLiveActivities()
         do {
             let restored = try await trackingSessionManager.restore()
+            let details = trackingSessionManager.sessionDetails.value
             offer = savedSessionOffer(
                 for: restored,
-                activityType: trackingSessionManager.sessionDetails.value?.activityType
+                activityType: details?.activityType,
+                plannedRoute: details?.plannedRoute ?? []
             )
             isRestoring = false
         } catch is CancellationError {
