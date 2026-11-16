@@ -360,7 +360,7 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     run_step "KMP XCFramework" scripts/build-kmp-framework.sh
 
     # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework
-    # that was just built; the same check runs in CI's ios-main job.
+    # that was just built; the same check runs in CI's ios-build job.
     run_step "production framework check" scripts/check-production-framework.sh
 
     # Both xcodebuild steps print their output (stderr too) through scripts/filter-xcode-log.sh,
@@ -388,7 +388,7 @@ if [ "$RUN_IOS_STEPS" = true ]; then
 
     # The Swift package tests use the Kotlin test support (SwiftTestFlow and the rest), which only
     # the test-only variant of the framework holds (:shared-uitest, ADR-002 "Amendment"). So the
-    # variant is built here, the way CI's ios-main job builds it, and the packages link it. The
+    # variant is built here, the way CI's ios-build job builds it, and the packages link it. The
     # normal build after it rebuilds production (the stamp records the variant).
     run_step "KMP XCFramework (test-only variant)" scripts/build-kmp-framework.sh --variant uitest
 

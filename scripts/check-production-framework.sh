@@ -3,7 +3,7 @@
 # framework. The Swift test support (SwiftTestFlow, SwiftFailingTestFlow, SwiftTestScope,
 # SwiftTestResult, package ...testsupport) lives in :shared-uitest and reaches only the test-only
 # variant of the framework (ADR-002, "Amendment"). The gate (step "Production framework check",
-# right after the production build) and CI's ios-main job run this on the framework that
+# right after the production build) and CI's ios-build job run this on the framework that
 # scripts/build-kmp-framework.sh builds for every normal build.
 #
 #   scripts/check-production-framework.sh [<xcframework>]   default: the debug path SharedKit links

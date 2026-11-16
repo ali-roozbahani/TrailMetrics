@@ -30,17 +30,20 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
 - **CI doesn't mirror the gate exactly.** CI's heavy steps run unless
   `scripts/classify-changes.sh` decides `light` (no changed file can affect the Android or iOS
   build or tests: docs, skills, tooling scripts outside its HEAVY_SCRIPTS list and, for CI, outside its gate-only list; pushes always run
-  everything). Unlike the gate, CI's iOS jobs have no iOS path filter: on a non-`light` PR
-  `ios-main` runs SwiftLint, the iOS build and the iOS simulator tests, and `ios-build-ui` and
-  `ios-ui` build and run the UI tests, even when the gate skipped its iOS steps. For a diff whose UI
-  scope (`scripts/classify-changes.sh --ui-scope`) includes iOS the gate runs ALL iOS UI tests on its pinned
-  simulator, and for one that includes Android all Android UI tests on its dedicated AVD; CI builds the iOS
-  variant once in `ios-build-ui` and runs all iOS UI tests in `ios-ui`, and has no Android UI job. So an `iosApp/` problem that already existed on `main` can make CI red on an
-  unrelated Android-only PR. CI's `android-build` job runs on Ubuntu, where the iOS simulator tests are
-  skipped; they run in `ios-main`, `domain`'s and `data`'s since #34, `shared`'s since S3 of
-  `protected-paths-review-2`. The `ios` job is the aggregator that carries the required check
-  name: it runs no build step and is green only when `ios-plan`, `ios-build-ui`, `ios-ui` and
-  `ios-main` passed, or the three macOS jobs were skipped on a `light` decision.
+  everything). Unlike the gate, CI's iOS job has no iOS path filter: on a non-`light` PR
+  `ios-build` ("iOS build — lint, app build, package tests") runs SwiftLint, the iOS build, the test-only
+  framework variant build with its API check and the iOS simulator and package tests, even when the gate skipped
+  its iOS steps. The UI tests of both platforms are not run in CI (the two iOS UI jobs, `ios-build-ui` and
+  `ios-ui`, left CI in the cleanup of the owner's step 5: `git log -S ios-build-ui -- .github/workflows/ci.yml`
+  finds the commit): for a diff whose UI scope
+  (`scripts/classify-changes.sh --ui-scope`) includes iOS the gate runs ALL iOS UI tests on its pinned
+  simulator, and for one that includes Android all Android UI tests on its dedicated AVD, and
+  `scripts/main-ui-run.sh` runs both suites on `main` when it is due. So an `iosApp/` problem that already
+  existed on `main` can make CI red on an unrelated Android-only PR. CI's `android-build` job runs on Ubuntu,
+  where the iOS simulator tests are skipped; they run in `ios-build`, `domain`'s and `data`'s since #34,
+  `shared`'s since S3 of `protected-paths-review-2`. The `ios` job is the aggregator that carries the required
+  check name: it runs no build step and is green only when `plan` and `ios-build` passed, or `ios-build` was
+  skipped on a `light` decision.
 - **CI only runs on push for `main` and `feature/epic/**`.** `ci.yml`'s push trigger doesn't
   include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
 - **Commit types have been used inconsistently.** The retired docs listed only

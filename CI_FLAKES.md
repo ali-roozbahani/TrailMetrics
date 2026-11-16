@@ -1,5 +1,12 @@
 # CI flakes
 
+> **The two iOS UI-test jobs left CI** (`iOS 2a — build UI-test app` and `iOS 3 — run UI tests (after 2a)`, the
+> jobs `ios-build-ui` and `ios-ui`). The merge date is that of the commit that removed them from
+> `.github/workflows/ci.yml`: `git log -S ios-build-ui -- .github/workflows/ci.yml`. UI flakes are local from
+> then on: the gate and the full run on `main` record them (`scripts/ui-flake.sh`, `tm-pr-workflow`, "Flake log",
+> "Local UI flakes"), and they are logged here with the job `local gate: ...` or `local main run: ...`. The
+> entries below stay as they were; the CI jobs they name can no longer fail.
+
 One entry per flake signature (job, step, test, first error line). Rules: `tm-pr-workflow`,
 "Flake log"; watching and re-running: `tm-agent-loop`, section 6.
 

@@ -77,10 +77,10 @@ EOF
     fresh
     put .github/workflows/ci.yml <<'EOF'
 jobs:
-  ios-main:
-    name: iOS 2b
-    needs: ios-plan
-    if: needs.ios-plan.outputs.decision != 'light'
+  ios-build:
+    name: iOS build
+    needs: plan
+    if: needs.plan.outputs.decision != 'light'
     steps:
       - name: Anything
         run: scripts/new-tool.sh
@@ -129,8 +129,8 @@ EOF
     printf '#!/bin/sh\n' > "$repo/scripts/heavy-run.sh"
     put .github/workflows/ci.yml <<'EOF'
 jobs:
-  ios-main:
-    if: needs.ios-plan.outputs.decision != 'light'
+  ios-build:
+    if: needs.plan.outputs.decision != 'light'
     steps:
       - name: Build
         run: scripts/heavy-run.sh ./gradlew assembleDebug
@@ -194,8 +194,8 @@ jobs:
     steps:
       - name: Self-tests
         run: scripts/checks/self-tests.sh --run tooling
-  ios-main:
-    if: needs.ios-plan.outputs.decision != 'light'
+  ios-build:
+    if: needs.plan.outputs.decision != 'light'
     steps:
       - name: Script self-tests (iOS)
         run: scripts/checks/self-tests.sh --run ios-swiftlint macos
@@ -206,8 +206,8 @@ EOF
     expect "a tooling-group self-test is not a heavy reference" 0 "OK"
     put .github/workflows/ci.yml <<'EOF'
 jobs:
-  ios-main:
-    if: needs.ios-plan.outputs.decision != 'light'
+  ios-build:
+    if: needs.plan.outputs.decision != 'light'
     steps:
       - name: Script self-tests (iOS)
         run: scripts/checks/self-tests.sh --run brand-new-group

@@ -286,14 +286,16 @@ no code change.
   - `scripts/pre-push-check.sh` runs it before the iOS build, then
     `scripts/check-production-framework.sh` on the production framework, and runs it with
     `--variant uitest` right before the package tests (see below).
-  - CI's `ios-main` job runs it in its "Build KMP Shared Framework" step, before the iOS
+  - CI's `ios-build` job runs it in its "Build KMP Shared Framework" step, before the iOS
     simulator tests and the `xcodebuild` build, runs `scripts/check-production-framework.sh`
     after it, and builds the variant in the step "Build test-only framework variant" before
-    "Run iOS package tests"; `ios-build-ui` runs `scripts/build-kmp-framework.sh --variant uitest`.
+    "Run iOS package tests", which also runs the variant's API check (`scripts/check-variant-api.sh`).
+    The iOS UI tests are not built or run in CI: the gate's iOS UI step (`scripts/ios-ui-tests.sh`) builds the
+    variant and the UI-test target and runs them.
 - The Swift package tests link the **test-only variant**, not production: the Kotlin test
   support they need (`SwiftTestFlow`, `SwiftFailingTestFlow`, `SwiftTestScope`, `SwiftTestResult`,
   package `dev.roozbahani.trailmetrics.uitest.testsupport`) is in `shared-uitest`. The production
-  framework contains none of it; `scripts/check-production-framework.sh` (gate and `ios-main`)
+  framework contains none of it; `scripts/check-production-framework.sh` (gate and `ios-build`)
   fails when any of those names, or the `testsupport` package name, is in its binary. The
   variant's API check (`scripts/check-variant-api.sh`) lists these four classes with the UI-test
   seam as the only names allowed in the variant alone.
@@ -304,7 +306,7 @@ no code change.
   own scheme. It runs neither the pre-action nor the phase, so run
   `scripts/build-kmp-framework.sh --variant uitest` first (the gate does): the package tests
   need the test-only variant. A normal build afterwards rebuilds production.
-- Building the app from the command line (the command is CI's `ios-main` "Build iOS app"
+- Building the app from the command line (the command is CI's `ios-build` "Build iOS app"
   step; the gate runs the same one):
 
   ```bash
@@ -408,7 +410,7 @@ runs in `scripts/pre-push-check.sh` (whenever a file other than markdown under `
 `domain/`, `data/`, `core/`, `shared/` or `shared-uitest/` changed, or a root Gradle file: `build.gradle.kts`,
 `settings.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`, or a file that runs the
 Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`,
-`gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in CI's `ios-main` job, followed by an `xcodebuild` simulator build.
+`gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in CI's `ios-build` job, followed by an `xcodebuild` simulator build.
 
 - `--strict` promotes every warning to a failure. The `warning` thresholds are the real
   limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic
@@ -428,7 +430,7 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   carries the same comment; no other `try?` is left
   under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
   'optional_try' rule" and turns the rule off, without failing `--strict`; `scripts/check-optional-try.sh --self-test`
-  (in the gate's iOS steps and CI's `ios-main`) lints fixtures with the committed config, fails on that message,
+  (in the gate's iOS steps and CI's `ios-build`) lints fixtures with the committed config, fails on that message,
   and shows the rule silently off on a config with an unknown kind.
 - Custom rules `localized_text_without_bundle` and `literal_text_in_view_initializer` (error):
   see "Strings". They match source text with `included`/`excluded` path regexes, so a new

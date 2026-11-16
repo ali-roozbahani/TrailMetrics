@@ -8,8 +8,8 @@
 # Format: <group> <TAB> <step name> <TAB> <script>   (the step runs `<script> --self-test`)
 # Groups, by where each self-test runs:
 #   tooling        the gate, always; CI's `tooling` job   (listed in self-tests-tooling.list)
-#   macos          the gate, always; CI's `ios-main` job
-#   ios-swiftlint  the gate's iOS steps, when swiftlint is installed; CI's `ios-main` job
+#   macos          the gate, always; CI's `ios-build` job
+#   ios-swiftlint  the gate's iOS steps, when swiftlint is installed; CI's `ios-build` job
 macos	production framework check self-test	scripts/check-production-framework.sh
 ios-swiftlint	localized strings rules self-test	scripts/check-localized-strings.sh
 ios-swiftlint	optional_try rule self-test	scripts/check-optional-try.sh

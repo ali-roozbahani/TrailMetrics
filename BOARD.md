@@ -481,7 +481,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: sweep tm-ios
 - Problem: `tm-ios` "No dead code" says "No unused imports (`unused_import` is enabled)". `iosApp/.swiftlint.yml` lists `unused_import` under `opt_in_rules`, but it is an analyzer rule that only `swiftlint analyze` runs: `swiftlint lint --strict` exits 0 while printing "'unused_import' should be listed in the 'analyzer_rules' configuration section ... only run by 'swiftlint analyze'", and no script or workflow runs `swiftlint analyze` (the gate and CI run `lint`). So the rule is inert and unused imports are not checked by any tool. Count 1 rule. A mechanical rule that no tool runs is not a pass. Recorded, not fixed: SwiftLint config and CI are protected, and `analyze` needs a compiler log from an `xcodebuild` run, so adding it is a decision about the gate's cost.
 - Done when: `swiftlint analyze` runs on the iOS sources in the gate and CI with `unused_import` under `analyzer_rules` and passes, or the line is removed from `opt_in_rules` and `tm-ios` no longer claims the rule is enabled.
-- Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml` (`ios-main`); `tm-ios` ("No dead code", "SwiftLint").
+- Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml` (`ios-build`); `tm-ios` ("No dead code", "SwiftLint").
 
 ### pause-resume-joins-path-with-a-straight-segment
 - Type: task
