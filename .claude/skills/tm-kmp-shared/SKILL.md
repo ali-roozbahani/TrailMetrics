@@ -137,6 +137,26 @@ when `observeActivities()` is called or while collecting, into one `ActivitiesUp
 then completes; `invoke()` itself never throws. The iOS and Android `HistoryViewModel`s both
 consume that. A new Flow that Swift iterates and that can fail needs the same treatment.
 
+## iOS location (L1)
+
+Target shape, decided by the owner; the code has not reached it yet (`IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`
+still calls `requestAlwaysAuthorization()`, and a later PR of the queue changes it).
+
+- The app asks for when-in-use authorization only, and tracks in the background through the `location`
+  background mode (`UIBackgroundModes` in `Info.plist`) with `allowsBackgroundLocationUpdates = true`
+  while a session runs. A session starts while the app is in the foreground.
+- No `requestAlwaysAuthorization()` and no `NSLocationAlwaysAndWhenInUseUsageDescription` unless a
+  feature that needs the app relaunched after termination is built; that is an owner decision with its
+  own App Review note.
+- While a session runs: `allowsBackgroundLocationUpdates` true, `pausesLocationUpdatesAutomatically`
+  false, `activityType` set for the feature (fitness for walking, running and cycling); both are
+  reset when it ends, as `setBackgroundUpdatesEnabled(false)` does for the first two.
+- The authorization status is read at the use site (`ensureLocationPermission`) and never cached; a
+  refusal is `RouteError.MissingLocationPermission`, as on Android (`tm-robustness` S2).
+- Behavior with the screen off cannot be shown by a simulator test (`tm-testing`, "What the
+  simulator cannot do"): a change here ends with a short device check by the owner.
+- Enforced: reviewer only. Violation: `important`.
+
 ## Cancellation
 
 A `catch` that can see `CancellationException` rethrows it (`SafeApiCall.kt` is the pattern), and
