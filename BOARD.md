@@ -37,6 +37,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: completion logic lives in `domain` with `kotlin.test` coverage, both platforms call it, `TrackingView` only renders, `calculateRouteProgress` handles out-of-range `previousIndex` (and `searchWindow`) without throwing, and a human-approved plan exists under `docs/epics/`.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift` (`isRouteCompleted`, `updateRouteProgress`); `androidApp/feature-tracking` `RouteCompletionTracker`; `domain` `RouteProgress` / `calculateRouteProgress`; `epic-orchestration` skill.
 
+### ios-release-readiness
+- Type: epic
+- Area: iosApp, shared, docs
+- Order: 65
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: The iOS app has never been prepared for a distributed build. Open items, each a decision or a part of the work: (1) a privacy manifest for the app, the widget extension, and a decision for the KMP framework (fetch Apple's current rules when the work starts; do not store them in the repo); (2) the Release build links the debug XCFramework (`release-build-links-debug-xcframework`); (3) the Always location request is removed (owner decision 2: when-in-use plus the background location mode; queue PR `ios-always-location-removal`); (4) signing, archive and TestFlight; (5) a version and build number policy; (6) the inputs for the privacy policy and the App Privacy label; (7) review notes for background location and the Live Activity; (8) the restricted Directions keys (`ios-release-readiness-restricted-directions-keys`). Reason for a record: an epic, with owner-level parts (the Apple account, signing, App Store Connect).
+- Done when: A human-approved plan exists under `docs/epics/` that splits the agent's code and doc parts (1, 2, 3, 5, 6, 7 as text) from the owner's Apple account parts (4, plus the policy and label entries in App Store Connect), and every item above is done or declined with a reason.
+- Refs: `iosApp/TrailMetrics/Info.plist`; `iosApp/TrackingWidget/`; `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/location/IosLocationRepositoryImpl.kt`; `release-build-links-debug-xcframework`; `ios-live-activity-ticker`; `epic-orchestration` skill.
+
 ### figma-design-system
 - Type: epic
 - Area: design
@@ -80,8 +89,8 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: config, scripts
 - Order: 50
 - Source: PR for tm-robustness-skill
-- Problem: Rules that would check `tm-robustness` mechanically are not enabled. Measured with scratch configs (production code, this repo): detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are on by default but need type resolution, and the gate runs plain `detekt`, so they never fire (`InjectDispatcher` gives 1 hit with `detektAndroidMain`, in `TrackingService`; only `data` and `shared` were run typed). Off by default and giving 0 hits: `GlobalCoroutineUsage`, `SuspendFunSwallowedCancellation`, `LateinitUsage`, `CastToNullableType`, `ThrowingExceptionInMain`, `NotImplementedDeclaration`; 1 hit: `ElseCaseInsteadOfExhaustiveWhen` (in `TrackingService.buildNotification`); `LabeledExpression` 9, `CognitiveComplexMethod` 4. SwiftLint opt-in rules with 0 hits: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. Android lint with all checks on gave nothing about threads or leaks. Config and gate files are protected, so a human decides.
-- Done when: the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
+- Problem: Rules that would check `tm-robustness` mechanically are not enabled. Measured with scratch configs (production code, this repo): detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are on by default but need type resolution, and the gate runs plain `detekt`, so they never fire (`InjectDispatcher` gives 1 hit with `detektAndroidMain`, in `TrackingService`; only `data` and `shared` were run typed). Off by default and giving 0 hits: `GlobalCoroutineUsage`, `SuspendFunSwallowedCancellation`, `LateinitUsage`, `CastToNullableType`, `ThrowingExceptionInMain`, `NotImplementedDeclaration`; 1 hit: `ElseCaseInsteadOfExhaustiveWhen` (in `TrackingService.buildNotification`); `LabeledExpression` 9, `CognitiveComplexMethod` 4. SwiftLint opt-in rules with 0 hits: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. Android lint with all checks on gave nothing about threads or leaks. Config and gate files are protected, so a human decides. Added 2026-11-16 (owner decision, iOS skills spike follow-up): CI installs SwiftLint with `brew install swiftlint`, so its version is whatever Homebrew has, and the gate's local version can differ; SwiftLint's analyzer rules (they need a compile log) were not measured.
+- Done when: SwiftLint's version is pinned in CI and the gate's local check compares against it, the analyzer rules are measured and enabled or declined with a reason, the 0-hit rules above are enabled, the typed detekt tasks (`detektAndroidMain` for the KMP modules) run in the gate and CI, the 1-hit ones are fixed or declined with a reason, and `tm-robustness`' "Enforced" lines name the new rules.
 - Refs: `config/detekt/detekt.yml`; `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
 
 ### ios-launcher-depends-on-concrete-location-repository
@@ -102,6 +111,33 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: one pure function or use case in `domain` with `kotlin.test` coverage computes them, and both ViewModels only adapt it.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentMetrics`, `recomputeCalories`); `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-kmp-shared` ("Where logic lives").
 
+### ios-release-readiness-restricted-directions-keys
+- Type: task
+- Area: iosApp, androidApp, config
+- Order: 66
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: Part of the epic `ios-release-readiness`. Before the first distributed build (TestFlight or any build outside the owner's devices), the owner creates two restricted keys, one per platform, and the app switches to them. Owner decision: the current key is unrestricted and shared by both platforms, which is accepted for debug builds; it is not checked or changed here. Reason for a record: an owner action in the key provider's console, and a decision on how the app receives the new keys.
+- Done when: Two restricted keys exist, one per platform, the app of each platform reads its own, and no key value is in the repository.
+- Refs: `ios-release-readiness`; `config/`; `iosApp/` and `androidApp/` secrets configuration (git-ignored, never read or written by the agent).
+
+### ios-session-store-file-protection-class
+- Type: task
+- Area: data, iosApp
+- Order: 67
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: The stored tracking session (the file or database that holds the session, with its plan) has no chosen iOS file protection class. It must be readable and writable while the device is locked, because tracking runs with the screen off, so a class that locks the file after the first unlock window or at lock would lose saves. Reason for a record: a decision on the class, with a device check (a locked device), which no test shows.
+- Done when: The class of the session store is decided and set, written in the code's comment or docs, and a device check with the device locked, steps in the PR, shows saves work while locked and after a restart.
+- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/`; `data/src/iosMain`; `tm-kmp-shared` ('Changing the database schema (Room)' for the protected paths).
+
+### data-networking-timeouts-retry-offline
+- Type: task
+- Area: data
+- Order: 68
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: The Directions call in `data` has no recorded decision on timeouts, retries and what the user sees offline. Reason for a record: the values and the offline behavior are a product and design decision.
+- Done when: The Ktor client's request, connect and socket timeouts, the retry policy (which failures, how many) and the offline behavior are decided, set in `data`, tested with `MockEngine`, and mapped to `RouteError` cases shown on both platforms.
+- Refs: `data/src/commonMain` (`networkModule`, `DirectionsRepositoryImpl`); `RouteError`/`RouteUiError` in `core`; `tm-kmp-shared`.
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -111,6 +147,69 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The Live Activity's elapsed time is a static `elapsedMillis` value. It changes only when a tracking-state emission (driven by location events) reaches `TrackingLiveActivityController.update`, which is also throttled to one update per second. Without location events it freezes, then jumps.
 - Done when: the elapsed time uses a system timer anchored to a start date and advances without updates (metrics may still depend on updates). Verified on a real device; the simulator does not suspend like a device.
 - Refs: `TrackingLiveActivityController.update` / `minimumUpdateInterval`; `TrackingActivityAttributes.ContentState.elapsedMillis`; `iosApp/TrackingWidget/TrackingLiveActivity.swift` `formatElapsed`.
+
+### ios-generated-string-catalog-symbols-experiment
+- Type: task
+- Area: iosApp
+- Order: 71
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: Xcode can generate Swift symbols for String Catalog keys. Whether that works inside the six SPM packages (the bundle is the package's) and replaces the `String(localized:bundle:)` and `Text(..., bundle: .module)` forms is not known. Reason for a record: an experiment whose result changes a rule in `tm-ios` ('Strings'), so the owner decides what to adopt.
+- Done when: One compile check in one package reports whether generated symbols work there, with the evidence; the owner decides whether `tm-ios` ('Strings') and the two SwiftLint custom rules change.
+- Refs: `.claude/skills/tm-ios/SKILL.md` ('Strings'); `iosApp/.swiftlint.yml`; `iosApp/Packages/*/Sources/*/Localizable.xcstrings`.
+
+### pr-description-ios-test-count
+- Type: task
+- Area: docs, scripts
+- Order: 72
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: The PR description's Tier 1 asks for test counts per module from `allTests`; the iOS package and UI test counts are not part of that method (`test-counts.md`). Reason for a record: a change to the PR description rules in `tm-pr-workflow` (a skill the owner decides on).
+- Done when: `test-counts.md` says how the iOS package test count (and the UI test count) are read and reported, and the reviewer's check names it.
+- Refs: `.claude/skills/tm-pr-workflow/test-counts.md`; `.claude/skills/tm-pr-workflow/SKILL.md` ('PR description').
+
+### healthkit-workout-with-route
+- Type: task
+- Area: iosApp, domain
+- Order: 73
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: Saving a finished activity to Apple Health as a workout with its route is not built. Parked as a product decision: it needs a new permission and its privacy text, and a choice of what is written.
+- Done when: A decision (build or decline) with the data written and the permission text; if built, a plan under `docs/epics/`.
+- Refs: `domain` `ActivityRecord`; `iosApp/TrailMetrics/Info.plist`; `ios-release-readiness`.
+
+### gpx-export
+- Type: task
+- Area: domain, iosApp, androidApp
+- Order: 74
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: Exporting an activity as a GPX file is not built. Parked as a product decision: the format version, what is included (time, elevation, pauses) and the share path differ per platform.
+- Done when: A decision (build or decline) with the contents of the file; if built, the writer in `domain` with `kotlin.test` coverage and a share action per platform.
+- Refs: `domain` `ActivityRecord`; `data` activity history.
+
+### units-setting
+- Type: task
+- Area: domain, iosApp, androidApp
+- Order: 75
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: There is no setting for metric or imperial units, and numbers, units and durations are formatted in the Kotlin `domain` today (`MetricsFormatter`) and by hand in the widget. The direction (owner decision 2026-11-16) is to format user-visible numbers per platform and locale, not in the domain; moving the existing formatting is a refactor that is not scheduled. Parked as a product decision.
+- Done when: A decision on the setting (follow the locale or an in-app choice) and on who formats; then the formatting moved per platform with tests, and `shared-metrics-formatter-user-visible-strings` and `ios-hardcoded-number-formatting` resolved.
+- Refs: `domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/util/MetricsFormatter.kt`; `iosApp/TrackingWidget/TrackingLiveActivity.swift`; `shared-metrics-formatter-user-visible-strings`; `ios-hardcoded-number-formatting`; `tm-ios` ('Numbers, units and durations').
+
+### ios-dynamic-type-beyond-the-pass
+- Type: task
+- Area: iosApp
+- Order: 76
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: The accessibility pass on the production screens (queue PR) covers labels, grouped metric cells, scaled sizes and Reduce Motion. Layouts at the largest Dynamic Type sizes (wrapping, scrolling, the Live Activity and widget) are not checked. Parked as a product and design decision.
+- Done when: The largest accessibility sizes are checked on every screen and the widget, the layout decisions are made, and a UI test or audit covers them.
+- Refs: `iosApp/Packages/*/Sources`; `iosApp/TrackingWidget/`; `tm-ios` ('Accessibility').
+
+### store-assets
+- Type: task
+- Area: iosApp, androidApp
+- Order: 77
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
+- Problem: Store assets (icon set, screenshots, description, keywords, category) do not exist. Parked as a product decision; the Figma design system is the last item on the board.
+- Done when: The assets exist for the stores the owner publishes to, and are named in the release plan of `ios-release-readiness`.
+- Refs: `ios-release-readiness`; `figma-design-system`.
 
 ### tracking-ui-timer-independent-of-location
 - Type: task
