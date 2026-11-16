@@ -39,33 +39,58 @@ struct RouteMapView: UIViewRepresentable {
     func updateUIView(_ mapView: GMSMapView, context: Context) {
         context.coordinator.parent = self
 
-        updateCamera(mapView, coordinator: context.coordinator)
+        let coordinator = context.coordinator
 
-        mapView.clear()
+        updateCamera(mapView, coordinator: coordinator)
 
-        if let startPoint {
-            let marker = GMSMarker(position: startPoint.locationCoordinate)
-            marker.title = String(localized: "Start / Finish", bundle: .module)
-            marker.icon = GMSMarker.markerImage(with: .systemGreen)
-            marker.map = mapView
+        let content = RouteMapContent(startPoint: startPoint, waypoints: waypoints, generatedRoute: generatedRoute)
+        apply(routeMapChanges(from: coordinator.shown, to: content), of: content, on: mapView, coordinator: coordinator)
+        coordinator.shown = content
+    }
+
+    /// Only what changed is touched: the markers and the line that stay are the same objects as before.
+    private func apply(
+        _ changes: RouteMapChanges,
+        of content: RouteMapContent,
+        on mapView: GMSMapView,
+        coordinator: Coordinator
+    ) {
+        if changes.replacesStartMarker {
+            coordinator.startMarker?.map = nil
+            coordinator.startMarker = content.startPoint.map { point in
+                let marker = GMSMarker(position: point.locationCoordinate)
+                marker.title = String(localized: "Start / Finish", bundle: .module)
+                marker.icon = GMSMarker.markerImage(with: .systemGreen)
+                marker.map = mapView
+                return marker
+            }
         }
 
-        for point in waypoints {
+        for point in changes.removedWaypoints {
+            coordinator.waypointMarkers.removeValue(forKey: point)?.map = nil
+        }
+        for point in changes.addedWaypoints {
             let marker = GMSMarker(position: point.coordinates.locationCoordinate)
             marker.icon = GMSMarker.markerImage(with: .systemRed)
             marker.userData = point
             marker.map = mapView
+            coordinator.waypointMarkers[point] = marker
         }
 
-        if let generatedRoute {
-            let path = GMSMutablePath()
-            for point in generatedRoute.points {
-                path.add(point.coordinates.locationCoordinate)
+        if changes.replacesRouteLine {
+            coordinator.routeLine?.map = nil
+            coordinator.routeLine = nil
+            if !content.routePath.isEmpty {
+                let path = GMSMutablePath()
+                for coordinates in content.routePath {
+                    path.add(coordinates.locationCoordinate)
+                }
+                let polyline = GMSPolyline(path: path)
+                polyline.strokeWidth = 4
+                polyline.strokeColor = UIColor(Color.trailGreen)
+                polyline.map = mapView
+                coordinator.routeLine = polyline
             }
-            let polyline = GMSPolyline(path: path)
-            polyline.strokeWidth = 4
-            polyline.strokeColor = UIColor(Color.trailGreen)
-            polyline.map = mapView
         }
     }
 
@@ -99,6 +124,11 @@ struct RouteMapView: UIViewRepresentable {
         /// True once non-empty waypoints were handled (`isPlanFitNeeded(waypoints:planAlreadySeen:)`). Not
         /// kept across launches: after process death the restored plan is fitted.
         var planAlreadySeen = false
+        /// What the map shows now, and the objects that draw it, so an update touches only what changed.
+        var shown: RouteMapContent?
+        var startMarker: GMSMarker?
+        var waypointMarkers: [RoutePoint: GMSMarker] = [:]
+        var routeLine: GMSPolyline?
 
         init(parent: RouteMapView) {
             self.parent = parent
