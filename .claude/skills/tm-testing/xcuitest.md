@@ -45,10 +45,11 @@ its tap (it may time out, never return a stale value; a second tap after 10 s co
 
 ## Shards and CI timing
 
-CI runs the UI tests in one `ios-ui` job. The "Run iOS UI tests" step boots the simulator and waits
-for it (`simctl bootstatus -b`) before `xcodebuild`, and prefixes every `xcodebuild` output line with
-a UTC time, plus `[ui-timing]` lines for boot ready and `xcodebuild` start: a launch timeout in a red
-run is placed with those times (runner start, test start, app launch).
+CI no longer runs the UI tests: the gate and the full run on `main` do, through `scripts/ios-ui-tests.sh`
+(the pinned simulator `TrailMetrics_UITest`, iPhone 17, iOS 26.5). The script boots the simulator and
+waits for it (`simctl bootstatus -b`) before `xcodebuild`, and prints its pins; the step's log is the
+place to time a launch timeout. A plan to shard the suite is a change of that script, when the tests
+exceed about 10 minutes.
 
 ## Fakes in `shared-uitest`
 
