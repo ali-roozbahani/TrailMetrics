@@ -23,6 +23,7 @@ final class TrackingLiveActivityController {
     // this session" — reset in `start(activityType:)` so the very next
     // `update(...)` call (the first one of a new session) is never throttled.
     private var lastUpdateDate: Date?
+    private var lastUpdateWasPaused = false
 
     init(
         client: LiveActivityClient = ActivityKitLiveActivityClient(),
@@ -50,9 +51,10 @@ final class TrackingLiveActivityController {
         ownActivityID = client.request(
             activityType: activityType,
             state: contentState(distanceMeters: 0, elapsedMillis: 0, currentSpeedMetersPerSecond: nil, isPaused: false),
-            staleDate: nil
+            staleDate: staleDate(isPaused: false)
         )
         lastUpdateDate = nil
+        lastUpdateWasPaused = false
 
         Task { [client] in
             for id in orphanIDs {
@@ -84,10 +86,14 @@ final class TrackingLiveActivityController {
         guard let ownActivityID else { return }
 
         let sentAt = now()
-        if let lastUpdateDate, sentAt.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
+        // A change between Running and Paused is sent at once: the timer would otherwise keep running (or
+        // stay held) on the lock screen until the next update, and a paused session sends none.
+        let isTransition = isPaused != lastUpdateWasPaused
+        if !isTransition, let lastUpdateDate, sentAt.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
             return
         }
         lastUpdateDate = sentAt
+        lastUpdateWasPaused = isPaused
 
         let state = contentState(
             distanceMeters: distanceMeters,
@@ -97,7 +103,7 @@ final class TrackingLiveActivityController {
         )
 
         Task { [client] in
-            await client.update(id: ownActivityID, state: state, staleDate: nil)
+            await client.update(id: ownActivityID, state: state, staleDate: staleDate(isPaused: isPaused))
         }
     }
 
@@ -114,8 +120,14 @@ final class TrackingLiveActivityController {
             distanceMeters: distanceMeters,
             currentSpeedMetersPerSecond: currentSpeedMetersPerSecond,
             timerStart: reference.addingTimeInterval(-Double(elapsedMillis) / 1000),
-            pausedAt: nil
+            pausedAt: isPaused ? reference : nil
         )
+    }
+
+    /// While running, updates arrive about once a second, so one that stops for `staleInterval` means the
+    /// app is not updating (no signal, or the process is gone). A paused session sends none by design.
+    private func staleDate(isPaused: Bool) -> Date? {
+        isPaused ? nil : now().addingTimeInterval(Self.staleInterval)
     }
 
     // Called once, from onStopClicked() — after `trackingState` has already
