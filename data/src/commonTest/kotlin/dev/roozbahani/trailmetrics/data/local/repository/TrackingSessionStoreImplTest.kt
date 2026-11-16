@@ -270,6 +270,44 @@ abstract class TrackingSessionStoreImplTest {
     }
 
     @Test
+    fun `a store of a new process keeps the stored plan points of the same session`() = runTest {
+        val plan = listOf(a, b, c)
+        store.save(plannedSession(TrackingState.Tracking(metrics(a)), *plan.toTypedArray()))
+        val rowIdsBefore = planRowIds()
+        val restartedStore = TrackingSessionStoreImpl(
+            database.trackingSessionDao(),
+            database.trackingSessionPlanDao(),
+            clock
+        )
+
+        restartedStore.save(plannedSession(TrackingState.Tracking(metrics(a, b)), *plan.toTypedArray()))
+
+        assertEquals(rowIdsBefore, planRowIds(), "the stored plan points were rewritten")
+    }
+
+    @Test
+    fun `a session saved again after clear gets its plan points back`() = runTest {
+        val session = plannedSession(TrackingState.Tracking(metrics(a)), a, b, c)
+        store.save(session)
+        store.clear()
+
+        store.save(session)
+
+        assertEquals(session, store.load())
+        assertEquals(3, database.trackingSessionPlanDao().count())
+    }
+
+    @Test
+    fun `a longer plan of the same session start replaces the stored plan points`() = runTest {
+        store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b))
+
+        val longer = plannedSession(TrackingState.Tracking(metrics(a)), a, b, c, d)
+        store.save(longer)
+
+        assertEquals(longer, store.load())
+    }
+
+    @Test
     fun `deleting the session row deletes the plan points by the foreign key and not by a query of its own`() =
         runTest {
             store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b, c))
