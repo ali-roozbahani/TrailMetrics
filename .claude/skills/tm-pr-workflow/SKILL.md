@@ -465,6 +465,20 @@ format). It is not protected, and a PR that touches only that file is not a boar
 - One entry per signature: job, step, test, first error line, short slug. A re-run that turns
   green adds an occurrence (date, run id, PR, re-run fixed it) and increments the count; a new
   signature is a new entry, count 1, status `open`.
+- **Local UI flakes** (owner decision of 2026-11-15; the UI tests run in the gate and in the full run on `main`,
+  not in CI). There is no automatic retry, anywhere: a failed UI-test step fails the gate (or is a red full run),
+  and the next run is a new run. `scripts/ui-flake.sh` records every UI-test run of the gate and of
+  `scripts/main-ui-run.sh` (commit, platform, result, the failure's signature) and detects the flake by itself:
+  a pass whose previous run on the same platform failed, on the same commit or on a later one whose changes
+  since then are not in that platform's UI scope (`classify-changes.sh --ui-scope`). A pass after a change in
+  that scope is a fix, not a flake. A detected flake is printed by that run, listed in the gate's report-only
+  step "local UI flakes not yet logged" and counted by `scripts/main-ui-run.sh --status` until it is logged.
+  Logging it is the CI flake rule with these differences: the **job** is `local gate: <Android|iOS> UI tests`
+  or `local main run: <Android|iOS> UI tests` (the run where it failed), the step and test and first error line
+  are the signature the script printed, "re-run: no" (the next run that passed was not a re-run), the run id
+  is the commit and the time. One entry per signature, the count, the escalation at count 3 to a `BOARD.md`
+  record and the `fixed (unverified)` / `fixed` rules are unchanged. After adding the occurrence run
+  `scripts/ui-flake.sh --logged <id>`. A pending flake blocks nothing; where the update goes is the next bullet.
 - Where the update goes. A PR that is already green, or being merged, never gets a push for a
   flake-log update: it would start another full CI cycle for it. The update of a run of such a PR
   goes into the first queue entry that is not pushed yet (its "What changed" says so), else into a

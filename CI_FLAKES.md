@@ -11,7 +11,9 @@ until its Done when is shown (5 consecutive green runs of the job on `main` afte
 commit); `fixed` only once they are. A failure with the signature of a `fixed (unverified)` or
 `fixed` entry reopens it to `open` and adds the occurrence. A failure of the kind "job not acquired by a
 runner" (infra: no test or code involved) is counted and never escalated to a board record (`tm-pr-workflow`,
-"Flake log").
+"Flake log"). UI flakes of the local gate and of the full run on `main` are logged here too, with the job
+`local gate: <platform> UI tests` or `local main run: <platform> UI tests` (`tm-pr-workflow`, "Flake log",
+"Local UI flakes").
 
 ## ios-ui-route-map-press-lost
 

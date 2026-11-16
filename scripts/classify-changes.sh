@@ -126,6 +126,7 @@ HEAVY_SCRIPTS=(
 #   filter-xcode-log.sh, scrub-env.sh   the gate's xcodebuild steps and its environment (self-tests: tooling)
 #   android-ui-tests.sh, ios-ui-tests.sh   the gate's UI test steps (no self-test: the gate runs them)
 #   run-limited.sh           the time limit of those steps (self-test: tooling)
+#   ui-flake.sh              the gate records every UI-test step with it (self-test: tooling)
 # scripts/check-heavy-scripts.sh fails when a CI step, Gradle or the Xcode project runs one of these.
 GATE_ONLY_HEAVY_SCRIPTS=(
     'scripts/pre-push-check.sh'
@@ -135,6 +136,7 @@ GATE_ONLY_HEAVY_SCRIPTS=(
     'scripts/android-ui-tests.sh'
     'scripts/ios-ui-tests.sh'
     'scripts/run-limited.sh'
+    'scripts/ui-flake.sh'
 )
 
 # Who is classifying: `gate` (the default: the local gate, --files, --base) or `ci` (--github, or --ci).
