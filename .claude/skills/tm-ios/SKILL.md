@@ -14,7 +14,7 @@ exists", the rules here win for "what new code should look like".
 
 - One local Swift Package per feature under `iosApp/Packages/<Feature>/` (`History`,
   `Route`, `Tracking`), mirroring `androidApp/feature-*`. Copy an existing `Package.swift`
-  (`swift-tools-version: 5.9`, `defaultLocalization: "en"`, `platforms: [.iOS(.v17)]`, one library product, one target with `resources: [.process("Localizable.xcstrings")]`)
+  (`swift-tools-version: 5.9`, `defaultLocalization: "en"`, `platforms: [.iOS("26.5")]`, the app's deployment target (`.v17` and the other named values stop far below it; the string form is accepted by tools-version 5.9), one library product, one target with `resources: [.process("Localizable.xcstrings")]`)
   rather than hand-rolling one.
 - Every feature package depends on `SharedKit`, never on `TrailMetricsShared.xcframework`
   directly. `SharedKit` is just `@_exported import TrailMetricsShared`, so Swift files
@@ -189,8 +189,14 @@ fails, so observe through a use case that turns the failure into a value on the 
 - Colors come from `DesignSystem` (`Color.trailGreen`); no ad-hoc RGB literals in features.
 - No `accessibilityIdentifier` for UI tests where text finds the element; only where it cannot
   (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest").
-- Add a `#Preview` for new screens and reusable components. Use the ViewModel's
-  default-parameter `init` to inject fakes where a live Koin graph isn't available.
+- Add a `#Preview` for new screens and reusable components. Today only `ContentView` and
+  `RouteMapUnavailableView` have one: the feature screens build a ViewModel that resolves from
+  `KoinHelper()`, and only `TrailMetricsApp.init()` starts Koin. The fakes (`TestSupport`) are linked from test
+  targets only, so a preview in `Sources/` cannot see them. Until that is decided, a preview is of
+  a view that takes plain values and closures (a row, a card, a metric cell); do not link
+  `TestSupport` from a `Sources/` target and do not start Koin in a preview. Open proposal, not a
+  rule: a small `#if DEBUG` preview-fakes file in the package that owns the screen, hand-written
+  against the Kotlin interfaces, which keeps `TestSupport` out of the app.
 
 ## Strings
 
@@ -245,6 +251,60 @@ no code change.
 - Known limits, not fixed here: the texts that `MetricsFormatter` (Kotlin) returns, with their
   unit words, and the widget's own number formatting are hardcoded (board:
   `shared-metrics-formatter-user-visible-strings`, `ios-hardcoded-number-formatting`).
+
+## Accessibility
+
+- Every control that shows only an icon has an `accessibilityLabel` made with `String(localized:)`
+  or a `Text` (see "Strings"), and the same for a state it shows only by color or shape.
+- A cell that shows a value and its label (the metric cells) is one element:
+  `.accessibilityElement(children: .combine)`, so VoiceOver reads "label, value" once.
+- Sizes follow the user's text size: fonts are text styles; a fixed size that must grow
+  uses `@ScaledMetric`. An animation checks `@Environment(\.accessibilityReduceMotion)`.
+- Decorative images are `.accessibilityHidden(true)`.
+- The map is a UIKit view (next section): give its `UIViewRepresentable` an accessibility label and
+  describe the result in text elsewhere on the screen; a polyline is not readable by VoiceOver.
+- Enforced: reviewer only (no lint rule or UI-test audit exists yet). Violation: `important`.
+
+## Wrapping a UIKit view (the maps)
+
+- `makeUIView` creates the view and its delegate once; `updateUIView` runs on every state change of
+  the SwiftUI parent, so it applies only what changed (compare against what the `Coordinator` last
+  applied) instead of clearing and rebuilding the map. Today `RouteMapView` and `TrackingMapView`
+  still call `mapView.clear()` first; do not copy that.
+- The `Coordinator` keeps what `updateUIView` must remember between calls (the last camera
+  coordinates, `planAlreadySeen`), as `RouteMapView` and `TrackingMapView` do. No second strong
+  reference to the `GMSMapView` outside the representable: `TrackingMapView`'s comment records the
+  dealloc crash that a binding to it caused (`RouteMapView` still has one: `@Binding var mapView`).
+- Work that the map needs from the screen (a snapshot) is requested with a value (`snapshotRequestID`)
+  and answered by a closure, not by handing the `GMSMapView` out.
+- `dismantleUIView` is where the wrapper's own tasks end (`TrackingMapView` cancels `snapshotTask`).
+
+## Swift concurrency settings per target
+
+Read from `iosApp/TrailMetrics.xcodeproj/project.pbxproj` and the six `Package.swift` files; check
+them again before relying on them, because they change the meaning of the same code.
+
+| Target | Language mode | Default actor isolation | Approachable concurrency |
+|---|---|---|---|
+| `TrailMetrics` (app) | 5.0 | `MainActor` | on |
+| `TrackingWidgetExtension` | 5.0 | `nonisolated` (unset) | off |
+| `TrailMetricsUITests` | 5.0 | `nonisolated` (unset) | off |
+| the six packages (tools 5.9) | 5 | `nonisolated` (unset) | off |
+
+So a type in the app target is `@MainActor` without saying it, and a type in a package is not: write
+the `@MainActor` on a package type and do not move code between a package and the app target without
+re-reading its isolation (D7 in `tm-robustness`).
+
+## Numbers, units and durations
+
+- User-visible numbers, units and durations are formatted per platform and locale. The direction
+  (owner decision) is not to format them in the Kotlin `domain`; moving the existing formatting out of
+  Kotlin is a refactor of its own and is not scheduled (the two board records in "Strings").
+- New Swift code does not use `String(format:)` for a number the user reads. Use the format styles
+  (`value.formatted(...)`, `Measurement` with `.formatted(.measurement(...))`, `Duration.formatted`,
+  `Date.FormatStyle`), which follow the locale, or `Text(value, format:)`.
+- Existing exceptions, not to copy: `TrackingWidget/TrackingLiveActivity.swift` formats
+  distance, pace and elapsed time with `String(format:)` (board: `ios-hardcoded-number-formatting`).
 
 ## Build integration (XCFramework pre-action + Run Script)
 
@@ -386,7 +446,7 @@ no code change.
 
 `CLAUDE.md` states the rule; the Swift specifics:
 - Never call anything marked `@available(*, deprecated)`, or anything deprecated at or below
-  the iOS 17 deployment target. Xcode reports these only as warnings, and SwiftLint doesn't
+  the iOS 26.5 deployment target. Xcode reports these only as warnings, and SwiftLint doesn't
   catch them, so read the build log. Examples that matter here: `NavigationView` →
   `NavigationStack`; single-parameter `.onChange(of:perform:)` → the two-parameter
   `.onChange(of:) { oldValue, newValue in }` form already used in `TrackingView`;

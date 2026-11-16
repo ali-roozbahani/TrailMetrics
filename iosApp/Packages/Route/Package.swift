@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Route",
     defaultLocalization: "en",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS("26.5")],
     products: [
         .library(name: "Route", targets: ["Route"])
     ],
