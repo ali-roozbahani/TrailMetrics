@@ -194,9 +194,9 @@ fails, so observe through a use case that turns the failure into a value on the 
 - Colors come from `DesignSystem` (`Color.trailGreen`); no ad-hoc RGB literals in features.
 - No `accessibilityIdentifier` for UI tests where text finds the element; only where it cannot
   (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest").
-- Add a `#Preview` for new screens and reusable components. Today only `ContentView` and
-  `RouteMapUnavailableView` have one: the feature screens build a ViewModel that resolves from
-  `KoinHelper()`, and only `TrailMetricsApp.init()` starts Koin. The fakes (`TestSupport`) are linked from test
+- Add a `#Preview` for new screens and reusable components. Today `ContentView` and
+  `RouteMapUnavailableView` are the two files with one: the feature screens build a ViewModel that resolves from
+  `KoinHelper()`, and `TrailMetricsApp.init()` is what starts Koin. The fakes (`TestSupport`) are linked from test
   targets only, so a preview in `Sources/` cannot see them. Until that is decided, a preview is of
   a view that takes plain values and closures (a row, a card, a metric cell); do not link
   `TestSupport` from a `Sources/` target and do not start Koin in a preview. Open proposal, not a
@@ -210,7 +210,7 @@ navigation and tab titles, alerts, empty and error states, accessibility labels 
 marker titles) comes from a String Catalog, `Localizable.xcstrings`, next to the sources of the
 package that shows it (`iosApp/Packages/<Feature>/Sources/<Feature>/`), of the app target
 (`iosApp/TrailMetrics/`) or of the widget extension (`iosApp/TrackingWidget/`). Language: English
-only for now (`defaultLocalization: "en"`); adding one means adding its column to the catalogs,
+for now (`defaultLocalization: "en"`). Adding one means adding its column to the catalogs,
 no code change.
 
 - **Bundle.** Inside an SPM package SwiftUI looks in the main bundle unless told otherwise, so a

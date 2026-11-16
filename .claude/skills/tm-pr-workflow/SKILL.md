@@ -252,6 +252,11 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
   or a hit beyond the bound, is not fixed here: it goes where "Board", rule 1 says (a queued
   PR of its own, or a `BOARD.md` record) and is listed under "Drift found (not fixed)" in the
   PR description, with the line and what the code actually does.
+  - A sentence that states what the code does today (a "today", "still", "not yet", "for now" or
+    "currently" statement) holds none of these words: must, never, always, do not, don't, required,
+    forbidden, only, at most, at least. The rule it relates to is its own sentence next to it. Why:
+    a line that mixes the two is listed by the rule-change signal (`scripts/check-skill-rule-changes.sh`)
+    each time the statement is brought up to date, although no rule changed.
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.

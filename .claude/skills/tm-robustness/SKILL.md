@@ -156,8 +156,8 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   `collectAsStateWithLifecycle()`, on iOS in a `.task` modifier or a stored `Task` cancelled in
   `deinit` (`tm-ios` "SKIE interop"). Why: a plain `collectAsState` collects while the app is in the
   background, and any collector outlives its screen. Example: the four screens' Root composables,
-  `HistoryView` (`.task { await viewModel.observe() }`). Enforced: reviewer only (no lint check for
-  it in the repo today). Severity: important.
+  `HistoryView` (`.task { await viewModel.observe() }`). Enforced: reviewer only. No lint check for
+  it exists in the repo today. Severity: important.
 - **R5** iOS: a scene-phase change or app termination while tracking persists or restores the
   in-progress session; no work assumes the app stays in the foreground. Why: iOS suspends and
   terminates apps without a callback you can rely on. Example: `SavedSessionOfferModel` restores the
@@ -258,7 +258,7 @@ R4, R6, M4, P7 are merged into M2, M1, R3, M5.
 
 Rules that a tool can check go to the tool, not to more prose here. The measured hits of the
 tools that are not enabled today are in the PR that wrote this skill and in the board record
-`enable-robustness-lint-rules`; do not add a prose rule for something a tool rule would check.
+`enable-robustness-lint-rules`. Do not add a prose rule for something a tool rule would check.
 
 ## Known deviations in the current code
 
