@@ -5,7 +5,7 @@ import PackageDescription
 // from a `.testTarget`, never from a feature's Sources/ target, so none of this reaches the app.
 let package = Package(
     name: "TestSupport",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS("26.5")],
     products: [
         .library(name: "TestSupport", targets: ["TestSupport"])
     ],
