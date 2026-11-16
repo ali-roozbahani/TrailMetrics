@@ -3,8 +3,8 @@
 # when one of its inputs changed since the last successful build, or the other variant is in
 # place. The single entry point for building that framework, in Xcode, locally and in CI: the
 # TrailMetrics scheme's Build pre-action, the app target's "Build KMP Shared Framework" phase and
-# scripts/pre-push-check.sh call this script, and so do the CI jobs ios-main (production variant)
-# and ios-build-ui (--variant uitest).
+# scripts/pre-push-check.sh call this script, and so do the CI job ios-build (production variant, then
+# --variant uitest for the package tests and the variant's API check) and the gate's iOS UI tests step.
 #
 # Usage: scripts/build-kmp-framework.sh [--build-phase] [--variant production|uitest]
 #   --build-phase  Called from inside the Xcode build. By then Xcode has already copied the
@@ -16,7 +16,7 @@
 #   --variant      Which framework to put at the debug path. Without it: uitest when Xcode's
 #                  CONFIGURATION is Debug-UITest (pre-action and --build-phase alike), production
 #                  otherwise. Callers outside Xcode pass --variant uitest when they need the
-#                  variant (CI's ios-build-ui job, the gate's iOS UI tests step); every other
+#                  variant (CI's ios-build job, the gate's iOS UI tests step); every other
 #                  step builds production.
 #
 # Variants (ADR-002, "Amendment"):

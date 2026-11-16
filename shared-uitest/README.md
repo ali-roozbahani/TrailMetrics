@@ -59,7 +59,7 @@ that its API is production's plus this module's declarations, and copies it
 over `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework`, so
 `SharedKit/Package.swift` does not change. The next run without
 `--variant uitest` puts the production framework back. The gate and CI's
-`ios-main` build the variant right before the Swift package tests. Normal Debug and
+`ios-build` build the variant right before the Swift package tests. Normal Debug and
 Release builds never link the variant. The Xcode configuration
 `Debug-UITest` and its scheme `TrailMetricsUITests` link it, and the Swift
 call site that enters the seam is `TrailMetricsApp.init()`, under

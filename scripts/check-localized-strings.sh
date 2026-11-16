@@ -2,7 +2,7 @@
 # Self-test of the two SwiftLint custom rules that keep hardcoded user-visible strings out of iOS
 # production code (iosApp/.swiftlint.yml: localized_text_without_bundle and
 # literal_text_in_view_initializer; tm-ios, "Strings"). The rules themselves run in every
-# `swiftlint lint --strict` (gate and CI's ios-main). This script runs the committed config
+# `swiftlint lint --strict` (gate and CI's ios-build). This script runs the committed config
 # against the fixtures in scripts/check-localized-strings-fixtures/ placed where the rules apply:
 #   violating/     must fail: 2 localized_text_without_bundle and 5 literal_text_in_view_initializer
 #   fixed/         the same view written the way tm-ios asks: must pass

@@ -108,7 +108,7 @@ here. Run the script itself, not a hand-picked command.
 - **Self-test of a new script.** Its `--self-test` goes on one of the two lists the gate and CI read
   (`scripts/checks/self-tests.sh` reads both): group `tooling` (CI's `tooling` job) on
   `scripts/checks/self-tests-tooling.list`, which `scripts/classify-changes.sh` treats as light, so
-  a PR of tooling scripts and their registration stays light; an iOS group (CI's `ios-main` job) on
+  a PR of tooling scripts and their registration stays light; an iOS group (CI's `ios-build` job) on
   `scripts/checks/self-tests.list`, a heavy file, when the script tests iOS-only things. Never into the
   Android build job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
   on a script that has a self-test and is on neither list, and on another group in the tooling list.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Self-test of the SwiftLint custom rule `optional_try` (iosApp/.swiftlint.yml; tm-ios, "SwiftLint"),
 # which bans an unannotated `try?` in iOS code. The rule runs in every `swiftlint lint --strict`
-# (gate and CI's ios-main), but SwiftLint turns a custom rule OFF without failing when its
+# (gate and CI's ios-build), but SwiftLint turns a custom rule OFF without failing when its
 # `excluded_match_kinds` holds a name the installed version does not know: it only prints
 # "Invalid configuration for 'optional_try' rule. Falling back to default." and reports no `try?`
 # at all. This script runs the committed config against the fixtures in

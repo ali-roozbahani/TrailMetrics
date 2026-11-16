@@ -71,7 +71,7 @@ the unfixed code, "Bugfixes: red test first"), then fix. The UI tests of both pl
 this machine, the full suite of each platform a branch touches (`scripts/classify-changes.sh --ui-scope`:
 `androidApp/` Android, `iosApp/` and `shared-uitest/` iOS, `domain`, `data`, `core`, `shared` and the root Gradle
 and catalog files both, docs, skills, tooling scripts and workflow files none); the gate prints the AVD, simulator, runtime and
-Xcode versions it ran on. CI still runs the iOS UI tests in its `ios-ui` job until the local mechanism is proven and the owner's step 5 removes that job; it has no Android UI job.
+Xcode versions it ran on. CI runs no UI tests, on either platform: they run in the gate and in the full run on `main`.
 
 ### Rules for `androidTest` (a flake is a failed rule)
 
@@ -293,7 +293,8 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   - held calls are released only through `uitest.probe.release`;
   - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
   - check once in the working tree that the test fails when the guarded behavior breaks.
-- **Shards.** CI runs the UI tests in one `ios-ui` job; plan a shard step when they exceed about
+- **Shards.** The gate and the full run on `main` run the UI tests in one `scripts/ios-ui-tests.sh` run; plan
+  a shard step in that script when they exceed about
   10 tests (cap 3).
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
   failure without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
