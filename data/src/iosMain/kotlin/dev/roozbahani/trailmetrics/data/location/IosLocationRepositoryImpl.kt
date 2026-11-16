@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.CoreLocation.CLActivityType
+import platform.CoreLocation.CLActivityTypeFitness
+import platform.CoreLocation.CLActivityTypeOther
 import platform.CoreLocation.CLAuthorizationStatus
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
@@ -72,6 +74,7 @@ private class CLLocationManagerSettings(private val manager: CLLocationManager) 
 internal fun applyBackgroundTracking(settings: LocationManagerSettings, enabled: Boolean) {
     settings.allowsBackgroundLocationUpdates = enabled
     settings.pausesLocationUpdatesAutomatically = !enabled
+    settings.activityType = if (enabled) CLActivityTypeFitness else CLActivityTypeOther
 }
 
 @OptIn(ExperimentalForeignApi::class)
@@ -166,12 +169,6 @@ class IosLocationRepositoryImpl : LocationRepository {
     }
 
     fun setBackgroundUpdatesEnabled(enabled: Boolean) {
-        if (enabled) {
-            // Escalates WhenInUse -> Always, specifically for Tracking (never called from
-            // Route's getCurrentLocation() path). A no-op if already Always, already
-            // denied/restricted, or WhenInUse hasn't been granted yet.
-            locationManager.requestAlwaysAuthorization()
-        }
         applyBackgroundTracking(CLLocationManagerSettings(locationManager), enabled)
     }
 }

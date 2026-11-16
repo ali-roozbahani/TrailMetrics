@@ -139,8 +139,8 @@ consume that. A new Flow that Swift iterates and that can fail needs the same tr
 
 ## iOS location (L1)
 
-Target shape, decided by the owner; the code has not reached it yet (`IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`
-still calls `requestAlwaysAuthorization()`, and a later PR of the queue changes it).
+Decided by the owner and in the code since `ios-always-location-removal`: `IosLocationRepositoryImpl` requests
+when-in-use authorization only, and `Info.plist` has no Always usage string.
 
 - The app asks for when-in-use authorization only, and tracks in the background through the `location`
   background mode (`UIBackgroundModes` in `Info.plist`) with `allowsBackgroundLocationUpdates = true`
@@ -149,8 +149,8 @@ still calls `requestAlwaysAuthorization()`, and a later PR of the queue changes 
   feature that needs the app relaunched after termination is built; that is an owner decision with its
   own App Review note.
 - While a session runs: `allowsBackgroundLocationUpdates` true, `pausesLocationUpdatesAutomatically`
-  false, `activityType` set for the feature (fitness for walking, running and cycling); both are
-  reset when it ends, as `setBackgroundUpdatesEnabled(false)` does for the first two.
+  false, `activityType` fitness; all three are put back when it ends (`applyBackgroundTracking`,
+  proved by `BackgroundTrackingSettingsTest`).
 - The authorization status is read at the use site (`ensureLocationPermission`) and never cached; a
   refusal is `RouteError.MissingLocationPermission`, as on Android.
 - A simulator cannot show the behavior with the screen off, so no test proves it: a change here
