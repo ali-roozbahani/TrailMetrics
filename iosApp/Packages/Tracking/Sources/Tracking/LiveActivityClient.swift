@@ -22,8 +22,8 @@ protocol LiveActivityClient {
     /// including those of a process that was killed.
     var existingIDs: [String] { get }
     /// The id of the new Activity, or nil when the system refuses one.
-    func request(activityType: String) -> String?
-    func update(id: String, state: TrackingActivityAttributes.ContentState) async
+    func request(activityType: String, state: TrackingActivityAttributes.ContentState, staleDate: Date?) -> String?
+    func update(id: String, state: TrackingActivityAttributes.ContentState, staleDate: Date?) async
     func end(id: String, finalState: TrackingActivityAttributes.ContentState?, dismissal: LiveActivityDismissal) async
 }
 
@@ -35,26 +35,21 @@ struct ActivityKitLiveActivityClient: LiveActivityClient {
 
     var existingIDs: [String] { Activity<TrackingActivityAttributes>.activities.map(\.id) }
 
-    func request(activityType: String) -> String? {
+    func request(activityType: String, state: TrackingActivityAttributes.ContentState, staleDate: Date?) -> String? {
         let attributes = TrackingActivityAttributes(activityType: activityType)
-        let initialState = TrackingActivityAttributes.ContentState(
-            distanceMeters: 0,
-            elapsedMillis: 0,
-            currentSpeedMetersPerSecond: nil
-        )
         // Silent on purpose: the Live Activity is an optional extra (the user can turn Live
         // Activities off, or the system can refuse one), and tracking works without it.
         // An exception to `tm-ios`'s "never drop an error" rule.
         // swiftlint:disable:next optional_try - the Live Activity is optional; nil leaves tracking running without it
         let activity = try? Activity.request(
             attributes: attributes,
-            content: ActivityContent(state: initialState, staleDate: nil)
+            content: ActivityContent(state: state, staleDate: staleDate)
         )
         return activity?.id
     }
 
-    func update(id: String, state: TrackingActivityAttributes.ContentState) async {
-        await activity(id: id)?.update(ActivityContent(state: state, staleDate: nil))
+    func update(id: String, state: TrackingActivityAttributes.ContentState, staleDate: Date?) async {
+        await activity(id: id)?.update(ActivityContent(state: state, staleDate: staleDate))
     }
 
     func end(id: String, finalState: TrackingActivityAttributes.ContentState?, dismissal: LiveActivityDismissal) async {

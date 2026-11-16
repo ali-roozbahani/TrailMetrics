@@ -17,19 +17,19 @@ struct TrackingLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    metricLabel(
-                        systemImage: "point.topleft.down.curvedto.point.bottomright.up",
-                        value: formatDistance(meters: context.state.distanceMeters)
-                    )
+                    metricLabel(systemImage: "point.topleft.down.curvedto.point.bottomright.up") {
+                        Text(formatDistance(meters: context.state.distanceMeters))
+                            .opacity(context.isStale ? 0.5 : 1)
+                    }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    metricLabel(
-                        systemImage: "speedometer",
-                        value: formatSpeed(metersPerSecond: context.state.currentSpeedMetersPerSecond)
-                    )
+                    metricLabel(systemImage: "speedometer") {
+                        Text(formatSpeed(metersPerSecond: currentSpeed(context)))
+                            .opacity(context.isStale ? 0.5 : 1)
+                    }
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    metricLabel(systemImage: "timer", value: formatElapsed(millis: context.state.elapsedMillis))
+                    metricLabel(systemImage: "timer") { ElapsedTimerText(state: context.state) }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
@@ -56,12 +56,12 @@ struct TrackingLiveActivity: Widget {
         }
     }
 
-    private func metricLabel(systemImage: String, value: String) -> some View {
+    private func metricLabel<Value: View>(systemImage: String, @ViewBuilder value: () -> Value) -> some View {
         VStack(spacing: 2) {
             Image(systemName: systemImage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(value)
+            value()
                 .font(.headline)
                 .monospacedDigit()
         }
@@ -90,26 +90,34 @@ private struct TrackingLockScreenView: View {
             HStack(spacing: 16) {
                 metric(
                     label: Text("Distance", bundle: .main),
-                    value: formatDistance(meters: context.state.distanceMeters),
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
-                )
-                metric(
-                    label: Text("Time", bundle: .main),
-                    value: formatElapsed(millis: context.state.elapsedMillis),
-                    systemImage: "timer"
-                )
-                metric(
-                    label: Text("Speed", bundle: .main),
-                    value: formatSpeed(metersPerSecond: context.state.currentSpeedMetersPerSecond),
-                    systemImage: "speedometer"
-                )
+                ) {
+                    Text(formatDistance(meters: context.state.distanceMeters))
+                        .opacity(context.isStale ? 0.5 : 1)
+                }
+                metric(label: Text("Time", bundle: .main), systemImage: "timer") {
+                    ElapsedTimerText(state: context.state)
+                }
+                metric(label: Text("Speed", bundle: .main), systemImage: "speedometer") {
+                    Text(formatSpeed(metersPerSecond: currentSpeed(context)))
+                        .opacity(context.isStale ? 0.5 : 1)
+                }
+            }
+            if context.isStale {
+                Text("Not updating", bundle: .main)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()
         .widgetURL(TrackingLiveActivityConstants.deepLinkURL)
     }
 
-    private func metric(label: Text, value: String, systemImage: String) -> some View {
+    private func metric<Value: View>(
+        label: Text,
+        systemImage: String,
+        @ViewBuilder value: () -> Value
+    ) -> some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
@@ -117,12 +125,34 @@ private struct TrackingLockScreenView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            Text(value)
+            value()
                 .font(.headline)
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
     }
+}
+
+/// The elapsed time, drawn by the system from the state's start date: it advances with no update and, once
+/// the session is paused, is held at the date it was paused. The upper bound is longer than a Live Activity
+/// can last (8 hours active, then up to 4 on the lock screen).
+private struct ElapsedTimerText: View {
+    let state: TrackingActivityAttributes.ContentState
+
+    var body: some View {
+        Text(
+            timerInterval: state.timerStart...state.timerStart.addingTimeInterval(12 * 60 * 60),
+            pauseTime: state.pausedAt,
+            countsDown: false,
+            showsHours: false
+        )
+        .multilineTextAlignment(.center)
+    }
+}
+
+/// A stale speed is not shown: it is the speed of a moment the app has not updated since.
+private func currentSpeed(_ context: ActivityViewContext<TrackingActivityAttributes>) -> Double? {
+    context.isStale ? nil : context.state.currentSpeedMetersPerSecond
 }
 
 // Matches Route's StartTrackingPanel.swift (ActivityTypeControl.symbolName) —
@@ -149,13 +179,6 @@ private func formatDistance(meters: Double) -> String {
         return String(format: "%.2f km", meters / 1000)
     }
     return "\(Int(meters)) m"
-}
-
-private func formatElapsed(millis: Int64) -> String {
-    let totalSeconds = millis / 1000
-    let minutes = totalSeconds / 60
-    let seconds = totalSeconds % 60
-    return String(format: "%02d:%02d", minutes, seconds)
 }
 
 private func formatSpeed(metersPerSecond: Double?) -> String {

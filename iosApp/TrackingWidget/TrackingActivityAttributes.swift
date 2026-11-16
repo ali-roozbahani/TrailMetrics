@@ -18,13 +18,23 @@ import Foundation
 public struct TrackingActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         public var distanceMeters: Double
-        public var elapsedMillis: Int64
         public var currentSpeedMetersPerSecond: Double?
+        /// The elapsed time is drawn by the system from this date, with no update needed: the date the
+        /// timer would have started at had it never been paused (now minus the elapsed time).
+        public var timerStart: Date
+        /// Set while the session is paused: the timer shows the time as of this date and does not advance.
+        public var pausedAt: Date?
 
-        public init(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?) {
+        public init(
+            distanceMeters: Double,
+            currentSpeedMetersPerSecond: Double?,
+            timerStart: Date,
+            pausedAt: Date?
+        ) {
             self.distanceMeters = distanceMeters
-            self.elapsedMillis = elapsedMillis
             self.currentSpeedMetersPerSecond = currentSpeedMetersPerSecond
+            self.timerStart = timerStart
+            self.pausedAt = pausedAt
         }
     }
 

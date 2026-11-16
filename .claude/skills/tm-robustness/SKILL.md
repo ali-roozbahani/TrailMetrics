@@ -169,8 +169,8 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
 - **R7** iOS: a Live Activity is given a `staleDate` and the widget draws the stale case
   (`context.isStale`), and a value that moves on its own (elapsed time) is drawn by the system from a
   start date, not pushed as a number. Why: the app can be suspended or killed while tracking, and a
-  frozen number on the lock screen reads as live. Example: no example yet (`LiveActivityClient` passes
-  `staleDate: nil` everywhere; board `ios-live-activity-ticker`). Enforced: reviewer only. Severity:
+  frozen number on the lock screen reads as live. Example: `TrackingLiveActivityController` (stale date,
+  timer anchored to `timerStart`) and the widget's `ElapsedTimerText`. Enforced: reviewer only. Severity:
   important.
 
 ## Memory and leaks
