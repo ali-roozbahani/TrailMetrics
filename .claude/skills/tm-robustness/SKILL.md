@@ -110,9 +110,18 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   `Task.detached` or an explicit non-main executor. Why: the same as C1 and D6. Whether a
   `nonisolated async` function hops off its caller depends on the module that defines it (the app
   target has `SWIFT_APPROACHABLE_CONCURRENCY`, the six `Package.swift` files do not): do not reason
-  from a doc comment. Example: #219 called `discardSnapshotFile` (`FileManager.removeItem`) in the
+  from a doc comment. To run blocking work off the main actor without `Task.detached`, mark the
+  function `@concurrent` (it always runs on the global executor): one compile check in a package
+  with the shape of ours (tools-version 5.9, language mode 5, `.iOS("26.5")`) accepted it. Example: #219 called `discardSnapshotFile` (`FileManager.removeItem`) in the
   cancel branch of `TrackingMapView`'s snapshot `Task`, on the main actor, until `Task.detached`.
   Enforced: reviewer only. Severity: blocking when it blocks the main actor, else important.
+
+- **R7** iOS: a Live Activity is given a `staleDate` and the widget draws the stale case
+  (`context.isStale`), and a value that moves on its own (elapsed time) is drawn by the system from a
+  start date, not pushed as a number. Why: the app can be suspended or killed while tracking, and a
+  frozen number on the lock screen reads as live. Example: no example yet (`LiveActivityClient` passes
+  `staleDate: nil` everywhere; board `ios-live-activity-ticker`). Enforced: reviewer only. Severity:
+  important.
 
 ## Intents and permissions
 
@@ -199,6 +208,9 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   deinits. Example: `TrackingViewModel` (`[weak self]` in both observation tasks and the stop
   closure). Enforced: SwiftLint `weak_delegate` and `unowned_variable_capture` are off; the rest
   reviewer only. Severity: blocking for a stored closure with a strong `self`, else important.
+  A leak test (the iOS side of M8): make the object in a scope, keep a `weak var` to it, drop the strong
+  reference, run the pending work (`await` the tasks it started), then `XCTAssertNil` the weak
+  reference; do it for each type that stores a closure or a `Task` over `self`.
 - **M7** Caches are bounded (a maximum size or count, as `maxPendingEvents` is in the iOS view
   models). Why: an unbounded cache is a slow leak. Example: `TrackingViewModel.maxPendingEvents`.
   Enforced: reviewer only. Severity: important.
