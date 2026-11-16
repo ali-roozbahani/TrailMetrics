@@ -133,9 +133,16 @@ lint.xml                                    @ali-roozbahani
 # Package.swift, a nested lint config or instruction file, and their .gitignore stay protected by
 # the lines above.
 
-# The persistence paths (the Room database, converters and builders, DAOs, entities, exported
-# schema) are open on purpose: product code (docs/epics/protected-paths-review-2.md, Decision 4).
-# What protects stored data is tested and checked, not owned: scripts/check-room-schema.sh (schema
-# files append-only, a version bump needs its schema file and migration, export freshness), the
-# migration harness with the pinned database file name, and tm-pr-review item 12. data's
-# build.gradle.kts and the gate scripts stay protected by the lines above.
+# The persistence code (the Room database builders and converters, DAOs, entities, mappers,
+# repositories, the migration harness) is open on purpose: product code
+# (docs/epics/protected-paths-review-2.md, Decision 4). A change of the database schema is not:
+# the owner decided on 2026-11-16 that the agent never merges one, so its three marks are protected
+# below: the exported schema files, the migrations and the @Database version (which also lists the
+# entities). A change of a stored entity needs a version bump (scripts/check-room-schema.sh), so
+# it reaches them. What else protects stored data is tested and checked, not owned: that script
+# (schema files append-only, a version bump needs its schema file and migration, export
+# freshness), the migration harness with the pinned database file name, and tm-pr-review item 12.
+# data's build.gradle.kts and the gate scripts stay protected by the lines above.
+/data/schemas/                              @ali-roozbahani
+/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/Migrations.kt @ali-roozbahani
+/data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/TrailMetricsDatabase.kt @ali-roozbahani

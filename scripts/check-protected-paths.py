@@ -582,12 +582,25 @@ REAL_PATH_CASES = [
     ("shared/README.md", None),
     ("iosApp/Packages/SharedKit/Sources/SharedKit/x.swift", None),
     ("iosApp/Packages/SharedKit/Sources/SharedKit/SharedKit.swift", None),
-    (PERSISTENCE + "database/TrailMetricsDatabase.kt", None),
     ("data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/x.kt", None),
     (PERSISTENCE + "dao/ActivityDao.kt", None),
+    (PERSISTENCE + "dao/TrackingSessionPlanDao.kt", None),
     (PERSISTENCE + "entity/ActivityEntity.kt", None),
+    (PERSISTENCE + "database/Converters.kt", None),
+    (PERSISTENCE + "database/DatabaseBuilder.kt", None),
+    (PERSISTENCE + "repository/TrackingSessionStoreImpl.kt", None),
+    ("data/src/commonTest/kotlin/dev/roozbahani/trailmetrics/data/local/repository/"
+     "TrackingSessionStoreImplTest.kt", None),
+    ("data/src/commonTest/kotlin/dev/roozbahani/trailmetrics/data/local/database/"
+     "FrozenDatabaseVersions.kt", None),
+    # The schema of the database (owner decision of 2026-11-16): the agent never merges a change of it,
+    # so these three are protected although the rest of the persistence code is open.
+    (PERSISTENCE + "database/TrailMetricsDatabase.kt", "/" + PERSISTENCE + "database/TrailMetricsDatabase.kt"),
+    (PERSISTENCE + "database/Migrations.kt", "/" + PERSISTENCE + "database/Migrations.kt"),
     ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/1.json",
-     None),
+     "/data/schemas/"),
+    ("data/schemas/dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase/5.json",
+     "/data/schemas/"),
 ]
 
 
