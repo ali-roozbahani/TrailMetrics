@@ -280,6 +280,7 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
 - **Run.** Scheme `TrailMetricsUITests` (⌘U in Xcode, or the `xcodebuild test` command in `tm-ios`,
   "Build configurations and schemes", piped through `../scripts/filter-xcode-log.sh`). With an empty
   Maps key the Route UI tests that need the map fail.
+- **What the simulator cannot show.** Real GPS, a locked or screen-off device, the system suspending or terminating the app and the lock-screen rendering of a Live Activity are not reproduced by the simulator or by an XCUITest, so a change to them ends with a human check on a device (`tm-pr-workflow`, "Tier 2: what automated tests cannot show", full text in its `tier2.md`), with its steps and reason.
 - **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)` (`Support/`); the
   name must be the Kotlin `name` of a `UiTestScenario` entry (an unknown name stops the app). Normal
   Debug and Release builds contain no seam.
