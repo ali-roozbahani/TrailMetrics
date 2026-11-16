@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.data.di
 
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
 import dev.roozbahani.trailmetrics.data.local.repository.TrackingSessionStoreImpl
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
@@ -28,6 +29,7 @@ val commonTrackingModule = module {
     single<TrackingSessionStore> {
         TrackingSessionStoreImpl(
             trackingSessionDao = get<TrackingSessionDao>(),
+            trackingSessionPlanDao = get<TrackingSessionPlanDao>(),
             clock = get<Clock>()
         )
     }

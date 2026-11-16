@@ -310,7 +310,7 @@ fun TrackingScreen(
                     RoutePolyline(points = state.traveledSegmentToDraw, color = MaterialTheme.colorScheme.primary)
                 }
 
-                // Last, so the recorded line is on top; a restored session has no planned route.
+                // Last, so the recorded line is on top of the planned route.
                 if (state.recordedPathToDraw.isNotEmpty()) {
                     RoutePolyline(points = state.recordedPathToDraw, color = MaterialTheme.colorScheme.primary)
                 }

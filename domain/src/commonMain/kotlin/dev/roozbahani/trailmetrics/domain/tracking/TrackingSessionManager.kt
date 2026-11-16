@@ -43,8 +43,8 @@ class TrackingSessionManager(
     private val _sessionDetails = MutableStateFlow<SessionDetails?>(null)
 
     /**
-     * The activity type and start time of the current session: set by [start] and by [restore], null
-     * while idle.
+     * The activity type, start time and planned route of the current session: set by [start] and by
+     * [restore], null while idle.
      */
     val sessionDetails: StateFlow<SessionDetails?> = _sessionDetails.asStateFlow()
 
@@ -71,8 +71,13 @@ class TrackingSessionManager(
     }
 
     fun start(startPoint: Coordinates, activityType: ActivityType) {
+        start(startPoint, activityType, emptyList())
+    }
+
+    /** As [start], for a session on [plannedRoute]; the plan is in [sessionDetails] and stored with the session. */
+    fun start(startPoint: Coordinates, activityType: ActivityType, plannedRoute: List<Coordinates>) {
         consecutiveUnavailableCount = 0
-        _sessionDetails.value = SessionDetails(activityType, clock.nowMillis())
+        _sessionDetails.value = SessionDetails(activityType, clock.nowMillis(), plannedRoute)
         speedCalculator.reset()
         dispatch(TrackingEvent.Start(startPoint, clock.elapsedRealtimeMillis()))
         observeLocation()
@@ -105,8 +110,8 @@ class TrackingSessionManager(
      * [TrackingState.Tracking] or [TrackingState.Paused] comes back [TrackingState.Paused], because a
      * restored session never records by itself (the gap is not counted and no GPS starts without the
      * user); a [TrackingState.Finished] one stays finished. No location observation and no service
-     * launch. The session's type and start time are then in [sessionDetails]. With no stored session, or when
-     * a session is already running, the state is not replaced.
+     * launch. The session's type, start time and planned route are then in [sessionDetails]. With no stored
+     * session, or when a session is already running, the state is not replaced.
      */
     @Throws(Exception::class, CancellationException::class)
     suspend fun restore(): TrackingState {
@@ -121,7 +126,10 @@ class TrackingSessionManager(
         // A session the user started while the load ran is not replaced. The details are set first: the
         // state change below is saved with them.
         if (stored != null && restored !is TrackingState.Idle) {
-            _sessionDetails.compareAndSet(null, SessionDetails(stored.activityType, stored.startedAtEpochMillis))
+            _sessionDetails.compareAndSet(
+                null,
+                SessionDetails(stored.activityType, stored.startedAtEpochMillis, stored.plannedRoute)
+            )
         }
         return if (_state.compareAndSet(TrackingState.Idle, restored)) restored else _state.value
     }
@@ -175,7 +183,12 @@ class TrackingSessionManager(
                 if (state != clearedState) {
                     val details = _sessionDetails.value
                     trackingSessionStore.save(
-                        StoredTrackingSession(state, details?.activityType, details?.startedAtEpochMillis)
+                        StoredTrackingSession(
+                            state,
+                            details?.activityType,
+                            details?.startedAtEpochMillis,
+                            details?.plannedRoute.orEmpty()
+                        )
                     )
                 }
             }

@@ -56,7 +56,8 @@ extension TrackingFixtures {
         StoredTrackingSession(
             state: state,
             activityType: activityType,
-            startedAtEpochMillis: KotlinLong(value: startedAtEpochMillis)
+            startedAtEpochMillis: KotlinLong(value: startedAtEpochMillis),
+            plannedRoute: []
         )
     }
 }

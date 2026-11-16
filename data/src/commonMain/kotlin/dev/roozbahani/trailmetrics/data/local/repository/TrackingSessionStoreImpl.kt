@@ -1,10 +1,13 @@
 package dev.roozbahani.trailmetrics.data.local.repository
 
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_FINISHED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_PAUSED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_TRACKING
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.TRACKING_SESSION_ID
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
@@ -16,8 +19,15 @@ import dev.roozbahani.trailmetrics.domain.util.Clock
 // Room's suspend DAO functions run their queries on the database's query context.
 class TrackingSessionStoreImpl(
     private val trackingSessionDao: TrackingSessionDao,
+    private val trackingSessionPlanDao: TrackingSessionPlanDao,
     private val clock: Clock
 ) : TrackingSessionStore {
+
+    // What the plan table holds, once known: save runs on every location fix, and its answer is the same until
+    // the session changes. The manager serializes save, load and clear (its store mutex).
+    private data class StoredPlan(val startedAtEpochMillis: Long?, val size: Int)
+
+    private var storedPlan: StoredPlan? = null
 
     override suspend fun save(session: StoredTrackingSession) {
         val (kind, metrics) = when (val state = session.state) {
@@ -26,19 +36,41 @@ class TrackingSessionStoreImpl(
             is TrackingState.Paused -> STATE_PAUSED to state.metrics
             is TrackingState.Finished -> STATE_FINISHED to state.metrics
         }
-        trackingSessionDao.save(
-            session = TrackingSessionEntity(
-                stateKind = kind,
-                elapsedMillis = metrics.elapsedMillis,
-                lastUpdateElapsedRealtimeMillis = metrics.lastUpdateElapsedRealtimeMillis,
-                distanceMeters = metrics.distanceMeters,
-                currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
-                savedAtEpochMillis = clock.nowMillis(),
-                activityType = session.activityType?.name,
-                startedAtEpochMillis = session.startedAtEpochMillis
-            ),
-            path = metrics.path
+        val entity = TrackingSessionEntity(
+            stateKind = kind,
+            elapsedMillis = metrics.elapsedMillis,
+            lastUpdateElapsedRealtimeMillis = metrics.lastUpdateElapsedRealtimeMillis,
+            distanceMeters = metrics.distanceMeters,
+            currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
+            savedAtEpochMillis = clock.nowMillis(),
+            activityType = session.activityType?.name,
+            startedAtEpochMillis = session.startedAtEpochMillis
         )
+        val plan = session.plannedRoute
+        val wanted = StoredPlan(entity.startedAtEpochMillis, plan.size)
+        val replacePlan = (storedPlan ?: readStoredPlan()) != wanted
+        // A changed plan is deleted first and written after the session row (its foreign key needs the row),
+        // so a failure in between leaves a session with no plan, never one with the plan of another session.
+        if (replacePlan) {
+            storedPlan = null
+            trackingSessionPlanDao.deleteAll()
+        }
+        trackingSessionDao.save(session = entity, path = metrics.path)
+        if (replacePlan) {
+            trackingSessionPlanDao.insert(
+                plan.mapIndexed { index, point ->
+                    TrackingSessionPlanPointEntity(TRACKING_SESSION_ID, index, point.latitude, point.longitude)
+                }
+            )
+        }
+        storedPlan = wanted
+    }
+
+    // The plan is written once per session: it is the stored one while the session started at the same time
+    // (a session always gets a new start time) and the number of points is the same.
+    private suspend fun readStoredPlan(): StoredPlan? {
+        val session = trackingSessionDao.getSession() ?: return null
+        return StoredPlan(session.startedAtEpochMillis, trackingSessionPlanDao.count())
     }
 
     override suspend fun load(): StoredTrackingSession? {
@@ -59,10 +91,13 @@ class TrackingSessionStoreImpl(
         // A name this version does not know (written by a newer one) loads as "type unknown", not as a
         // failure that would keep the session from ever being restored.
         val activityType = ActivityType.entries.firstOrNull { it.name == session.activityType }
-        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis)
+        val plannedRoute = trackingSessionPlanDao.getAll().map { Coordinates(it.latitude, it.longitude) }
+        storedPlan = StoredPlan(session.startedAtEpochMillis, plannedRoute.size)
+        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis, plannedRoute)
     }
 
     override suspend fun clear() {
+        storedPlan = null
         trackingSessionDao.clear()
     }
 }

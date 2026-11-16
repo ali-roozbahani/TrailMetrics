@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.domain.fakes
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
@@ -8,13 +9,15 @@ import kotlinx.coroutines.CompletableDeferred
 
 /**
  * In-memory [TrackingSessionStore]. Every state passed to [save] is kept in [savedStates], in order, and the
- * type and start time of the last save in [storedActivityType] and [storedStartedAtEpochMillis].
+ * type, start time and planned route of the last save in [storedActivityType], [storedStartedAtEpochMillis] and
+ * [storedPlannedRoute].
  */
 class FakeTrackingSessionStore : TrackingSessionStore {
     val savedStates = mutableListOf<TrackingState>()
     var stored: TrackingState? = null
     var storedActivityType: ActivityType? = null
     var storedStartedAtEpochMillis: Long? = null
+    var storedPlannedRoute: List<Coordinates> = emptyList()
     var clearCallCount = 0
         private set
 
@@ -39,12 +42,15 @@ class FakeTrackingSessionStore : TrackingSessionStore {
         stored = session.state
         storedActivityType = session.activityType
         storedStartedAtEpochMillis = session.startedAtEpochMillis
+        storedPlannedRoute = session.plannedRoute
     }
 
     override suspend fun load(): StoredTrackingSession? {
         loadGate?.await()
         loadFailure?.let { throw it }
-        return stored?.let { StoredTrackingSession(it, storedActivityType, storedStartedAtEpochMillis) }
+        return stored?.let {
+            StoredTrackingSession(it, storedActivityType, storedStartedAtEpochMillis, storedPlannedRoute)
+        }
     }
 
     override suspend fun clear() {
@@ -54,5 +60,6 @@ class FakeTrackingSessionStore : TrackingSessionStore {
         stored = null
         storedActivityType = null
         storedStartedAtEpochMillis = null
+        storedPlannedRoute = emptyList()
     }
 }

@@ -174,7 +174,7 @@ class TrackingViewModel(
         isSessionSaved = false
         snapshotInUse = null
         viewModelScope.launch {
-            trackingSessionManager.start(startCoordinates, activityType)
+            trackingSessionManager.start(startCoordinates, activityType, plannedRoutePoints)
         }
     }
 

@@ -628,15 +628,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the next occurrence is captured with its cause (the failing task's `--stacktrace` and `--info` output, whether the Gradle cache was restored and from which key, the state of `androidApp/app/build` before `packageDebug`, and the runner image), the cause is named, and then the flake no longer fails, or the step is changed so it cannot, shown on 5 consecutive runs of the job on `main`. If it never recurs, the owner closes the record.
 - Refs: CI runs 39606497367, 42835745551 and 43707938041; `CI_FLAKES.md` (`android-package-debug-incremental-failure`); `.github/workflows/ci.yml` (the `./gradlew assembleDebug` step and `Setup Gradle`).
 
-### tracking-screen-after-recreate-has-no-planned-route
-- Type: task
-- Area: androidApp/app, domain, androidApp/feature-route
-- Order: 725
-- Source: PR live-session-always-reachable 2026-11-15
-- Problem: Needs the owner's decision (where the plan lives). A tracking session offered after its Activity was recreated or the process died (`SavedSessionOfferViewModel`, `AppRoute.Tracking(plannedRoutePoints = emptyList())`) opens without the planned route, because `TrackingSessionManager` and its store hold the recorded path, type and start time only; the plan is the Route screen's draft (`RouteDraftKeeper`). The map shows the recorded path and the controls work, but the planned line and the route progress are gone for that session.
-- Done when: the owner decided whether the plan belongs to the session (stored with it) or is read from the route draft, and that is implemented, or this record is deleted as declined.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/SavedSessionOfferViewModel.kt` (`offerFor`); `domain` `TrackingSessionManager`; `androidApp/feature-route` `RouteDraftKeeper`.
-
 ### release-step-calls-main-ui-run
 - Type: task
 - Area: scripts, release

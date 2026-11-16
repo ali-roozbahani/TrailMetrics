@@ -34,7 +34,20 @@ internal val MIGRATION_3_4: Migration = Migration(3, 4) { connection ->
 }
 
 /**
+ * Adds the table of the route that the in-progress session was started on, empty: a stored session keeps no
+ * plan (the points were never kept) and the other tables are untouched. The points go with their session.
+ */
+internal val MIGRATION_4_5: Migration = Migration(4, 5) { connection ->
+    connection.execSQL(
+        "CREATE TABLE IF NOT EXISTS `tbl_tracking_session_plan_points` (`sessionId` INTEGER NOT NULL, " +
+            "`sequence` INTEGER NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, " +
+            "PRIMARY KEY(`sessionId`, `sequence`), FOREIGN KEY(`sessionId`) " +
+            "REFERENCES `tbl_tracking_session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+    )
+}
+
+/**
  * Every migration of [TrailMetricsDatabase], oldest first. `getRoomDatabase` adds them to the
  * builder, and the migration harness in commonTest opens old databases through the same list.
  */
-internal val appMigrations: List<Migration> = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+internal val appMigrations: List<Migration> = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
