@@ -38,3 +38,47 @@ func cameraPlan(for path: [Coordinates], pathAlreadySeen: Bool) -> CameraPlan {
     if !pathAlreadySeen && path.count >= minimumPointsForLine { return .fitPath }
     return .followLastPoint
 }
+
+/// What the tracking map shows: the three lines as drawn (a line shorter than two points is empty) and the
+/// current location marker.
+struct TrackingMapContent: Equatable {
+    var plannedRoute: [Coordinates]
+    var traveledSegment: [Coordinates]
+    var recordedLine: [Coordinates]
+    var marker: Coordinates
+
+    init(
+        plannedRoutePoints: [Coordinates],
+        traveledSegment: [Coordinates],
+        recordedPath: [Coordinates],
+        marker: Coordinates
+    ) {
+        self.plannedRoute = plannedRoutePoints
+        self.traveledSegment = traveledSegmentToDraw(traveledSegment, recordedPath: recordedPath)
+        self.recordedLine = recordedPathToDraw(recordedPath)
+        self.marker = marker
+    }
+}
+
+/// What the map has to change to go from the content it shows to the new one: a line whose points differ is
+/// redrawn (or removed when it is empty now), the marker moves when the location differs.
+struct TrackingMapChanges: Equatable {
+    var redrawsPlannedRoute: Bool
+    var redrawsTraveledSegment: Bool
+    var redrawsRecordedLine: Bool
+    var movesMarker: Bool
+
+    var isEmpty: Bool {
+        !redrawsPlannedRoute && !redrawsTraveledSegment && !redrawsRecordedLine && !movesMarker
+    }
+}
+
+/// `old` is nil before the map shows anything. The map is never cleared as a whole: only what differs.
+func trackingMapChanges(from old: TrackingMapContent?, to new: TrackingMapContent) -> TrackingMapChanges {
+    TrackingMapChanges(
+        redrawsPlannedRoute: true,
+        redrawsTraveledSegment: true,
+        redrawsRecordedLine: true,
+        movesMarker: true
+    )
+}
