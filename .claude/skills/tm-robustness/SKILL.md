@@ -116,13 +116,6 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   cancel branch of `TrackingMapView`'s snapshot `Task`, on the main actor, until `Task.detached`.
   Enforced: reviewer only. Severity: blocking when it blocks the main actor, else important.
 
-- **R7** iOS: a Live Activity is given a `staleDate` and the widget draws the stale case
-  (`context.isStale`), and a value that moves on its own (elapsed time) is drawn by the system from a
-  start date, not pushed as a number. Why: the app can be suspended or killed while tracking, and a
-  frozen number on the lock screen reads as live. Example: no example yet (`LiveActivityClient` passes
-  `staleDate: nil` everywhere; board `ios-live-activity-ticker`). Enforced: reviewer only. Severity:
-  important.
-
 ## Intents and permissions
 
 - **S1** Android: an exported component (the launcher `Activity`, any exported service, receiver or
@@ -173,6 +166,12 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   Enforced: reviewer only. Severity: blocking when the reviewer verifies in the files the loss of
   data the user recorded or entered (the session, the route draft, a saved activity), important
   for a likely gap the files cannot prove.
+- **R7** iOS: a Live Activity is given a `staleDate` and the widget draws the stale case
+  (`context.isStale`), and a value that moves on its own (elapsed time) is drawn by the system from a
+  start date, not pushed as a number. Why: the app can be suspended or killed while tracking, and a
+  frozen number on the lock screen reads as live. Example: no example yet (`LiveActivityClient` passes
+  `staleDate: nil` everywhere; board `ios-live-activity-ticker`). Enforced: reviewer only. Severity:
+  important.
 
 ## Memory and leaks
 
