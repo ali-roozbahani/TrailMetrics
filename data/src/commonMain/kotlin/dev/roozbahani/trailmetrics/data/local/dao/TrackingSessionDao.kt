@@ -7,6 +7,7 @@ import androidx.room3.Transaction
 import androidx.room3.Upsert
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.TRACKING_SESSION_ID
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 
@@ -17,9 +18,12 @@ interface TrackingSessionDao {
      * Writes [session] and the points of [path] that are not stored yet, in one transaction. The
      * stored points are kept when they are a prefix of [path] (checked by their count and last
      * point); otherwise (a new session replaced the old one) the stored points are replaced.
+     * The points of [plan] are written once per session: they are kept while the stored session started at
+     * the same time and has as many points, and replaced otherwise.
      */
     @Transaction
-    suspend fun save(session: TrackingSessionEntity, path: List<Coordinates>) {
+    suspend fun save(session: TrackingSessionEntity, path: List<Coordinates>, plan: List<Coordinates>) {
+        val keepPlan = isSamePlan(getSession(), session, plan)
         val storedCount = countPoints()
         val lastStored = if (storedCount in 1..path.size) getPoint(storedCount - 1) else null
         val isPrefix = lastStored != null && lastStored.isAt(path[storedCount - 1])
@@ -30,20 +34,43 @@ interface TrackingSessionDao {
                 TrackingSessionPointEntity(TRACKING_SESSION_ID, keep + index, point.latitude, point.longitude)
             }
         )
+        // The session row first: the plan points refer to it.
         upsertSession(session)
+        if (!keepPlan) {
+            deletePlanPoints()
+            insertPlanPoints(
+                plan.mapIndexed { index, point ->
+                    TrackingSessionPlanPointEntity(TRACKING_SESSION_ID, index, point.latitude, point.longitude)
+                }
+            )
+        }
     }
 
+    /** Deletes the session; its plan points go with it (the foreign key's `ON DELETE CASCADE`). */
     @Transaction
     suspend fun clear() {
         deletePointsFrom(0)
         deleteSession()
     }
 
+    private suspend fun isSamePlan(
+        stored: TrackingSessionEntity?,
+        session: TrackingSessionEntity,
+        plan: List<Coordinates>
+    ) =
+        stored != null &&
+            session.startedAtEpochMillis != null &&
+            stored.startedAtEpochMillis == session.startedAtEpochMillis &&
+            countPlanPoints() == plan.size
+
     @Upsert
     suspend fun upsertSession(session: TrackingSessionEntity)
 
     @Insert
     suspend fun insertPoints(points: List<TrackingSessionPointEntity>)
+
+    @Insert
+    suspend fun insertPlanPoints(points: List<TrackingSessionPlanPointEntity>)
 
     @Query("SELECT * FROM tbl_tracking_session WHERE id = $TRACKING_SESSION_ID")
     suspend fun getSession(): TrackingSessionEntity?
@@ -56,6 +83,15 @@ interface TrackingSessionDao {
 
     @Query("SELECT COUNT(*) FROM tbl_tracking_session_points WHERE sessionId = $TRACKING_SESSION_ID")
     suspend fun countPoints(): Int
+
+    @Query("SELECT * FROM tbl_tracking_session_plan_points WHERE sessionId = $TRACKING_SESSION_ID ORDER BY sequence")
+    suspend fun getPlanPoints(): List<TrackingSessionPlanPointEntity>
+
+    @Query("SELECT COUNT(*) FROM tbl_tracking_session_plan_points WHERE sessionId = $TRACKING_SESSION_ID")
+    suspend fun countPlanPoints(): Int
+
+    @Query("DELETE FROM tbl_tracking_session_plan_points WHERE sessionId = $TRACKING_SESSION_ID")
+    suspend fun deletePlanPoints()
 
     @Query(
         "DELETE FROM tbl_tracking_session_points " +

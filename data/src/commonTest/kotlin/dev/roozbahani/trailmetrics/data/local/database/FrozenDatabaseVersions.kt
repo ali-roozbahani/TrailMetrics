@@ -7,7 +7,7 @@ import androidx.sqlite.execSQL
  * The `version` of `@Database` in [TrailMetricsDatabase]. A version bump changes it here too, in
  * the same change that adds `N.json`, `MIGRATION_M_N` and its harness case.
  */
-internal const val CURRENT_DATABASE_VERSION = 4
+internal const val CURRENT_DATABASE_VERSION = 5
 
 /**
  * A database at an old version, written with plain SQL outside Room, the way Room itself wrote a
@@ -137,6 +137,48 @@ internal val databaseVersion3 = FrozenDatabaseVersion(
     ),
 )
 
+internal val databaseVersion4 = FrozenDatabaseVersion(
+    version = 4,
+    identityHash = "246667546cb16a9f8b659043cbf73a07",
+    schemaStatements = listOf(
+        "CREATE TABLE IF NOT EXISTS `tbl_activities` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`activityType` TEXT NOT NULL, `startedAtEpochMillis` INTEGER NOT NULL, " +
+            "`endedAtEpochMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, " +
+            "`durationMillis` INTEGER NOT NULL, `averageSpeedMetersPerSecond` REAL, `calories` REAL, " +
+            "`plannedRoutePoints` TEXT NOT NULL, `actualPath` TEXT NOT NULL, `snapshotFilePath` TEXT)",
+        "CREATE TABLE IF NOT EXISTS `tbl_tracking_session` (`id` INTEGER NOT NULL, " +
+            "`stateKind` TEXT NOT NULL, `elapsedMillis` INTEGER NOT NULL, " +
+            "`lastUpdateElapsedRealtimeMillis` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, " +
+            "`currentSpeedMetersPerSecond` REAL, `savedAtEpochMillis` INTEGER NOT NULL, `activityType` TEXT, " +
+            "`startedAtEpochMillis` INTEGER, PRIMARY KEY(`id`))",
+        "CREATE TABLE IF NOT EXISTS `tbl_tracking_session_points` (`sessionId` INTEGER NOT NULL, " +
+            "`sequence` INTEGER NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, " +
+            "PRIMARY KEY(`sessionId`, `sequence`))",
+        "CREATE TABLE IF NOT EXISTS `tbl_route_draft` (`id` INTEGER NOT NULL, `startLatitude` REAL, " +
+            "`startLongitude` REAL, `waypoints` TEXT NOT NULL, `generatedRoutePoints` TEXT, " +
+            "`generatedRouteDistanceMeters` REAL, `activityType` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+        "INSERT OR REPLACE INTO room_master_table (id,identity_hash) " +
+            "VALUES(42, '246667546cb16a9f8b659043cbf73a07')",
+    ),
+    rowStatements = listOf(
+        // A saved activity with every optional column set.
+        "INSERT INTO tbl_activities VALUES (5, 'Walking', 1700900000000, 1700903600000, 4300.5, " +
+            "3600000, 1.25, 215.75, '[{\"latitude\":40.4168,\"longitude\":-3.7038}]', " +
+            "'[{\"latitude\":40.4168,\"longitude\":-3.7038},{\"latitude\":40.417,\"longitude\":-3.704}]', " +
+            "'/snapshots/activity-5.png')",
+        // The in-progress session: paused, a speed, a type and a start time, a two-point path.
+        "INSERT INTO tbl_tracking_session VALUES (1, 'Paused', 600000, 9800000, 512.25, 1.75, " +
+            "1701000000000, 'Cycling', 1700999400000)",
+        "INSERT INTO tbl_tracking_session_points VALUES (1, 0, 38.7223, -9.1393)",
+        "INSERT INTO tbl_tracking_session_points VALUES (1, 1, 38.7225, -9.139)",
+        // The route being planned: a start point, one waypoint and a generated route.
+        "INSERT INTO tbl_route_draft VALUES (1, 38.7223, -9.1393, '[{\"latitude\":38.73,\"longitude\":-9.14}]', " +
+            "'[{\"latitude\":38.7223,\"longitude\":-9.1393},{\"latitude\":38.73,\"longitude\":-9.14}]', " +
+            "1534.5, 'Cycling')",
+    ),
+)
+
 /** Every frozen fixture, oldest first; the host test checks each one against its schema file. */
 internal val frozenDatabaseVersions: List<FrozenDatabaseVersion> =
-    listOf(databaseVersion1, databaseVersion2, databaseVersion3)
+    listOf(databaseVersion1, databaseVersion2, databaseVersion3, databaseVersion4)

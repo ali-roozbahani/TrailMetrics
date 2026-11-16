@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.data.local.repository
 
 import androidx.room3.useReaderConnection
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
@@ -13,6 +14,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
@@ -254,6 +256,60 @@ abstract class TrackingSessionStoreImplTest {
 
         assertEquals(second, store.load())
     }
+
+    @Test
+    fun `saving the same session again changes no plan points`() = runTest {
+        val plan = listOf(a, b, c)
+        store.save(plannedSession(TrackingState.Tracking(metrics(a)), *plan.toTypedArray()))
+        val rowIdsBefore = planRowIds()
+
+        store.save(plannedSession(TrackingState.Tracking(metrics(a, b)), *plan.toTypedArray()))
+
+        assertEquals(3, rowIdsBefore.size)
+        assertEquals(rowIdsBefore, planRowIds(), "the stored plan points were rewritten")
+    }
+
+    @Test
+    fun `clear deletes the plan points with their session, by the foreign key and not by a query of its own`() =
+        runTest {
+            store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b, c))
+            assertEquals(3, database.trackingSessionDao().countPlanPoints())
+
+            database.trackingSessionDao().deleteSession()
+
+            assertEquals(0, database.trackingSessionDao().countPlanPoints())
+        }
+
+    @Test
+    fun `clear empties the plan table`() = runTest {
+        store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b))
+
+        store.clear()
+
+        assertNull(store.load())
+        assertEquals(0, database.trackingSessionDao().countPlanPoints())
+    }
+
+    @Test
+    fun `a plan point cannot be stored for a session that does not exist`() = runTest {
+        val orphan = TrackingSessionPlanPointEntity(sessionId = 1, sequence = 0, latitude = 1.0, longitude = 2.0)
+
+        val failure = runCatching { database.trackingSessionDao().insertPlanPoints(listOf(orphan)) }.exceptionOrNull()
+
+        assertNotNull(failure)
+        assertEquals(0, database.trackingSessionDao().countPlanPoints())
+    }
+
+    private fun plannedSession(state: TrackingState, vararg plan: Coordinates) =
+        StoredTrackingSession(state, ActivityType.Running, STARTED_AT, plan.toList())
+
+    private suspend fun planRowIds(): List<Long> =
+        database.useReaderConnection { connection ->
+            val sql = "SELECT rowid FROM tbl_tracking_session_plan_points ORDER BY sequence"
+            connection.usePrepared(sql) { statement ->
+                buildList { while (statement.step()) add(statement.getLong(0)) }
+            }
+        }
 
     private suspend fun save(state: TrackingState) =
         store.save(StoredTrackingSession(state, ActivityType.Running, STARTED_AT))

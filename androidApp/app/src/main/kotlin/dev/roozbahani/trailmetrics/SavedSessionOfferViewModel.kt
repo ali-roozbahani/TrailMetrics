@@ -82,12 +82,13 @@ class SavedSessionOfferViewModel(
             TrackingState.Idle -> return null
         }
         val startPoint = metrics.path.firstOrNull() ?: return null
+        val details = trackingSessionManager.sessionDetails.value
         return AppRoute.Tracking(
             startPoint = startPoint,
-            plannedRoutePoints = emptyList(),
+            // The route the session was started on; empty for one stored before the plan was kept.
+            plannedRoutePoints = details?.plannedRoute.orEmpty(),
             // A session stored before the type was saved has none: the route screen's own default.
-            selectedActivityType = trackingSessionManager.sessionDetails.value?.activityType
-                ?: RouteState().selectedActivityType
+            selectedActivityType = details?.activityType ?: RouteState().selectedActivityType
         )
     }
 }

@@ -11,6 +11,7 @@ import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
 import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 
 @Database(
@@ -18,9 +19,10 @@ import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
         ActivityEntity::class,
         TrackingSessionEntity::class,
         TrackingSessionPointEntity::class,
+        TrackingSessionPlanPointEntity::class,
         RouteDraftEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @ColumnTypeConverters(Converters::class)

@@ -37,7 +37,8 @@ class TrackingSessionStoreImpl(
                 activityType = session.activityType?.name,
                 startedAtEpochMillis = session.startedAtEpochMillis
             ),
-            path = metrics.path
+            path = metrics.path,
+            plan = session.plannedRoute
         )
     }
 
@@ -59,7 +60,8 @@ class TrackingSessionStoreImpl(
         // A name this version does not know (written by a newer one) loads as "type unknown", not as a
         // failure that would keep the session from ever being restored.
         val activityType = ActivityType.entries.firstOrNull { it.name == session.activityType }
-        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis)
+        val plannedRoute = trackingSessionDao.getPlanPoints().map { Coordinates(it.latitude, it.longitude) }
+        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis, plannedRoute)
     }
 
     override suspend fun clear() {

@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.data.local.database
 
 import androidx.sqlite.SQLiteDriver
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
+import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.data.local.repository.RouteDraftStoreImpl
@@ -191,6 +192,63 @@ abstract class TrailMetricsMigrationTest {
             assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
         }
 
+    @Test
+    fun `MIGRATION_4_5 keeps the activity, the session and the draft and adds an empty plan table the store can use`() =
+        runTest {
+            databaseVersion4.writeTo(fixtureDriver, databasePath)
+            val database = openWithAppPipeline(databasePath)
+            try {
+                assertEquals(listOf(version4Activity), database.activityDao().observeAll().first())
+                val sessionDao = database.trackingSessionDao()
+                assertEquals(
+                    TrackingSessionEntity(
+                        id = 1,
+                        stateKind = "Paused",
+                        elapsedMillis = 600_000,
+                        lastUpdateElapsedRealtimeMillis = 9_800_000,
+                        distanceMeters = 512.25,
+                        currentSpeedMetersPerSecond = 1.75f,
+                        savedAtEpochMillis = 1_701_000_000_000,
+                        activityType = "Cycling",
+                        startedAtEpochMillis = 1_700_999_400_000,
+                    ),
+                    sessionDao.getSession()
+                )
+                assertEquals(
+                    listOf(
+                        TrackingSessionPointEntity(1, 0, 38.7223, -9.1393),
+                        TrackingSessionPointEntity(1, 1, 38.7225, -9.139),
+                    ),
+                    sessionDao.getPoints()
+                )
+                assertEquals(
+                    RouteDraftEntity(
+                        id = 1,
+                        startLatitude = 38.7223,
+                        startLongitude = -9.1393,
+                        waypoints = listOf(Coordinates(38.73, -9.14)),
+                        generatedRoutePoints = listOf(Coordinates(38.7223, -9.1393), Coordinates(38.73, -9.14)),
+                        generatedRouteDistanceMeters = 1534.5,
+                        activityType = ActivityType.Cycling,
+                    ),
+                    database.routeDraftDao().get()
+                )
+
+                // The stored session has no plan; the store reads it as empty and then keeps one.
+                assertEquals(0, sessionDao.countPlanPoints())
+                val store = TrackingSessionStoreImpl(sessionDao, FixedClock)
+                val stored = checkNotNull(store.load())
+                assertEquals(emptyList(), stored.plannedRoute)
+                val plan = listOf(Coordinates(38.7223, -9.1393), Coordinates(38.73, -9.14), Coordinates(38.74, -9.15))
+                val withPlan = stored.copy(plannedRoute = plan)
+                store.save(withPlan)
+                assertEquals(withPlan, store.load())
+            } finally {
+                database.close()
+            }
+            assertEquals(CURRENT_DATABASE_VERSION, storedUserVersion())
+        }
+
     /**
      * Writes [fixture] to the file, opens it through the app's pipeline (which runs the app's
      * migrations), and returns every row through the DAO, newest first, each also read by id.
@@ -242,6 +300,22 @@ abstract class TrailMetricsMigrationTest {
             plannedRoutePoints = listOf(Coordinates(52.52, 13.405)),
             actualPath = listOf(Coordinates(52.52, 13.405), Coordinates(52.53, 13.41)),
             snapshotFilePath = "/snapshots/activity-3.png"
+        )
+
+    // The activity row of databaseVersion4 as the app reads it at the current version.
+    private val version4Activity =
+        ActivityEntity(
+            id = 5,
+            activityType = ActivityType.Walking,
+            startedAtEpochMillis = 1_700_900_000_000,
+            endedAtEpochMillis = 1_700_903_600_000,
+            distanceMeters = 4300.5,
+            durationMillis = 3_600_000,
+            averageSpeedMetersPerSecond = 1.25f,
+            calories = 215.75,
+            plannedRoutePoints = listOf(Coordinates(40.4168, -3.7038)),
+            actualPath = listOf(Coordinates(40.4168, -3.7038), Coordinates(40.417, -3.704)),
+            snapshotFilePath = "/snapshots/activity-5.png"
         )
 
     // The activity row of databaseVersion3 as the app reads it at the current version.
