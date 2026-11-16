@@ -340,8 +340,8 @@ run, and the jobs it hit are counted below.
 ## robolectric-artifact-download-failed
 
 - Signature: job `Android build — lint, Detekt, tests, coverage, debug build, Room export`, step `Run unit tests`, every Robolectric
-  test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher.java:129", caused by
-  `java.io.IOException at HttpURLConnection.java:2034` (Robolectric could not download its Android framework jar)
+  test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher", caused by
+  `java.io.IOException at HttpURLConnection` (Robolectric could not download its Android framework jar)
 - Count: 1
 - Status: open
 - Occurrences:
