@@ -159,12 +159,18 @@ ui_scope_of_path() {
         echo none
         return
     fi
+    # A workflow file directly under .github/workflows/ (pr-review.yml is light and was answered above) cannot change
+    # what the local UI tests do: CI is not part of them. Its light or full decision is not touched; only this answer
+    # is. A `case` pattern's `*` also matches `/`, so the folder is tested first: a file in a subfolder stays `both`.
+    local workflow_rest="${1#.github/workflows/}"
+    if [ "$workflow_rest" != "$1" ] && [ "${workflow_rest#*/}" = "$workflow_rest" ]; then
+        case "$workflow_rest" in
+            *.yml | *.yaml) echo none; return ;;
+        esac
+    fi
     case "$1" in
         androidApp/*) echo android ;;
         iosApp/* | shared-uitest/*) echo ios ;;
-        # A workflow file (pr-review.yml is light and was answered above) cannot change what the local UI tests do:
-        # CI is not part of them. Its light or full decision is not touched; only this answer is.
-        .github/workflows/*.yml | .github/workflows/*.yaml) echo none ;;
         *) echo both ;;
     esac
 }
