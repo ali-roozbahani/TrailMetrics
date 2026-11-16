@@ -82,3 +82,13 @@ func trackingMapChanges(from old: TrackingMapContent?, to new: TrackingMapConten
         movesMarker: old?.marker != new.marker
     )
 }
+
+/// The drawing order of the map's overlays, lowest first (`zIndex`). The lines are no longer all created in
+/// one fixed order on every update, so the order is stated: a planned route that arrives after the recorded
+/// line (a restored session) must not be drawn over it, and the position dot stays on top of every line.
+enum TrackingMapLayer {
+    static let plannedRoute: Int32 = 0
+    static let traveledSegment: Int32 = 1
+    static let recordedLine: Int32 = 2
+    static let positionMarker: Int32 = 3
+}

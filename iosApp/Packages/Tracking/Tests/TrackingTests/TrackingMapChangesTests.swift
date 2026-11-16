@@ -102,3 +102,18 @@ final class TrackingMapChangesTests: XCTestCase {
         ))
     }
 }
+
+final class TrackingMapLayerTests: XCTestCase {
+
+    func test_theDrawingOrder_isPlannedRouteThenTraveledSegmentThenRecordedLineThenTheMarker() {
+        let order = [
+            TrackingMapLayer.plannedRoute,
+            TrackingMapLayer.traveledSegment,
+            TrackingMapLayer.recordedLine,
+            TrackingMapLayer.positionMarker
+        ]
+
+        XCTAssertEqual(order, order.sorted(), "Lowest is drawn first")
+        XCTAssertEqual(Set(order).count, order.count, "Each overlay has its own level")
+    }
+}

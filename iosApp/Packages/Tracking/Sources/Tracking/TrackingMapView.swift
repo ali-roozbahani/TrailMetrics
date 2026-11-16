@@ -125,13 +125,16 @@ struct TrackingMapView: UIViewRepresentable {
         _ coordinator: Coordinator
     ) {
         if changes.redrawsPlannedRoute {
-            update(&coordinator.plannedLine, to: content.plannedRoute, color: .systemGray, on: mapView)
+            update(&coordinator.plannedLine, to: content.plannedRoute, color: .systemGray,
+                   layer: TrackingMapLayer.plannedRoute, on: mapView)
         }
         if changes.redrawsTraveledSegment {
-            update(&coordinator.traveledLine, to: content.traveledSegment, color: Self.travelColor, on: mapView)
+            update(&coordinator.traveledLine, to: content.traveledSegment, color: Self.travelColor,
+                   layer: TrackingMapLayer.traveledSegment, on: mapView)
         }
         if changes.redrawsRecordedLine {
-            update(&coordinator.recordedLine, to: content.recordedLine, color: Self.travelColor, on: mapView)
+            update(&coordinator.recordedLine, to: content.recordedLine, color: Self.travelColor,
+                   layer: TrackingMapLayer.recordedLine, on: mapView)
         }
         if changes.movesMarker {
             if let marker = coordinator.marker {
@@ -140,13 +143,20 @@ struct TrackingMapView: UIViewRepresentable {
                 let marker = GMSMarker(position: content.marker.locationCoordinate)
                 marker.icon = Self.currentLocationMarkerImage
                 marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+                marker.zIndex = TrackingMapLayer.positionMarker
                 marker.map = mapView
                 coordinator.marker = marker
             }
         }
     }
 
-    private func update(_ line: inout GMSPolyline?, to points: [Coordinates], color: UIColor, on mapView: GMSMapView) {
+    private func update(
+        _ line: inout GMSPolyline?,
+        to points: [Coordinates],
+        color: UIColor,
+        layer: Int32,
+        on mapView: GMSMapView
+    ) {
         guard !points.isEmpty else {
             line?.map = nil
             line = nil
@@ -162,6 +172,7 @@ struct TrackingMapView: UIViewRepresentable {
             let polyline = GMSPolyline(path: path)
             polyline.strokeWidth = 4
             polyline.strokeColor = color
+            polyline.zIndex = layer
             polyline.map = mapView
             line = polyline
         }
