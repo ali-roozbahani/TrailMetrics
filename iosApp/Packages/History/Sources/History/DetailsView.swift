@@ -145,7 +145,7 @@ private struct DetailsContent: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
-            .accessibilityLabel(Text("Delete", bundle: .module))
+            .accessibilityLabel(Text("delete_button", bundle: .module))
             .accessibilityIdentifier("details.deleteButton")
         }
     }

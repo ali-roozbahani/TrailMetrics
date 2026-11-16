@@ -200,7 +200,7 @@ private struct ActivityRow: View {
                 .background(.regularMaterial, in: Circle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Delete", bundle: .module))
+        .accessibilityLabel(Text("delete_button", bundle: .module))
     }
 }
 
