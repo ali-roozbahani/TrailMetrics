@@ -39,6 +39,11 @@ exists", the rules here win for "what new code should look like".
 - Crashes, ANR, exceptions, actors, scene phase, leaks and performance: `tm-robustness`.
 - The only third-party dependency is `ios-maps-sdk` (GoogleMaps) in feature packages that
   render maps.
+- Privacy manifests: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy` (app, also covering the Kotlin
+  framework linked into it) and `iosApp/TrackingWidget/PrivacyInfo.xcprivacy` (the widget, which links no
+  required-reason API). The Google Maps SDK ships its own. New code that uses a required-reason API
+  (user defaults, file timestamps, boot time, disk space, active keyboards) adds its entry in the same
+  change; fetch Apple's current list of categories and reason codes then, it is not stored here.
 - `iosApp/TrackingWidget/` is the Live Activity widget extension. It is a separate target,
   but SwiftLint and the iOS build still cover it.
 
