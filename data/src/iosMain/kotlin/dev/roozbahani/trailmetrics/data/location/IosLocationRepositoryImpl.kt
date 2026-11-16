@@ -11,6 +11,9 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import platform.CoreLocation.CLActivityType
+import platform.CoreLocation.CLActivityTypeFitness
+import platform.CoreLocation.CLActivityTypeOther
 import platform.CoreLocation.CLAuthorizationStatus
 import platform.CoreLocation.CLLocation
 import platform.CoreLocation.CLLocationManager
@@ -41,6 +44,37 @@ private class LocationManagerDelegate(
     override fun locationManagerDidChangeAuthorization(manager: CLLocationManager) {
         onAuthorizationChange(manager.authorizationStatus)
     }
+}
+
+/** The settings of the location manager that a tracking session changes, so a test can see them. */
+internal interface LocationManagerSettings {
+    var allowsBackgroundLocationUpdates: Boolean
+    var pausesLocationUpdatesAutomatically: Boolean
+    var activityType: CLActivityType
+}
+
+private class CLLocationManagerSettings(private val manager: CLLocationManager) : LocationManagerSettings {
+    override var allowsBackgroundLocationUpdates: Boolean
+        get() = manager.allowsBackgroundLocationUpdates
+        set(value) {
+            manager.allowsBackgroundLocationUpdates = value
+        }
+    override var pausesLocationUpdatesAutomatically: Boolean
+        get() = manager.pausesLocationUpdatesAutomatically
+        set(value) {
+            manager.pausesLocationUpdatesAutomatically = value
+        }
+    override var activityType: CLActivityType
+        get() = manager.activityType
+        set(value) {
+            manager.activityType = value
+        }
+}
+
+internal fun applyBackgroundTracking(settings: LocationManagerSettings, enabled: Boolean) {
+    settings.allowsBackgroundLocationUpdates = enabled
+    settings.pausesLocationUpdatesAutomatically = !enabled
+    settings.activityType = if (enabled) CLActivityTypeFitness else CLActivityTypeOther
 }
 
 @OptIn(ExperimentalForeignApi::class)
@@ -135,13 +169,6 @@ class IosLocationRepositoryImpl : LocationRepository {
     }
 
     fun setBackgroundUpdatesEnabled(enabled: Boolean) {
-        if (enabled) {
-            // Escalates WhenInUse -> Always, specifically for Tracking (never called from
-            // Route's getCurrentLocation() path). A no-op if already Always, already
-            // denied/restricted, or WhenInUse hasn't been granted yet.
-            locationManager.requestAlwaysAuthorization()
-        }
-        locationManager.allowsBackgroundLocationUpdates = enabled
-        locationManager.pausesLocationUpdatesAutomatically = !enabled
+        applyBackgroundTracking(CLLocationManagerSettings(locationManager), enabled)
     }
 }
