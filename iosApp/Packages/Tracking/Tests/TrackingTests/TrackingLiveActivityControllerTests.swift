@@ -13,8 +13,11 @@ import XCTest
 @MainActor
 final class TrackingLiveActivityControllerTests: XCTestCase {
 
+    private let origin = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    private var clockNow = Date(timeIntervalSinceReferenceDate: 1_000_000)
+
     private func makeController(_ client: FakeLiveActivityClient) -> TrackingLiveActivityController {
-        TrackingLiveActivityController(client: client, onStopRequested: {})
+        TrackingLiveActivityController(client: client, now: { [unowned self] in clockNow }, onStopRequested: {})
     }
 
     func test_start_withNoOtherActivity_requestsOne() {
@@ -79,8 +82,9 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
 
         let finalState = TrackingActivityAttributes.ContentState(
             distanceMeters: 120,
-            elapsedMillis: 5_000,
-            currentSpeedMetersPerSecond: nil
+            currentSpeedMetersPerSecond: nil,
+            timerStart: origin.addingTimeInterval(-5),
+            pausedAt: origin
         )
         XCTAssertEqual(client.endCalls, [
             .init(id: "new-1", finalState: finalState, dismissal: .afterDelay(5)),
@@ -101,12 +105,12 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
     func test_update_isSentToItsOwnActivityOnlyAndThrottled() async {
         let client = FakeLiveActivityClient(existingIDs: ["orphan"])
         let controller = makeController(client)
-        controller.update(distanceMeters: 1, elapsedMillis: 1, currentSpeedMetersPerSecond: nil)
+        controller.update(distanceMeters: 1, elapsedMillis: 1, currentSpeedMetersPerSecond: nil, isPaused: false)
         XCTAssertEqual(client.updatedIDs, [], "Nothing to update before start")
         controller.start(activityType: "Running")
 
-        controller.update(distanceMeters: 1, elapsedMillis: 1, currentSpeedMetersPerSecond: nil)
-        controller.update(distanceMeters: 2, elapsedMillis: 2, currentSpeedMetersPerSecond: nil)
+        controller.update(distanceMeters: 1, elapsedMillis: 1, currentSpeedMetersPerSecond: nil, isPaused: false)
+        controller.update(distanceMeters: 2, elapsedMillis: 2, currentSpeedMetersPerSecond: nil, isPaused: false)
         await waitUntil { !client.updatedIDs.isEmpty }
 
         XCTAssertEqual(client.updatedIDs, ["new-1"], "The second update falls inside the 1 s throttle")
@@ -120,5 +124,99 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
         XCTAssertEqual(client.endCalls.map(\.id), ["a", "b"])
         XCTAssertTrue(client.endCalls.allSatisfy { $0.dismissal == .immediate && $0.finalState == nil })
         XCTAssertEqual(client.existingIDs, [])
+    }
+
+    // MARK: - The timer is drawn by the system from a start date; Paused holds it; stale marks old data
+
+    private func startedController(_ client: FakeLiveActivityClient) -> TrackingLiveActivityController {
+        let controller = makeController(client)
+        controller.start(activityType: "Running")
+        return controller
+    }
+
+    func test_start_requestsARunningTimerAtZeroWithNoStaleDateYet() {
+        let client = FakeLiveActivityClient()
+
+        _ = startedController(client)
+
+        XCTAssertEqual(client.requested, [
+            .init(
+                state: .init(distanceMeters: 0, currentSpeedMetersPerSecond: nil, timerStart: origin, pausedAt: nil),
+                staleDate: origin.addingTimeInterval(TrackingLiveActivityController.staleInterval)
+            )
+        ])
+    }
+
+    func test_update_whileRunning_anchorsTheTimerToNowMinusElapsedAndSetsAStaleDate() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        clockNow = origin.addingTimeInterval(10)
+
+        controller.update(distanceMeters: 30, elapsedMillis: 7_000, currentSpeedMetersPerSecond: 3, isPaused: false)
+        await waitUntil { client.updates.count == 1 }
+
+        XCTAssertEqual(client.updates, [
+            .init(
+                state: .init(
+                    distanceMeters: 30,
+                    currentSpeedMetersPerSecond: 3,
+                    timerStart: origin.addingTimeInterval(3),
+                    pausedAt: nil
+                ),
+                staleDate: origin.addingTimeInterval(10 + TrackingLiveActivityController.staleInterval)
+            )
+        ])
+    }
+
+    func test_update_whilePaused_holdsTheTimerAtNowAndHasNoStaleDate() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        clockNow = origin.addingTimeInterval(10)
+
+        controller.update(distanceMeters: 30, elapsedMillis: 7_000, currentSpeedMetersPerSecond: nil, isPaused: true)
+        await waitUntil { client.updates.count == 1 }
+
+        XCTAssertEqual(client.updates, [
+            .init(
+                state: .init(
+                    distanceMeters: 30,
+                    currentSpeedMetersPerSecond: nil,
+                    timerStart: origin.addingTimeInterval(3),
+                    pausedAt: origin.addingTimeInterval(10)
+                ),
+                staleDate: nil
+            )
+        ])
+    }
+
+    func test_update_pauseRightAfterARunningUpdate_isNotThrottled() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        controller.update(distanceMeters: 1, elapsedMillis: 1_000, currentSpeedMetersPerSecond: nil, isPaused: false)
+        clockNow = origin.addingTimeInterval(0.2)
+
+        controller.update(distanceMeters: 1, elapsedMillis: 1_200, currentSpeedMetersPerSecond: nil, isPaused: true)
+        await waitUntil { client.updates.count == 2 }
+
+        XCTAssertEqual(client.updates.map(\.state.pausedAt), [nil, origin.addingTimeInterval(0.2)])
+    }
+
+    func test_end_freezesTheTimerAtTheEndOfTheSession() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        clockNow = origin.addingTimeInterval(20)
+
+        controller.end(distanceMeters: 50, elapsedMillis: 9_000, currentSpeedMetersPerSecond: nil)
+        await waitUntil { client.endCalls.count == 1 }
+
+        XCTAssertEqual(
+            client.endCalls.first?.finalState,
+            .init(
+                distanceMeters: 50,
+                currentSpeedMetersPerSecond: nil,
+                timerStart: origin.addingTimeInterval(11),
+                pausedAt: origin.addingTimeInterval(20)
+            )
+        )
     }
 }

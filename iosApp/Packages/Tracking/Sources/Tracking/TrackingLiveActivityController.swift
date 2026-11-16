@@ -16,6 +16,7 @@ final class TrackingLiveActivityController {
     private var ownActivityID: String?
     private let client: LiveActivityClient
     private let onStopRequested: () -> Void
+    private let now: () -> Date
 
     // Timestamp of the last `Activity.update()` call actually dispatched, used
     // by `update(...)`'s rate limit below. `nil` means "no update sent yet
@@ -23,8 +24,13 @@ final class TrackingLiveActivityController {
     // `update(...)` call (the first one of a new session) is never throttled.
     private var lastUpdateDate: Date?
 
-    init(client: LiveActivityClient = ActivityKitLiveActivityClient(), onStopRequested: @escaping () -> Void) {
+    init(
+        client: LiveActivityClient = ActivityKitLiveActivityClient(),
+        now: @escaping () -> Date = Date.init,
+        onStopRequested: @escaping () -> Void
+    ) {
         self.client = client
+        self.now = now
         self.onStopRequested = onStopRequested
         registerStopNotificationObserver()
     }
@@ -41,7 +47,11 @@ final class TrackingLiveActivityController {
         guard client.areActivitiesEnabled else { return }
 
         let orphanIDs = client.existingIDs
-        ownActivityID = client.request(activityType: activityType)
+        ownActivityID = client.request(
+            activityType: activityType,
+            state: contentState(distanceMeters: 0, elapsedMillis: 0, currentSpeedMetersPerSecond: nil, isPaused: false),
+            staleDate: nil
+        )
         lastUpdateDate = nil
 
         Task { [client] in
@@ -66,24 +76,46 @@ final class TrackingLiveActivityController {
     // `end(...)` doesn't go through this method at all, so it's never throttled.
     private static let minimumUpdateInterval: TimeInterval = 1
 
-    func update(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?) {
+    /// How long a sent state counts as current. The system marks the Activity stale after it, and the widget
+    /// shows the distance and speed as old, until the next update.
+    static let staleInterval: TimeInterval = 120
+
+    func update(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?, isPaused: Bool) {
         guard let ownActivityID else { return }
 
-        let now = Date()
-        if let lastUpdateDate, now.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
+        let sentAt = now()
+        if let lastUpdateDate, sentAt.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
             return
         }
-        lastUpdateDate = now
+        lastUpdateDate = sentAt
 
-        let contentState = TrackingActivityAttributes.ContentState(
+        let state = contentState(
             distanceMeters: distanceMeters,
             elapsedMillis: elapsedMillis,
-            currentSpeedMetersPerSecond: currentSpeedMetersPerSecond
+            currentSpeedMetersPerSecond: currentSpeedMetersPerSecond,
+            isPaused: isPaused
         )
 
         Task { [client] in
-            await client.update(id: ownActivityID, state: contentState)
+            await client.update(id: ownActivityID, state: state, staleDate: nil)
         }
+    }
+
+    /// The timer is anchored to a date, so the system draws the elapsed time on its own: the start is now
+    /// minus the elapsed time, and while paused the timer is held at now.
+    private func contentState(
+        distanceMeters: Double,
+        elapsedMillis: Int64,
+        currentSpeedMetersPerSecond: Double?,
+        isPaused: Bool
+    ) -> TrackingActivityAttributes.ContentState {
+        let reference = now()
+        return TrackingActivityAttributes.ContentState(
+            distanceMeters: distanceMeters,
+            currentSpeedMetersPerSecond: currentSpeedMetersPerSecond,
+            timerStart: reference.addingTimeInterval(-Double(elapsedMillis) / 1000),
+            pausedAt: nil
+        )
     }
 
     // Called once, from onStopClicked() — after `trackingState` has already
@@ -94,10 +126,11 @@ final class TrackingLiveActivityController {
         ownActivityID = nil
         let ids = client.existingIDs
 
-        let finalState = TrackingActivityAttributes.ContentState(
+        let finalState = contentState(
             distanceMeters: distanceMeters,
             elapsedMillis: elapsedMillis,
-            currentSpeedMetersPerSecond: currentSpeedMetersPerSecond
+            currentSpeedMetersPerSecond: currentSpeedMetersPerSecond,
+            isPaused: true
         )
 
         // This controller's Activity keeps the final totals for a few seconds; any other one (an orphan of

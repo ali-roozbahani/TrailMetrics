@@ -80,7 +80,9 @@ public class TrackingViewModel: ObservableObject {
         return false
     }
 
-    public var canResume: Bool {
+    public var canResume: Bool { isPaused }
+
+    private var isPaused: Bool {
         if case .paused = onEnum(of: trackingState) { return true }
         return false
     }
@@ -197,7 +199,8 @@ public class TrackingViewModel: ObservableObject {
                             distanceMeters: metrics.distanceMeters,
                             elapsedMillis: metrics.elapsedMillis,
                             currentSpeedMetersPerSecond: metrics.currentSpeedMetersPerSecond
-                                .map { Double(truncating: $0) }
+                                .map { Double(truncating: $0) },
+                            isPaused: self.isPaused
                         )
                     }
                 }
