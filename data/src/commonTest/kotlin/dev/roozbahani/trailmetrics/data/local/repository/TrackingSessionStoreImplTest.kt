@@ -422,14 +422,14 @@ abstract class TrackingSessionStoreImplTest {
         private val delegate: TrackingSessionPlanDao
     ) : TrackingSessionPlanDao by delegate {
         override suspend fun insert(points: List<TrackingSessionPlanPointEntity>) {
-            throw IllegalStateException("the plan insert failed")
+            error("the plan insert failed")
         }
     }
 
     // Throws on the session row, after the old plan was deleted.
     private class FailingSessionSave(private val delegate: TrackingSessionDao) : TrackingSessionDao by delegate {
         override suspend fun save(session: TrackingSessionEntity, path: List<Coordinates>) {
-            throw IllegalStateException("the session save failed")
+            error("the session save failed")
         }
     }
 
