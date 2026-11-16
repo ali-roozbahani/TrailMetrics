@@ -92,99 +92,14 @@ gate: its header comment, its output (it names every step that ran) and the `--s
 option of each `scripts/check-*.sh` script say what is checked, so read them rather than a list
 here. Run the script itself, not a hand-picked command.
 
-- **`light` or full.** `scripts/classify-changes.sh` decides. `light` means no changed file can
-  affect the Android or iOS build or their tests: docs, skills and agent files, CODEOWNERS, the
-  reviewer's workflow and the tooling scripts under `scripts/`, except the scripts on its
-  `HEAVY_SCRIPTS` list (the ones a CI build or test step starts, the classifier, CI's helpers and the
-  self-tests only the iOS job runs) and, for the gate only, its `GATE_ONLY_HEAVY_SCRIPTS` list (the gate,
-  `heavy-run.sh`, `filter-xcode-log.sh`, `scrub-env.sh`: nothing in CI runs them, and their self-tests run in
-  the always-run tooling job, so CI calls them light and the gate calls them full); a heavy script's reason is
-  in the comment above its list. `scripts/check-heavy-scripts.sh` (a gate step, and run first by the CI classification)
-  fails when a script that a build or test step runs is not on the list (and when a CI step runs a gate-only one): add it to `HEAVY_SCRIPTS`. On `light`
-  the gate skips the Gradle build and test steps and the iOS steps; the checks that need
-  no build, among them the Kover floors and Room schema checks, still run. A full run adds the
-  iOS steps when the committed diff touches iOS or shared code, or when the gate cannot read the
-  diff. A skipped step is not a pass: the PR's Tier 1 says which steps ran and why the rest did not.
-- **Self-test of a new script.** Its `--self-test` goes on one of the two lists the gate and CI read
-  (`scripts/checks/self-tests.sh` reads both): group `tooling` (CI's `tooling` job) on
-  `scripts/checks/self-tests-tooling.list`, which `scripts/classify-changes.sh` treats as light, so
-  a PR of tooling scripts and their registration stays light; an iOS group (CI's `ios-build` job) on
-  `scripts/checks/self-tests.list`, a heavy file, when the script tests iOS-only things. Never into the
-  Android build job; a job's name states what the job runs. `scripts/checks/self-tests.sh --check` fails
-  on a script that has a self-test and is on neither list, and on another group in the tooling list.
-- **A shallow clone.** The gate's first check, `scripts/check-full-clone.sh`, stops the gate before any
-  step when the clone is shallow (CI's checkout is exempt); the fix is `git fetch --unshallow`. No
-  script fetches at depth in a full clone: `scripts/check-board.py` and `scripts/ci/pr-base.sh` do it
-  only when the checkout is already shallow, so setting CI's variables by hand is safe.
-- **A failing step** (a timeout of a UI-test step counts) fails the gate, which prints
-  the failed steps and "Do not push". Fix it within the "Retry budget".
-- **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:
-  `xcodebuild` echoes its arguments, and the gate's log filter hides only Xcode's
-  exported-environment lines. The iOS secrets config (README "iOS", step 2) is git-ignored; when
-  the gate stops because it is missing, never read, print, create or commit it: stop and
-  report.
-- **One heavy run at a time.** The gate starts itself under `scripts/heavy-run.sh`, the
-  machine-wide lock for Gradle and xcodebuild runs: when another heavy run is going, the gate
-  prints who it waits for and starts when that run ends. Any other Gradle or `xcodebuild` command
-  the agent starts goes through `scripts/heavy-run.sh <command>` too (two at once took twice as
-  long each and pushed swap up on this Mac). A wait is not a failure and not an attempt.
-- **Coverage.** `koverVerify` fails the gate when a module is below its minimum in
-  `config/kover-floors.properties`; see "Coverage ratchet". A module with no floor gets one when
-  its first test of its own runs on the Android host.
-- **Room schema.** `scripts/check-room-schema.sh --base <merge-base>` runs in every
-  classification: schema files under `data/schemas/` are append-only, a version bump needs its
-  schema file, `MIGRATION_M_N` and a test naming it, and `data/src/*Main/` has no
-  `fallbackToDestructiveMigration`. The build must leave `data/schemas/` unchanged (a modified,
-  deleted or untracked file there fails the gate).
-- **Reviewer verdict.** Every push needs the local `pr-reviewer` verdict for HEAD recorded
-  first, `light` or full, docs-only or not, whatever CI's reviewer will run. The gate prints it
-  and never fails on it, but the push hook refuses a push (exit 2) unless the record is
-  `APPROVE` or `ESCALATE_TO_HUMAN` for HEAD; "no review verdict recorded" means you have not
-  run it: go back. A second hook, `scripts/claude-hooks/require-local-review.sh`, also blocks
-  `git push` and `gh pr create` unless the reviewer's own report for the commit that would be
-  pushed (the pushed ref resolved to a SHA: `git push origin other:branch` needs the review of
-  `other`) allows it; "Push and PR" says how to satisfy it. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
-  every new commit) is in `tm-pr-review`, "Orchestrator's part".
+The steps, one bullet each, are in `gate-steps.md`; read it before the first gate run. Headlines: `scripts/classify-changes.sh` decides `light` or full, and a skipped step is not a pass (the PR's Tier 1 says which steps ran and why the rest did not); a new script's `--self-test` goes on one of the two lists; a failing step fails the gate, which is then fixed within the retry budget; never pass a secret on an `xcodebuild` command line, and never read, print, create or commit the iOS secrets config; one heavy run at a time, through `scripts/heavy-run.sh`; `koverVerify`, the Room schema check and the shallow-clone check are gate steps; the local `pr-reviewer` verdict for HEAD must be recorded before every push, or the push hook refuses it.
 
-How it is enforced, and what that means for the order of operations:
+How it is enforced (the full text, with the exact shapes of the push and PR commands, is in `gate-enforcement.md`; read it before the first commit):
 
-- A Claude Code `PreToolUse` hook (`.claude/settings.json` →
-  `scripts/claude-hooks/block-git-push.sh`) blocks any Bash call containing `git push`
-  or `gh pr create` unless `.git/.pre-push-check-passed` is **newer than the last commit**. So the order is
-  always **commit → run the gate → push**. Any new commit (a fix, an amend, a review
-  change) needs a fresh gate run before the next push.
-- The gate decides whether to run the iOS steps from **committed** changes only
-  (`git diff --no-renames <merge-base with origin/main> HEAD`). Uncommitted iOS edits won't trigger
-  them, which is one more reason to commit first.
-- The hook matches on command text. Any Bash call that merely *mentions* `git push` or `gh pr create` (a
-  commit message or PR body passed inline) is blocked until the gate has passed. Pass long
-  text through a file: `git commit -F <file>`, `gh pr create --title "<PR title>" --body-file <file>`.
-- **The deny rules match the whole command text too.** `.claude/settings.json` denies a Bash command whose
-  text matches a pattern such as `*local.properties*`, `*.env*` or `*Secrets.xcconfig*`, and the text is
-  everything in the command: a heredoc body, an `echo`, an inline commit message or PR body, not only a path
-  argument. A note or draft that merely names one of those files is denied the same way (the Maps key is read
-  from `local.properties`, so a board record or a PR text names it). Write such text with the Write or Edit tool
-  and give a command its path (`git commit -F <file>`, `--body-file <file>`, `queue.sh add --task <file>`). The
-  rules are the guard against reading those files: never weaken them, never route a denied command around them
-  (`tm-agent-loop`, "When the permission classifier denies a command").
-- **Shapes of the push and PR commands.** The hooks read the command text and the session
-  directory, so use these shapes and nothing cleverer:
-  - Run the gate as a command of its own, from the clone: `scripts/pre-push-check.sh`.
-  - Push with `git push -u origin <branch>` (or `HEAD`), alone or followed by a suffix such as
-    `2>&1 | tail -5`. Open the PR with `gh pr create --base main --title "<PR title>" --body-file <file>`
-    (`gh` refuses without `--title` when it is not interactive; `<file>` is the draft without its
-    `Title:` line, see "PR description"), the same suffix allowed. The branch must exist locally.
-  - From another directory: `git -C <absolute path of the clone> push -u origin <branch>`, or
-    `cd <absolute path of the clone> && git push -u origin <branch>`. A `cd` target with `~`, a
-    variable, `-` or a missing directory, or a `cd` inside `( )`, `{ }` or a `||` list, blocks the
-    push (the hook cannot read it).
-  - Not in a wrapper (`env`, `bash -c`, `xargs`, `echo`), not with `--all`, `--mirror` or `--tags`.
-  - Creating a branch: run `scripts/prune-merged-branches.sh` as a command of its own first. The
-    branch-create hook checks before the whole command runs, so `scripts/prune-merged-branches.sh &&
-    git switch -c <branch>` in one command is blocked; the next command is `git switch -c <branch>`.
-  Each hook's block message names the command to run instead.
-- `./gradlew test` on its own runs zero tests. KMP tests only run under `allTests`. Use
-  the gate script, not a hand-picked Gradle command, and read test counts from `allTests`.
+- The `PreToolUse` hook blocks the push and the PR creation unless `.git/.pre-push-check-passed` is newer than the last commit: always **commit → run the gate → push**, and a new commit needs a fresh gate run.
+- The gate reads **committed** changes only. The hooks match on command text, so pass long text through a file (`git commit -F`, `--body-file`); the deny rules match the whole command text too (a command never names `local.properties`, `.env` or `Secrets.xcconfig`).
+- Run the gate as `scripts/pre-push-check.sh` alone; push the branch with an absolute `cd` or `git -C` when not in the clone; run `scripts/prune-merged-branches.sh` as its own command before creating a branch.
+- `./gradlew test` on its own runs zero tests; use the gate script and read counts from `allTests`.
 - **Coverage ratchet.** A PR that adds tests to a module with a Kover floor raises that floor
   (its entry in `config/kover-floors.properties`, which its `build.gradle.kts` reads) in the
   same PR, to the module's measured line coverage
@@ -226,30 +141,7 @@ How it is enforced, and what that means for the order of operations:
 
 ## Tier 2: what automated tests cannot show
 
-The user-visible behavior of a change (a screen, a ViewModel state, a navigation, a
-notification text), on each platform it touches, is validated by automated tests: unit,
-integration and UI tests (`tm-testing`), not by a human on a device. The agent has no device
-and never runs the feature on one itself. A human check is listed only for one of these
-reasons:
-
-1. **No automated test can observe it.** In this repo: real GPS hardware and the platform
-   location providers (every test uses a fake `LocationRepository`); what the real Maps SDK
-   draws (Compose UI tests show the map as an empty `Box` or a shadowed `MapView`, and the
-   map's content is not asserted, on iOS either); OS-level permission dialogs, the
-   tracking notification and the iOS Live Activity (`TrackingWidget`); and a human judgement
-   of visual design against Figma.
-2. **A test seam or test target that does not exist yet.** It must be tracked by a queued
-   PR or a `BOARD.md` record ("Board", rule 1) that the PR names. The iOS UI-test target `TrailMetricsUITests` has a
-   launch test and the scenarios landed so far (Details delete, Route, Tracking), and the app
-   has its launch-time fake seam (the `UITEST_SEAM` entry); the other scenarios land with later
-   subtasks of `docs/epics/ios-ui-tests.md`, so an iOS-only user-visible behavior whose logic no
-   Swift unit test in the packages covers and no scenario reaches may still need this.
-3. **The single final smoke check of a finished end-to-end feature**, after all its automated
-   tests passed. It is a smoke check, not the validation.
-
-For each human check the PR gives the behavior, the reason (1, 2 with its PR, queue entry or
-record, or 3) and the exact steps. For docs-, test-, CI- or skill-only changes, say plainly that nothing
-user-visible changes (see #32, #35).
+The user-visible behavior of a change is validated by automated tests, not by a human on a device. A human check is listed only for one of three reasons: no automated test can observe it; a test seam or target that does not exist yet, tracked by a queued PR or a board record the PR names; the single final smoke check of a finished end-to-end feature. Each human check gives the behavior, the reason and the exact steps; a docs-, test-, CI- or skill-only change says plainly that nothing user-visible changes. The full text, with what no test can observe in this repo, is in `tier2.md`.
 
 ## Commits
 
@@ -265,6 +157,11 @@ user-visible changes (see #32, #35).
 - End every commit message with the attribution trailer the session specifies. The one exception
   is a local `git merge origin/main` commit (`tm-agent-loop`, section 9): the squash merge drops it
   from `main`, so it needs no trailer (`git merge origin/main --no-edit`).
+- **A bugfix's red evidence goes in a commit message**: the commit that adds the reproducing test, or
+  the fix commit when they are one, states the test's name and its failure message on the unfixed
+  code. The local and CI reviewers enforce exactly that (`tm-pr-review`, item 4; a missing test or
+  missing evidence is blocking), and `tm-testing`, "Bugfixes: red test first", says the same. The PR
+  description may repeat it, but the commit message is what the reviewer checks.
 
 ## Push and PR
 
@@ -319,26 +216,7 @@ added after the reviews. Use these headings, and keep all four even when one is
    explicit "nothing user-visible changes" and why. "Nothing to check on a device" without
    test names is not enough for a change that alters user-visible behavior.
 
-Add these when they apply. Recent PRs use them consistently:
-
-- **Reviewer findings**: present when a reviewer report (local or CI) has an `[important]` finding
-  or a `[blocking]` one that was fixed. One line per `[important]` finding, with its disposition:
-  `fixed in <sha>` | `board record <slug>` | `queued <slug>` | `rejected: <reason a human can
-  check>` (`tm-pr-review`, "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
-- **Assumptions**: every place the docs were ambiguous and the call you made (see
-  Boundaries).
-- **Follow-ups (out of scope, not changed)**: problems found but deliberately left out of this
-  PR because they are of another subject, over the sweep's bound, need a human decision, or
-  break a boundary. Say what the fix would be and why it is left.
-- **Drift found (not fixed)**: docs that disagree with code this task didn't change (see
-  "Docs follow the code you changed" under Boundaries).
-- In both, each bullet ends with where the item went ("Board", rule 1): `(#<n>)` for its PR,
-  `(queue: <slug>)` while its queued PR does not exist yet (replaced by the number once it
-  opens, also on a merged PR), or `(board: <slug>)` for its `BOARD.md` record. A bullet with
-  none of them breaks rule 1.
-- **Board**: always, as one line: `Board: +slug-a, +slug-b, -slug-c`, or `Board: no changes`.
-- **Corrections**: if an earlier PR stated something wrong, correct it explicitly (see
-  #34's "Correction to #33").
+Add these when they apply (the full text of each, with the rule that each Follow-ups or Drift bullet ends with where the item went, is in `pr-description-extras.md`): **Reviewer findings** (one line per `[important]` finding with its disposition), **Assumptions**, **Follow-ups (out of scope, not changed)**, **Drift found (not fixed)**, **Board** (always, one line: `Board: +slug-a, -slug-c` or `Board: no changes`) and **Corrections**.
 
 End the description with the attribution line the session specifies.
 
@@ -389,119 +267,11 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
 
 ## Board
 
-`BOARD.md` at the repo root is the backlog of what the agent does not do on its own: epics,
-and tasks and drift that need the owner. Follow-ups the agent can do are PRs of the local queue
-(`tm-agent-loop`, section 9), not records. A record exists only while its item is open. Its header gives the record format, including `Order` (unique
-integer, ascending = do first, across all sections) and the optional `After` (slugs that must
-be gone from the board first). `scripts/check-board.sh` enforces the format; it is the first
-step of the gate and of CI's `tooling` job.
-
-0. **Picking work.** An agent started without a named task takes the record that
-   `scripts/check-board.sh --next` prints. If that record is an epic (or
-   `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
-   approve, not with code.
-1. **Add.** Everything this PR leaves for later that the sweep ("Docs follow the code you
-   changed") does not fix goes somewhere, in every run, whether or not the task came from the
-   board. A same-subject item within the bound is fixed, never left. Of the rest:
-   - **The agent can do it** (another subject, over the sweep's bound, a protected path the
-     owner merges): a queue entry and a PR of its own (`tm-agent-loop`, section 9), never a
-     record.
-   - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
-     or design; an epic, and the follow-ups its final board PR records (rule 5); an item the
-     queue refuses
-     because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
-     at count 3 ("Flake log"; a runner-not-acquired failure never is). An `[important]` reviewer finding not fixed in the PR is deferred as
-     `queued <slug>` (a queue entry and a PR of its own, the push hook checks that the entry exists)
-     or, when it is one of the items above, as `board record <slug>`.
-     Each record states that one-line reason in its Problem; a record whose only reason is
-     that the agent could do it breaks this rule. The human decides when it is done, not
-     whether it is recorded.
-   Each item is listed under "Follow-ups (out of scope, not changed)" or "Drift found (not
-   fixed)" with its PR, queue entry or record ("PR description"). Every new record gets an
-   `Order` and, only if it truly can't start before another record is done, an `After`.
-2. **Delete.** When the task starts from a board record, delete that record in the PR that
-   does the work, as its own commit (`chore(board): remove <slug>`).
-   A PR closed unmerged never deletes it from `main`. If the work only partly resolves
-   the record, narrow its Problem/Done when instead. If the record is obsolete, delete it
-   and say why in the PR. The same commit removes the slug from every other record's
-   `After` and from every board mention in the skills and docs, or `check-board.sh` fails. It also
-   removes or rewords the slug wherever else it is named (`CI_FLAKES.md`, `LEARNINGS.md`, any file):
-   `check-board.sh --base` (the gate passes the merge-base; CI's pull_request run fetches the base)
-   fails on every file that still names the slug of a record deleted since the base.
-   A mention in a historical plan under `docs/epics/` stays as written: the check only prints
-   a notice for it.
-3. **Report.** The PR description gets one line: `Board: +slug-a, +slug-b, -slug-c`, or
-   `Board: no changes`.
-4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
-   passes items found outside a PR into the next task's prompt; add them in that PR. The
-   only exceptions are an epic's final board PR (rule 5) and a sweep PR: a PR that changes
-   only `BOARD.md` is allowed when every record it adds has `Source: sweep <skill>`, the
-   `<skill>` of each is on the "Open sweeps" line below, and its description says under
-   "What changed" that the owner's sweep task names it. The reviewer checks the Source lines
-   and that sentence; nothing else about such a PR is exempt. The owner removes a name from
-   the line when its stage is done, and sets the line to `none` when the sweep ends.
-   Open sweeps (the owner edits this line, in a protected PR): none.
-5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
-   conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
-   description. Once every subtask is merged into the epic branch, the orchestrator opens
-   **one** final board PR into the epic branch. It is not a plan subtask (not in the plan,
-   no `allowed_paths`). It adds the records the subtasks reported, deletes the epic's own
-   record if the epic started from one, and carries the `Board:` line. It reaches `main`
-   with the epic PR, whose own `Board:` line repeats those changes. An epic record points
-   to its plan under `docs/epics/`.
-6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
-   Never rename or renumber a slug. The one exception: a PR may change the `Order` of other
-   records only to make room for an insertion, and says so under "What changed".
-
-New slugs are kebab-case, unique in the file and descriptive (never a counter), so two
-PRs can't create the same one. A new record goes in the section for its type, at the
-position its `Order` gives it (records in a section are sorted by `Order`).
+`BOARD.md` is the backlog of what the agent does not do on its own. The seven rules (0 picking work, 1 add, 2 delete, 3 report, 4 no board-only PRs, 5 epics, 6 leave other records alone) are in `board.md`; read it before touching `BOARD.md` or leaving anything for later. In short: a follow-up the agent can do is a queue entry and a PR of its own, never a record; a record only for an owner decision or design, an epic, an item the queue refuses, a sweep finding or a flake at count 3; the PR that resolves a record deletes it in its own commit; every PR description carries a `Board:` line.
 
 ## Flake log
 
-`CI_FLAKES.md` at the repo root logs CI flakes; the agent edits it (its header gives the entry
-format). It is not protected, and a PR that touches only that file is not a board-only PR.
-
-- One entry per signature: job, step, test, first error line, short slug. A re-run that turns
-  green adds an occurrence (date, run id, PR, re-run fixed it) and increments the count; a new
-  signature is a new entry, count 1, status `open`.
-- **Local UI flakes** (owner decision of 2026-11-15; the UI tests run in the gate and in the full run on `main`,
-  not in CI). There is no automatic retry, anywhere: a failed UI-test step fails the gate (or is a red full run),
-  and the next run is a new run. `scripts/ui-flake.sh` records every UI-test run of the gate and of
-  `scripts/main-ui-run.sh` (commit, platform, result, the failure's signature) and detects the flake by itself:
-  a pass whose previous run on the same platform failed, on the same commit or on a later one whose changes
-  since then are not in that platform's UI scope (`classify-changes.sh --ui-scope`). A pass after a change in
-  that scope is a fix, not a flake. A detected flake is printed by that run, listed in the gate's report-only
-  step "local UI flakes not yet logged" and counted by `scripts/main-ui-run.sh --status` until it is logged.
-  Logging it is the CI flake rule with these differences: the **job** is `local gate: <Android|iOS> UI tests`
-  or `local main run: <Android|iOS> UI tests` (the run where it failed), the step and test and first error line
-  are the signature the script printed, "re-run: no" (the next run that passed was not a re-run), the run id
-  is the commit and the time. One entry per signature, the count, the escalation at count 3 to a `BOARD.md`
-  record and the `fixed (unverified)` / `fixed` rules are unchanged. After adding the occurrence run
-  `scripts/ui-flake.sh --logged <id>`. A pending flake blocks nothing; where the update goes is the next bullet.
-- Where the update goes. A PR that is already green, or being merged, never gets a push for a
-  flake-log update: it would start another full CI cycle for it. The update of a run of such a PR
-  goes into the first queue entry that is not pushed yet (its "What changed" says so), else into a
-  small PR of its own (`chore/flake-log-<slug>`, a queue entry; light CI). The update of a run of a
-  PR that is still red or waiting for a fix may go into that PR when a push is happening anyway.
-  The agent may merge a PR that touches only `CI_FLAKES.md` once the merge conditions of
-  `tm-agent-loop`, section 8 hold.
-- At count 3 for an `open` entry, add a `BOARD.md` record in the PR you are working on (type
-  task, slug `flake-<slug>`, Problem with the occurrences, Done when: the flake no longer fails
-  or the runner/test is changed so it cannot, shown on 5 consecutive runs) and mark the entry
-  `escalated: flake-<slug>`. At most one record per entry. The exception: a failure of the kind
-  "job not acquired by a runner" (the runner never started the job, so no test and no code is involved: infra)
-  is counted and never escalates, at count 3 or any other: no record and no `escalated:` line. The owner
-  decides on pinning the runner label when the count shows a pattern (the entry `ios-2a-job-not-acquired` of
-  `CI_FLAKES.md` is the one for the macOS jobs).
-- The PR that fixes a flake sets the entry to `fixed (unverified)`, the status of a board record
-  until its Done when is shown, with `Fix: #<PR number>` (the number once the PR exists, never the
-  branch name) and one line of what was learned, deletes the `BOARD.md` record, and adds an entry
-  to `LEARNINGS.md` (why it flaked, what fixed it). The entry becomes `fixed` once 5 consecutive
-  runs of its job on `main` after the fix's merge commit are green (`scripts/main-ci-status.sh
-  --recent 10`; a run that skipped the job does not count). The first later PR that touches
-  `CI_FLAKES.md` makes that change. A failure with the signature of a `fixed (unverified)` or
-  `fixed` entry reopens it: status `open`, the occurrence added, the count incremented.
+`CI_FLAKES.md` logs CI flakes and local UI flakes; the agent edits it. The rules (one entry per signature, local UI flakes, where the update goes, escalation at count 3, `fixed (unverified)` and `fixed`) are in `flake-log.md`; read it before logging a flake or fixing one.
 
 ## After the PR is open
 

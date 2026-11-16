@@ -127,7 +127,8 @@ from memory.
 7. **New dependencies.** Any change to `gradle/libs.versions.toml`, a Gradle `dependencies`
    or `plugins` block, `Package.swift` or `Package.resolved` must be named in `TASK`'s
    Scope. Otherwise blocking (`CLAUDE.md`, "Hard rules"; `tm-pr-workflow`, Boundaries).
-8. **Board and queue bookkeeping** (`tm-pr-workflow`, "Board", rule 1). Every bullet under
+8. **Board and queue bookkeeping** (`tm-pr-workflow`, "Board", rule 1; the rules are in
+   `.claude/skills/tm-pr-workflow/board.md`, which you Read). Every bullet under
    "Follow-ups" and "Drift found" ends with `(#<n>)`, `(queue: <slug>)` or `(board: <slug>)`; a
    bullet with none is blocking. Each `BOARD.md` record the diff adds states in its Problem one
    of the reasons rule 1 admits (owner decision or design, an epic or its final board PR's
@@ -164,7 +165,8 @@ from memory.
     corrected); the verdict escalates either way. The list is the input as given: a line the
     script missed is still judged under items 1 and 2.
 11. **Tier 2: automated tests for user-visible behavior** (`tm-pr-workflow`, "Tier 2: what
-    automated tests cannot show"). If the diff changes user-visible behavior (a screen, a
+    automated tests cannot show"; the text is in `.claude/skills/tm-pr-workflow/tier2.md`, which you
+    Read). If the diff changes user-visible behavior (a screen, a
     ViewModel state, a navigation, a notification text), each such behavior needs a test, in
     the diff or on `main`, that asserts it, at the level `tm-testing` gives it (a ViewModel
     test, a Compose UI test under Robolectric, a Swift unit test in the package, `kotlin.test`

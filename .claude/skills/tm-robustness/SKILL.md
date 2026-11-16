@@ -236,7 +236,7 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   strong skipping a parameter that is not stable is compared by instance, which is cheap; an annotation
   makes the compiler call `equals`, which on a collection walks every element and can cost more than
   the recomposition it saves. Example: none in `androidApp`. Enforced: reviewer only. Severity: important.
-- **P10** Compose: no write to state after a read of it in composition, and none from `onSizeChanged` or
+- **P9** Compose: no write to state after a read of it in composition, and none from `onSizeChanged` or
   `onPlaced` into state that composition reads. Why: the write invalidates what was just composed, so a
   frame is drawn wrong or composition repeats. Example: no example yet. Enforced: reviewer only. Severity:
   important.

@@ -94,7 +94,7 @@ Xcode versions it ran on. CI runs no UI tests, on either platform: they run in t
   process boundary is not an ordinary test (it belongs to a host-driven design of its own).
 - **Permissions** are granted in the test (`uiAutomation.grantRuntimePermission`), not by the host.
 - **Red first, once.** Check in the working tree that the test fails when the guarded behavior breaks (revert
-  the fix or remove the guard) and write the red evidence in the PR. A fix that spans modules is reverted
+  the fix or remove the guard) and write the red evidence in a commit message. A fix that spans modules is reverted
   across all of them (`MainActivity` and `TrackingService` for #301).
 - **No retries**: no `@Ignore`, no `assumeTrue` to skip, no Orchestrator or Gradle retry. Red is red; a failure
   without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log"): a run that fails and then
@@ -217,8 +217,8 @@ dispatcher on the same `testScheduler`.
 
 A bugfix starts with a test that reproduces the defect. Run it on the unfixed code and see it
 fail for the right reason (the defect, not a compile error or a setup problem), and commit it
-before or together with the fix. Put the red evidence in the PR: the test name and its failure
-message. A pinned "currently ..." test of a known defect is rewritten to assert the correct
+before or together with the fix. Put the red evidence in a commit message (the test commit, or the fix
+commit when they are one): the test name and its failure message, as `tm-pr-review` item 4 checks it. A pinned "currently ..." test of a known defect is rewritten to assert the correct
 behavior when the defect is fixed, not deleted.
 
 ## First move by kind of change
