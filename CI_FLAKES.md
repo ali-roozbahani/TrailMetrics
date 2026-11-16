@@ -210,7 +210,7 @@ run, and the jobs it hit are counted below.
   step ran (the job has no steps), first error line "The job was not acquired by Runner of type hosted even after multiple attempts"
   (check-run annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue
   times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
-- Count: 4 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1, `iOS build — lint, app build, package tests` 1 (the current name of the first two jobs' merged job)
+- Count: 5 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1, `iOS build — lint, app build, package tests` 2 (the current name of the first two jobs' merged job)
 - Status: open
 - Occurrences:
   - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
@@ -224,6 +224,10 @@ run, and the jobs it hit are counted below.
     waited 15 minutes (16:14:25 to 16:29:25) and was cancelled with no step run (0 steps); the check-run annotation says "The job was
     not acquired by Runner of type hosted even after multiple attempts"; `iOS — all stages` failed with "ios-build result is abandoned".
     Android and tooling passed. The owner told the agent to acknowledge the run after reading the annotation
+  - 2026-11-16, run 43919159264 (push to `main`, merge of #319), job `iOS build — lint, app build, package tests`, re-run: no. The job
+    waited 15 minutes (17:30:59 to 17:46:00) and was cancelled with no step run; the check-run annotation says "The job was not
+    acquired by Runner of type hosted even after multiple attempts"; `iOS — all stages` failed with "ios-build result is abandoned".
+    The same run's Android job failed too, for another reason (`robolectric-artifact-download-failed`)
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
   ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
@@ -332,3 +336,18 @@ run, and the jobs it hit are counted below.
   own deadline by 20 s means the main-actor poll loop did not run, which is the process or the machine, not the
   condition. Why the runner stalled is not shown. Run locally on the unchanged `main` 893ac055 (`xcodebuild test
   -only-testing` this test, `-test-iterations 300`, iPhone 17 simulator): 300 of 300 passed, 13 to 15 ms each.
+
+## robolectric-artifact-download-failed
+
+- Signature: job `Android build — lint, Detekt, tests, coverage, debug build, Room export`, step `Run unit tests`, every Robolectric
+  test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher.java:129", caused by
+  `java.io.IOException at HttpURLConnection.java:2034` (Robolectric could not download its Android framework jar)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-16, run 43919159264 (push to `main`, merge of #319, a skills-only change), re-run: no (a run on `main` is never re-run).
+    138 tests failed in 4 test tasks (`:data:testAndroidHostTest` 71 of 133, and the `testDebugUnitTest` tasks of `feature-history` and
+    `app`), 138 of 138 with this error line; no other failure in the log (no compile, lint or detekt error, no assertion on a value).
+    The PR's own run of the same head passed
+- Notes: class infra (network from the runner to the artifact repository), not the diff. Nothing is changed for it now (owner decision
+  of 2026-11-16: no caching or retry fix at count 1); a recurrence is handled by the normal flake rules.
