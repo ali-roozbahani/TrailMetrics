@@ -99,7 +99,12 @@ abstract class TrailMetricsMigrationTest {
                     currentSpeedMetersPerSecond = null
                 )
             )
-            val store = TrackingSessionStoreImpl(dao, database.trackingSessionPlanDao(), FixedClock)
+            val store = TrackingSessionStoreImpl(
+                dao,
+                database.trackingSessionPlanDao(),
+                RoomWriteTransaction(database),
+                FixedClock
+            )
             val session = StoredTrackingSession(state, ActivityType.Running, 1_700_299_000_000)
             store.save(session)
             assertEquals(session, store.load())
@@ -137,7 +142,12 @@ abstract class TrailMetricsMigrationTest {
                 dao.getPoints()
             )
 
-            val store = TrackingSessionStoreImpl(dao, database.trackingSessionPlanDao(), FixedClock)
+            val store = TrackingSessionStoreImpl(
+                dao,
+                database.trackingSessionPlanDao(),
+                RoomWriteTransaction(database),
+                FixedClock
+            )
             val loaded = store.load()
             assertEquals(null, loaded?.activityType)
             assertEquals(null, loaded?.startedAtEpochMillis)
@@ -236,7 +246,12 @@ abstract class TrailMetricsMigrationTest {
 
                 // The stored session has no plan; the store reads it as empty and then keeps one.
                 assertEquals(0, database.trackingSessionPlanDao().count())
-                val store = TrackingSessionStoreImpl(sessionDao, database.trackingSessionPlanDao(), FixedClock)
+                val store = TrackingSessionStoreImpl(
+                    sessionDao,
+                    database.trackingSessionPlanDao(),
+                    RoomWriteTransaction(database),
+                    FixedClock
+                )
                 val stored = checkNotNull(store.load())
                 assertEquals(emptyList(), stored.plannedRoute)
                 val plan = listOf(Coordinates(38.7223, -9.1393), Coordinates(38.73, -9.14), Coordinates(38.74, -9.15))

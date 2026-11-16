@@ -1,7 +1,11 @@
 package dev.roozbahani.trailmetrics.data.local.repository
 
 import androidx.room3.useReaderConnection
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
+import dev.roozbahani.trailmetrics.data.local.database.RoomWriteTransaction
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -14,6 +18,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -41,7 +46,12 @@ abstract class TrackingSessionStoreImplTest {
     @BeforeTest
     fun setup() {
         database = createDatabase()
-        store = TrackingSessionStoreImpl(database.trackingSessionDao(), database.trackingSessionPlanDao(), clock)
+        store = TrackingSessionStoreImpl(
+            database.trackingSessionDao(),
+            database.trackingSessionPlanDao(),
+            RoomWriteTransaction(database),
+            clock
+        )
     }
 
     @AfterTest
@@ -277,6 +287,7 @@ abstract class TrackingSessionStoreImplTest {
         val restartedStore = TrackingSessionStoreImpl(
             database.trackingSessionDao(),
             database.trackingSessionPlanDao(),
+            RoomWriteTransaction(database),
             clock
         )
 
@@ -305,6 +316,38 @@ abstract class TrackingSessionStoreImplTest {
         store.save(longer)
 
         assertEquals(longer, store.load())
+    }
+
+    @Test
+    fun `a failure while the plan is inserted keeps the previous session and its plan`() = runTest {
+        val first = plannedSession(TrackingState.Tracking(metrics(a, b)), a, b, c)
+        store.save(first)
+        val failing = TrackingSessionStoreImpl(
+            database.trackingSessionDao(),
+            FailingPlanInsert(database.trackingSessionPlanDao()),
+            RoomWriteTransaction(database),
+            clock
+        )
+
+        assertFails { failing.save(secondSession(listOf(d, c))) }
+
+        assertEquals(first, store.load())
+    }
+
+    @Test
+    fun `a failure while the session row is saved keeps the previous plan`() = runTest {
+        val first = plannedSession(TrackingState.Tracking(metrics(a, b)), a, b, c)
+        store.save(first)
+        val failing = TrackingSessionStoreImpl(
+            FailingSessionSave(database.trackingSessionDao()),
+            database.trackingSessionPlanDao(),
+            RoomWriteTransaction(database),
+            clock
+        )
+
+        assertFails { failing.save(secondSession(listOf(d))) }
+
+        assertEquals(first, store.load())
     }
 
     @Test
@@ -338,6 +381,10 @@ abstract class TrackingSessionStoreImplTest {
         assertEquals(0, database.trackingSessionPlanDao().count())
     }
 
+    // Another session than the one of plannedSession: its own start time and type.
+    private fun secondSession(plan: List<Coordinates>) =
+        StoredTrackingSession(TrackingState.Tracking(metrics(d)), ActivityType.Cycling, STARTED_AT + 1, plan)
+
     private fun plannedSession(state: TrackingState, vararg plan: Coordinates) =
         StoredTrackingSession(state, ActivityType.Running, STARTED_AT, plan.toList())
 
@@ -369,6 +416,22 @@ abstract class TrackingSessionStoreImplTest {
                 buildList { while (statement.step()) add(statement.getLong(0)) }
             }
         }
+
+    // Throws on the plan insert, the last write of a save, after the old plan was deleted.
+    private class FailingPlanInsert(
+        private val delegate: TrackingSessionPlanDao
+    ) : TrackingSessionPlanDao by delegate {
+        override suspend fun insert(points: List<TrackingSessionPlanPointEntity>) {
+            error("the plan insert failed")
+        }
+    }
+
+    // Throws on the session row, after the old plan was deleted.
+    private class FailingSessionSave(private val delegate: TrackingSessionDao) : TrackingSessionDao by delegate {
+        override suspend fun save(session: TrackingSessionEntity, path: List<Coordinates>) {
+            error("the session save failed")
+        }
+    }
 
     private companion object {
         const val SAVED_AT = 1_700_000_000_000L

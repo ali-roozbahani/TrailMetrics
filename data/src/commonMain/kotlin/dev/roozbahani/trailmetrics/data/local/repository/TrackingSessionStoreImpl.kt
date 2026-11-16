@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.data.local.repository
 
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
+import dev.roozbahani.trailmetrics.data.local.database.WriteTransaction
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_FINISHED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_PAUSED
@@ -20,6 +21,7 @@ import dev.roozbahani.trailmetrics.domain.util.Clock
 class TrackingSessionStoreImpl(
     private val trackingSessionDao: TrackingSessionDao,
     private val trackingSessionPlanDao: TrackingSessionPlanDao,
+    private val writeTransaction: WriteTransaction,
     private val clock: Clock
 ) : TrackingSessionStore {
 
@@ -49,19 +51,21 @@ class TrackingSessionStoreImpl(
         val plan = session.plannedRoute
         val wanted = StoredPlan(entity.startedAtEpochMillis, plan.size)
         val replacePlan = (storedPlan ?: readStoredPlan()) != wanted
-        // A changed plan is deleted first and written after the session row (its foreign key needs the row),
-        // so a failure in between leaves a session with no plan, never one with the plan of another session.
-        if (replacePlan) {
-            storedPlan = null
-            trackingSessionPlanDao.deleteAll()
-        }
-        trackingSessionDao.save(session = entity, path = metrics.path)
-        if (replacePlan) {
-            trackingSessionPlanDao.insert(
-                plan.mapIndexed { index, point ->
-                    TrackingSessionPlanPointEntity(TRACKING_SESSION_ID, index, point.latitude, point.longitude)
-                }
-            )
+        // One transaction: a changed plan is deleted, the session row saved (the plan's foreign key needs the
+        // row) and the plan inserted, or none of it, so a failure leaves the previous session with its plan.
+        writeTransaction.run {
+            if (replacePlan) {
+                storedPlan = null
+                trackingSessionPlanDao.deleteAll()
+            }
+            trackingSessionDao.save(session = entity, path = metrics.path)
+            if (replacePlan) {
+                trackingSessionPlanDao.insert(
+                    plan.mapIndexed { index, point ->
+                        TrackingSessionPlanPointEntity(TRACKING_SESSION_ID, index, point.latitude, point.longitude)
+                    }
+                )
+            }
         }
         storedPlan = wanted
     }
