@@ -270,7 +270,7 @@ abstract class TrackingSessionStoreImplTest {
     }
 
     @Test
-    fun `clear deletes the plan points with their session, by the foreign key and not by a query of its own`() =
+    fun `deleting the session row deletes the plan points by the foreign key and not by a query of its own`() =
         runTest {
             store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b, c))
             assertEquals(3, database.trackingSessionPlanDao().count())

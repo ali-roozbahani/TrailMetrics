@@ -193,7 +193,7 @@ abstract class TrailMetricsMigrationTest {
         }
 
     @Test
-    fun `MIGRATION_4_5 keeps the activity, the session and the draft and adds an empty plan table the store can use`() =
+    fun `MIGRATION_4_5 keeps every row and adds an empty plan table the store can use`() =
         runTest {
             databaseVersion4.writeTo(fixtureDriver, databasePath)
             val database = openWithAppPipeline(databasePath)
