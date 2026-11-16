@@ -51,6 +51,7 @@ private struct TrackingMetricCell: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
+                    .accessibilityHidden(true)
                 label
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -60,5 +61,6 @@ private struct TrackingMetricCell: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
     }
 }

@@ -12,6 +12,7 @@ struct RouteMapUnavailableView: View {
             Image(systemName: "map")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             Text("map_unavailable_message", bundle: .module)
                 .multilineTextAlignment(.center)
         }

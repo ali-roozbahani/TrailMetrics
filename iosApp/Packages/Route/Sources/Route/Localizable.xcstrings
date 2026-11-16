@@ -170,6 +170,26 @@
           }
         }
       }
+    },
+    "Zoom in" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom in"
+          }
+        }
+      }
+    },
+    "Zoom out" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom out"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

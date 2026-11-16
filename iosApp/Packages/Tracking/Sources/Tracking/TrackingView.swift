@@ -84,6 +84,7 @@ public struct TrackingView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                 }
+                .accessibilityLabel(Text("Back", bundle: .module))
             }
         }
         .alert(Text("Stop tracking?", bundle: .module), isPresented: $showExitConfirmation) {
