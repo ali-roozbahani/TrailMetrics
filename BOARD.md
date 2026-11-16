@@ -220,15 +220,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: The owner decides whether the intent moves or is copied into the app target and what Stop does when the app was terminated; the check is repeated on a real device before the design is built.
 - Refs: `iosApp/TrackingWidget/StopTrackingIntent.swift`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`registerStopNotificationObserver`).
 
-### ios-tracking-map-incremental-update
-- Type: task
-- Area: iosApp/Tracking
-- Order: 79
-- Source: PR feature/ios-route-map-incremental-update
-- Problem: `RouteMapView` now redraws only what changed; `TrackingMapView` still calls `mapView.clear()` and rebuilds three polylines and the marker on every update, which runs for every location update of a session. Reason for a record: the owner's entry named `RouteMapView` only, and the tracking map's polylines change by a point per update, so a diff is a design choice (append to the traveled line, conflation: `tracking-location-update-path-cost`).
-- Done when: `TrackingMapView.updateUIView` no longer clears the map, with a pure tested change function like the route map's, and a device check that a long session draws smoothly.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingMapView.swift`; `iosApp/Packages/Route/Sources/Route/RouteMapPlan.swift` (`routeMapChanges`); `tracking-location-update-path-cost`.
-
 ### tracking-ui-timer-independent-of-location
 - Type: task
 - Area: domain, iosApp, androidApp
