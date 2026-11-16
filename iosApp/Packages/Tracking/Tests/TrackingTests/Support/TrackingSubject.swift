@@ -22,6 +22,8 @@ struct TrackingSubject {
     let trackingSessionManager: TrackingSessionManager
     /// The ViewModel's source of `isRestoring`; false unless the subject is made with `isRestoring: true`.
     let savedSessionOffer: SavedSessionOfferModel
+    /// The ViewModel's Live Activity: what the controller sends is read here, ActivityKit is not touched.
+    let liveActivityClient: FakeLiveActivityClient
 
     /// - Parameters:
     ///   - scope: the TrackingSessionManager's scope; the caller cancels it when the test ends.
@@ -66,6 +68,8 @@ struct TrackingSubject {
             endOrphanedLiveActivities: {},
             isRestoring: isRestoring
         )
+        let liveActivityClient = FakeLiveActivityClient()
+        self.liveActivityClient = liveActivityClient
         self.viewModel = TrackingViewModel(
             activityType: .running,
             plannedRoutePoints: TrackingFixtures.plannedRoutePoints,
@@ -79,7 +83,8 @@ struct TrackingSubject {
                 calorieCalculator: calorieCalculator,
                 clock: clock
             ),
-            clock: clock
+            clock: clock,
+            liveActivityClient: liveActivityClient
         )
         self.locationRepository = locationRepository
         self.serviceLauncher = serviceLauncher
