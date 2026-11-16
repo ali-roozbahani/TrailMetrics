@@ -48,8 +48,7 @@ its tap (it may time out, never return a stale value; a second tap after 10 s co
 CI no longer runs the UI tests: the gate and the full run on `main` do, through `scripts/ios-ui-tests.sh`
 (the pinned simulator `TrailMetrics_UITest`, iPhone 17, iOS 26.5). The script boots the simulator and
 waits for it (`simctl bootstatus -b`) before `xcodebuild`, and prints its pins; the step's log is the
-place to time a launch timeout. A plan to shard the suite is a change of that script, when the tests
-exceed about 10 minutes.
+place to time a launch timeout. A shard step, planned when the tests exceed about 10 tests (cap 3), is a change of that script.
 
 ## Fakes in `shared-uitest`
 
