@@ -52,8 +52,11 @@
 #   a file that is light (on the allowlist, not a heavy script): none (docs, skills, tooling scripts), except
 #     scripts/android-ui-tests.sh and scripts/ios-ui-tests.sh, the UI tests' runners: android and ios
 #   androidApp/**: android;   iosApp/** and shared-uitest/**: ios
+#   .github/workflows/*.yml and *.yaml: none. A workflow cannot change what the local UI tests do; the light or
+#     full decision of such a file is the same as before (ci.yml is `full`), and a secrets reference or a change
+#     of pr-review.yml is the workflow guard's business (scripts/check-workflow-guard.sh), not the UI scope's
 #   everything else: both. That is domain/, data/, core/, shared/, the root Gradle files and the version catalog,
-#   and, failing safe, any heavy script, the gate's own scripts, workflows and any path not mentioned here.
+#   and, failing safe, any heavy script, the gate's own scripts and any path not mentioned here.
 # A diff whose file list cannot be read exactly (the cases that make the classification `(no file list: ...)`)
 # is `both`. Callers treat anything but a first line of exactly one of the four values as `both`.
 #
@@ -155,6 +158,15 @@ ui_scope_of_path() {
     if [ -z "$2" ] && [ -n "$3" ]; then
         echo none
         return
+    fi
+    # A workflow file directly under .github/workflows/ (pr-review.yml is light and was answered above) cannot change
+    # what the local UI tests do: CI is not part of them. Its light or full decision is not touched; only this answer
+    # is. A `case` pattern's `*` also matches `/`, so the folder is tested first: a file in a subfolder stays `both`.
+    local workflow_rest="${1#.github/workflows/}"
+    if [ "$workflow_rest" != "$1" ] && [ "${workflow_rest#*/}" = "$workflow_rest" ]; then
+        case "$workflow_rest" in
+            *.yml | *.yaml) echo none; return ;;
+        esac
     fi
     case "$1" in
         androidApp/*) echo android ;;

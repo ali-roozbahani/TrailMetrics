@@ -1,0 +1,2 @@
+decision: full
+contains: .github/workflows/ci.yml  (not on the allowlist)

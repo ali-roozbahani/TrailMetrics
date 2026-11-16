@@ -146,7 +146,7 @@ fi
 
 # Which platform's UI tests this branch needs: the classifier decides (`--ui-scope`: androidApp only Android;
 # iosApp and shared-uitest only iOS; domain, data, core, shared and the root Gradle and catalog files both; docs,
-# skills and tooling scripts none; anything else both). The full suite of each runs, never a single test. Fail-safe:
+# skills, tooling scripts and workflow files none; anything else both). The full suite of each runs, never a single test. Fail-safe:
 # no merge-base, an error or an answer that is not one of the four values is `both`.
 UI_SCOPE=both
 if [ "$BASE_REF" != HEAD~1 ] && UI_SCOPE_OUT="$(scripts/classify-changes.sh --ui-scope --base "$BASE_REF" 2>&1)"; then

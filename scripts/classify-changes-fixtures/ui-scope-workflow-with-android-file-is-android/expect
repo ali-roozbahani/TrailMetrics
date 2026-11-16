@@ -1,0 +1,4 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: android
+contains: .github/workflows/ci.yml  (none)
+contains: androidApp/app/src/main/kotlin/A.kt  (android)

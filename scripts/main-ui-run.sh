@@ -18,7 +18,7 @@
 #     start of every task, so a run that was due when a session ended is not forgotten;
 #   - before every release (`--release`; nothing in this repository releases yet, so a release step has to call it).
 # "Code changes" is the classifier's answer (`scripts/classify-changes.sh --ui-scope --base <last SHA>`): anything
-# but `none` (docs, skills and tooling scripts) is due. The SHA of the last full run, its result and the result of
+# but `none` (docs, skills, tooling scripts and workflow files) is due. The SHA of the last full run, its result and the result of
 # each suite are kept in ${TM_MAIN_UI_STATE:-~/agent-workspace/keep-main-ui-last-run}, one line, red runs included (the
 # `keep-` prefix is what scripts/dev/clean-agent-workspace.sh does not delete): main
 # at a red run's SHA is not run again (it is the queue's entry now), and the next merge makes a run due.
@@ -82,7 +82,7 @@ decide() {
     scope="$("$ROOT/scripts/classify-changes.sh" --root "$ROOT" --ui-scope --base "$LAST_SHA" 2>/dev/null | head -n 1)"
     case "$scope" in
         'ui-scope: none')
-            echo "NOT_DUE only docs, skills and tooling scripts changed since the last full run ($(short "$LAST_SHA"), $LAST_RESULT)"
+            echo "NOT_DUE only docs, skills, tooling scripts and workflow files changed since the last full run ($(short "$LAST_SHA"), $LAST_RESULT)"
             return 3 ;;
         'ui-scope: '*)
             echo "DUE code changed since the last full run ($(short "$LAST_SHA"), $LAST_RESULT): $scope"
@@ -240,9 +240,11 @@ self_test() {
     t "a green run leaves no kept logs" 0 "" sh -c "! ls '$tmp/logs'/keep-main-ui-* >/dev/null 2>&1"
     t "main at the last run: not due" 3 "NOT_DUE main is at the last full run" "$run" --due
     commit docs/a.md "docs only"
-    t "only docs since the run: not due" 3 "NOT_DUE only docs, skills and tooling scripts" "$run" --due
+    t "only docs since the run: not due" 3 "NOT_DUE only docs, skills, tooling scripts and workflow files" "$run" --due
     t "--auto when not due runs nothing" 0 "NOT_DUE" "$run" --auto
     [ "$(ran)" = 2 ] && echo "ok   nothing ran for a docs-only change" || { echo "FAIL ran $(ran)"; fails=$((fails + 1)); }
+    mkdir -p "$clone/.github/workflows"; commit .github/workflows/ci.yml "name: CI"
+    t "only a workflow file since the run: not due" 3 "NOT_DUE only docs, skills, tooling scripts and workflow files" "$run" --due
     commit androidApp/X.kt "code"
     t "a code change since the run: due" 0 "DUE code changed since the last full run" "$run" --due
     t "--release runs the due run first and allows a green one" 0 "release allowed" "$run" --release

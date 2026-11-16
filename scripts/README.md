@@ -16,7 +16,7 @@ a line names a file that does not exist. Each script's header says how to run it
 
 ## Checks of a diff (gate and CI)
 
-- `scripts/classify-changes.sh`: decides `light` or `full` for the gate and CI (and, with `--ui-scope`, which platform's UI tests a diff needs: android, ios, both or none) (a tooling-only change is light; its HEAVY_SCRIPTS list names the scripts that stay full, its GATE_ONLY_HEAVY_SCRIPTS list those that stay full for the gate and are light in CI; `--ci` classifies as CI does).
+- `scripts/classify-changes.sh`: decides `light` or `full` for the gate and CI (and, with `--ui-scope`, which platform's UI tests a diff needs: android, ios, both or none; docs, skills, tooling scripts and workflow files are none) (a tooling-only change is light; its HEAVY_SCRIPTS list names the scripts that stay full, its GATE_ONLY_HEAVY_SCRIPTS list those that stay full for the gate and are light in CI; `--ci` classifies as CI does).
 - `scripts/check-workflow-guard.sh`: the gate step that keeps the agent from pushing a change only the owner pushes: a diff touching `.github/workflows/pr-review.yml`, or adding a reference to `secrets` in any workflow file, fails; every other workflow change passes (`tm-agent-loop`, section 5). `--base <ref>`; `--self-test`.
 - `scripts/check-full-clone.sh`: fails on a shallow clone (CI's checkout is exempt); the gate's first check, with the fix.
 - `scripts/check-heavy-scripts.sh`: fails when a script that a build or test step runs is not on that list, or a CI step runs a gate-only one.

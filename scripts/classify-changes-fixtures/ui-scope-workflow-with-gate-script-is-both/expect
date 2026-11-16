@@ -1,0 +1,4 @@
+args: --ui-scope --base {BASE}
+decision: ui-scope: both
+contains: .github/workflows/ci.yml  (none)
+contains: scripts/pre-push-check.sh  (both)
