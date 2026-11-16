@@ -211,6 +211,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: The assets exist for the stores the owner publishes to, and are named in the release plan of `ios-release-readiness`.
 - Refs: `ios-release-readiness`; `figma-design-system`.
 
+### ios-stop-intent-runs-in-the-app-process
+- Type: task
+- Area: iosApp/TrackingWidget, iosApp/TrailMetrics
+- Order: 78
+- Source: PR feature/ios-route-map-incremental-update
+- Problem: Experiment of 2026-11-16 (simulator, iPhone, iOS 26.5, UI test tapping Stop on the lock screen, the intent logging its process): `StopTrackingIntent` as shipped, a type of the widget extension target only, ran `perform()` in the `TrackingWidgetExtension` process (pid 14322, bundle `dev.roozbahani.TrailMetrics.TrackingWidget`), which is why it posts a Darwin notification that only a live app process hears. With the same intent also compiled into the app target it ran in the app process (`TrailMetrics`, pid 14974); and with the app terminated first it ran in a new app process (pid 15728). The Stop button therefore does nothing when the app is not alive today, and a copy of the intent in the app target would let it reach the app, which then holds no `TrackingSessionManager` state until it restores the stored session. Reason for a record: a design decision (where the intent lives, what Stop means for a session the app has to restore first, the Darwin notification), and the result is of the simulator only.
+- Done when: The owner decides whether the intent moves or is copied into the app target and what Stop does when the app was terminated; the check is repeated on a real device before the design is built.
+- Refs: `iosApp/TrackingWidget/StopTrackingIntent.swift`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`registerStopNotificationObserver`).
+
 ### tracking-ui-timer-independent-of-location
 - Type: task
 - Area: domain, iosApp, androidApp
