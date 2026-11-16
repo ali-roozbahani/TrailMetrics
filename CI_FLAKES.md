@@ -210,7 +210,7 @@ run, and the jobs it hit are counted below.
   step ran (the job has no steps), first error line "The job was not acquired by Runner of type hosted even after multiple attempts"
   (check-run annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue
   times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
-- Count: 3 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1
+- Count: 4 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1, `iOS build — lint, app build, package tests` 1 (the current name of the first two jobs' merged job)
 - Status: open
 - Occurrences:
   - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
@@ -220,6 +220,10 @@ run, and the jobs it hit are counted below.
     to 16:29:55) and was cancelled; `iOS 2a` and `iOS 2b` of the run passed (so the app and the UI-test products were built)
   - 2026-11-13, run 43461639786 (push to `main`, merge of #282), jobs `iOS 2a` and `iOS 2b`, re-run: no. Both waited 15 minutes
     (16:20:01 to 16:35:02) and were cancelled; `iOS 3` was skipped
+  - 2026-11-16, run 43905250000 (push to `main`, merge of #317), job `iOS build — lint, app build, package tests`, re-run: no. The job
+    waited 15 minutes (16:14:25 to 16:29:25) and was cancelled with no step run (0 steps); the check-run annotation says "The job was
+    not acquired by Runner of type hosted even after multiple attempts"; `iOS — all stages` failed with "ios-build result is abandoned".
+    Android and tooling passed. The owner told the agent to acknowledge the run after reading the annotation
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
   ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
