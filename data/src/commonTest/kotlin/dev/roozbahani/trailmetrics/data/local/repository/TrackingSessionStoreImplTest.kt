@@ -41,7 +41,7 @@ abstract class TrackingSessionStoreImplTest {
     @BeforeTest
     fun setup() {
         database = createDatabase()
-        store = TrackingSessionStoreImpl(database.trackingSessionDao(), clock)
+        store = TrackingSessionStoreImpl(database.trackingSessionDao(), database.trackingSessionPlanDao(), clock)
     }
 
     @AfterTest
@@ -273,11 +273,11 @@ abstract class TrackingSessionStoreImplTest {
     fun `clear deletes the plan points with their session, by the foreign key and not by a query of its own`() =
         runTest {
             store.save(plannedSession(TrackingState.Tracking(metrics(a)), a, b, c))
-            assertEquals(3, database.trackingSessionDao().countPlanPoints())
+            assertEquals(3, database.trackingSessionPlanDao().count())
 
             database.trackingSessionDao().deleteSession()
 
-            assertEquals(0, database.trackingSessionDao().countPlanPoints())
+            assertEquals(0, database.trackingSessionPlanDao().count())
         }
 
     @Test
@@ -287,17 +287,17 @@ abstract class TrackingSessionStoreImplTest {
         store.clear()
 
         assertNull(store.load())
-        assertEquals(0, database.trackingSessionDao().countPlanPoints())
+        assertEquals(0, database.trackingSessionPlanDao().count())
     }
 
     @Test
     fun `a plan point cannot be stored for a session that does not exist`() = runTest {
         val orphan = TrackingSessionPlanPointEntity(sessionId = 1, sequence = 0, latitude = 1.0, longitude = 2.0)
 
-        val failure = runCatching { database.trackingSessionDao().insertPlanPoints(listOf(orphan)) }.exceptionOrNull()
+        val failure = runCatching { database.trackingSessionPlanDao().insert(listOf(orphan)) }.exceptionOrNull()
 
         assertNotNull(failure)
-        assertEquals(0, database.trackingSessionDao().countPlanPoints())
+        assertEquals(0, database.trackingSessionPlanDao().count())
     }
 
     private fun plannedSession(state: TrackingState, vararg plan: Coordinates) =

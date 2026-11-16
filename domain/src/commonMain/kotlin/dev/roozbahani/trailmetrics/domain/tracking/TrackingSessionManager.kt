@@ -110,8 +110,8 @@ class TrackingSessionManager(
      * [TrackingState.Tracking] or [TrackingState.Paused] comes back [TrackingState.Paused], because a
      * restored session never records by itself (the gap is not counted and no GPS starts without the
      * user); a [TrackingState.Finished] one stays finished. No location observation and no service
-     * launch. The session's type, start time and planned route are then in [sessionDetails]. With no stored session, or when
-     * a session is already running, the state is not replaced.
+     * launch. The session's type, start time and planned route are then in [sessionDetails]. With no stored
+     * session, or when a session is already running, the state is not replaced.
      */
     @Throws(Exception::class, CancellationException::class)
     suspend fun restore(): TrackingState {

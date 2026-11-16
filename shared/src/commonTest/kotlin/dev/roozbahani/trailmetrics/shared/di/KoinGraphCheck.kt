@@ -3,10 +3,12 @@ package dev.roozbahani.trailmetrics.shared.di
 import dev.roozbahani.trailmetrics.data.local.dao.ActivityDao
 import dev.roozbahani.trailmetrics.data.local.dao.RouteDraftDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
 import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPointEntity
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
@@ -69,6 +71,13 @@ internal class FakeTrackingSessionDao : TrackingSessionDao {
     override suspend fun deleteSession() = Unit
 }
 
+internal class FakeTrackingSessionPlanDao : TrackingSessionPlanDao {
+    override suspend fun insert(points: List<TrackingSessionPlanPointEntity>) = Unit
+    override suspend fun getAll(): List<TrackingSessionPlanPointEntity> = emptyList()
+    override suspend fun count(): Int = 0
+    override suspend fun deleteAll() = Unit
+}
+
 internal class FakeRouteDraftDao : RouteDraftDao {
     override suspend fun upsert(draft: RouteDraftEntity) = Unit
     override suspend fun get(): RouteDraftEntity? = null
@@ -89,6 +98,7 @@ internal class FakeTrackingServiceLauncher : TrackingServiceLauncher {
 internal val commonFakesModule = module {
     single<ActivityDao> { FakeActivityDao() }
     single<TrackingSessionDao> { FakeTrackingSessionDao() }
+    single<TrackingSessionPlanDao> { FakeTrackingSessionPlanDao() }
     single<RouteDraftDao> { FakeRouteDraftDao() }
     single<LocationRepository> { FakeLocationRepository() }
     single<TrackingServiceLauncher> { FakeTrackingServiceLauncher() }

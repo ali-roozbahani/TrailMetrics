@@ -1,10 +1,13 @@
 package dev.roozbahani.trailmetrics.data.local.repository
 
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
+import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_FINISHED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_PAUSED
 import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.STATE_TRACKING
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionEntity.Companion.TRACKING_SESSION_ID
+import dev.roozbahani.trailmetrics.data.local.entity.TrackingSessionPlanPointEntity
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
@@ -16,6 +19,7 @@ import dev.roozbahani.trailmetrics.domain.util.Clock
 // Room's suspend DAO functions run their queries on the database's query context.
 class TrackingSessionStoreImpl(
     private val trackingSessionDao: TrackingSessionDao,
+    private val trackingSessionPlanDao: TrackingSessionPlanDao,
     private val clock: Clock
 ) : TrackingSessionStore {
 
@@ -26,20 +30,38 @@ class TrackingSessionStoreImpl(
             is TrackingState.Paused -> STATE_PAUSED to state.metrics
             is TrackingState.Finished -> STATE_FINISHED to state.metrics
         }
-        trackingSessionDao.save(
-            session = TrackingSessionEntity(
-                stateKind = kind,
-                elapsedMillis = metrics.elapsedMillis,
-                lastUpdateElapsedRealtimeMillis = metrics.lastUpdateElapsedRealtimeMillis,
-                distanceMeters = metrics.distanceMeters,
-                currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
-                savedAtEpochMillis = clock.nowMillis(),
-                activityType = session.activityType?.name,
-                startedAtEpochMillis = session.startedAtEpochMillis
-            ),
-            path = metrics.path,
-            plan = session.plannedRoute
+        val entity = TrackingSessionEntity(
+            stateKind = kind,
+            elapsedMillis = metrics.elapsedMillis,
+            lastUpdateElapsedRealtimeMillis = metrics.lastUpdateElapsedRealtimeMillis,
+            distanceMeters = metrics.distanceMeters,
+            currentSpeedMetersPerSecond = metrics.currentSpeedMetersPerSecond,
+            savedAtEpochMillis = clock.nowMillis(),
+            activityType = session.activityType?.name,
+            startedAtEpochMillis = session.startedAtEpochMillis
         )
+        val plan = session.plannedRoute
+        val replacePlan = !isPlanStored(entity, plan)
+        // A changed plan is deleted first and written after the session row (its foreign key needs the row),
+        // so a failure in between leaves a session with no plan, never one with the plan of another session.
+        if (replacePlan) trackingSessionPlanDao.deleteAll()
+        trackingSessionDao.save(session = entity, path = metrics.path)
+        if (replacePlan) {
+            trackingSessionPlanDao.insert(
+                plan.mapIndexed { index, point ->
+                    TrackingSessionPlanPointEntity(TRACKING_SESSION_ID, index, point.latitude, point.longitude)
+                }
+            )
+        }
+    }
+
+    // The plan is written once per session: it is the stored one while the session started at the same time
+    // (a session always gets a new start time) and the number of points is the same.
+    private suspend fun isPlanStored(session: TrackingSessionEntity, plan: List<Coordinates>): Boolean {
+        val storedStartedAt = trackingSessionDao.getSession()?.startedAtEpochMillis
+        return session.startedAtEpochMillis != null &&
+            storedStartedAt == session.startedAtEpochMillis &&
+            trackingSessionPlanDao.count() == plan.size
     }
 
     override suspend fun load(): StoredTrackingSession? {
@@ -60,7 +82,7 @@ class TrackingSessionStoreImpl(
         // A name this version does not know (written by a newer one) loads as "type unknown", not as a
         // failure that would keep the session from ever being restored.
         val activityType = ActivityType.entries.firstOrNull { it.name == session.activityType }
-        val plannedRoute = trackingSessionDao.getPlanPoints().map { Coordinates(it.latitude, it.longitude) }
+        val plannedRoute = trackingSessionPlanDao.getAll().map { Coordinates(it.latitude, it.longitude) }
         return StoredTrackingSession(state, activityType, session.startedAtEpochMillis, plannedRoute)
     }
 
