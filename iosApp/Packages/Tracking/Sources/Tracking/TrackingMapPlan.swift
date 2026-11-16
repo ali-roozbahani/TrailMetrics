@@ -76,9 +76,9 @@ struct TrackingMapChanges: Equatable {
 /// `old` is nil before the map shows anything. The map is never cleared as a whole: only what differs.
 func trackingMapChanges(from old: TrackingMapContent?, to new: TrackingMapContent) -> TrackingMapChanges {
     TrackingMapChanges(
-        redrawsPlannedRoute: true,
-        redrawsTraveledSegment: true,
-        redrawsRecordedLine: true,
-        movesMarker: true
+        redrawsPlannedRoute: (old?.plannedRoute ?? []) != new.plannedRoute,
+        redrawsTraveledSegment: (old?.traveledSegment ?? []) != new.traveledSegment,
+        redrawsRecordedLine: (old?.recordedLine ?? []) != new.recordedLine,
+        movesMarker: old?.marker != new.marker
     )
 }

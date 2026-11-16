@@ -274,8 +274,8 @@ no code change.
 
 - `makeUIView` creates the view and its delegate once; `updateUIView` runs on every state change of
   the SwiftUI parent, so it applies only what changed (compare against what the `Coordinator` last
-  applied) instead of clearing and rebuilding the map. Today `RouteMapView` and `TrackingMapView`
-  still call `mapView.clear()` first; do not copy that.
+  applied) instead of clearing and rebuilding the map. Both maps do this (`routeMapChanges(from:to:)` and
+  `trackingMapChanges(from:to:)` are the pure, tested parts); a new map view does the same.
 - The `Coordinator` keeps what `updateUIView` must remember between calls (the last camera
   coordinates, `planAlreadySeen`), as `RouteMapView` and `TrackingMapView` do. No second strong
   reference to the `GMSMapView` outside the representable: `TrackingMapView`'s comment records the
