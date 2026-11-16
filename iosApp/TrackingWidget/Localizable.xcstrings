@@ -21,6 +21,16 @@
         }
       }
     },
+    "Not updating" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not updating"
+          }
+        }
+      }
+    },
     "Open" : {
       "localizations" : {
         "en" : {

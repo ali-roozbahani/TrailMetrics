@@ -17,13 +17,8 @@ public class TrackingViewModel: ObservableObject {
     public let plannedRoutePoints: [Coordinates]
     public let startPoint: Coordinates
 
-    // Not a stored `let events` created once in init(): AsyncStream supports only one
-    // live consumer over its lifetime. TrackingView doesn't currently get covered by a
-    // further push in this app's navigation structure, so this hasn't manifested here
-    // yet — but it shares the identical pattern that broke RouteView's event delivery
-    // after being covered and revealed once (see RouteViewModel.makeEventsStream()),
-    // so it's fixed the same way pre-emptively rather than leaving a matching latent
-    // bug for whenever something is later pushed on top of Tracking.
+    // Not a stored `let events` created once in init(): an AsyncStream has one consumer for its whole
+    // life, so a screen covered by a push would leave it dead (see RouteViewModel.makeEventsStream()).
     //
     // Before TrackingView's first `.task` runs nobody consumes, and the profile load started
     // in init() can fail by then. An event emitted while no consumer is active goes to
@@ -50,13 +45,8 @@ public class TrackingViewModel: ObservableObject {
     /// twice; cleared when the save fails (retry) and when a new session starts.
     private var isSessionSaved = false
 
-    // Kotlin's `trackingScope` runs on `Dispatchers.Default`, and the KMP bridge's
-    // continuation-resume does not guarantee a MainActor hop back into this
-    // @MainActor class — so `for await` resumption after a Flow emission can land on
-    // a background thread despite that annotation. These are stored (rather than
-    // fire-and-forget) so `onStopClicked()` can cancel them deterministically instead
-    // of relying solely on `[weak self]` unwinding whenever the instance happens to
-    // deallocate.
+    // Kotlin's `trackingScope` runs on `Dispatchers.Default`, so `for await` can resume off the main actor
+    // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
     private var stateObservationTask: Task<Void, Never>?
     private var locationIssuesObservationTask: Task<Void, Never>?
 
@@ -80,7 +70,9 @@ public class TrackingViewModel: ObservableObject {
         return false
     }
 
-    public var canResume: Bool {
+    public var canResume: Bool { isPaused }
+
+    private var isPaused: Bool {
         if case .paused = onEnum(of: trackingState) { return true }
         return false
     }
@@ -122,7 +114,7 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
-    public init(
+    public convenience init(
         activityType: ActivityType,
         plannedRoutePoints: [Coordinates],
         startPoint: Coordinates,
@@ -132,6 +124,33 @@ public class TrackingViewModel: ObservableObject {
         calorieCalculator: CalorieCalculator = KoinHelper().calorieCalculator(),
         saveActivityUseCase: SaveActivityUseCase = KoinHelper().saveActivityUseCase(),
         clock: Clock = KoinHelper().clock()
+    ) {
+        self.init(
+            activityType: activityType,
+            plannedRoutePoints: plannedRoutePoints,
+            startPoint: startPoint,
+            storedSessionReadState: storedSessionReadState,
+            trackingSessionManager: trackingSessionManager,
+            userProfileRepository: userProfileRepository,
+            calorieCalculator: calorieCalculator,
+            saveActivityUseCase: saveActivityUseCase,
+            clock: clock,
+            liveActivityClient: ActivityKitLiveActivityClient()
+        )
+    }
+
+    /// The designated init: the Live Activity client is internal (its protocol is), so a test passes a fake.
+    init(
+        activityType: ActivityType,
+        plannedRoutePoints: [Coordinates],
+        startPoint: Coordinates,
+        storedSessionReadState: any StoredSessionReadState,
+        trackingSessionManager: TrackingSessionManager,
+        userProfileRepository: UserProfileRepository,
+        calorieCalculator: CalorieCalculator,
+        saveActivityUseCase: SaveActivityUseCase,
+        clock: Clock,
+        liveActivityClient: LiveActivityClient
     ) {
         self.activityType = activityType
         self.plannedRoutePoints = plannedRoutePoints
@@ -147,7 +166,7 @@ public class TrackingViewModel: ObservableObject {
         observeTrackingState()
         observeLocationIssues()
 
-        liveActivityController = TrackingLiveActivityController { [weak self] in
+        liveActivityController = TrackingLiveActivityController(client: liveActivityClient) { [weak self] in
             self?.handleStopNotification()
         }
     }
@@ -197,7 +216,8 @@ public class TrackingViewModel: ObservableObject {
                             distanceMeters: metrics.distanceMeters,
                             elapsedMillis: metrics.elapsedMillis,
                             currentSpeedMetersPerSecond: metrics.currentSpeedMetersPerSecond
-                                .map { Double(truncating: $0) }
+                                .map { Double(truncating: $0) },
+                            isPaused: self.isPaused
                         )
                     }
                 }
@@ -260,13 +280,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onStopClicked() {
-        // No further emission should be allowed to land mid-teardown once Stop has
-        // been pressed — cancel deterministically here, before `stop()` below,
-        // rather than relying solely on `[weak self]` unwinding whenever this
-        // instance happens to deallocate. (`onStopClicked()` has no `await` in its
-        // own body, and MainActor's serial execution means nothing else queued on
-        // it can interleave mid-call regardless — so this ordering doesn't change
-        // behavior, it just matches the intent described above.)
+        // Cancel the observations before `stop()`, so no emission lands mid-teardown.
         stateObservationTask?.cancel()
         locationIssuesObservationTask?.cancel()
         stateObservationTask = nil
@@ -373,16 +387,9 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
-    // Called by TrackingLiveActivityController when the Live Activity's Stop
-    // button posts its Darwin notification (best-effort — only reaches this
-    // app process if it's still alive; see TrackingLiveActivityController).
-    //
-    // Unlike the in-app Stop button (TrackingView's controlsRow/exit alert),
-    // which calls `dismiss()` directly at its own call site right after
-    // `onStopClicked()`, this path has no access to the View's `dismiss`
-    // environment value — so it emits `.dismissed` for TrackingView to act
-    // on instead, producing the same end result (per product decision:
-    // Live Activity Stop should behave exactly like the in-app Stop button).
+    // The Live Activity's Stop button (a best-effort Darwin notification, only heard while this process is
+    // alive) behaves like the in-app Stop. The view's `dismiss` is out of reach here, so it emits
+    // `.dismissed` for TrackingView to act on.
     private func handleStopNotification() {
         guard canStop else { return }
         onDiscardClicked()
