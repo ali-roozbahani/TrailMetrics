@@ -146,6 +146,55 @@ class TrackingSessionManagerPersistenceTest {
         }
 
     @Test
+    fun `start on a planned route keeps the plan in the details and saves it with every state`() =
+        runTest(testScheduler) {
+            locationRepository.setUpdatesFlow(updates)
+            clock.setWallClockValues(STARTED_AT)
+            val plan = listOf(point1, point2)
+
+            manager.start(point1, ActivityType.Walking, plan)
+            testScheduler.runCurrent()
+            emitFix(point2)
+            manager.pause()
+            testScheduler.runCurrent()
+
+            assertEquals(SessionDetails(ActivityType.Walking, STARTED_AT, plan), manager.sessionDetails.value)
+            assertEquals(plan, store.storedPlannedRoute)
+            assertEquals(3, store.savedStates.size)
+        }
+
+    @Test
+    fun `restore returns the stored plan and a second manager saves it again`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+        clock.setWallClockValues(STARTED_AT)
+        val plan = listOf(point1, point2)
+        manager.start(point1, ActivityType.Walking, plan)
+        testScheduler.runCurrent()
+        store.storedPlannedRoute = plan
+        val restoredManager = newManager(FakeLocationRepository(), FakeTrackingServiceLauncher())
+
+        restoredManager.restore()
+        // The stored plan is cleared in the store so that only the restored manager can write it back.
+        store.storedPlannedRoute = emptyList()
+        restoredManager.resume()
+        testScheduler.runCurrent()
+
+        assertEquals(plan, restoredManager.sessionDetails.value?.plannedRoute)
+        assertEquals(plan, store.storedPlannedRoute)
+    }
+
+    @Test
+    fun `a session started without a plan has an empty plan`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+
+        manager.start(point1, ActivityType.Walking)
+        testScheduler.runCurrent()
+
+        assertEquals(emptyList(), manager.sessionDetails.value?.plannedRoute)
+        assertEquals(emptyList(), store.storedPlannedRoute)
+    }
+
+    @Test
     fun `a stored session without a type or start time restores with both null`() = runTest(testScheduler) {
         store.stored = TrackingState.Paused(metrics())
 

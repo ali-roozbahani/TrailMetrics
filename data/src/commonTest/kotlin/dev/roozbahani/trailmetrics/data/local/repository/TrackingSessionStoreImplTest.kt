@@ -195,6 +195,66 @@ abstract class TrackingSessionStoreImplTest {
         assertEquals(STARTED_AT, loaded.startedAtEpochMillis)
     }
 
+    @Test
+    fun `the planned route comes back in order with the session`() = runTest {
+        val session = StoredTrackingSession(
+            TrackingState.Paused(metrics(d)),
+            ActivityType.Running,
+            STARTED_AT,
+            listOf(c, a, b)
+        )
+
+        store.save(session)
+
+        assertEquals(session, store.load())
+    }
+
+    @Test
+    fun `a session saved without a planned route loads with an empty one`() = runTest {
+        store.save(StoredTrackingSession(TrackingState.Paused(metrics(a)), ActivityType.Running, STARTED_AT))
+
+        assertEquals(emptyList(), checkNotNull(store.load()).plannedRoute)
+    }
+
+    @Test
+    fun `a new session with another plan replaces the stored plan`() = runTest {
+        store.save(
+            StoredTrackingSession(
+                TrackingState.Finished(metrics(a, b)),
+                ActivityType.Running,
+                STARTED_AT,
+                listOf(a, b, c)
+            )
+        )
+
+        val second = StoredTrackingSession(
+            TrackingState.Tracking(metrics(d)),
+            ActivityType.Cycling,
+            STARTED_AT + 1,
+            listOf(d, c)
+        )
+        store.save(second)
+
+        assertEquals(second, store.load())
+    }
+
+    @Test
+    fun `a new session with no plan drops the plan of the stored one`() = runTest {
+        store.save(
+            StoredTrackingSession(
+                TrackingState.Finished(metrics(a, b)),
+                ActivityType.Running,
+                STARTED_AT,
+                listOf(a, b, c)
+            )
+        )
+
+        val second = StoredTrackingSession(TrackingState.Tracking(metrics(d)), ActivityType.Cycling, STARTED_AT + 1)
+        store.save(second)
+
+        assertEquals(second, store.load())
+    }
+
     private suspend fun save(state: TrackingState) =
         store.save(StoredTrackingSession(state, ActivityType.Running, STARTED_AT))
 

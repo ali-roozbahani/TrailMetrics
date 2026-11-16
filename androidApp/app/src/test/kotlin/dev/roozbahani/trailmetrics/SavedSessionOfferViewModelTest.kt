@@ -125,6 +125,40 @@ class SavedSessionOfferViewModelTest {
     }
 
     @Test
+    fun `a live session started on a planned route is offered with its plan`() = runTest(testScheduler) {
+        val manager = managerOf()
+        manager.start(FIRST_POINT, ActivityType.Walking, PLAN)
+        testScheduler.runCurrent()
+
+        val viewModel = createViewModel(manager)
+
+        assertEquals(AppRoute.Tracking(FIRST_POINT, PLAN, ActivityType.Walking), viewModel.state.value.offer)
+    }
+
+    @Test
+    fun `OpenLiveSession offers the plan of the running session`() = runTest(testScheduler) {
+        val manager = managerOf()
+        val viewModel = createViewModel(manager)
+        manager.start(FIRST_POINT, ActivityType.Walking, PLAN)
+        testScheduler.runCurrent()
+
+        viewModel.onAction(SavedSessionOfferAction.OpenLiveSession)
+        testScheduler.runCurrent()
+
+        assertEquals(AppRoute.Tracking(FIRST_POINT, PLAN, ActivityType.Walking), viewModel.state.value.offer)
+    }
+
+    @Test
+    fun `a stored Paused session is offered with the plan it was stored with`() = runTest(testScheduler) {
+        storeSession(TrackingState.Paused(METRICS))
+        store.storedPlannedRoute = PLAN
+
+        val viewModel = createViewModel()
+
+        assertEquals(AppRoute.Tracking(FIRST_POINT, PLAN, ActivityType.Cycling), viewModel.state.value.offer)
+    }
+
+    @Test
     fun `a stored Finished session is offered`() = runTest(testScheduler) {
         storeSession(TrackingState.Finished(METRICS), ActivityType.Walking)
 
@@ -204,6 +238,7 @@ class SavedSessionOfferViewModelTest {
     private companion object {
         const val STARTED_AT = 1_000L
         val FIRST_POINT = Coordinates(47.0, 8.0)
+        val PLAN = listOf(FIRST_POINT, Coordinates(47.002, 8.002), Coordinates(47.004, 8.004))
         val METRICS = TrackingMetrics(
             elapsedMillis = 60_000L,
             lastUpdateElapsedRealtimeMillis = 5_000L,

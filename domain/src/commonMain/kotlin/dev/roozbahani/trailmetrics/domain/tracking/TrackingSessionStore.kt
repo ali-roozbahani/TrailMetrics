@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.domain.tracking
 
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
+import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -27,10 +28,12 @@ interface TrackingSessionStore {
 /**
  * A session as stored: its [state], the [activityType] it was started with and the wall-clock time it
  * started ([startedAtEpochMillis]). Both are null only when unknown: a session stored before they were
- * kept, or a stored type this version does not know.
+ * kept, or a stored type this version does not know. [plannedRoute] is the route the session was started
+ * on, in order; empty when there was none or the session was stored before the plan was kept.
  */
 data class StoredTrackingSession(
     val state: TrackingState,
     val activityType: ActivityType?,
-    val startedAtEpochMillis: Long?
+    val startedAtEpochMillis: Long?,
+    val plannedRoute: List<Coordinates> = emptyList()
 )

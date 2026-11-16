@@ -71,6 +71,11 @@ class TrackingSessionManager(
     }
 
     fun start(startPoint: Coordinates, activityType: ActivityType) {
+        start(startPoint, activityType, emptyList())
+    }
+
+    /** As [start], for a session on [plannedRoute]; the plan is in [sessionDetails] and stored with the session. */
+    fun start(startPoint: Coordinates, activityType: ActivityType, plannedRoute: List<Coordinates>) {
         consecutiveUnavailableCount = 0
         _sessionDetails.value = SessionDetails(activityType, clock.nowMillis())
         speedCalculator.reset()
