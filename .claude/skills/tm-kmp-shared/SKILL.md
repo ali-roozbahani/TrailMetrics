@@ -152,9 +152,9 @@ still calls `requestAlwaysAuthorization()`, and a later PR of the queue changes 
   false, `activityType` set for the feature (fitness for walking, running and cycling); both are
   reset when it ends, as `setBackgroundUpdatesEnabled(false)` does for the first two.
 - The authorization status is read at the use site (`ensureLocationPermission`) and never cached; a
-  refusal is `RouteError.MissingLocationPermission`, as on Android (`tm-robustness` S2).
-- Behavior with the screen off cannot be shown by a simulator test (`tm-testing`, "What the
-  simulator cannot do"): a change here ends with a short device check by the owner.
+  refusal is `RouteError.MissingLocationPermission`, as on Android.
+- A simulator cannot show the behavior with the screen off, so no test proves it: a change here
+  ends with a short device check by the owner.
 - Enforced: reviewer only. Violation: `important`.
 
 ## Cancellation
