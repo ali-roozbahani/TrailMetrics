@@ -18,6 +18,7 @@ import UIKit
 /// handling at all.
 struct TrackingMapView: UIViewRepresentable {
     private static let defaultZoom: Float = 15
+    private static let travelColor = UIColor(Color.trailGreen)
     private static let fitPadding: CGFloat = 64
 
     /// A plain circular dot, matching Android's `CurrentLocationMarker` (20dp circle,
@@ -73,21 +74,16 @@ struct TrackingMapView: UIViewRepresentable {
     }
 
     func updateUIView(_ mapView: GMSMapView, context: Context) {
-        mapView.clear()
-
-        addPolyline(plannedRoutePoints, color: .systemGray, to: mapView)
-        addPolyline(
-            traveledSegmentToDraw(traveledSegment, recordedPath: recordedPath),
-            color: UIColor(Color.trailGreen),
-            to: mapView
-        )
-        addPolyline(recordedPathToDraw(recordedPath), color: UIColor(Color.trailGreen), to: mapView)
-
         let markerCoordinates = currentLocation ?? startPoint
-        let marker = GMSMarker(position: markerCoordinates.locationCoordinate)
-        marker.icon = Self.currentLocationMarkerImage
-        marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
-        marker.map = mapView
+        let content = TrackingMapContent(
+            plannedRoutePoints: plannedRoutePoints,
+            traveledSegment: traveledSegment,
+            recordedPath: recordedPath,
+            marker: markerCoordinates
+        )
+        let coordinator = context.coordinator
+        apply(trackingMapChanges(from: coordinator.shown, to: content), of: content, on: mapView, coordinator)
+        coordinator.shown = content
 
         updateCamera(mapView, markerCoordinates: markerCoordinates, coordinator: context.coordinator)
 
@@ -120,16 +116,66 @@ struct TrackingMapView: UIViewRepresentable {
         }
     }
 
-    private func addPolyline(_ points: [Coordinates], color: UIColor, to mapView: GMSMapView) {
-        guard !points.isEmpty else { return }
+    /// Only what changed is touched: a line is updated in place (or removed when it is empty now) and the
+    /// marker is moved, instead of clearing the map and drawing everything again.
+    private func apply(
+        _ changes: TrackingMapChanges,
+        of content: TrackingMapContent,
+        on mapView: GMSMapView,
+        _ coordinator: Coordinator
+    ) {
+        if changes.redrawsPlannedRoute {
+            update(&coordinator.plannedLine, to: content.plannedRoute, color: .systemGray,
+                   layer: TrackingMapLayer.plannedRoute, on: mapView)
+        }
+        if changes.redrawsTraveledSegment {
+            update(&coordinator.traveledLine, to: content.traveledSegment, color: Self.travelColor,
+                   layer: TrackingMapLayer.traveledSegment, on: mapView)
+        }
+        if changes.redrawsRecordedLine {
+            update(&coordinator.recordedLine, to: content.recordedLine, color: Self.travelColor,
+                   layer: TrackingMapLayer.recordedLine, on: mapView)
+        }
+        if changes.movesMarker {
+            if let marker = coordinator.marker {
+                marker.position = content.marker.locationCoordinate
+            } else {
+                let marker = GMSMarker(position: content.marker.locationCoordinate)
+                marker.icon = Self.currentLocationMarkerImage
+                marker.groundAnchor = CGPoint(x: 0.5, y: 0.5)
+                marker.zIndex = TrackingMapLayer.positionMarker
+                marker.map = mapView
+                coordinator.marker = marker
+            }
+        }
+    }
+
+    private func update(
+        _ line: inout GMSPolyline?,
+        to points: [Coordinates],
+        color: UIColor,
+        layer: Int32,
+        on mapView: GMSMapView
+    ) {
+        guard !points.isEmpty else {
+            line?.map = nil
+            line = nil
+            return
+        }
         let path = GMSMutablePath()
         for point in points {
             path.add(point.locationCoordinate)
         }
-        let polyline = GMSPolyline(path: path)
-        polyline.strokeWidth = 4
-        polyline.strokeColor = color
-        polyline.map = mapView
+        if let line {
+            line.path = path
+        } else {
+            let polyline = GMSPolyline(path: path)
+            polyline.strokeWidth = 4
+            polyline.strokeColor = color
+            polyline.zIndex = layer
+            polyline.map = mapView
+            line = polyline
+        }
     }
 
     private func updateCamera(_ mapView: GMSMapView, markerCoordinates: Coordinates, coordinator: Coordinator) {
@@ -169,6 +215,12 @@ struct TrackingMapView: UIViewRepresentable {
         var lastCameraCoordinates: Coordinates?
         /// True once a non-empty recorded path was handled (`cameraPlan(for:pathAlreadySeen:)`).
         var pathAlreadySeen = false
+        /// What the map shows now and the objects that draw it, so an update touches only what changed.
+        var shown: TrackingMapContent?
+        var plannedLine: GMSPolyline?
+        var traveledLine: GMSPolyline?
+        var recordedLine: GMSPolyline?
+        var marker: GMSMarker?
         var handledSnapshotRequestID: UUID?
         var snapshotTask: Task<Void, Never>?
     }

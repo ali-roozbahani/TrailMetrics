@@ -38,3 +38,57 @@ func cameraPlan(for path: [Coordinates], pathAlreadySeen: Bool) -> CameraPlan {
     if !pathAlreadySeen && path.count >= minimumPointsForLine { return .fitPath }
     return .followLastPoint
 }
+
+/// What the tracking map shows: the three lines as drawn (a line shorter than two points is empty) and the
+/// current location marker.
+struct TrackingMapContent: Equatable {
+    var plannedRoute: [Coordinates]
+    var traveledSegment: [Coordinates]
+    var recordedLine: [Coordinates]
+    var marker: Coordinates
+
+    init(
+        plannedRoutePoints: [Coordinates],
+        traveledSegment: [Coordinates],
+        recordedPath: [Coordinates],
+        marker: Coordinates
+    ) {
+        self.plannedRoute = plannedRoutePoints
+        self.traveledSegment = traveledSegmentToDraw(traveledSegment, recordedPath: recordedPath)
+        self.recordedLine = recordedPathToDraw(recordedPath)
+        self.marker = marker
+    }
+}
+
+/// What the map has to change to go from the content it shows to the new one: a line whose points differ is
+/// redrawn (or removed when it is empty now), the marker moves when the location differs.
+struct TrackingMapChanges: Equatable {
+    var redrawsPlannedRoute: Bool
+    var redrawsTraveledSegment: Bool
+    var redrawsRecordedLine: Bool
+    var movesMarker: Bool
+
+    var isEmpty: Bool {
+        !redrawsPlannedRoute && !redrawsTraveledSegment && !redrawsRecordedLine && !movesMarker
+    }
+}
+
+/// `old` is nil before the map shows anything. The map is never cleared as a whole: only what differs.
+func trackingMapChanges(from old: TrackingMapContent?, to new: TrackingMapContent) -> TrackingMapChanges {
+    TrackingMapChanges(
+        redrawsPlannedRoute: (old?.plannedRoute ?? []) != new.plannedRoute,
+        redrawsTraveledSegment: (old?.traveledSegment ?? []) != new.traveledSegment,
+        redrawsRecordedLine: (old?.recordedLine ?? []) != new.recordedLine,
+        movesMarker: old?.marker != new.marker
+    )
+}
+
+/// The drawing order of the map's overlays, lowest first (`zIndex`). The lines are no longer all created in
+/// one fixed order on every update, so the order is stated: a planned route that arrives after the recorded
+/// line (a restored session) must not be drawn over it, and the position dot stays on top of every line.
+enum TrackingMapLayer {
+    static let plannedRoute: Int32 = 0
+    static let traveledSegment: Int32 = 1
+    static let recordedLine: Int32 = 2
+    static let positionMarker: Int32 = 3
+}

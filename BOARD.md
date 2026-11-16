@@ -145,7 +145,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - After: route-completion-to-domain
 - Source: PR #66 review
 - Problem: The code part is done (PR `feature/ios-live-activity-stale-and-timer`): the elapsed time is drawn by the system from `ContentState.timerStart` (and held at `pausedAt` while paused), and the Activity gets a stale date. What remains is the owner's check on a real device, which no test or simulator shows (the simulator does not suspend like a device).
-- Done when: on a real device the lock-screen timer keeps advancing with the screen off and no location updates, holds when the session is paused, shows the "Not updating" state after about 2 minutes without an update, and the owner has said so; the record is then deleted.
+- Done when: on a real device the lock-screen timer keeps advancing with the screen off and no location updates, holds when the session is paused, shows the "Not updating" state after about 2 minutes without an update, does not show it while standing still for 3 minutes with a running session (the CI review of PR #323 asked: if it does, location events stop when the user does not move and a keep-alive update or a longer `staleInterval` follows), and the owner has said so; the record is then deleted.
 - Refs: `TrackingLiveActivityController.update` / `minimumUpdateInterval`; `TrackingActivityAttributes.ContentState` (`timerStart`, `pausedAt`); `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`ElapsedTimerText`).
 
 ### ios-generated-string-catalog-symbols-experiment
@@ -229,6 +229,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: The in-app elapsed time shows `metrics.elapsedMillis` from the tracking state, which is only re-emitted on location events. There is no ticker, so a stationary device freezes the timer and the display can jump (observed by 2 s).
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
 - Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
+
+### ios-mainactor-run-hop-redundant
+- Type: task
+- Area: iosApp/Tracking, iosApp/History
+- Order: 81
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up), item 7
+- Problem: A temporary `MainActor.preconditionIsolated` before each of the three `await MainActor.run` hops (`HistoryViewModel.observe`, `TrackingViewModel.observeTrackingState` and `observeLocationIssues`) never fired: 7 hops in the History package tests (22 tests) and 64 in the Tracking package tests (89 tests) were already on the main actor, and the 9 UI tests passed with the probe in place (Xcode 27.1, iOS 26.5 simulator, packages in language mode 5). The location-issues hop was not reached by any test. `tm-ios` ("SKIE interop") and `tm-kmp-shared` say the resumption after `for await` is not guaranteed to be on the main actor. Reason for a record: an owner decision on a rule of two skills and on changing the view models, with the result of the simulator only.
+- Done when: the owner decides whether the three hops are removed and the two skill sentences corrected (after a test of the location-issues hop and a device run), or kept as a defensive measure with the sentences reworded.
+- Refs: `iosApp/Packages/History/Sources/History/HistoryViewModel.swift`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`; `.claude/skills/tm-ios/SKILL.md` ("SKIE interop"); `.claude/skills/tm-kmp-shared/SKILL.md` ("SKIE and Swift-facing API design").
 
 ### android-ui-test-launch-seam
 - Type: task
