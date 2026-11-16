@@ -52,10 +52,11 @@ struct RouteMapChanges: Equatable {
 
 /// `old` is nil before the map shows anything. The map is never cleared as a whole: only what differs.
 func routeMapChanges(from old: RouteMapContent?, to new: RouteMapContent) -> RouteMapChanges {
-    RouteMapChanges(
-        replacesStartMarker: true,
-        removedWaypoints: old?.waypoints ?? [],
-        addedWaypoints: new.waypoints,
-        replacesRouteLine: true
+    let oldWaypoints = old?.waypoints ?? []
+    return RouteMapChanges(
+        replacesStartMarker: old?.startPoint != new.startPoint,
+        removedWaypoints: oldWaypoints.filter { !new.waypoints.contains($0) },
+        addedWaypoints: new.waypoints.filter { !oldWaypoints.contains($0) },
+        replacesRouteLine: (old?.routePath ?? []) != new.routePath
     )
 }
