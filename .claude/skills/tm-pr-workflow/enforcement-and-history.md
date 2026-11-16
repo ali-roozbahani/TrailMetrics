@@ -39,7 +39,9 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   (`scripts/classify-changes.sh --ui-scope`) includes iOS the gate runs ALL iOS UI tests on its pinned
   simulator, and for one that includes Android all Android UI tests on its dedicated AVD, and
   `scripts/main-ui-run.sh` runs both suites on `main` when it is due. So an `iosApp/` problem that already
-  existed on `main` can make CI red on an unrelated Android-only PR. CI's `android-build` job runs on Ubuntu,
+  existed on `main` can make CI red on an unrelated Android-only PR, because `ios-build` has no iOS path
+  filter and builds the app and the packages from the same tree as the PR's, so the problem fails that build or its
+  package tests there. CI's `android-build` job runs on Ubuntu,
   where the iOS simulator tests are skipped; they run in `ios-build`, `domain`'s and `data`'s since #34,
   `shared`'s since S3 of `protected-paths-review-2`. The `ios` job is the aggregator that carries the required
   check name: it runs no build step and is green only when `plan` and `ios-build` passed, or `ios-build` was
