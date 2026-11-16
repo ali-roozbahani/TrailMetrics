@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.data.local.dao.ActivityDao
 import dev.roozbahani.trailmetrics.data.local.dao.RouteDraftDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionDao
 import dev.roozbahani.trailmetrics.data.local.dao.TrackingSessionPlanDao
+import dev.roozbahani.trailmetrics.data.local.database.WriteTransaction
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.entity.ActivityEntity
 import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
@@ -78,6 +79,10 @@ internal class FakeTrackingSessionPlanDao : TrackingSessionPlanDao {
     override suspend fun deleteAll() = Unit
 }
 
+internal class FakeWriteTransaction : WriteTransaction {
+    override suspend fun run(block: suspend () -> Unit) = block()
+}
+
 internal class FakeRouteDraftDao : RouteDraftDao {
     override suspend fun upsert(draft: RouteDraftEntity) = Unit
     override suspend fun get(): RouteDraftEntity? = null
@@ -99,6 +104,7 @@ internal val commonFakesModule = module {
     single<ActivityDao> { FakeActivityDao() }
     single<TrackingSessionDao> { FakeTrackingSessionDao() }
     single<TrackingSessionPlanDao> { FakeTrackingSessionPlanDao() }
+    single<WriteTransaction> { FakeWriteTransaction() }
     single<RouteDraftDao> { FakeRouteDraftDao() }
     single<LocationRepository> { FakeLocationRepository() }
     single<TrackingServiceLauncher> { FakeTrackingServiceLauncher() }
