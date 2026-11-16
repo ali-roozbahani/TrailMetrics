@@ -21,6 +21,16 @@
         }
       }
     },
+    "Back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
     "Cycling" : {
       "localizations" : {
         "en" : {

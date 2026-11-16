@@ -174,6 +174,7 @@ private struct ActivityRow: View {
         HStack(spacing: 4) {
             Image(systemName: activity.activityType.iconName)
                 .foregroundStyle(Color.trailGreen)
+                .accessibilityHidden(true)
             Text(activity.activityType.displayName)
                 .font(.caption.weight(.medium))
         }
@@ -199,6 +200,7 @@ private struct ActivityRow: View {
                 .background(.regularMaterial, in: Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text("delete_button", bundle: .module))
     }
 }
 

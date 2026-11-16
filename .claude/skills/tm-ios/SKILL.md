@@ -268,7 +268,11 @@ no code change.
 - Decorative images are `.accessibilityHidden(true)`.
 - The map is a UIKit view (next section): give its `UIViewRepresentable` an accessibility label and
   describe the result in text elsewhere on the screen; a polyline is not readable by VoiceOver.
-- Enforced: reviewer only (no lint rule or UI-test audit exists yet). Violation: `important`.
+- Camera moves on a map follow Reduce Motion: a jump when `UIAccessibility.isReduceMotionEnabled`, an
+  animation otherwise (`GMSMapView+ReduceMotion.swift` in `Route`; the tracking map has the one-line copy).
+- Enforced: `AccessibilityAuditUITests` runs Xcode's accessibility audit (element descriptions, hit regions)
+  on Route, History, Details and Tracking in the gate's UI tests; a new screen adds its case there. Reduce
+  Motion, the scaled sizes and the widget have no automated check: reviewer only. Violation: `important`.
 
 ## Wrapping a UIKit view (the maps)
 

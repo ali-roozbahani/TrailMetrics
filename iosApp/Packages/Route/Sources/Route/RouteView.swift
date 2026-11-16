@@ -13,6 +13,8 @@ public struct RouteView: View {
     @State private var showProfileSheet = false
     @State private var errorMessage: String?
     @State private var mapView: GMSMapView?
+    /// The zoom buttons' icon box grows with the user's text size.
+    @ScaledMetric private var zoomIconSize: CGFloat = 20
 
     private let onNavigateToTracking: (Coordinates, [Coordinates], ActivityType) -> Void
 
@@ -105,6 +107,7 @@ public struct RouteView: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityLabel(Text("User Profile", bundle: .module))
 
             Spacer()
 
@@ -116,6 +119,7 @@ public struct RouteView: View {
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityLabel(Text("Reset", bundle: .module))
             .accessibilityIdentifier("route.resetButton")
         }
     }
@@ -127,26 +131,28 @@ public struct RouteView: View {
             } label: {
                 Image(systemName: "plus")
                     .foregroundStyle(Color.trailGreen)
-                    .frame(width: 20, height: 20)
+                    .frame(width: zoomIconSize, height: zoomIconSize)
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityLabel(Text("Zoom in", bundle: .module))
 
             Button {
                 zoom(by: -1)
             } label: {
                 Image(systemName: "minus")
                     .foregroundStyle(Color.trailGreen)
-                    .frame(width: 20, height: 20)
+                    .frame(width: zoomIconSize, height: zoomIconSize)
                     .padding(12)
                     .background(.thinMaterial, in: Circle())
             }
+            .accessibilityLabel(Text("Zoom out", bundle: .module))
         }
     }
 
     private func zoom(by delta: Float) {
         guard let mapView else { return }
-        mapView.animate(toZoom: mapView.camera.zoom + delta)
+        mapView.showZoom(mapView.camera.zoom + delta)
     }
 
     @ViewBuilder

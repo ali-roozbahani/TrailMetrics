@@ -61,10 +61,12 @@ struct TrackingLiveActivity: Widget {
             Image(systemName: systemImage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             value()
                 .font(.headline)
                 .monospacedDigit()
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -121,6 +123,7 @@ private struct TrackingLockScreenView: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
+                    .accessibilityHidden(true)
                 label
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -130,6 +133,7 @@ private struct TrackingLockScreenView: View {
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 

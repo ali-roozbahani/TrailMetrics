@@ -193,7 +193,12 @@ struct TrackingMapView: UIViewRepresentable {
             }
             coordinator.lastCameraCoordinates = markerCoordinates
         } else if coordinator.lastCameraCoordinates != markerCoordinates {
-            mapView.animate(toLocation: markerCoordinates.locationCoordinate)
+            let location = markerCoordinates.locationCoordinate
+            if UIAccessibility.isReduceMotionEnabled {
+                mapView.moveCamera(GMSCameraUpdate.setTarget(location))
+            } else {
+                mapView.animate(toLocation: location)
+            }
             coordinator.lastCameraCoordinates = markerCoordinates
         }
     }
