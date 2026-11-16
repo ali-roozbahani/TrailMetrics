@@ -191,12 +191,14 @@ open every older database and keep its rows. The procedure, in order:
    `fallbackToDestructiveMigration`) and any change of the database file name
    (`DATABASE_FILE_NAME`, pinned by `DatabaseFileNameTest`), its directory or the driver is the
    human's decision: stop and report instead of doing it.
-7. The agent never merges a PR that changes the schema (owner decision of 2026-11-16). Its three marks,
-   `data/schemas/`, `Migrations.kt` and `TrailMetricsDatabase.kt` (the `@Database` version and entity
-   list), are protected paths in `.github/CODEOWNERS`, so such a PR is the owner's to merge even when it
-   touches nothing else protected: build it through the gate as usual, post the Merge check (condition 6
-   is "no", `tm-agent-loop`, section 8) and hand it over. A change of a DAO, a mapper, a repository or a
-   test stays open; an entity change reaches the protected files because it needs the bump (step 2).
+7. The agent never merges a PR that changes the schema or a converter's stored form (owner decisions of
+   2026-11-16). Their marks, `data/schemas/`, `Migrations.kt`, `TrailMetricsDatabase.kt` (the `@Database`
+   version and entity list) and `Converters.kt` (its stored form exports no schema file and bumps no version,
+   yet can make existing data unreadable), are protected paths in `.github/CODEOWNERS`, so such a PR is the
+   owner's to merge even when it touches nothing else protected: build it through the gate as usual, post
+   the Merge check (condition 6 is "no", `tm-agent-loop`, section 8) and hand it over. A change of a DAO, a
+   mapper, a repository, the builders or a test (`ConvertersTest` included) stays open; an entity change
+   reaches the protected files because it needs the bump (step 2).
 
 What catches what: `scripts/check-room-schema.sh --base` (gate and CI, every classification) fails
 when an existing schema file is deleted or its `version` or `identityHash` changes (rule (a)), the
