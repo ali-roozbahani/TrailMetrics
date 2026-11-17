@@ -295,9 +295,6 @@ Don't copy these as a pattern for new code.
 - `TrackingRoot`, `RouteRoot`, `DetailsRoot` and `HistoryRoot` collect their events in
   `LaunchedEffect(Unit)` and call the navigation callback they received at the first composition
   (the effect rule in "Compose").
-- `TrailMetricsNavHost` has `stopTrackingRequested = mutableStateOf(false)` as a default argument (the
-  production call passes its own); `TrailMetricsBottomBar` and `TrailMetricsNavHost` have no `modifier`
-  parameter (the `modifier` rule in "Compose").
 - The `AnimatedContent` in `TrackingScreen` reads `canStart`, `canPause`, `canResume` and `canStop` from
   the outer state in its `else` branch. No test shows the fade overlap this can cause, so the branch is
   as it is (the animation rule in "Compose").
