@@ -8,7 +8,7 @@
 > entries below stay as they were; the CI jobs they name can no longer fail.
 
 One entry per flake signature (job, step, test, first error line). Rules: `tm-pr-workflow`,
-"Flake log"; watching and re-running: `tm-agent-loop`, section 6.
+"Flake log"; watching and re-running: `tm-agent-loop`, section 6 (`watching-ci.md`).
 
 Entry fields: Signature, Count, Status (`open` | `fixed (unverified)` | `fixed`), Occurrences (date,
 run id, PR, whether a re-run fixed it), Notes; `escalated: flake-<slug>` once the board record

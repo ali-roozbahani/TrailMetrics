@@ -1,6 +1,6 @@
 #!/bin/bash
 # Waits until every check run of a commit is completed, or until the reviewer's check has failed
-# (tm-agent-loop, section 6); with --review-first until the reviewer's check is completed.
+# (tm-agent-loop, section 6, watching-ci.md); with --review-first until the reviewer's check is completed.
 # The wait is a command, so an agent runs it in the background and is re-invoked when it exits:
 # a foreground `sleep` is blocked or capped in the agent's shell.
 #
@@ -17,14 +17,14 @@
 # important` with n above 0. The wait then ends at once, with the other jobs still running, like a
 # failed job does:
 #   REVIEW_ACTION <verdict line>; still running: <names|(none)>[; missing: <names>]      exit 4
-# The agent reads the report (tm-agent-loop, section 7), fixes or disposes each finding, and, when it is
+# The agent reads the report (tm-agent-loop, section 7, merge.md), fixes or disposes each finding, and, when it is
 # not pushing a fix, runs the same command again with --review-acked, which prints the verdict once more
 # and then waits for the rest as before. A head given as a SHA has no PR to read the verdict for, and
 # --until-complete (the wait after a flake) does not read it: both behave as before.
 #
 # --review-first waits only for the check run `Review — pr-reviewer` of the SHA to be completed
 # (about 2 minutes) and never for the other jobs: the agent fixes what the verdict shows while Android
-# and iOS still run (tm-agent-loop, section 6). It prints the rows, `REVIEW_VERDICT <line>` (given a PR
+# and iOS still run (tm-agent-loop, section 6, watching-ci.md). It prints the rows, `REVIEW_VERDICT <line>` (given a PR
 # number) and `REVIEW_DONE <conclusion>; still running: <names>[; missing: <names>]` (exit 0) for a
 # conclusion of success or skipped and a verdict that needs nothing; "(none)" when nothing is running.
 # A verdict that needs action is `REVIEW_ACTION` (exit 4) as above. Any other conclusion is the same case as the
@@ -37,7 +37,7 @@
 # prints the rows and `PENDING <names still running>[; missing: <names>]` (exit 3), and the
 # caller runs the same command again (the 90 minutes are then the caller's to count: 10 PENDING
 # in a row are a TIMEOUT). Without it the wait is one command up to 90 minutes, to run in the
-# background (`run_in_background`, which has no 600 s cap; tm-agent-loop, section 6). Every other
+# background (`run_in_background`, which has no 600 s cap; tm-agent-loop, section 6, watching-ci.md). Every other
 # result, and its exit code, is the same with or without it.
 #
 # --until-complete is the wait for a run to finish after a failed job was classified as a flake: only
@@ -60,7 +60,7 @@
 # completed (GitHub offers "Re-run failed jobs" only for a finished run), so the agent reads the failed
 # job's log at once and, for a defect in the PR, pushes the fix without waiting (a new push cancels the
 # running CI of the old head: ci.yml `cancel-in-progress` for pull requests); only a flake waits for the
-# run to finish before scripts/rerun-failed-once.sh (tm-agent-loop, section 6).
+# run to finish before scripts/rerun-failed-once.sh (tm-agent-loop, section 6, watching-ci.md).
 #
 # Steps: every 30 s for the first 5 minutes, then every 5 minutes, at most 90 minutes in all.
 # The check runs of a push appear one after another (jobs of ci.yml, `Review — pr-reviewer` of
@@ -118,7 +118,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FIXTURES="$ROOT/scripts/wait-for-checks-fixtures"
 # The check runs that must exist, by exact name, for ALL_GREEN: the three required checks of
-# tm-agent-loop section 8 (branch protection) and the CI reviewer's check run
+# tm-agent-loop section 8, merge.md (branch protection) and the CI reviewer's check run
 # (.github/workflows/pr-review.yml). One name per line (names contain commas). If a check is
 # renamed, the run waits until the timeout and names it as missing instead of turning green:
 # update this list with the rename.
@@ -251,7 +251,7 @@ wait_for_checks() {
         fi
 
         # A failed check ends the wait at once, whatever else still runs: the agent reads the failed log
-        # and acts while the other jobs go on (tm-agent-loop, section 6). With --review-first or
+        # and acts while the other jobs go on (tm-agent-loop, section 6, watching-ci.md). With --review-first or
         # --until-complete only the reviewer's check counts here.
         failed_names="$(jq -r --arg name "$REVIEWER_CHECK" --arg only "${REVIEW_FIRST:-}${UNTIL_COMPLETE:-}" '[.check_runs[]
             | select(.status == "completed" and (.conclusion as $c | ["success", "skipped"] | index($c) | not)
