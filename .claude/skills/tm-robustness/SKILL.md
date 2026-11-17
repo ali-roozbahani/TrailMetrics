@@ -38,7 +38,7 @@ rule that needs it never fires there (see "Mechanical rules").
   kills the process. Example: none in production Swift. Enforced: SwiftLint `force_unwrapping`,
   `force_try`, `force_cast` (all errors). Severity: blocking.
 - **C4** An exception thrown by Kotlin that Swift calls follows the `@Throws` policy in
-  `tm-kmp-shared` ("`@Throws` policy"); do not restate it there or here. Why: an undeclared
+  `tm-kmp-shared` ("`@Throws` policy", `swift-interop.md`); do not restate it there or here. Why: an undeclared
   exception terminates the iOS process. Example: `SaveActivityUseCase`. Enforced: reviewer only.
   Severity: blocking.
 - **C5** Android: work in `onReceive`, `onStartCommand` or another component callback stays inside

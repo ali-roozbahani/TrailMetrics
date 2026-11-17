@@ -158,7 +158,7 @@ fails, so observe through a use case that turns the failure into a value on the 
   no unstructured `Task { try ... }` without `do/catch` (review only). A caught error reaches the
   user through the ViewModel's `.showError` event, and state stays as it was. Only Kotlin
   functions with `@Throws` can throw into Swift without crashing; see `tm-kmp-shared` ("`@Throws`
-  policy"). History and Details have no events stream: they publish `errorMessage` and show it
+  policy", `swift-interop.md`). History and Details have no events stream: they publish `errorMessage` and show it
   in an "Error" alert.
 - Generic collections crossing the bridge: check the inferred Swift type rather than
   assuming it (`HistoryViewModel`'s `[ActivityRecord]` is the worked example).
