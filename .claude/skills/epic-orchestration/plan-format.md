@@ -32,6 +32,16 @@ Read from `SKILL.md`, "The plan". The rules are there; this file holds the plan 
 - Wave 1: S1
 - Wave 2: S2 ∥ S3   (disjoint: <one line on why>)
 
+## Acceptance coverage (optional)
+
+| Goal criterion | Subtask | Check that proves it |
+|---|---|---|
+| <one criterion of the Goal> | <S1, S2, ...> | <the test by name, or the human check> |
+
+## Re-plan trigger (optional)
+
+- <the finding that means stop and write the plan again, and what the human is asked to decide>
+
 ## Epic-level Tier 2 (on the integrated branch before merge to main)
 
 - <end-to-end behavior across both platforms and the automated test that covers it>
@@ -123,6 +133,13 @@ average pace across saved activities.
   (the iOS UI-test target has no scenario for this screen yet).
 - Final smoke check: the same data on both platforms shows identical records and formatting.
 ````
+
+The two optional sections ("Acceptance coverage" and "Re-plan trigger") may be left out: a plan without
+them is valid. The table gives every criterion of the Goal a subtask and the check that proves it, so a
+criterion that no subtask covers shows as an empty row. The trigger names what the orchestrator finds
+while it works (a contract that has to change, a subtask that needs a path outside its `allowed_paths`, a
+check that cannot be written) that sends the plan back to the human instead of being patched in the
+subtask PRs.
 
 Notes on the example: S2 and S3 don't need `androidApp/app/**` or `iosApp/TrailMetrics/**`
 because History is already routed on both platforms. If a feature needed a new screen

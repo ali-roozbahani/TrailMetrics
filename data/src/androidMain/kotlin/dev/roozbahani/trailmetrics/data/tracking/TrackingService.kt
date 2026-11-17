@@ -116,7 +116,7 @@ class TrackingService : Service(), KoinComponent {
         val contentText = when (state) {
             is TrackingState.Tracking -> "Tracking...${formatDistance(state.metrics.distanceMeters)}"
             is TrackingState.Paused -> "Paused - ${formatDistance(state.metrics.distanceMeters)}"
-            else -> "Setting up..."
+            is TrackingState.Idle, is TrackingState.Finished -> "Setting up..."
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
