@@ -20,6 +20,19 @@ Kotlin and Swift alike. `reviewer only` means no tool checks it. The detekt rule
 of detekt 1.23.8; "plain" detekt is the gate's `detekt` task, which has no type resolution, so a
 rule that needs it never fires there (see "Mechanical rules").
 
+## Topic files
+
+Rule ids are unchanged: a finding cites the id, and the id is in this file or in the file named here. Read a topic
+file when the task or the diff reaches its topic, not before; a reviewer reads it for a diff that touches the topic.
+
+| File | Rules | Read it when |
+|---|---|---|
+| `SKILL.md` (this file) | C1 to C6, E1 to E4, D1 to D7 | every Kotlin or Swift change |
+| `lifecycle-and-permissions.md` | S1, S2, R1, R2, R3, R5, R7 | a change touches an exported component or an `Intent`, a runtime permission, saved or restored state, a service or a Live Activity, a scene phase, or how a flow is collected |
+| `memory-and-leaks.md` | M1, M2, M3, M5, M6, M7, M8 | a change registers a listener, observer, receiver, timer or callback, keeps a `Context`, a closure or a coroutine in a long-lived object, holds an image or a cache, or adds a leak check |
+| `performance.md` | P1 to P6, P8, P9 | a change touches a lazy list, composition or `body` work, a per-update or per-tick path, a Room query, location priority or interval, or `@Stable`/`@Immutable` |
+
+
 ## Crashes and ANR
 
 - **C1** No blocking call (file, database, network, `runBlocking`, `Thread.sleep`, heavy
@@ -116,148 +129,6 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   cancel branch of `TrackingMapView`'s snapshot `Task`, on the main actor, until `Task.detached`.
   Enforced: reviewer only. Severity: blocking when it blocks the main actor, else important.
 
-## Intents and permissions
-
-- **S1** Android: an exported component (the launcher `Activity`, any exported service, receiver or
-  provider) never acts on a destructive or privileged action carried by its `Intent` unless only we can
-  have sent it: a non-exported target, or a secret that only our own `PendingIntent` holds. An action
-  string or an extra's name is public, so it proves nothing. A `PendingIntent` is `FLAG_IMMUTABLE` with
-  an explicit target. Why: any app can send an intent to an exported component, and the action here
-  can discard the user's recording. Example: `MainActivity.handleStopTrackingIntent` acts on the Stop
-  action only with the secret of `StopTrackingAuthorization`, which `TrackingService`'s Stop
-  `PendingIntent` (explicit, immutable) carries. Enforced: reviewer only. Severity: blocking.
-- **S2** Android: a runtime permission is handled in all three outcomes: granted; the system asks for
-  an explanation (a rationale before the next request); refused for good (a way to the app's settings).
-  A refusal is never a silent no-op, and the result is never cached: the use site asks the system, and
-  a `SecurityException` becomes the typed error (E3). Why: a user who refused twice has no other way
-  back, and a cached grant outlives the user's change in settings. Example:
-  `AndroidLocationRepositoryImpl` maps `SecurityException` to `MissingLocationPermission` and holds no
-  permission state; the launchers do not meet the rest (see deviations). Enforced: reviewer only.
-  Severity: important.
-
-## Process death and lifecycle
-
-- **R1** Android: UI state that must survive is in `SavedStateHandle` or `rememberSaveable`, data
-  that must survive is persisted, and a ViewModel is never the only holder of something the user
-  would lose. Why: the system kills a backgrounded process at any time. Example: `RouteViewModel`
-  persists the plan through `RouteDraftKeeper` (Room) and restores it at creation (no `SavedStateHandle`
-  or `rememberSaveable` in the code). Enforced: reviewer only. Severity:
-  blocking when the reviewer verifies in the files the loss of data the user recorded or entered
-  (the session, the route draft, a saved activity), important for a likely gap the files cannot
-  prove.
-- **R2** Android: a foreground service restores or restarts the in-progress session after process
-  death, or the app tells the user it is gone. Why: `START_STICKY` restarts the service with no
-  state. Example: `TrackingService` restores the stored session on a restart with no intent and leaves
-  a notice for a paused or finished one (`handleRestart`); `SavedSessionOfferViewModel` offers it at
-  the app start. Enforced: reviewer only. Severity: blocking
-  when the reviewer verifies in the files the loss of data the user recorded or entered (the
-  session, the route draft, a saved activity), important for a likely gap the files cannot prove.
-- **R3** Collect flows in the owner's lifecycle: on Android in composition with
-  `collectAsStateWithLifecycle()`, on iOS in a `.task` modifier or a stored `Task` cancelled in
-  `deinit` (`tm-ios` "SKIE interop"). Why: a plain `collectAsState` collects while the app is in the
-  background, and any collector outlives its screen. Example: the four screens' Root composables,
-  `HistoryView` (`.task { await viewModel.observe() }`). Enforced: reviewer only. No lint check for
-  it exists in the repo today. Severity: important.
-- **R5** iOS: a scene-phase change or app termination while tracking persists or restores the
-  in-progress session; no work assumes the app stays in the foreground. Why: iOS suspends and
-  terminates apps without a callback you can rely on. Example: `SavedSessionOfferModel` restores the
-  stored session once per launch and offers it (no `scenePhase` use; background location is enabled by
-  `IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`).
-  Enforced: reviewer only. Severity: blocking when the reviewer verifies in the files the loss of
-  data the user recorded or entered (the session, the route draft, a saved activity), important
-  for a likely gap the files cannot prove.
-- **R7** iOS: a Live Activity is given a `staleDate` and the widget draws the stale case
-  (`context.isStale`), and a value that moves on its own (elapsed time) is drawn by the system from a
-  start date, not pushed as a number. Why: the app can be suspended or killed while tracking, and a
-  frozen number on the lock screen reads as live. Example: `TrackingLiveActivityController` (stale date,
-  timer anchored to `timerStart`) and the widget's `ElapsedTimerText`. Enforced: reviewer only. Severity:
-  important.
-
-## Memory and leaks
-
-- **M1** Whatever is registered is unregistered by the owner that registered it: listeners,
-  callbacks, `BroadcastReceiver`s, sensor and location updates, observers, timers,
-  `DisposableEffect`/`onDispose`, `deinit` (on iOS: cancel or release them when the owner goes
-  away). Why: a registration holds its owner alive and keeps firing into a dead screen. Example:
-  `TrackingViewModel.deinit` cancels its tasks,
-  `AndroidLocationRepositoryImpl.observeLocationUpdates` (`awaitClose { removeLocationUpdates }`),
-  `TrackingLiveActivityController` (observer added in `init`, removed in `deinit`). Enforced:
-  reviewer only on Android (no lint check for listener registration); SwiftLint
-  `notification_center_detachment` (on), `discarded_notification_center_observer` (off).
-  Severity: blocking.
-- **M2** Android: no `Context`, `Activity`, `View` or composable lambda held by a ViewModel,
-  singleton, companion object or long-lived coroutine; an `Application` context is the only one a
-  long-lived object may hold. Why: it outlives the screen it belongs to and leaks it. Example: the
-  four ViewModels hold none; `AndroidTrackingServiceLauncher` holds a `Context` injected by Koin
-  (application context only).
-  Enforced: Android lint `StaticFieldLeak` (static fields only); reviewer only for the rest.
-  Severity: blocking.
-- **M3** A coroutine runs in a scope that ends with its owner (`viewModelScope`, a scope the DI
-  container or the service closes), never `GlobalScope`. Why: otherwise it runs after the owner is
-  gone. Example: `TrackingService` cancels `serviceScope` in `onDestroy`. Enforced: detekt
-  `ForbiddenImport` for `GlobalScope`; the rest reviewer only. Severity: blocking.
-- **M5** An image, bitmap, snapshot or large buffer is released or downsampled before it is held or
-  saved. Why: bitmaps are the usual out-of-memory crash, and memory and storage grow with pixels.
-  Example: `saveSnapshotToFile` scales to 600 px
-  wide and recycles the scaled copy. Enforced: reviewer only (Android lint `Recycle` covers
-  streams and cursors, not bitmaps). Severity: important.
-- **M6** Swift: a closure stored by an object that outlives the caller captures `self` weakly
-  (`[weak self]`); delegates are `weak`; a `Timer` or `NotificationCenter` observer is invalidated or
-  removed; no strong cycle between a view model and its closures or publishers. Why: a cycle never
-  deinits. Example: `TrackingViewModel` (`[weak self]` in both observation tasks and the stop
-  closure). Enforced: SwiftLint `weak_delegate` and `unowned_variable_capture` are off; the rest
-  reviewer only. Severity: blocking for a stored closure with a strong `self`, else important.
-  A leak test (the iOS side of M8): make the object in a scope, keep a `weak var` to it, drop the strong
-  reference, run the pending work (`await` the tasks it started), then `XCTAssertNil` the weak
-  reference; do it for each type that stores a closure or a `Task` over `self`.
-- **M7** Caches are bounded (a maximum size or count, as `maxPendingEvents` is in the iOS view
-  models). Why: an unbounded cache is a slow leak. Example: `TrackingViewModel.maxPendingEvents`.
-  Enforced: reviewer only. Severity: important.
-- **M8** Android: a debug build runs a leak check: LeakCanary or the `StrictMode` VM policy
-  (`detectLeakedClosableObjects`, `detectActivityLeaks`). Why: leaks are found by running, not
-  reading. Example: no example yet (neither exists: see deviations). Enforced: reviewer only.
-  Severity: important.
-- **M9** A new non-UI class (a use case, repository, manager or saver) does not create or keep a
-  `CoroutineScope` and does not launch from `init`: it exposes `suspend` functions or a `Flow`, or its
-  owner starts it with one named `start(scope)` call. Why: a launch from `init` runs before the object
-  is fully built and a test cannot step it, and a kept scope needs someone to cancel it. Example: no
-  example yet. Enforced: reviewer only. Severity: important. Not a finding: a ViewModel's
-  `viewModelScope`, a service scope that `onDestroy` cancels (M3), a scope a DI module creates and hands in,
-  or a class that exists today (see deviations).
-
-## Performance and efficiency
-
-- **P1** Compose: a stable `key` in every lazy list (`LazyColumn`, `LazyVerticalGrid`). Why: without
-  it items lose state and recompose on reorder. Example: `HistoryScreen` (`key = { it.id }`).
-  Enforced: reviewer only. Severity: important.
-- **P2** Compose: no heavy work or allocation in composition; `remember` or `derivedStateOf` for a
-  derived value; read state as late as possible; no new lambda or object per item where it breaks
-  skipping. Why: composition runs on every state change. Example: `RoutePolyline`
-  (`remember(points) { ... }`). Enforced: reviewer only. Severity: important.
-- **P3** SwiftUI: a cheap `body`, observation as narrow as the state, no heavy work in `body`. Why:
-  `body` runs on every published change. Example: no example yet. Enforced: reviewer only.
-  Severity: important (blocking when it blocks the main actor: D6).
-- **P4** A per-location-update or per-tick path allocates little and is conflated or sampled before
-  it reaches the UI (map polylines especially). Why: it runs for as long as the session. Example:
-  no example yet (see deviations). Enforced: reviewer only. Severity: important.
-- **P5** Room: queries run off the main thread, a filtered or sorted column has an index, no query
-  per item (N+1), no loading a whole table for one row. Why: query cost grows with the table.
-  Example: `ActivityDao.getById` (primary key); the sorted `startedAtEpochMillis` has no index (see
-  deviations). Enforced: reviewer only; a new index is a schema change (`tm-kmp-shared`).
-  Severity: important.
-- **P6** Battery: the location priority and interval are the lowest that meet the feature, and
-  updates stop when no screen or session needs them. Why: location is the largest battery cost.
-  Example: `TrackingSessionManager.pause` cancels the observation. Enforced: reviewer only.
-  Severity: important.
-
-- **P8** Compose: no `@Stable` or `@Immutable` and no `ImmutableList` parameter by reflex. Why: with
-  strong skipping a parameter that is not stable is compared by instance, which is cheap; an annotation
-  makes the compiler call `equals`, which on a collection walks every element and can cost more than
-  the recomposition it saves. Example: none in `androidApp`. Enforced: reviewer only. Severity: important.
-- **P9** Compose: no write to state after a read of it in composition, and none from `onSizeChanged` or
-  `onPlaced` into state that composition reads. Why: the write invalidates what was just composed, so a
-  frame is drawn wrong or composition repeats. Example: no example yet. Enforced: reviewer only. Severity:
-  important.
 
 R4, R6, M4, P7 are merged into M2, M1, R3, M5.
 
