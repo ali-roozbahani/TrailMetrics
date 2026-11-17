@@ -210,7 +210,7 @@ run, and the jobs it hit are counted below.
   step ran (the job has no steps), first error line "The job was not acquired by Runner of type hosted even after multiple attempts"
   (check-run annotation; with "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue
   times."). `iOS — all stages` then failed, and a job that needs the lost one was skipped or abandoned
-- Count: 5 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1, `iOS build — lint, app build, package tests` 2 (the current name of the first two jobs' merged job)
+- Count: 6 (runs). By job: `iOS 2a` 2, `iOS 2b` 1, `iOS 3` 1, `iOS build — lint, app build, package tests` 3 (the current name of the first two jobs' merged job)
 - Status: open
 - Occurrences:
   - 2026-11-12, run 43287492527 (push to `main`, merge of #270), job `iOS 2a`, re-run: no (a run on `main` is
@@ -228,6 +228,10 @@ run, and the jobs it hit are counted below.
     waited 15 minutes (17:30:59 to 17:46:00) and was cancelled with no step run; the check-run annotation says "The job was not
     acquired by Runner of type hosted even after multiple attempts"; `iOS — all stages` failed with "ios-build result is abandoned".
     The same run's Android job failed too, for another reason (`robolectric-artifact-download-failed`)
+  - 2026-11-17, run 44110090873 (push to `main`, merge of #332), job `iOS build — lint, app build, package tests`, re-run: no. The job
+    waited 15 minutes (15:04:26Z to 15:19:27Z) and was cancelled with no step run; the check-run annotation says "The job was not
+    acquired by Runner of type hosted even after multiple attempts"; `iOS — all stages` failed with "ios-build result is abandoned".
+    Android and tooling passed. The owner acknowledged the run after reading the report
 - Notes: class infra (macOS runner capacity), not the diff: in each run the other jobs passed (Android and tooling, and in the first
   run `iOS 2b`, which builds the app on the same runner label), and the changes were a UI test (#270, which that run never built or
   ran), scripts and lists (#281) and Markdown (#282). All three are pushes to `main`, which are never re-run. The owner decides on
