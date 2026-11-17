@@ -212,6 +212,24 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Kotlin/Native keeps its compiler bundle and its LLVM and libffi dependencies in ~/.konan and
+      # downloads them when the directory is empty; setup-gradle caches ~/.gradle, not this one.
+      # Keyed on the Kotlin version of the version catalog: a Kotlin bump starts a fresh cache.
+      - name: Read the Kotlin version
+        id: kotlin
+        run: echo "version=$(sed -n 's/^kotlin = "\(.*\)"/\1/p' gradle/libs.versions.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ steps.kotlin.outputs.version }}
+
+      # Diagnostic (removed again in this PR): which JVM runs the Gradle daemon, with the JDK 17 that
+      # setup-java installs and a daemon JVM criterion of 21 in gradle/gradle-daemon-jvm.properties.
+      - name: Gradle and daemon JVM
+        run: ./gradlew --version
+
       - name: Build KMP Shared Framework
         run: scripts/build-kmp-framework.sh
 

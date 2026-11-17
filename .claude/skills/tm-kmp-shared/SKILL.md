@@ -220,7 +220,8 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
 - Static archive sizes: 70.5 MB per debug slice, 22.6 MB for release arm64; the debug XCFramework is 147 MB.
   The Swift header `TrailMetricsShared.h` has 13,691 lines and 393 Objective-C types, about 190 of them from
   Ktor, kotlinx, Koin, Room and the `data` internals.
-- CI's `ios-build` job does not cache `~/.konan`, so every run downloads the Kotlin/Native bundle.
+- CI's `ios-build` job caches `~/.konan`, keyed on the Kotlin version, so a run downloads the Kotlin/Native bundle when that
+  version changes or the cache is missing.
 - A change to the build (targets, exports, caches, flags) is measured: run the real command twice before and
   twice after, on the same machine and state, under `scripts/heavy-run.sh`, and put both numbers in the PR
   (the first run fills caches). Enforced: reviewer only. Violation: `important`.
