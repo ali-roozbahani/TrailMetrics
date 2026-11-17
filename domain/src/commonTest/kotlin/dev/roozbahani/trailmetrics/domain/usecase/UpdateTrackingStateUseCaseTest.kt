@@ -283,6 +283,59 @@ class UpdateTrackingStateUseCaseTest {
         assertEquals(9_000, next.metrics.lastUpdateElapsedRealtimeMillis)
     }
 
+    @Test
+    fun `every state has an explicit decision for every event`() {
+        // `stateName` and `eventName` are `when` expressions with no `else`: a new TrackingState or
+        // TrackingEvent does not compile here until it is added, and then the table below must decide it.
+        val states = listOf(
+            TrackingState.Idle,
+            TrackingState.Tracking(sampleMetrics()),
+            TrackingState.Paused(sampleMetrics()),
+            TrackingState.Finished(sampleMetrics())
+        )
+        val events = listOf(
+            TrackingEvent.Start(point1, 20),
+            TrackingEvent.Pause(20),
+            TrackingEvent.Resume(20),
+            TrackingEvent.Stop(20),
+            TrackingEvent.LocationReceived(point2, 20, 1f)
+        )
+        val expected = mapOf(
+            "Idle" to mapOf("Start" to "Tracking", "Pause" to "Idle", "Resume" to "Idle", "Stop" to "Idle", "LocationReceived" to "Idle"),
+            "Tracking" to mapOf("Start" to "Tracking", "Pause" to "Paused", "Resume" to "Tracking", "Stop" to "Finished", "LocationReceived" to "Tracking"),
+            "Paused" to mapOf("Start" to "Paused", "Pause" to "Paused", "Resume" to "Tracking", "Stop" to "Finished", "LocationReceived" to "Paused"),
+            "Finished" to mapOf("Start" to "Tracking", "Pause" to "Finished", "Resume" to "Finished", "Stop" to "Finished", "LocationReceived" to "Finished")
+        )
+
+        assertEquals(states.map(::stateName).toSet(), expected.keys, "every state has a row")
+        states.forEach { state ->
+            val row = expected.getValue(stateName(state))
+            assertEquals(events.map(::eventName).toSet(), row.keys, "${stateName(state)} has a decision for every event")
+            events.forEach { event ->
+                assertEquals(
+                    row.getValue(eventName(event)),
+                    stateName(useCase(state, event)),
+                    "${eventName(event)} from ${stateName(state)}"
+                )
+            }
+        }
+    }
+
+    private fun stateName(state: TrackingState): String = when (state) {
+        is TrackingState.Idle -> "Idle"
+        is TrackingState.Tracking -> "Tracking"
+        is TrackingState.Paused -> "Paused"
+        is TrackingState.Finished -> "Finished"
+    }
+
+    private fun eventName(event: TrackingEvent): String = when (event) {
+        is TrackingEvent.Start -> "Start"
+        is TrackingEvent.Pause -> "Pause"
+        is TrackingEvent.Resume -> "Resume"
+        is TrackingEvent.Stop -> "Stop"
+        is TrackingEvent.LocationReceived -> "LocationReceived"
+    }
+
     private fun sampleMetrics(
         elapsedMillis: Long = 10,
         lastUpdateElapsedRealtimeMillis: Long = 10,

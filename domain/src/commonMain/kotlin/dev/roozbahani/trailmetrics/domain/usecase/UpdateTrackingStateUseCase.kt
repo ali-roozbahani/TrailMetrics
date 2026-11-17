@@ -35,14 +35,14 @@ class UpdateTrackingStateUseCase {
                 TrackingState.Tracking(metrics)
             }
 
-            else -> currentState
+            is TrackingState.Tracking, is TrackingState.Paused -> currentState
         }
     }
 
     private fun handlePause(currentState: TrackingState): TrackingState {
         return when (currentState) {
             is TrackingState.Tracking -> TrackingState.Paused(currentState.metrics)
-            else -> currentState
+            is TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> currentState
         }
     }
 
@@ -58,7 +58,7 @@ class UpdateTrackingStateUseCase {
                 )
             )
 
-            else -> currentState
+            is TrackingState.Idle, is TrackingState.Tracking, is TrackingState.Finished -> currentState
         }
     }
 
@@ -66,7 +66,7 @@ class UpdateTrackingStateUseCase {
         return when (currentState) {
             is TrackingState.Tracking -> TrackingState.Finished(currentState.metrics)
             is TrackingState.Paused -> TrackingState.Finished(currentState.metrics)
-            else -> currentState
+            is TrackingState.Idle, is TrackingState.Finished -> currentState
         }
     }
 
@@ -99,7 +99,7 @@ class UpdateTrackingStateUseCase {
                 TrackingState.Tracking(newMetrics)
             }
 
-            else -> currentState
+            is TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> currentState
         }
     }
 
