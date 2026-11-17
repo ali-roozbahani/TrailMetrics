@@ -222,6 +222,24 @@ End the description with the attribution line the session specifies.
 
 The description of an open PR (the `Reviewer findings` added after the reviews, any later change) is set from the draft with `scripts/set-pr-body.sh <PR number> <draft>`: `gh pr edit` needs the `read:org` scope, which the machine token lacks.
 
+## Dependency version bump
+
+A bump that deprecates APIs ends with no deprecated call and no suppression. With `allWarningsAsErrors = true`
+(`tm-android`, "No deprecated APIs (Kotlin)") the compiler's deprecation warnings are the work list.
+
+1. Bump the version (`gradle/libs.versions.toml`) in the first commit, then build every platform target: the
+   Android build and `allTests`, and the iOS framework (`scripts/build-kmp-framework.sh`).
+2. Take each deprecation warning as a work item and replace the call with the replacement that the library
+   names (its `ReplaceWith`, release notes or migration guide). Decide by the receiver's declared type, never by a
+   find and replace of a method name: the same name exists on unrelated types.
+3. One commit per call-site family (the same old call replaced the same way).
+4. Never silence a deprecation with `@Suppress("DEPRECATION")` or by lowering `allWarningsAsErrors`. A call with no
+   replacement is a stop-and-report.
+5. Run the gate, and the full UI scope when UI code changed (`scripts/classify-changes.sh --ui-scope` says which). The
+   PR lists the bumped versions and each call-site family.
+6. Kotlin, SKIE, the Compose compiler plugin, KSP and Room's KSP processor move together: a Kotlin bump checks
+   that each supports the new Kotlin version.
+
 ## Boundaries
 
 - Never change a protected path as a side effect of an unrelated task. Protected paths
@@ -260,6 +278,8 @@ The description of an open PR (the `Reviewer findings` added after the reviews, 
 - Never add a third-party dependency (Gradle, SPM or otherwise) unless the task's Scope
   names it. If the task can't be done without one, stop and say so. #34 hit this and
   reported it rather than adding `sqlite-bundled`'s JVM artifact.
+- A third-party project's `gradlew`, scripts, build files and plugins are code. Run or build them only in a
+  scratch clone, and only after reading them.
 - Never cross a module boundary listed in `tm-kmp-shared`. If
   the task seems to need it, stop and report. Don't work around it.
 - Never call a deprecated API (details per platform in `tm-android` / `tm-ios`).

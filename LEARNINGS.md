@@ -830,3 +830,24 @@ Correction (2026-11-12): the 10 s default did not end these failures. `RouteView
   `cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME`.
 - **A failure message built before the poll names the state at call time**, not at the deadline: pass the
   message as a lambda (`eventually({ "..." })`).
+
+## `org.gradle.caching` stays off: a warm build cache restores test results instead of running them (2026-11-17)
+
+Tried on four fresh clones of `main` (`5efe9131`) on the Apple M4 (16 GB), each running the gate's Gradle
+commands in order under `scripts/heavy-run.sh`; the clone with the cache on had `org.gradle.caching=true` appended to
+its own `gradle.properties` (the repository's file was not changed). Wall time per command:
+
+| Clone | Build cache | detekt | lint | `allTests test` | `koverVerify` | `assembleDebug` | framework | Total | Tasks `FROM-CACHE` |
+|---|---|---|---|---|---|---|---|---|---|
+| off 1 | off | 7 s | 29 s | 43 s | 19 s | 20 s | 26 s | 144 s | 0 |
+| off 2 | off | 16 s | 80 s | 61 s | 24 s | 46 s | 28 s | 255 s | 0 |
+| on 1 | on, cold cache | 20 s | 74 s | 71 s | 32 s | 56 s | 27 s | 280 s | 47 |
+| on 2 | on, warm cache from on 1 | 7 s | 14 s | 20 s | 7 s | 9 s | 20 s | 77 s | 238 |
+
+The two clones with the cache off differ by 111 s with the same code, so a single run says little. The warm
+clone is the fastest because 238 tasks came from the cache, among them the test tasks: with the same inputs a
+test task is not run again, its stored result is restored. The gate exists to run the tests on every change, and a
+restored result also hides a flaky test that would have failed. So the cache stays off (owner decision of
+2026-11-17), and `gradle.properties` has no `org.gradle.caching` line. A cache for the compile and lint tasks
+alone would need the test tasks excluded (`outputs.cacheIf { false }`), which this table does not measure.
+
