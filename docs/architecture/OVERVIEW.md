@@ -53,7 +53,7 @@ project — read this before touching any module.
 | `domain` | KMP (pure Kotlin) | Business models, use cases, repository interfaces. Zero Android/iOS dependency. |
 | `data` | KMP | Repository implementations, Room, Ktor networking, platform-specific location/tracking services via expect/actual. |
 | `core` | KMP (commonMain only) | Platform-agnostic navigation (`AppRoute`) and UI-adjacent error models (`RouteUiError`) — no UI framework of any kind. |
-| `shared` | KMP | Umbrella module. Composes Koin DI graph (`initKoin()`), exports `domain` + `data` + `core` as a single `TrailMetricsShared.xcframework` for iOS. Uses SKIE for Swift-friendly Flow/coroutines interop. |
+| `shared` | KMP | Umbrella module. Composes Koin DI graph (`initKoin()`), exports `domain` + `core` as a single `TrailMetricsShared.xcframework` for iOS. Uses SKIE for Swift-friendly Flow/coroutines interop. |
 | `shared-uitest` | KMP (iOS targets only) | Test-only. Builds a variant of `TrailMetricsShared.xcframework`: the same Swift module and API as `shared`'s, plus the iOS UI-test seam (in-memory fakes entered through `doInitKoinIosForUiTest`). Only UI-test builds link it; production code never depends on it (`ADR-002-shared-umbrella-module.md`, "Amendment"). |
 | `androidApp/app` | Android | Composition root: NavHost, Application class, DI wiring for Android-only (Compose UI) Koin modules. |
 | `androidApp/feature-*` | Android | Feature modules (route, tracking, history) — Compose screens + ViewModels. |

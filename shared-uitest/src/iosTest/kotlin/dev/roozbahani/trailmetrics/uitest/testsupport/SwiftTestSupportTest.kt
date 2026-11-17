@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.uitest.testsupport
 
+import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -10,6 +11,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import platform.Foundation.NSUserDefaults
 
 class SwiftTestSupportTest {
 
@@ -53,5 +55,18 @@ class SwiftTestSupportTest {
         val result = assertIs<Result<*>>(SwiftTestResult.failure(exception))
 
         assertSame(exception, assertFailsWith<IllegalStateException> { result.getOrThrow() })
+    }
+
+    @Test
+    fun `userProfileRepositoryOnUserDefaults throws the typed exception for a stored string that cannot be decoded`() = runTest {
+        val defaults = NSUserDefaults.standardUserDefaults
+        defaults.setObject("{ not a valid json", "user_profile")
+        try {
+            val repository = SwiftTestRepositories.userProfileRepositoryOnUserDefaults()
+
+            assertFailsWith<StoredUserProfileUnreadableException> { repository.getUserProfile() }
+        } finally {
+            defaults.removeObjectForKey("user_profile")
+        }
     }
 }
