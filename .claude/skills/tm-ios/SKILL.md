@@ -446,7 +446,7 @@ re-reading its isolation (D7 in `tm-robustness`).
 ## Naming (Swift)
 
 - Types `PascalCase`, functions/properties `camelCase`. No `I` prefix and booleans read as
-  questions, as in `tm-android` ("Naming (Kotlin)").
+  questions, as in `tm-android` ("Naming (Kotlin)", `kotlin-conventions.md`).
 - SPM packages and Swift modules are `PascalCase` single words (`History`, `DesignSystem`).
   The Kotlin "lowercase, no underscores" rule applies to Kotlin packages and Gradle modules;
   the Swift form of it is: no underscores or hyphens in package names.
@@ -469,12 +469,12 @@ re-reading its isolation (D7 in `tm-robustness`).
 - Fix the call rather than silencing it. Swift has no narrow call-site suppression: marking
   your wrapper `@available(*, deprecated)` only moves the warning to its callers. If a
   deprecation is genuinely unavoidable, stop and report it instead of wrapping it.
-- Own APIs: same rule as Kotlin (`tm-android`, "No deprecated APIs (Kotlin)"), with
+- Own APIs: same rule as Kotlin (`tm-android`, "No deprecated APIs (Kotlin)", `kotlin-conventions.md`), with
   `@available(*, deprecated)`.
 
 ## No dead code
 
-- Otherwise as `tm-android` ("No dead code"): no commented-out code, no unused declarations.
+- Otherwise as `tm-android` ("No dead code", `kotlin-conventions.md`): no commented-out code, no unused declarations.
 - No unused imports (`unused_import` is enabled). Import `SharedKit`, not
   `TrailMetricsShared`.
 
