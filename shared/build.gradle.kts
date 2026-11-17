@@ -38,6 +38,7 @@ kotlin {
         target.binaries.framework {
             baseName = xcframeworkName
             isStatic = true
+            binaryOption("bundleId", "dev.roozbahani.trailmetrics.shared")
             export(project(":domain"))
             export(project(":data"))
             export(project(":core"))

@@ -32,6 +32,8 @@ kotlin {
         target.binaries.framework(listOf(NativeBuildType.DEBUG)) {
             baseName = xcframeworkName
             isStatic = true
+            // The same bundle ID as :shared's framework: this one replaces it at the same path.
+            binaryOption("bundleId", "dev.roozbahani.trailmetrics.shared")
             export(project(":shared"))
             export(project(":domain"))
             export(project(":data"))
