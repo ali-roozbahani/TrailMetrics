@@ -8,6 +8,15 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+// SKIE captures build and project statistics and uploads them (https://skie.touchlab.co/Analytics:
+// Gradle and compiler environment, hardware, git statistics, hashed project and module IDs, link
+// durations). No capture and no upload here: nobody decided that this project shares them.
+skie {
+    analytics {
+        enabled.set(false)
+    }
+}
+
 kotlin {
     android {
         namespace = "dev.roozbahani.trailmetrics.shared"
@@ -29,6 +38,7 @@ kotlin {
         target.binaries.framework {
             baseName = xcframeworkName
             isStatic = true
+            binaryOption("bundleId", "dev.roozbahani.trailmetrics.shared")
             export(project(":domain"))
             export(project(":data"))
             export(project(":core"))

@@ -330,8 +330,10 @@ Mac ("architecture mismatch" warnings throughout the domain/data KMP
 migration) and Apple is phasing out Intel Mac support generally, removed
 `iosX64()` from `data`'s target list rather than working around a
 dependency gap for a platform with shrinking relevance. `domain` (no Room
-dependency) still declares iosX64() without issue -- this is scoped to
-modules that actually depend on Room.
+dependency) declared iosX64() without issue -- this is scoped to modules
+that actually depend on Room. `domain` and `core` dropped it too on
+2026-11-17: no module consumed those slices (`shared` and `data` have no x64
+target), and the gate's `allTests` compiled and linked them on every run.
 
 ---
 
