@@ -106,7 +106,7 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   Only fall back to the lambda form (`viewModel { ... }`) when you need a factory
   method, a qualifier, runtime parameters (`params.get()`), or post-construction setup.
   Today every module uses the lambda form, including `HistoryViewModel` and
-  `RouteViewModel`, which have no parameters; don't take that as the pattern for new code.
+  `RouteViewModel`, which have no parameters. Don't take that as the pattern for new code.
 - Constructor injection only, resolved with `get()`. No field injection (`by inject()`) and
   no `KoinComponent` in application code. `KoinComponent` is acceptable only inside
   `shared`'s `KoinHelper` bridge for iOS. Existing exception: `MainActivity` field-injects

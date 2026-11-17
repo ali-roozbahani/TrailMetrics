@@ -138,6 +138,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: The Ktor client's request, connect and socket timeouts, the retry policy (which failures, how many) and the offline behavior are decided, set in `data`, tested with `MockEngine`, and mapped to `RouteError` cases shown on both platforms.
 - Refs: `data/src/commonMain` (`networkModule`, `DirectionsRepositoryImpl`); `RouteError`/`RouteUiError` in `core`; `tm-kmp-shared`.
 
+### ios-privacy-manifest-first-upload-check
+- Type: task
+- Area: iosApp
+- Order: 69
+- Source: owner decision 2026-11-16 (open human checks of PR #322 and #325)
+- Problem: Part of the epic `ios-release-readiness`. The privacy manifests of PR #322 (app and widget; the Maps SDK ships its own, the KMP framework has none and is covered by the app's) cannot be checked by any test and were written from secondary sources, because Apple's own page did not load. Reason for a record: an owner decision of 2026-11-16 to track this check here; it needs the owner's Apple account, at the first TestFlight upload, and the owner decides when it is done.
+- Done when: At the first TestFlight upload the owner (1) reads App Store Connect's processing email for missing declarations (ITMS-91053 and similar), (2) checks the reason codes `CA92.1` (user defaults) and `C617.1` (file timestamps) against Apple's own list of required-reason API categories, and (3) checks that precise location declared as collected, not linked and not for tracking, matches the App Privacy label answers; the manifests are corrected if any of the three differs, and this record is deleted.
+- Refs: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy`; `iosApp/TrackingWidget/PrivacyInfo.xcprivacy`; `ios-release-readiness`; `tm-ios` ("Architecture", privacy manifests).
+
 ### ios-live-activity-ticker
 - Type: task
 - Area: iosApp/Tracking
@@ -219,6 +228,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Experiment of 2026-11-16 (simulator, iPhone, iOS 26.5, UI test tapping Stop on the lock screen, the intent logging its process): `StopTrackingIntent` as shipped, a type of the widget extension target only, ran `perform()` in the `TrackingWidgetExtension` process (pid 14322, bundle `dev.roozbahani.TrailMetrics.TrackingWidget`), which is why it posts a Darwin notification that only a live app process hears. With the same intent also compiled into the app target it ran in the app process (`TrailMetrics`, pid 14974); and with the app terminated first it ran in a new app process (pid 15728). The Stop button therefore does nothing when the app is not alive today, and a copy of the intent in the app target would let it reach the app, which then holds no `TrackingSessionManager` state until it restores the stored session. Reason for a record: a design decision (where the intent lives, what Stop means for a session the app has to restore first, the Darwin notification), and the result is of the simulator only.
 - Done when: The owner decides whether the intent moves or is copied into the app target and what Stop does when the app was terminated; the check is repeated on a real device before the design is built.
 - Refs: `iosApp/TrackingWidget/StopTrackingIntent.swift`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`registerStopNotificationObserver`).
+
+### ios-accessibility-manual-pass
+- Type: task
+- Area: iosApp
+- Order: 79
+- Source: owner decision 2026-11-16 (open human checks of PR #322 and #325)
+- Problem: Part of the epic `ios-release-readiness`. The accessibility pass of PR #325 is checked by `AccessibilityAuditUITests` (element descriptions and hit regions, run in the gate), but not Reduce Motion, the scaled zoom buttons at large text sizes, the widget's grouping on the lock screen or how the screens sound. Reason for a record: an owner decision of 2026-11-16 to track this pass here; it is the owner's manual pass on a device, needed before a release and not before a merge, and the owner decides when it is done.
+- Done when: The owner has done a manual pass with VoiceOver, Reduce Motion and the largest text size: on Route the top bar and zoom buttons read "User Profile", "Reset", "Zoom in", "Zoom out"; in History and Details the metric cells read as label and value pairs and the type icon is skipped; with Reduce Motion on, Zoom in jumps and the maps follow a position without panning animation; at the largest text size the zoom buttons grow and stay tappable; the Live Activity on the lock screen reads each metric as one element; findings are fixed or declined, and this record is deleted.
+- Refs: `iosApp/TrailMetricsUITests/Accessibility/AccessibilityAuditUITests.swift`; `iosApp/Packages/Route/Sources/Route/GMSMapView+ReduceMotion.swift`; `ios-release-readiness`; `ios-dynamic-type-beyond-the-pass`; `tm-ios` ("Accessibility").
 
 ### tracking-ui-timer-independent-of-location
 - Type: task
