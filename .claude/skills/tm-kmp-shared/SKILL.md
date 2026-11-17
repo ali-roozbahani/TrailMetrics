@@ -221,6 +221,10 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
   The Swift header `TrailMetricsShared.h` has 13,691 lines and 393 Objective-C types, about 190 of them from
   Ktor, kotlinx, Koin, Room and the `data` internals.
 - CI's `ios-build` job does not cache `~/.konan`, so every run downloads the Kotlin/Native bundle.
+- A `~/.konan` cache was tried on 2026-11-17 (PR #330, closed): the restore took 22 to 24 s and the post-job step about
+  6 s, while the download it saves took about 8 s, and the framework step showed no gain.
+- The Gradle daemon in CI runs on the runner's Temurin 21 (21.0.13 on 2026-11-17); only the launcher is JDK 17, the
+  one `setup-java` installs.
 - A change to the build (targets, exports, caches, flags) is measured: run the real command twice before and
   twice after, on the same machine and state, under `scripts/heavy-run.sh`, and put both numbers in the PR
   (the first run fills caches). Enforced: reviewer only. Violation: `important`.
