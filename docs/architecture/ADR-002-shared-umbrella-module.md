@@ -61,8 +61,8 @@ linked by UI-test builds alone.
 
 - `shared-uitest` depends on `shared` with `api(...)`, applies SKIE and
   defines one DEBUG-only static framework with the same `baseName`
-  (`TrailMetricsShared`), exporting `shared`, `domain`, `data` and `core`
-  like `shared` does, plus its own UI-test seam (package
+  (`TrailMetricsShared`), exporting `shared`, `domain` and `core`
+  like `shared` does (`data` is exported by neither framework since 2026-11-17), plus its own UI-test seam (package
   `dev.roozbahani.trailmetrics.uitest`). It is the same Swift module, with
   production's API plus the seam.
 - `shared` does not change and never depends on `shared-uitest`; no

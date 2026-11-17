@@ -38,7 +38,9 @@ The module also holds the Kotlin test support of the Swift package tests
 `SwiftTestFlow<T>` (a cold `Flow` over fixed values), `SwiftFailingTestFlow<T>`,
 `SwiftTestScope` (a cancellable `CoroutineScope` with production's context) and
 `SwiftTestResult` (boxed `kotlin.Result` values for fakes of
-`suspend fun ...: Result<T>` members). Swift can't build any of these itself: a
+`suspend fun ...: Result<T>` members) and `SwiftTestRepositories` (a real
+`UserProfileRepository` on `NSUserDefaults`: the production framework does not
+export the `data` module, so Swift cannot construct one). Swift can't build any of these itself: a
 Swift-implemented `Flow` violates Kotlin's flow invariant on its first emission,
 and `kotlin.Result` isn't exported. They are in the variant and not in
 production, so the package tests link the variant; the Swift package tests run

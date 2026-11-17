@@ -40,7 +40,6 @@ kotlin {
             isStatic = true
             binaryOption("bundleId", "dev.roozbahani.trailmetrics.shared")
             export(project(":domain"))
-            export(project(":data"))
             export(project(":core"))
             xcf.add(this)
         }

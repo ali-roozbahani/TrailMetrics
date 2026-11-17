@@ -362,11 +362,11 @@ re-reading its isolation (D7 in `tm-robustness`).
     The iOS UI tests are not built or run in CI: the gate's iOS UI step (`scripts/ios-ui-tests.sh`) builds the
     variant and the UI-test target and runs them.
 - The Swift package tests link the **test-only variant**, not production: the Kotlin test
-  support they need (`SwiftTestFlow`, `SwiftFailingTestFlow`, `SwiftTestScope`, `SwiftTestResult`,
+  support they need (`SwiftTestFlow`, `SwiftFailingTestFlow`, `SwiftTestScope`, `SwiftTestResult`, `SwiftTestRepositories`,
   package `dev.roozbahani.trailmetrics.uitest.testsupport`) is in `shared-uitest`. The production
   framework contains none of it; `scripts/check-production-framework.sh` (gate and `ios-build`)
   fails when any of those names, or the `testsupport` package name, is in its binary. The
-  variant's API check (`scripts/check-variant-api.sh`) lists these four classes with the UI-test
+  variant's API check (`scripts/check-variant-api.sh`) lists these five classes with the UI-test
   seam as the only names allowed in the variant alone.
 - A per-user `xcuserdata/.../TrailMetrics.xcscheme` with the same name shadows the shared
   scheme and has no pre-action. If every Kotlin change ends in the "build again" error,

@@ -31,8 +31,9 @@ belongs here.
   exported to Objective-C/Swift — add a new getter here whenever a new iOS
   feature needs to resolve a dependency from Koin.
 - **XCFramework export config**: the `binaries.framework { ... }` block that
-  produces `TrailMetricsShared.xcframework`, `export()`-ing `domain`, `data`,
-  and `core` so their public API is visible from Swift. SKIE
+  produces `TrailMetricsShared.xcframework`, `export()`-ing `domain` and
+  `core` so their public API is visible from Swift (`data` is not exported:
+  Swift sees none of its types). SKIE
   (`co.touchlab.skie`) is applied here (and only here) to make Kotlin
   `Flow`/suspend functions usable from Swift as `AsyncSequence`/`async`.
   The only other module that applies SKIE and defines a framework is the
@@ -56,9 +57,11 @@ belongs here.
 
 ## Dependencies
 
-`shared` depends on (and exports) `domain`, `data`, and `core`, all as
-`api(...)` — required for `export()` to work; `implementation(...)` would
-hide their symbols from the generated Swift interface.
+`shared` depends on `domain`, `data` and `core`, all as `api(...)`, and
+exports `domain` and `core`: `api(...)` is required for `export()` to work;
+`implementation(...)` would hide their symbols from the generated Swift
+interface. `data` is not exported, so its Ktor, kotlinx, Koin and Room types
+stay out of the Swift header.
 
 ## Extending this module
 

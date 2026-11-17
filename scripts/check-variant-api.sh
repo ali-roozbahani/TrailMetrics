@@ -48,12 +48,12 @@
 #   UiTestControls           Objective-C: TMSUiTestControls
 #   UiTestEntryKt            Objective-C: TMSUiTestEntryKt, the file class of
 #                            doInitKoinIosForUiTest
-#   SwiftTestFlow, SwiftFailingTestFlow, SwiftTestScope, SwiftTestResult
+#   SwiftTestFlow, SwiftFailingTestFlow, SwiftTestScope, SwiftTestResult, SwiftTestRepositories
 #                            the Kotlin test support of the Swift package tests (package
 #                            ...uitest.testsupport); Objective-C: the TMS-prefixed classes. The two
 #                            flows are generic (`TMSSwiftTestFlow<T>`): a name is looked up
 #                            without its type parameters.
-SEAM_NAMES="doInitKoinIosForUiTest UiTestScenario __UiTestScenario TMSUiTestScenario TMSUiTestControls TMSUiTestEntryKt SwiftTestFlow SwiftFailingTestFlow SwiftTestScope SwiftTestResult TMSSwiftTestFlow TMSSwiftFailingTestFlow TMSSwiftTestScope TMSSwiftTestResult"
+SEAM_NAMES="doInitKoinIosForUiTest UiTestScenario __UiTestScenario TMSUiTestScenario TMSUiTestControls TMSUiTestEntryKt SwiftTestFlow SwiftFailingTestFlow SwiftTestScope SwiftTestResult TMSSwiftTestFlow TMSSwiftFailingTestFlow TMSSwiftTestScope TMSSwiftTestResult SwiftTestRepositories TMSSwiftTestRepositories"
 
 set -eu
 API_DIR=""

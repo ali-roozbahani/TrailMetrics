@@ -220,6 +220,11 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
 - Static archive sizes: 70.5 MB per debug slice, 22.6 MB for release arm64; the debug XCFramework is 147 MB.
   The Swift header `TrailMetricsShared.h` has 13,691 lines and 393 Objective-C types, about 190 of them from
   Ktor, kotlinx, Koin, Room and the `data` internals.
+- Since `shared` and `shared-uitest` stopped exporting `:data`, the same header has 6,263 lines and 212 declarations
+  (`@interface` and `@protocol` lines; the 393 above counts unique types, the same count gives 402 before), and the debug
+  XCFramework is 140 MB instead of 148 MB. A Swift test that needs a real `data` object takes it from a factory in
+  `shared-uitest` (`SwiftTestRepositories`). Never export `:data` from a framework again: its Ktor, kotlinx, Koin and Room
+  types are not API for Swift. Enforced: reviewer only. Violation: `important`.
 - CI's `ios-build` job does not cache `~/.konan`, so every run downloads the Kotlin/Native bundle.
 - A `~/.konan` cache was tried on 2026-11-17 (PR #330, closed): the restore took 22 to 24 s and the post-job step about
   6 s, while the download it saves took about 8 s, and the framework step showed no gain.
