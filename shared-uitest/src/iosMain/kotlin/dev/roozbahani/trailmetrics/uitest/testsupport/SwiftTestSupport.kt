@@ -15,6 +15,9 @@ package dev.roozbahani.trailmetrics.uitest.testsupport
 // the production one (scripts/check-production-framework.sh). A second Kotlin framework can't
 // share types with the first, so the Swift package tests link that variant.
 
+import dev.roozbahani.trailmetrics.data.common.KeyValueStorage
+import dev.roozbahani.trailmetrics.data.user.UserProfileRepositoryImpl
+import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -70,4 +73,20 @@ object SwiftTestResult {
 
     /** A failed `Result`; `getOrThrow()` on it rethrows [exception]. */
     fun failure(exception: Throwable): Any? = Result.failure<Any?>(exception)
+}
+
+/**
+ * Real repositories for the Swift tests that need one: the production framework does not export
+ * the `data` module, so Swift cannot construct them.
+ */
+object SwiftTestRepositories {
+    /**
+     * The real `UserProfileRepositoryImpl` on the app's `NSUserDefaults` storage (key `user_profile`),
+     * running on `Dispatchers.Default`. A Swift fake cannot throw the typed
+     * `StoredUserProfileUnreadableException` (SKIE wraps what a Swift class throws), so a test that
+     * needs a stored profile that cannot be decoded writes a broken string into `NSUserDefaults` and
+     * reads it through this repository.
+     */
+    fun userProfileRepositoryOnUserDefaults(): UserProfileRepository =
+        UserProfileRepositoryImpl(KeyValueStorage(), Dispatchers.Default)
 }

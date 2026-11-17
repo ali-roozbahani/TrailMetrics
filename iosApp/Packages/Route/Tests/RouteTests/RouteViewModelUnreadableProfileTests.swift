@@ -6,7 +6,8 @@
 //  treated like a missing one, so the user can enter a new profile, and is shown once as a
 //  general error.
 //
-//  These tests use the real UserProfileRepositoryImpl on UserDefaults, holding a broken string:
+//  These tests use the real user profile repository on UserDefaults (SwiftTestRepositories, a
+//  test-support factory: the framework does not export the data module), holding a broken string:
 //  a Swift fake cannot throw that exception, because SKIE wraps every error a Swift class throws
 //  into a generic Kotlin exception, so the ViewModel would never see the typed one.
 //
@@ -22,22 +23,15 @@ final class RouteViewModelUnreadableProfileTests: XCTestCase {
 
     private static let storageKey = "user_profile"
 
-    private let scope = SwiftTestScope()
-    private var userProfileRepository: UserProfileRepositoryImpl?
+    private var userProfileRepository: UserProfileRepository?
 
     override func setUp() async throws {
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         UserDefaults.standard.set("{ not a valid json", forKey: Self.storageKey)
-        // The scope only lends its Dispatchers.Default to the repository.
-        let dispatcher = try XCTUnwrap(
-            scope.coroutineContext.get(key: Kotlinx_coroutines_coreCoroutineDispatcher.Key.shared)
-                as? Kotlinx_coroutines_coreCoroutineDispatcher
-        )
-        userProfileRepository = UserProfileRepositoryImpl(storage: KeyValueStorage(), ioDispatcher: dispatcher)
+        userProfileRepository = SwiftTestRepositories.shared.userProfileRepositoryOnUserDefaults()
     }
 
     override func tearDown() async throws {
-        scope.cancel()
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
     }
 
