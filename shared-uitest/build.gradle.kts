@@ -13,6 +13,13 @@ plugins {
     alias(libs.plugins.skie)
 }
 
+// No SKIE analytics capture or upload, as in :shared.
+skie {
+    analytics {
+        enabled.set(false)
+    }
+}
+
 kotlin {
     val xcframeworkName = "TrailMetricsShared"
     val xcf = XCFrameworkConfig(project, xcframeworkName)
