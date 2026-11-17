@@ -1,6 +1,6 @@
 # Compose UI tests: examples and setup
 
-Read from `SKILL.md`, "Compose UI tests". The rules are there; this file holds the example and the
+Read from `compose-ui-test-rules.md`, "Compose UI tests". The rules are there; this file holds the example and the
 setup details behind them.
 
 ## Robot example

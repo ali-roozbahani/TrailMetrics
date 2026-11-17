@@ -128,7 +128,7 @@ fails, so observe through a use case that turns the failure into a value on the 
   In the `Debug-UITest` build only (`#if UITEST_SEAM`), a `-uiTestScenario <name>` launch
   argument makes it call `doInitKoinIosForUiTest(scenario:)` instead (the UI-test seam of the
   test-only framework variant; files in `iosApp/TrailMetrics/UITestSupport/`, all under the same
-  condition). See `tm-testing`, "XCUITest".
+  condition). See `tm-testing`, "XCUITest" (`xcuitest-rules.md`).
 - A new dependency needed from Swift requires a new concrete getter on `KoinHelper`
   (`shared/src/iosMain/.../KoinHelper.kt`), because `get<T>()` is inline reified and doesn't
   export. That is a `shared` change, so follow `tm-kmp-shared` for it.
@@ -193,7 +193,7 @@ fails, so observe through a use case that turns the failure into a value on the 
   with an exhaustive `switch` in `handle(_:)`.
 - Colors come from `DesignSystem` (`Color.trailGreen`); no ad-hoc RGB literals in features.
 - No `accessibilityIdentifier` for UI tests where text finds the element; only where it cannot
-  (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest").
+  (image-only buttons, rows, changing labels), named `<screen>.<element>` (`tm-testing`, "XCUITest", `xcuitest-rules.md`).
 - Add a `#Preview` for new screens and reusable components. Today `ContentView` and
   `RouteMapUnavailableView` are the two files with one: the feature screens build a ViewModel that resolves from
   `KoinHelper()`, and `TrailMetricsApp.init()` is what starts Koin. The fakes (`TestSupport`) are linked from test
