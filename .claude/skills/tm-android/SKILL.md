@@ -45,6 +45,8 @@ exists", this skill's MVI section wins for "what new ViewModels should look like
   `stringRes` mapping lives in `androidApp/core-ui`'s `error/RouteUiErrorAndroid.kt`. A new
   `RouteUiError` case needs a branch there (plus the string in `core-ui`'s `strings.xml`) in
   the same change. The `when` is exhaustive, so the build fails if you forget.
+- A `when` over a sealed type or an enum names every case and has no `else`: `tm-kmp-shared`,
+  "Exhaustive `when` over a sealed type".
 - Composables used by 2+ feature modules go in `androidApp/core-ui` (`designsystem/theme`,
   `designsystem/component`, `map/`, `error/`), not duplicated per feature. A composable
   with a single consumer stays in its feature until a second feature needs it (see
@@ -134,9 +136,23 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   Anything that business logic reads belongs in the ViewModel. A ViewModel does not survive process
   death: what the user would lose is also in `SavedStateHandle` or persisted (`tm-robustness`, R1).
 - Collect events in a `LaunchedEffect` in the Root, with an exhaustive `when`.
+- A `LaunchedEffect` or `DisposableEffect` that lives across recompositions and calls a callback
+  parameter reads the latest callback through `rememberUpdatedState`, or has that callback as its key.
+  State a composable owns is `remember`ed, never `mutableStateOf(...)` as a default argument. Why: an
+  effect keyed by `Unit` keeps calling the first callback it captured, and a default argument is built
+  again on every call, so the state is lost on recomposition. Example: no example yet. Enforced:
+  reviewer only. Severity: important. Not a finding: an effect that calls no parameter, or reads only
+  the values it is keyed by.
+- A reusable composable (used by more than one screen, or in `core-ui`) takes `modifier: Modifier =
+  Modifier` as its first optional parameter, after the required ones, and applies it to its root
+  element. Why: the caller decides size, padding and placement. Example: `MetricCell`. Enforced: reviewer
+  only. Severity: important. Not a finding: a `<X>Root` or `<X>Screen` composable, which navigation calls
+  once.
 - Animate below the recomposition layer: `graphicsLayer`, offset lambdas, or
   `animateFloatAsState` feeding into `graphicsLayer` — not `Modifier.alpha(animatedValue)`
-  directly.
+  directly. Each branch of an `AnimatedContent` draws from its own target parameter, not from state
+  read outside the lambda, so the outgoing branch does not change while it fades out. Enforced:
+  reviewer only. Severity: important.
 - Insets: the app is edge-to-edge (`enableEdgeToEdge()`, target SDK 37). A `Scaffold`'s `innerPadding`
   goes to the scrollable's `contentPadding` (added to its own spacing), never as `Modifier.padding` on a
   parent around the list, so the list scrolls under the bars. Apply the keyboard insets once: not both
@@ -276,3 +292,12 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see Koin).
+- `TrackingRoot`, `RouteRoot`, `DetailsRoot` and `HistoryRoot` collect their events in
+  `LaunchedEffect(Unit)` and call the navigation callback they received at the first composition
+  (the effect rule in "Compose").
+- `TrailMetricsNavHost` has `stopTrackingRequested = mutableStateOf(false)` as a default argument (the
+  production call passes its own); `TrailMetricsBottomBar` and `TrailMetricsNavHost` have no `modifier`
+  parameter (the `modifier` rule in "Compose").
+- The `AnimatedContent` in `TrackingScreen` reads `canStart`, `canPause`, `canResume` and `canStop` from
+  the outer state in its `else` branch. No test shows the fade overlap this can cause, so the branch is
+  as it is (the animation rule in "Compose").
