@@ -52,6 +52,16 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
   Enforced: reviewer only. Violation: `important`.
 - Crashes, ANR, exceptions, dispatchers, process death, leaks and performance: `tm-robustness`.
 
+## Exhaustive `when` over a sealed type
+
+- A `when` over a sealed type or an enum names every case and has no catch-all `else`; a case that is
+  ignored on purpose is named with the others (`Idle, Finished -> currentState`). This holds for the
+  `TrackingState` state machine too: each handler names the states it ignores. Why: a new case then
+  fails to compile where it needs a decision, instead of being ignored without a sound, which for a
+  recorded session means a handler that drops it. Example: no example yet. Enforced: reviewer only (the
+  compiler checks a `when` expression only while it has no `else`). Severity: important. Not a finding:
+  an `else` over a number range, a string, a subjectless `when`, or an enum that a platform defines.
+
 ## Time
 
 Durations (elapsed time, speed windows, anything computed as a difference of two reads) are
@@ -304,3 +314,7 @@ Don't copy these as a pattern for new code.
 - `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
   because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries";
   `ios-launcher-depends-on-concrete-location-repository`).
+- `UpdateTrackingStateUseCase` has five `else -> currentState` branches over `TrackingState`;
+  `RouteError?.toUiError()` ends in `else -> General` over a sealed class; the notification text in
+  `TrackingService.buildNotification` ends in `else -> "Setting up..."`, which stands for Idle and
+  Finished (the exhaustive `when` rule).

@@ -217,6 +217,13 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   (`detectLeakedClosableObjects`, `detectActivityLeaks`). Why: leaks are found by running, not
   reading. Example: no example yet (neither exists: see deviations). Enforced: reviewer only.
   Severity: important.
+- **M9** A new non-UI class (a use case, repository, manager or saver) does not create or keep a
+  `CoroutineScope` and does not launch from `init`: it exposes `suspend` functions or a `Flow`, or its
+  owner starts it with one named `start(scope)` call. Why: a launch from `init` runs before the object
+  is fully built and a test cannot step it, and a kept scope needs someone to cancel it. Example: no
+  example yet. Enforced: reviewer only. Severity: important. Not a finding: a ViewModel's
+  `viewModelScope`, a service scope that `onDestroy` cancels (M3), a scope a DI module creates and hands in,
+  or a class that exists today (see deviations).
 
 ## Performance and efficiency
 
@@ -273,6 +280,9 @@ Don't copy these as a pattern for new code. Each names its board record.
   `Dispatchers.IO` as a default argument, and `DatabaseBuilder.kt` (`getRoomDatabase`) passes
   `Dispatchers.IO` to `setQueryCoroutineContext`; it is neither a DI module nor the application
   root (D1; `inject-dispatchers-from-di`).
+- `TrackingSessionManager` keeps a scope (`scope`) and launches `_state.collect { persist(it) }` from
+  `init`; `RouteDraftSaver` has the same shape. Both are documented in the code and stay as they are
+  (M9).
 - `IosTrackingServiceLauncher` takes the concrete
   `IosLocationRepositoryImpl` (`ios-launcher-depends-on-concrete-location-repository`); the iOS
   `TrackingViewModel` recomputes metrics and calories that belong in `domain`

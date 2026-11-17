@@ -8,18 +8,22 @@ setup details behind them.
 One robot class per screen, every method returns `this` for chaining:
 
 ```kotlin
-class TrackingScreenRobot(private val rule: ComposeContentTestRule) {
+class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActivity>) {
     fun setContent(state: TrackingState, onAction: (TrackingAction) -> Unit = {}) = apply {
         rule.setContent { TrackingScreen(state = state, onAction = onAction) }
     }
     fun assertStartButtonEnabled() = apply {
-        rule.onNodeWithTag("start_button").assertIsEnabled()
+        rule.onNodeWithText(string(R.string.btn_tracking_start)).assertIsEnabled()
     }
     fun clickStart() = apply {
-        rule.onNodeWithTag("start_button").performClick()
+        rule.onNodeWithText(string(R.string.btn_tracking_start)).performClick()
     }
+    private fun string(@StringRes id: Int): String = rule.activity.getString(id)
 }
 ```
+
+The node is found by its visible text (read from the string resource), as the rules in `SKILL.md` say; the
+production code has no `testTag`.
 
 ## Screen tests through the real ViewModel
 
