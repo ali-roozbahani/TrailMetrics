@@ -44,7 +44,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: owner decision 2026-11-16 (iOS skills spike follow-up)
 - Problem: The iOS app has never been prepared for a distributed build. Open items, each a decision or a part of the work: (1) a privacy manifest for the app, the widget extension, and a decision for the KMP framework (fetch Apple's current rules when the work starts; do not store them in the repo); (2) the Release build links the debug XCFramework (`release-build-links-debug-xcframework`); (3) the Always location request is removed (owner decision 2: when-in-use plus the background location mode; queue PR `ios-always-location-removal`); (4) signing, archive and TestFlight; (5) a version and build number policy; (6) the inputs for the privacy policy and the App Privacy label; (7) review notes for background location and the Live Activity; (8) the restricted Directions keys (`ios-release-readiness-restricted-directions-keys`). Reason for a record: an epic, with owner-level parts (the Apple account, signing, App Store Connect).
 - Done when: A human-approved plan exists under `docs/epics/` that splits the agent's code and doc parts (1, 2, 3, 5, 6, 7 as text) from the owner's Apple account parts (4, plus the policy and label entries in App Store Connect), and every item above is done or declined with a reason.
-- Refs: `iosApp/TrailMetrics/Info.plist`; `iosApp/TrackingWidget/`; `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/location/IosLocationRepositoryImpl.kt`; `release-build-links-debug-xcframework`; `ios-live-activity-ticker`; `epic-orchestration` skill.
+- Refs: `iosApp/TrailMetrics/Info.plist`; `iosApp/TrackingWidget/`; `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/location/IosLocationRepositoryImpl.kt`; `release-build-links-debug-xcframework`; `epic-orchestration` skill.
 
 ### figma-design-system
 - Type: epic
@@ -146,16 +146,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Part of the epic `ios-release-readiness`. The privacy manifests of PR #322 (app and widget; the Maps SDK ships its own, the KMP framework has none and is covered by the app's) cannot be checked by any test and were written from secondary sources, because Apple's own page did not load. Reason for a record: an owner decision of 2026-11-16 to track this check here; it needs the owner's Apple account, at the first TestFlight upload, and the owner decides when it is done.
 - Done when: At the first TestFlight upload the owner (1) reads App Store Connect's processing email for missing declarations (ITMS-91053 and similar), (2) checks the reason codes `CA92.1` (user defaults) and `C617.1` (file timestamps) against Apple's own list of required-reason API categories, and (3) checks that precise location declared as collected, not linked and not for tracking, matches the App Privacy label answers; the manifests are corrected if any of the three differs, and this record is deleted.
 - Refs: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy`; `iosApp/TrackingWidget/PrivacyInfo.xcprivacy`; `ios-release-readiness`; `tm-ios` ("Architecture", privacy manifests).
-
-### ios-live-activity-ticker
-- Type: task
-- Area: iosApp/Tracking
-- Order: 70
-- After: route-completion-to-domain
-- Source: PR #66 review
-- Problem: The code part is done (PR `feature/ios-live-activity-stale-and-timer`): the elapsed time is drawn by the system from `ContentState.timerStart` (and held at `pausedAt` while paused), and the Activity gets a stale date. What remains is the owner's check on a real device, which no test or simulator shows (the simulator does not suspend like a device).
-- Done when: on a real device the lock-screen timer keeps advancing with the screen off and no location updates, holds when the session is paused, shows the "Not updating" state after about 2 minutes without an update, does not show it while standing still for 3 minutes with a running session (the CI review of PR #323 asked: if it does, location events stop when the user does not move and a keep-alive update or a longer `staleInterval` follows), and the owner has said so; the record is then deleted.
-- Refs: `TrackingLiveActivityController.update` / `minimumUpdateInterval`; `TrackingActivityAttributes.ContentState` (`timerStart`, `pausedAt`); `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`ElapsedTimerText`).
 
 ### ios-generated-string-catalog-symbols-experiment
 - Type: task
@@ -499,7 +489,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: sweep tm-kmp-shared
 - Problem: `tm-kmp-shared` "Time": durations are measured with the monotonic clock, and two wall-clock reads are never subtracted (the skill gives no severity, read here as `important`). `TrackingLiveActivityController.update` throttles with `Date()` and `now.timeIntervalSince(lastUpdateDate)`. If the system time moves back (a manual change, a network time correction), the difference stays below `minimumUpdateInterval` and the Live Activity drops every update until the wall clock catches up. Count 1. Recorded, not fixed: this sweep changes no code, and the fix (the shared `Clock.elapsedRealtimeMillis()`, or `ContinuousClock` in Swift) is a choice for the iOS change.
 - Done when: `grep -n 'Date()' iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` shows no read used for the throttle, and a package test drives the throttle through an injected clock, including a clock that goes back.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`update`, `minimumUpdateInterval`); `tm-kmp-shared` ("Time"); `ios-live-activity-ticker`.
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`update`, `minimumUpdateInterval`); `tm-kmp-shared` ("Time").
 
 ### android-mainactivity-field-injection
 - Type: task
