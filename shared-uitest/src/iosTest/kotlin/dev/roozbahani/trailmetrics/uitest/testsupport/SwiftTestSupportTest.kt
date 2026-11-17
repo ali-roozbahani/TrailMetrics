@@ -58,7 +58,7 @@ class SwiftTestSupportTest {
     }
 
     @Test
-    fun `userProfileRepositoryOnUserDefaults throws the typed exception for a stored string that cannot be decoded`() = runTest {
+    fun `user profile factory throws the typed exception for a stored string that cannot be decoded`() = runTest {
         val defaults = NSUserDefaults.standardUserDefaults
         defaults.setObject("{ not a valid json", "user_profile")
         try {
