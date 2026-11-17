@@ -147,6 +147,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: At the first TestFlight upload the owner (1) reads App Store Connect's processing email for missing declarations (ITMS-91053 and similar), (2) checks the reason codes `CA92.1` (user defaults) and `C617.1` (file timestamps) against Apple's own list of required-reason API categories, and (3) checks that precise location declared as collected, not linked and not for tracking, matches the App Privacy label answers; the manifests are corrected if any of the three differs, and this record is deleted.
 - Refs: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy`; `iosApp/TrackingWidget/PrivacyInfo.xcprivacy`; `ios-release-readiness`; `tm-ios` ("Architecture", privacy manifests).
 
+### ios-crash-reporting-and-symbolication
+- Type: task
+- Area: iosApp, shared, build
+- Order: 70
+- Source: spike kotlin-agent-skills 2026-11-17
+- Problem: Needs the owner's decision: a reporting tool is a third-party dependency and a privacy choice (what leaves the device, what the App Privacy label says). Part of the epic `ios-release-readiness`. The iOS app has no crash reporting. A Kotlin exception that reaches Swift without `@Throws` terminates the app, and what shows is an abort, not the Kotlin stack. Three parts: a tool (or the App Store's own crash data alone) and its data scope; a Kotlin-side unhandled exception hook that reports the Kotlin stack before the process ends; and dSYM handling so that Kotlin frames are symbolicated (a static framework's symbols land in the app's dSYM only when the framework carries debug info; verify what Kotlin/Native 2.4 does for the release framework). The Android counterpart is `android-crash-and-anr-reporting`.
+- Done when: the owner has chosen the tool and its data scope; the dependency is added by a task that names it; a deliberate Kotlin crash in a Release-configuration build shows up in the tool with Kotlin frames symbolicated; the choice is in the App Privacy answers of `ios-release-readiness`.
+- Refs: `ios-release-readiness`; `release-build-links-debug-xcframework`; `android-crash-and-anr-reporting`; `tm-kmp-shared` ("`@Throws` policy"); `tm-robustness` (C4).
+
 ### ios-generated-string-catalog-symbols-experiment
 - Type: task
 - Area: iosApp
@@ -264,6 +273,33 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: `iosApp/Packages/SharedKit/Package.swift` points its `binaryTarget` at `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework` for every build configuration, and `scripts/build-kmp-framework.sh` builds only the debug XCFramework (`:shared:assembleTrailMetricsSharedDebugXCFramework`). So a Release build of the app links the debug Kotlin framework. That framework no longer contains the Swift test support or the iOS UI-test fakes: both live in `shared-uitest`, which is built only into a test-only variant of the framework (`docs/epics/ios-ui-tests.md`, D1), and `scripts/check-production-framework.sh` checks that the production framework has none of it. What remains is that the Release build links a debug-configuration framework.
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
 - Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/SwiftTestSupport.kt`; `scripts/check-production-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
+
+### ios-simulator-only-framework-slice
+- Type: task
+- Area: shared, scripts, iosApp
+- Order: 106
+- Source: spike kotlin-agent-skills 2026-11-17
+- Problem: Needs the owner's design: it changes `scripts/build-kmp-framework.sh` and `SharedKit/Package.swift`, both protected, and the stamp semantics. Every Kotlin change builds both debug slices (device and simulator, about 21 s each on the Apple M4, measured 2026-11-17), although CI's `xcodebuild` and package tests and the gate use the simulator slice (`generic/platform=iOS Simulator`, `ARCHS=arm64`). A simulator-only XCFramework for simulator destinations would save one slice per rebuild (about a third of a cold framework build there, more on the CI runner). Questions for the design note: the stamp must record the slice set; a device build must still get the device slice; whether `SharedKit` keeps one `binaryTarget` path; what the Release path of `release-build-links-debug-xcframework` links.
+- Done when: a design note under `docs/` (or in this record's PR) says whether to do it and how, with the before and after numbers of the real command; the owner decides.
+- Refs: `scripts/build-kmp-framework.sh`; `iosApp/Packages/SharedKit/Package.swift`; `release-build-links-debug-xcframework`; `tm-kmp-shared` ("Kotlin/Native build cost"); `tm-ios` ("Build integration").
+
+### swift-api-header-dump-in-gate
+- Type: task
+- Area: scripts, shared
+- Order: 107
+- Source: spike kotlin-agent-skills 2026-11-17
+- Problem: Needs the owner's decision: an idea, and a new gate script (protected paths). The Swift-visible API of `TrailMetricsShared` is checked only by review (`tm-kmp-shared`, "`@Throws` policy", rule 6, and the PR's "Swift-visible API" list); `scripts/check-variant-api.sh` compares the test-only variant with production, not production with its past. A committed dump of the production header (or of SKIE's Swift interface), diffed in the gate, would show every Swift-visible API change mechanically, and the narrowing of the framework's exports would show up in review.
+- Done when: the owner decides; if yes, a script with a self-test (in the gate and CI) fails when the dump differs from the committed one, and a PR that changes the API updates the dump and lists the change under "Swift-visible API".
+- Refs: `scripts/check-variant-api.sh`; `shared/build.gradle.kts`; `tm-kmp-shared` ("`@Throws` policy"); `tm-pr-review`.
+
+### ios-ci-package-tests-duration
+- Type: task
+- Area: CI, iosApp
+- Order: 108
+- Source: spike kotlin-agent-skills 2026-11-17
+- Problem: Needs a look before a plan, and the fix is likely a workflow change (the owner merges it). In the four latest runs of `main` (2026-11-16), the step "Run iOS package tests" of the `ios-build` job took 377 to 603 s of a job of 683 to 1176 s. It runs `xcodebuild test` once per package with a `Tests/` directory, and each run resolves, builds and links the packages and the test-only framework variant again.
+- Done when: the time is attributed (resolution, build, simulator boot, tests, per package) from a CI log, and the owner has the options with expected savings (one `xcodebuild` for all packages, build once and test without building, a cache of derived data, parallel simulators); a PR does the chosen one with before and after step times.
+- Refs: `.github/workflows/ci.yml` (`ios-build`, step "Run iOS package tests"); `scripts/pre-push-check.sh` (the gate's package-test step); `tm-ios` ("Build integration").
 
 ### tracking-location-path-double-clock-read
 - Type: task
@@ -740,7 +776,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: androidApp, config, CI
 - Order: 710
 - Source: spike android/skills 2026-11-15
-- Problem: Needs the owner to pick which of these to do; each is a decision, none is a defect the agent can fix alone. The Android app lacks, with no recorded decision: (1) localization: one `strings.xml` per module, no `values-xx`, no `localeConfig`, and the tracking notification's text and channel name are hard-coded English in `TrackingService` (see `android-tracking-notification-content`); unit words and number formats are shared code (`shared-metrics-formatter-user-visible-strings` and `ios-hardcoded-number-formatting` cover shared and iOS); (2) accessibility beyond the `cd_*` content descriptions: no TalkBack pass, no font-scale test, touch targets, live regions for the changing numbers, contrast; (3) a network security configuration and a written cleartext and pinning choice for the directions API; (4) a release logging policy: `AndroidLogger` calls `Log.d` for everything and `MapSnapshotSaver` logs exceptions with `Log.e`, and whether coordinates reach a log was not checked; (5) dependency vulnerability and license scanning and an update flow (no Dependabot or Renovate, no scan step in CI); (6) lint as a release gate: no `lint-baseline.xml` or severity policy seen; (7) instrumented tests on a device in CI: none by design, so the real foreground service, permission dialogs and Maps are covered only by human checks, and no process-death or startup test exists (`tm-robustness` R1); (8) in-app updates, review prompts, remote config or a kill switch; (9) scheduled background work, needed only when a sync feature exists.
+- Problem: Needs the owner to pick which of these to do; each is a decision, none is a defect the agent can fix alone. The Android app lacks, with no recorded decision: (1) localization: one `strings.xml` per module, no `values-xx`, no `localeConfig`, and the tracking notification's text and channel name are hard-coded English in `TrackingService` (see `android-tracking-notification-content`); unit words and number formats are shared code (`shared-metrics-formatter-user-visible-strings` and `ios-hardcoded-number-formatting` cover shared and iOS); (2) accessibility beyond the `cd_*` content descriptions: no TalkBack pass, no font-scale test, touch targets, live regions for the changing numbers, contrast; (3) a network security configuration and a written cleartext and pinning choice for the directions API; (4) a release logging policy: `AndroidLogger` calls `Log.d` for everything and `MapSnapshotSaver` logs exceptions with `Log.e`, and whether coordinates reach a log was not checked; (5) dependency vulnerability and license scanning and an update flow for Gradle, SPM (`ios-maps-sdk` and the other package dependencies) and GitHub Actions (no Dependabot or Renovate, no scan step in CI). A Kotlin bump moves a lockstep group together: Kotlin, SKIE (each release supports specific Kotlin versions), the Compose compiler plugin (its version is the Kotlin version), KSP and Room's KSP processor; (6) lint as a release gate: no `lint-baseline.xml` or severity policy seen; (7) instrumented tests on a device in CI: none by design, so the real foreground service, permission dialogs and Maps are covered only by human checks, and no process-death or startup test exists (`tm-robustness` R1); (8) in-app updates, review prompts, remote config or a kill switch; (9) scheduled background work, needed only when a sync feature exists.
 - Done when: the owner has gone through the list and, for each item, made it a record of its own (a PR narrows this record to the remaining items) or declined it; this record is then deleted.
 - Refs: `androidApp/*/src/main/res/values/strings.xml`; `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/common/AndroidLogger.kt`; `androidApp/feature-tracking/src/main/kotlin/dev/roozbahani/trailmetrics/feature/tracking/util/MapSnapshotSaver.kt`; `.github/workflows/ci.yml`; `tm-robustness` R1.
 
