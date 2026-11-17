@@ -79,12 +79,13 @@ COMMITS:
 <short sha> <subject>        (one line per commit, oldest first; none if none)
 FILES: <every path changed, one per line>
 TESTS:
-<exact command> -> <result, with the counts the output printed>     (one line per run)
+<exact command> on <short sha of the commit it ran on> -> <result, with the counts the output printed>     (one line per run)
 NOT_RUN: <tests the task file lists that you did not run, and why; none>
 NOT_DONE: <part of the Goal not done, and why; none>
 NOTES: <assumptions you made where the task file was silent; anything the orchestrator must check>
 ```
 
 Report only what you saw: a test counts as run only if you read its result in this session, and a build
-you did not run is not "probably fine". If a test failed and you could not fix it, `STATUS` is `BLOCKED`
+you did not run is not "probably fine". Each `TESTS:` line names the commit the run happened on (`git rev-parse --short HEAD`
+read right before the run, with a clean worktree); a run on uncommitted changes says `uncommitted on <short sha>`. If a test failed and you could not fix it, `STATUS` is `BLOCKED`
 with the failing test and its message, and the commits that exist stay as they are.
