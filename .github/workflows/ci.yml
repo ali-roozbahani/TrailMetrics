@@ -228,7 +228,9 @@ jobs:
       # Diagnostic (removed again in this PR): which JVM runs the Gradle daemon, with the JDK 17 that
       # setup-java installs and a daemon JVM criterion of 21 in gradle/gradle-daemon-jvm.properties.
       - name: Gradle and daemon JVM
-        run: ./gradlew --version && ./gradlew help --info 2>&1 | grep -E "Starting process 'Gradle build daemon'|Command: " || true
+        run: |
+          ./gradlew --version
+          ./gradlew help --info 2>&1 | grep -E "Starting process|Command" || true
 
       - name: Build KMP Shared Framework
         run: scripts/build-kmp-framework.sh
