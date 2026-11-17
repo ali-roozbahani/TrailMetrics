@@ -33,6 +33,7 @@ import org.koin.dsl.module
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ServiceController
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -83,13 +84,21 @@ class TrackingServiceNotificationTest {
         }
     }
 
+    // The services a test started. `onStartCommand` launches the service's observation on `Dispatchers.Default`, which
+    // resolves its dependencies from Koin when it starts. A service that is not destroyed keeps that work alive past
+    // `stopKoin()`: it then fails on a Default thread ("KoinApplication has not been started"), and the next
+    // `runTest` in the same JVM, in whatever class, reports it as an uncaught exception before its test.
+    private val startedServices = mutableListOf<ServiceController<TrackingService>>()
+
     @After
     fun tearDown() {
+        startedServices.forEach { it.destroy() }
         stopKoin()
     }
 
     private fun foregroundNotification(): Notification {
         val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
+        startedServices += controller
         controller.get().onStartCommand(Intent(), 0, 1)
         return assertNotNull(shadowOf(controller.get()).lastForegroundNotification)
     }
