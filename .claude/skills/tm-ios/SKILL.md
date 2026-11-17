@@ -388,6 +388,12 @@ re-reading its isolation (D7 in `tm-robustness`).
   Without the architecture flags a build on clean derived data fails (the XCFramework has no
   x86_64 slice). The gate also pipes the output through `scripts/filter-xcode-log.sh`, which
   hides the exported build settings (they include the Maps key) from the log.
+- The app target sets `ENABLE_USER_SCRIPT_SANDBOXING = NO` in its three configurations (the project level has
+  `YES`) because the "Build KMP Shared Framework" phase writes `shared/build/.xcode_kmp_stamp` and can run Gradle,
+  which a sandboxed script phase cannot do. The pre-action is a scheme action, not a build phase.
+- Never run `integrateEmbedAndSign` or `integrateLinkagePackage` (the Kotlin Gradle plugin's tasks that rewrite an
+  Xcode project for `embedAndSignAppleFrameworkForXcode` or SwiftPM import) on this project: they add a second
+  integration next to the pre-action and the phase. Enforced: reviewer only. Violation: `blocking`.
 - Never disable, reorder or bypass the pre-action or the phase, and keep the shell logic in
   the script, not inline in the scheme or the project file.
 - Unexpected "missing/stale symbol from `TrailMetricsShared`": look in the build log for the
