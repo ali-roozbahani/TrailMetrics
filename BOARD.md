@@ -297,7 +297,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: CI, iosApp
 - Order: 108
 - Source: spike kotlin-agent-skills 2026-11-17
-- Problem: Needs a look before a plan, and the fix is likely a workflow change (the owner merges it). In the four latest runs of `main` (2026-11-16), the step "Run iOS package tests" of the `ios-build` job took 377 to 603 s of a job of 683 to 1176 s. It runs `xcodebuild test` once per package with a `Tests/` directory, and each run resolves, builds and links the packages and the test-only framework variant again.
+- Problem: Needs the owner's design: each way to shorten it changes how every package is tested in CI and in the gate (one `xcodebuild` for all packages against one per package, build once and test without building, a derived-data cache, parallel simulators), and trades CI minutes against isolation per package; the workflow and gate files are protected. In the four latest runs of `main` (2026-11-16), the step "Run iOS package tests" of the `ios-build` job took 377 to 603 s of a job of 683 to 1176 s. It runs `xcodebuild test` once per package with a `Tests/` directory, and each run resolves, builds and links the packages and the test-only framework variant again.
 - Done when: the time is attributed (resolution, build, simulator boot, tests, per package) from a CI log, and the owner has the options with expected savings (one `xcodebuild` for all packages, build once and test without building, a cache of derived data, parallel simulators); a PR does the chosen one with before and after step times.
 - Refs: `.github/workflows/ci.yml` (`ios-build`, step "Run iOS package tests"); `scripts/pre-push-check.sh` (the gate's package-test step); `tm-ios` ("Build integration").
 

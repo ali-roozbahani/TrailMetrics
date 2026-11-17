@@ -227,8 +227,8 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
 - A faster local loop changes nothing that CI or a Release build produces. Enforced: reviewer only. Violation: `blocking`.
 - Open work is on the board: `release-build-links-debug-xcframework`, `ios-simulator-only-framework-slice`,
   `swift-api-header-dump-in-gate`, `ios-ci-package-tests-duration`.
-- Revisit when: Room publishes an iosX64 artifact, or Intel simulators are wanted again; the no-iosX64 rule and the
-  `iosX64()` removal in `domain` and `core` then change.
+- Revisit when: Room publishes an iosX64 artifact, or Intel simulators are wanted again; the no-iosX64 rule for new
+  modules then changes.
 
 ## Changing the database schema (Room)
 
