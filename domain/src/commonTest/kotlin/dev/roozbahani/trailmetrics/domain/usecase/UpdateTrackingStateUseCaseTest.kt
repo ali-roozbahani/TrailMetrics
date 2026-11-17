@@ -300,20 +300,21 @@ class UpdateTrackingStateUseCaseTest {
             TrackingEvent.Stop(20),
             TrackingEvent.LocationReceived(point2, 20, 1f)
         )
+        // Outcome per state, in the order of `events`: Start, Pause, Resume, Stop, LocationReceived.
         val expected = mapOf(
-            "Idle" to mapOf("Start" to "Tracking", "Pause" to "Idle", "Resume" to "Idle", "Stop" to "Idle", "LocationReceived" to "Idle"),
-            "Tracking" to mapOf("Start" to "Tracking", "Pause" to "Paused", "Resume" to "Tracking", "Stop" to "Finished", "LocationReceived" to "Tracking"),
-            "Paused" to mapOf("Start" to "Paused", "Pause" to "Paused", "Resume" to "Tracking", "Stop" to "Finished", "LocationReceived" to "Paused"),
-            "Finished" to mapOf("Start" to "Tracking", "Pause" to "Finished", "Resume" to "Finished", "Stop" to "Finished", "LocationReceived" to "Finished")
+            "Idle" to listOf("Tracking", "Idle", "Idle", "Idle", "Idle"),
+            "Tracking" to listOf("Tracking", "Paused", "Tracking", "Finished", "Tracking"),
+            "Paused" to listOf("Paused", "Paused", "Tracking", "Finished", "Paused"),
+            "Finished" to listOf("Tracking", "Finished", "Finished", "Finished", "Finished")
         )
 
         assertEquals(states.map(::stateName).toSet(), expected.keys, "every state has a row")
         states.forEach { state ->
             val row = expected.getValue(stateName(state))
-            assertEquals(events.map(::eventName).toSet(), row.keys, "${stateName(state)} has a decision for every event")
-            events.forEach { event ->
+            assertEquals(events.size, row.size, "${stateName(state)} has a decision for every event")
+            events.forEachIndexed { index, event ->
                 assertEquals(
-                    row.getValue(eventName(event)),
+                    row[index],
                     stateName(useCase(state, event)),
                     "${eventName(event)} from ${stateName(state)}"
                 )
