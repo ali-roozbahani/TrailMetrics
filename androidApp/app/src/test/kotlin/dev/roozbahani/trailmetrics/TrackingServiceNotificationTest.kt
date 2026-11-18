@@ -11,6 +11,7 @@ import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeLogger
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
+import dev.roozbahani.trailmetrics.data.di.trackingServiceScopeQualifier
 import dev.roozbahani.trailmetrics.data.tracking.StopTrackingAuthorization
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -22,10 +23,11 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.job
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -44,13 +46,18 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** The tracking notification the real [TrackingService] posts: its body and its Stop button. */
+@OptIn(ExperimentalCoroutinesApi::class) // the test dispatchers have no stable replacement
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class) // not TrailMetricsApplication: it would start the real Koin
 class TrackingServiceNotificationTest {
 
     private val application: Application = Robolectric.buildActivity(MainActivity::class.java).get().application
 
-    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    // The scope the service gets from Koin (`trackingServiceScopeQualifier`): on a test dispatcher, so the service's
+    // work runs on the test thread, inside the test, and not on a Default thread that outlives it.
+    private val scheduler = TestCoroutineScheduler()
+    private var serviceScope: CoroutineScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(scheduler))
+
     @Before
     fun setUp() {
         val launcherActivity = ComponentName(application.packageName, MainActivity::class.java.name)
@@ -74,7 +81,7 @@ class TrackingServiceNotificationTest {
             clock = FakeClock(),
             logger = FakeLogger(),
             trackingSessionStore = FakeTrackingSessionStore(),
-            scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
+            scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(scheduler))
         )
         manager.start(Coordinates(47.0, 8.0), ActivityType.Running)
         startKoin {
@@ -82,45 +89,44 @@ class TrackingServiceNotificationTest {
                 module {
                     single { manager }
                     single<Logger> { FakeLogger() }
+                    factory<CoroutineScope>(trackingServiceScopeQualifier) { serviceScope }
                 }
             )
         }
     }
 
-    // The services a test started. `onStartCommand` launches the service's observation on `Dispatchers.Default`, which
-    // resolves its dependencies from Koin when it starts. A service that is not destroyed keeps that work alive past
-    // `stopKoin()`: it then fails on a Default thread ("KoinApplication has not been started"), and the next
-    // `runTest` in the same JVM, in whatever class, reports it as an uncaught exception before its test.
+    // The services a test started: destroyed before Koin stops, which cancels the scope they got from it.
     private val startedServices = mutableListOf<ServiceController<TrackingService>>()
 
     @After
     fun tearDown() {
-        startedServices.forEach { controller ->
-            val service = controller.get()
-            controller.destroy()
-            // `onDestroy` cancels the service scope, but work that is already running on a Default thread (building the
-            // notification) goes on until it returns, and it needs what this test set up (the launcher activity of the
-            // package manager shadow, Koin). Wait until that work is over before the test environment is torn down.
-            runBlocking {
-                // Bounded, so a collector that never returns fails the test with a message instead of hanging the run.
-                withTimeout(SERVICE_SCOPE_JOIN_TIMEOUT_MILLIS) { serviceScope(service).coroutineContext.job.join() }
-            }
-        }
+        startedServices.forEach { it.destroy() }
         stopKoin()
     }
-
-    // The scope is private to `data`, which has no seam for the dispatcher yet (`tm-robustness` D1,
-    // `inject-dispatchers-from-di`).
-    private fun serviceScope(service: TrackingService): CoroutineScope =
-        TrackingService::class.java.getDeclaredField("serviceScope")
-            .apply { isAccessible = true }
-            .get(service) as CoroutineScope
 
     private fun foregroundNotification(): Notification {
         val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
         startedServices += controller
         controller.get().onStartCommand(Intent(), 0, 1)
         return assertNotNull(shadowOf(controller.get()).lastForegroundNotification)
+    }
+
+    @Test
+    fun `the service observes the session on the scope Koin gives it and cancels that scope when destroyed`() {
+        serviceScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(scheduler))
+        val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
+        startedServices += controller
+
+        controller.get().onStartCommand(Intent(), 0, 1)
+
+        // Launched on the injected dispatcher and not yet run: the dispatcher is the test's, not Default.
+        assertEquals(1, serviceScope.coroutineContext.job.children.count())
+        scheduler.runCurrent()
+        assertTrue(serviceScope.isActive)
+
+        controller.destroy()
+
+        assertFalse(serviceScope.isActive)
     }
 
     @Test
@@ -148,7 +154,4 @@ class TrackingServiceNotificationTest {
         assertTrue(StopTrackingAuthorization.isAuthorized(intent))
     }
 
-    private companion object {
-        const val SERVICE_SCOPE_JOIN_TIMEOUT_MILLIS = 10_000L
-    }
 }

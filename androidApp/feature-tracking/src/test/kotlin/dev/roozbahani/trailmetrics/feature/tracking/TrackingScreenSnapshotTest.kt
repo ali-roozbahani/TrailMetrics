@@ -17,6 +17,7 @@ import dev.roozbahani.trailmetrics.feature.tracking.TrackingScreenFixture.Compan
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.FakeGoogleMap
 import dev.roozbahani.trailmetrics.feature.tracking.fakes.ShadowMapView
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
@@ -28,6 +29,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
+import kotlin.coroutines.CoroutineContext
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -47,14 +49,14 @@ class TrackingScreenSnapshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private val fixture = TrackingScreenFixture()
+    // The save runs on this dispatcher (the fixture binds it in Koin as the snapshot dispatcher), so a delivered
+    // snapshot is saved before the test goes on.
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private val snapshotDispatcher = AskedDispatcher(UnconfinedTestDispatcher())
+    private val fixture = TrackingScreenFixture(snapshotDispatcher)
     private val robot = TrackingScreenRobot(composeRule)
     private val fakeMap = FakeGoogleMap()
     private var navigateBackCalls = 0
-
-    // The save runs on this dispatcher, so a delivered snapshot is saved before the test goes on.
-    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
-    private val snapshotDispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setUp() {
@@ -79,8 +81,7 @@ class TrackingScreenSnapshotTest {
             startPoint = START,
             plannedRoutePoints = WALKED_ROUTE,
             onNavigateBack = { navigateBackCalls++ },
-            inspectionMode = false,
-            snapshotDispatcher = snapshotDispatcher
+            inspectionMode = false
         ).clickStart()
         fixture.receiveLocation(END, millisAfterStart = 60_000L)
         return robot.waitForIdle().assertCompletedCard()
@@ -95,8 +96,7 @@ class TrackingScreenSnapshotTest {
         startPoint = START,
         plannedRoutePoints = emptyList(),
         onNavigateBack = { navigateBackCalls++ },
-        inspectionMode = false,
-        snapshotDispatcher = snapshotDispatcher
+        inspectionMode = false
     )
 
     private fun List<Coordinates>.asLatLngs() = map { LatLng(it.latitude, it.longitude) }
@@ -147,6 +147,18 @@ class TrackingScreenSnapshotTest {
         assertSnapshotFileUnderFilesDir(path)
         assertEquals(listOf(File(path).canonicalFile), snapshotFiles().map { it.canonicalFile }, "one file, referenced")
         assertEquals(1, navigateBackCalls)
+    }
+
+    @Test
+    fun `the snapshot is saved on the dispatcher Koin provides`() {
+        showReachedDestination().clickFinish().waitForIdle()
+        assertEquals(0, snapshotDispatcher.asked, "nothing is saved before the snapshot arrives")
+
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+
+        assertTrue(snapshotDispatcher.asked > 0, "the save went through the injected dispatcher")
+        assertNotNull(fixture.activityHistoryRepository.savedActivities.single().snapshotFilePath)
     }
 
     @Test
@@ -294,4 +306,17 @@ class TrackingScreenSnapshotTest {
     }
 
     private fun bitmap(width: Int, height: Int): Bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+    /** Delegates to [delegate] and counts how often `withContext` asked whether it must switch to it. */
+    private class AskedDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        var asked = 0
+            private set
+
+        override fun isDispatchNeeded(context: CoroutineContext): Boolean {
+            asked++
+            return delegate.isDispatchNeeded(context)
+        }
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) = delegate.dispatch(context, block)
+    }
 }

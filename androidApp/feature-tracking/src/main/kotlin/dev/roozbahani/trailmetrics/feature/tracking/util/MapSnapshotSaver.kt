@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -20,7 +19,7 @@ import java.io.IOException
 internal suspend fun saveSnapshotToFile(
     context: Context,
     bitmap: Bitmap,
-    ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    ioDispatcher: CoroutineDispatcher
 ): String? {
     val file = File(context.filesDir, "activity_${System.currentTimeMillis()}.png")
     return try {
