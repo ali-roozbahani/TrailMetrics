@@ -1,6 +1,6 @@
 # Kotlin naming, deprecation, dead code and Detekt
 
-Moved word for word from `SKILL.md`: the sections "Naming (Kotlin)", "No deprecated APIs (Kotlin)", "No dead code" and "Detekt (CI-enforced, `maxIssues: 0`)". The rules are unchanged; they are still cited as `tm-android`, "Naming (Kotlin)", "No deprecated APIs (Kotlin)", "No dead code" and "Detekt".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Naming (Kotlin)", "No deprecated APIs (Kotlin)", "No dead code" and "Detekt (CI-enforced, `maxIssues: 0`)". The rules are unchanged; they are still cited as `tm-android`, "Naming (Kotlin)", "No deprecated APIs (Kotlin)", "No dead code" and "Detekt".
 
 ## Naming (Kotlin)
 
