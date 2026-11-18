@@ -13,7 +13,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import org.koin.dsl.module
 
 val databaseModule = module {
-    single<TrailMetricsDatabase> { getRoomDatabase(getDatabaseBuilder(), get<CoroutineDispatcher>(ioDispatcherQualifier)) }
+    single<TrailMetricsDatabase> {
+        getRoomDatabase(getDatabaseBuilder(), get<CoroutineDispatcher>(ioDispatcherQualifier))
+    }
     single<ActivityDao> { get<TrailMetricsDatabase>().activityDao() }
     single<TrackingSessionDao> { get<TrailMetricsDatabase>().trackingSessionDao() }
     single<TrackingSessionPlanDao> { get<TrailMetricsDatabase>().trackingSessionPlanDao() }
