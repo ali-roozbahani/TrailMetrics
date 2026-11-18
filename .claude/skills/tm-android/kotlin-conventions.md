@@ -15,7 +15,7 @@ Moved word for word from `SKILL.md`: the sections "Naming (Kotlin)", "No depreca
 - Booleans read as questions: `isLoading`, `canStart`, `hasReachedDestination`,
   `showProfileSheet` for visibility flags. Never a bare noun. (Detekt's
   `BooleanPropertyNaming` is off, so this one is review-enforced.)
-- Per-feature types: see the MVI naming above. Koin modules: `<feature>Module` /
+- Per-feature types: see the MVI naming in `SKILL.md` ("Presentation layer — MVI (target shape)"). Koin modules: `<feature>Module` /
   `<feature>UiModule` in `di/<Feature>Module.kt`.
 - Test names are backtick sentences (`` `saves activity with recalculated calories`() ``),
   never `test1`. See `tm-testing`. The exception is `androidTest`, where names are camelCase (a name

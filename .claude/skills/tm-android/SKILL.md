@@ -45,7 +45,7 @@ named here.
   (`ActivityHistoryRepository`), never to its `data` implementation. Enforced: the module graph (a
   feature module cannot see `:data`); reviewer only elsewhere. Violation: `blocking`.
 - One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList` (see
-  "Detekt") are the mechanical signal; a class that mixes state, IO and formatting is the judgement
+  "Detekt", `kotlin-conventions.md`) are the mechanical signal; a class that mixes state, IO and formatting is the judgement
   one, reviewer only. Violation: `important`.
 - Never an `is`/`as` cast on an abstraction to reach a concrete type, and never an interface method
   that an implementer leaves empty or throws `NotImplementedError` from (split the interface).
@@ -187,7 +187,7 @@ Don't copy these as a pattern for new code.
 - Each screen file also has a public `<X>Screen(...)` overload that only delegates to
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
-- `MainActivity` field-injects with `by inject()` (see Koin).
+- `MainActivity` field-injects with `by inject()` (see "Koin", `koin-and-gradle.md`).
 - `TrackingRoot`, `RouteRoot`, `DetailsRoot` and `HistoryRoot` collect their events in
   `LaunchedEffect(Unit)` and call the navigation callback they received at the first composition
   (the effect rule in "Compose").
