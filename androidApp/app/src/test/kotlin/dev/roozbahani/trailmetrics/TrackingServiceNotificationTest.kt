@@ -22,6 +22,8 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Before
@@ -92,9 +94,23 @@ class TrackingServiceNotificationTest {
 
     @After
     fun tearDown() {
-        startedServices.forEach { it.destroy() }
+        startedServices.forEach { controller ->
+            val service = controller.get()
+            controller.destroy()
+            // `onDestroy` cancels the service scope, but work that is already running on a Default thread (building the
+            // notification) goes on until it returns, and it needs what this test set up (the launcher activity of the
+            // package manager shadow, Koin). Wait until that work is over before the test environment is torn down.
+            runBlocking { serviceScope(service).coroutineContext.job.join() }
+        }
         stopKoin()
     }
+
+    // The scope is private to `data`, which has no seam for the dispatcher yet (`tm-robustness` D1,
+    // `inject-dispatchers-from-di`).
+    private fun serviceScope(service: TrackingService): CoroutineScope =
+        TrackingService::class.java.getDeclaredField("serviceScope")
+            .apply { isAccessible = true }
+            .get(service) as CoroutineScope
 
     private fun foregroundNotification(): Notification {
         val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
