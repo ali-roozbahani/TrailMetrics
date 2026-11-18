@@ -29,7 +29,7 @@ file when the task or the diff reaches its topic, not before; a reviewer reads i
 |---|---|---|
 | `SKILL.md` (this file) | C1 to C6, E1 to E4, D1 to D7 | every Kotlin or Swift change |
 | `lifecycle-and-permissions.md` | S1, S2, R1, R2, R3, R5, R7 | a change touches an exported component or an `Intent`, a runtime permission, saved or restored state, a service or a Live Activity, a scene phase, or how a flow is collected |
-| `memory-and-leaks.md` | M1, M2, M3, M5, M6, M7, M8 | a change registers a listener, observer, receiver, timer or callback, keeps a `Context`, a closure or a coroutine in a long-lived object, holds an image or a cache, or adds a leak check |
+| `memory-and-leaks.md` | M1, M2, M3, M5, M6, M7, M8, M9 | a change adds a non-UI class that creates or keeps a `CoroutineScope` or launches from `init`, or registers a listener, observer, receiver, timer or callback, keeps a `Context`, a closure or a coroutine in a long-lived object, holds an image or a cache, or adds a leak check |
 | `performance.md` | P1 to P6, P8, P9 | a change touches a lazy list, composition or `body` work, a per-update or per-tick path, a Room query, location priority or interval, or `@Stable`/`@Immutable` |
 
 

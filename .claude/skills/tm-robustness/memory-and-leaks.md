@@ -1,6 +1,6 @@
-# Memory and leaks (M1, M2, M3, M5, M6, M7, M8)
+# Memory and leaks (M1, M2, M3, M5, M6, M7, M8, M9)
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Memory and leaks". The rules are unchanged; they are still cited as `tm-robustness`, rules M1, M2, M3, M5, M6, M7 and M8.
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Memory and leaks". The rules are unchanged; they are still cited as `tm-robustness`, rules M1, M2, M3, M5, M6, M7, M8 and M9.
 
 ## Memory and leaks
 
