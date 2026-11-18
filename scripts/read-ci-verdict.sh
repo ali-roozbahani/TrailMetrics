@@ -1,7 +1,7 @@
 #!/bin/bash
 # Reads the CI reviewer's verdict for a head SHA from the annotation of its check run
 # (`Review — pr-reviewer`). The check's conclusion is green for both APPROVE and
-# ESCALATE_TO_HUMAN, so the verdict is the annotation prefix (tm-agent-loop, section 7).
+# ESCALATE_TO_HUMAN, so the verdict is the annotation prefix (tm-agent-loop, section 7, merge.md).
 #
 #   scripts/read-ci-verdict.sh <PR number> <head SHA>
 #   scripts/read-ci-verdict.sh --self-test

@@ -136,7 +136,7 @@ How it is enforced (the full text, with the exact shapes of the push and PR comm
     reviewer's correction led to a new, separately scoped task. None of them was a gate
     failure: all of #30–#37 were green in CI on the first run.
   - CI going red after a green local gate. That shouldn't happen (see "CI vs the gate"
-    below). If it does, follow `tm-agent-loop`, section 6 (a fix is a new commit through the
+    below). If it does, follow `tm-agent-loop`, section 6 (`watching-ci.md`) (a fix is a new commit through the
     gate, at most 2 such CI-fix rounds per PR; a flake is re-run once through the script)
     instead of iterating against CI.
 
@@ -256,7 +256,7 @@ A bump that deprecates APIs ends with no deprecated call and no suppression. Wit
   rule-change signal (`tm-pr-review` item 10) escalates any removed or rewritten rule line.
 - An agent never merges a PR that touches a protected path. The human merges those. The one
   exception is a subtask PR into an epic branch whose plan `allowed_paths` cover the path
-  (`tm-agent-loop`, "Merge conditions", condition 6); the epic PR into `main` is always the
+  (`tm-agent-loop`, "Merge conditions", `merge.md`, condition 6); the epic PR into `main` is always the
   human's.
 - **Docs follow the code you changed.** Before the final gate run, sweep: search the repo
   (code, skills, docs, comments, CODEOWNERS, scripts, CI, `BOARD.md` records) for the names,
@@ -301,7 +301,7 @@ A bump that deprecates APIs ends with no deprecated call and no suppression. Wit
 
 ## After the PR is open
 
-The agent continues with `tm-agent-loop`, sections 6 to 8, and posts the "Merge check" comment on
+The agent continues with `tm-agent-loop`, sections 6 to 8 (`watching-ci.md`, `merge.md`), and posts the "Merge check" comment on
 every PR. The human's part that follows, for context, is in `after-pr-open.md`.
 
 Review comments turn into new commits on the same branch, each through the gate again.
