@@ -5,6 +5,7 @@ import androidx.room3.Room
 import androidx.sqlite.SQLiteDriver
 import androidx.sqlite.driver.AndroidSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -29,7 +30,8 @@ class TrailMetricsMigrationAndroidHostTest : TrailMetricsMigrationTest() {
                 ApplicationProvider.getApplicationContext<Context>(),
                 path
             ),
-            AndroidSQLiteDriver()
+            AndroidSQLiteDriver(),
+            Dispatchers.IO
         )
 
     override fun deleteDatabaseDirectory(directory: String) {
