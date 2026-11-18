@@ -88,7 +88,8 @@ scripts/main-ui-run.sh --status        # the last full UI run of main, and wheth
 ## Tier 1: the local gate (agent's job)
 
 `scripts/pre-push-check.sh` must exit 0 before any push. The script is the description of the
-gate: its header comment, its output (it names every step that ran) and the `--self-test`
+gate: its header comment, its output (one line per step that ran, with the path of that step's full
+log under `~/agent-workspace/gate-logs/`; a failed step also prints its failure block) and the `--self-test`
 option of each `scripts/check-*.sh` script say what is checked, so read them rather than a list
 here. Run the script itself, not a hand-picked command.
 

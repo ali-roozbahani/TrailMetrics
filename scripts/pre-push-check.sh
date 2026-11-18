@@ -33,13 +33,69 @@ if ! scripts/check-full-clone.sh; then
 fi
 
 FAILURES=()
+
+# What reaches the terminal: one line per step, and for a failed step the failure block. The full output of every
+# step goes to a log file in the agent workspace, so a red run costs about a page, not the whole build log
+# (the output of a gate run used to be thousands of lines). Exit codes, step order,
+# the retry budget and the steps themselves are unchanged: every step still runs, whatever an earlier one did.
+GATE_LOG_ROOT="${TM_GATE_LOG_DIR:-$HOME/agent-workspace/gate-logs}"
+GATE_LOG_DIR="$GATE_LOG_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
+if ! mkdir -p "$GATE_LOG_DIR" 2>/dev/null; then
+    echo "!!  cannot create the log directory $GATE_LOG_DIR"
+    echo "Gate stopped before any step. Do not push."
+    exit 1
+fi
+# Runs older than 3 days go; only directories of this root, never anything else.
+find "$GATE_LOG_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
+GATE_STEP_NO=0
+GATE_QUIET_PASSED=0
+
+# gate_failure_excerpt <log>: what a failed step shows. Gradle's "What went wrong" block (at most 20 lines), then the
+# first 40 error lines of the log (compiler errors, failed tests, assertion and exception lines, detekt findings,
+# the gate's own "!!" lines). A log with neither shows its last 40 lines, so a failure is never printed empty.
+gate_failure_excerpt() {
+    local log="$1" went errors
+    went="$(awk '/^\* What went wrong:/{f=1} /^\* Try:/{f=0} f' "$log" | head -n 20)"
+    errors="$(grep -E '^e: |: error:|: Error:|FAILED|Exception|AssertionError|\[[A-Za-z]+\]$|^!! ' "$log" | head -n 40)"
+    if [ -z "$went" ] && [ -z "$errors" ]; then
+        errors="$(tail -n 40 "$log")"
+    fi
+    [ -n "$went" ] && printf '%s\n' "$went" | sed 's/^/      /'
+    [ -n "$errors" ] && printf '%s\n' "$errors" | sed 's/^/      /'
+    return 0
+}
+
+# run_step <name> <command...>: runs the command with all its output in a log file, prints one line (status, name,
+# seconds, log path) and, for a failed step, the failure block. With GATE_QUIET=true a step that passed prints nothing
+# (the caller prints one summary line, `gate_quiet_summary`): for the self-test loops, which have dozens of steps.
 run_step() {
     local name="$1"; shift
-    echo "==> $name"
-    if ! "$@"; then
+    local log started elapsed status slug
+    GATE_STEP_NO=$((GATE_STEP_NO + 1))
+    slug="$(printf '%s' "$name" | tr -c 'A-Za-z0-9' '-' | cut -c1-48)"
+    log="$(printf '%s/%02d-%s.log' "$GATE_LOG_DIR" "$GATE_STEP_NO" "$slug")"
+    started=$SECONDS
+    "$@" >"$log" 2>&1
+    status=$?
+    elapsed=$((SECONDS - started))
+    if [ $status -eq 0 ]; then
+        if [ "${GATE_QUIET:-false}" = true ]; then
+            GATE_QUIET_PASSED=$((GATE_QUIET_PASSED + 1))
+        else
+            printf '  ok    %-40s %4ss  %s\n' "$name" "$elapsed" "$log"
+        fi
+    else
         FAILURES+=("$name")
-        echo "!!  $name FAILED"
+        printf '  FAIL  %-40s %4ss  %s\n' "$name" "$elapsed" "$log"
+        gate_failure_excerpt "$log"
+        echo "      full log: $log"
     fi
+}
+
+# One line for a loop of quiet steps: how many passed. A failed one printed its own FAIL line above.
+gate_quiet_summary() {
+    printf '  ok    %-40s %4s  %s\n' "$1: $GATE_QUIET_PASSED passed" "" "$GATE_LOG_DIR"
+    GATE_QUIET_PASSED=0
 }
 
 # run_limited <seconds> <command> [args...]: runs the command with a hard limit for the whole step
@@ -199,14 +255,15 @@ run_step "scripts index check" scripts/checks/scripts-index.sh --check
 run_step "heavy scripts check" scripts/check-heavy-scripts.sh
 
 # Script self-tests: the lists scripts/checks/self-tests-tooling.list and scripts/checks/self-tests.list, which
-# CI runs too. Their check fails when a script with a --self-test is on neither. One gate step per line, so the output
-# still names each self-test; the list is read on fd 3, so a self-test cannot read it from
+# CI runs too. Their check fails when a script with a --self-test is on neither. One gate step per line, each with its own
+# log (a failed one prints its own FAIL line, a passed one only counts in the summary line); the list is read on fd 3, so a self-test cannot read it from
 # stdin. Fail closed: a list that cannot be read is a failure, not zero steps.
 run_step "self-test list check" scripts/checks/self-tests.sh --check
 if SELF_TESTS="$(scripts/checks/self-tests.sh --list tooling macos)"; then
     while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
-        run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+        GATE_QUIET=true run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
     done 3<<< "$SELF_TESTS"
+    gate_quiet_summary "script self-tests (tooling, macos)"
 else
     FAILURES+=("self-test list (scripts/checks/self-tests.sh --list tooling macos failed)")
 fi
@@ -348,8 +405,9 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     if command -v swiftlint >/dev/null 2>&1; then
         if SELF_TESTS="$(scripts/checks/self-tests.sh --list ios-swiftlint)"; then
             while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
-                run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+                GATE_QUIET=true run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
             done 3<<< "$SELF_TESTS"
+            gate_quiet_summary "script self-tests (ios-swiftlint)"
         else
             FAILURES+=("self-test list (scripts/checks/self-tests.sh --list ios-swiftlint failed)")
         fi
@@ -483,6 +541,7 @@ echo "==> review verdict (report only, never fails the gate)"
 report_review_verdict || true
 
 echo
+echo "Logs of every step: $GATE_LOG_DIR"
 if [ ${#FAILURES[@]} -eq 0 ]; then
     echo "All required checks passed. Safe to commit/push."
     # --git-path resolves to this checkout's own git dir: .git/ in the main checkout,
