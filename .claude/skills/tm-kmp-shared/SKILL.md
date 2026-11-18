@@ -45,7 +45,7 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
 - Platform ViewModels only adapt shared logic to UI state/Action/Event. They do not own
   business rules.
 - One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList`
-  (`tm-android`, "Detekt") are the mechanical signal; a class that mixes state, IO and formatting is
+  (`tm-android`, "Detekt", `kotlin-conventions.md`) are the mechanical signal; a class that mixes state, IO and formatting is
   the judgement one, reviewer only. Violation: `important`.
 - Never an `is`/`as` cast on an abstraction to reach a concrete type, and never an interface method
   that an implementer leaves empty or throws `NotImplementedError` from (split the interface).
@@ -302,12 +302,12 @@ the epic branch; Android UI and iOS UI then proceed independently since they onl
 ## Kotlin conventions (domain / data / core / shared)
 
 Naming, no deprecated APIs (these modules compile with `allWarningsAsErrors = true` too) and no
-dead code: the Kotlin rules in `tm-android` ("Naming (Kotlin)", "No deprecated APIs (Kotlin)",
+dead code: the Kotlin rules in `tm-android` (`kotlin-conventions.md`: "Naming (Kotlin)", "No deprecated APIs (Kotlin)",
 "No dead code") apply here unchanged.
 
 ## Detekt
 
-CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android` ("Detekt").
+CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android` ("Detekt", `kotlin-conventions.md`).
 
 ## Known deviations in the current code
 
