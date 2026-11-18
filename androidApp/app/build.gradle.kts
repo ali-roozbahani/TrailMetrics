@@ -107,8 +107,27 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
-// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): no floor here
-// yet. This module is the app shell (Application, Koin start, `MainActivity` with the nav host, bottom
-// bar and nav types); its unit tests (src/test: the saved-session offer, the nav-host effect and the
-// notification Stop intent) cover 42.9% of its lines (measured 2026-10-25). A floor, set the way
-// the feature modules' are, is the board record app-kover-floor.
+// Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
+// little below this module's measured line coverage from its own tests (60.1% on 2026-11-18). This module is
+// the app shell (Application, Koin start, `MainActivity` with the nav host, bottom bar and nav types).
+// The number is this module's entry in config/kover-floors.properties (key: the directory name),
+// which scripts/check-kover-floors.sh lets only go up; no file, no entry or no integer fails the build.
+val koverFloorsFile = layout.settingsDirectory.file("config/kover-floors.properties")
+val koverFloor: Int = run {
+    val text = providers.fileContents(koverFloorsFile).asText.orNull
+        ?: throw GradleException("${koverFloorsFile.asFile} is missing: it holds the Kover floor of $path")
+    val value = text.lines().filter { it.substringBefore('=').trim() == projectDir.name && !it.startsWith("#") }
+        .singleOrNull()?.substringAfter('=', "")
+        ?: throw GradleException("${koverFloorsFile.asFile} needs one entry '${projectDir.name}' (Kover floor of $path)")
+    value.trim().toIntOrNull()?.takeIf { it in 0..100 }
+        ?: throw GradleException("${koverFloorsFile.asFile}: '${projectDir.name}=$value' is not an integer from 0 to 100")
+}
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(koverFloor)
+            }
+        }
+    }
+}
