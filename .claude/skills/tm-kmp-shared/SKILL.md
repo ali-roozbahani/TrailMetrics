@@ -276,7 +276,7 @@ open every older database and keep its rows. The procedure, in order:
    version and entity list) and `Converters.kt` (its stored form exports no schema file and bumps no version,
    yet can make existing data unreadable), are protected paths in `.github/CODEOWNERS`, so such a PR is the
    owner's to merge even when it touches nothing else protected: build it through the gate as usual, post
-   the Merge check (condition 6 is "no", `tm-agent-loop`, section 8) and hand it over. A change of a DAO, a
+   the Merge check (condition 6 is "no", `tm-agent-loop`, section 8, `merge.md`) and hand it over. A change of a DAO, a
    mapper, a repository, the builders or a test (`ConvertersTest` included) stays open; an entity change
    reaches the protected files because it needs the bump (step 2).
 
