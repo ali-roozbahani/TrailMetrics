@@ -21,15 +21,18 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEST_DIRS='/(test|androidTest|commonTest|androidHostTest|iosTest|jvmTest|androidUnitTest|androidInstrumentedTest)/'
 
-scan() { # <repo dir>
-    (cd "$1" && git ls-files -z '*.kt' | tr '\0' '\n' | grep -vE "$TEST_DIRS" |
+scan() { # <repo dir>: prints the hits; returns 2 when the file list cannot be read (a check that could not look is not a pass)
+    local list f n
+    list="$(cd "$1" && git ls-files -z '*.kt' | tr '\0' '\n'; exit "${PIPESTATUS[0]}")" || return 2
+    [ -n "$list" ] || return 2
+    echo "$list" | grep -vE "$TEST_DIRS" |
         while IFS= read -r f; do
             # one-line string literals and `fun print(` declarations are blanked first, line for line
-            sed -E 's/"([^"\\]|\\.)*"/""/g; s/fun[[:space:]]+(println|print)\(/fun X(/g' "$f" |
+            sed -E 's/"([^"\\]|\\.)*"/""/g; s/fun[[:space:]]+(println|print)\(/fun X(/g' "$1/$f" |
                 grep -nE '(^|[^A-Za-z0-9_.])(println|print)\(' |
                 grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 |
-                while IFS= read -r n; do echo "$f:$n:$(sed -n "${n}p" "$f")"; done
-        done)
+                while IFS= read -r n; do echo "$f:$n:$(sed -n "${n}p" "$1/$f")"; done
+        done
 }
 
 if [ "${1:-}" = "--self-test" ] && [ $# -eq 1 ]; then
@@ -50,6 +53,10 @@ if [ "${1:-}" = "--self-test" ] && [ $# -eq 1 ]; then
     done
     n="$(echo "$out" | grep -c . || true)"
     [ "$n" = 3 ] && echo "ok   only the three production hits (a test file, comments, member and qualified calls, a declaration and string literals are skipped)" || { echo "FAIL expected 3 hits, got $n:"; echo "$out"; failed=1; }
+    # a directory that is not a git checkout: the check cannot look, so it is not a pass
+    mkdir -p "$WORK/not-a-repo" && printf 'fun a() { println("x") }\n' > "$WORK/not-a-repo/A.kt"
+    (cd "$WORK/not-a-repo" && GIT_CEILING_DIRECTORIES="$WORK" scan "$WORK/not-a-repo" >/dev/null 2>&1); rc=$?
+    [ "$rc" = 2 ] && echo "ok   not a git checkout: scan fails (2)" || { echo "FAIL not a git checkout: scan returned $rc, expected 2"; failed=1; }
     [ "$failed" = 0 ] && echo "no-println check: self-test passed" || echo "no-println check: self-test FAILED"
     exit "$failed"
 fi
@@ -59,6 +66,11 @@ if [ $# -ne 0 ]; then
 fi
 
 hits="$(scan "$ROOT")"
+rc=$?
+if [ "$rc" != 0 ]; then
+    echo "check-no-println: could not list the tracked Kotlin files of $ROOT (not a git checkout, or none): not a pass" >&2
+    exit 2
+fi
 if [ -n "$hits" ]; then
     echo "println/print in production Kotlin (use a logger; tm-android, \"Detekt\"):"
     echo "$hits" | sed 's/^/  /'
