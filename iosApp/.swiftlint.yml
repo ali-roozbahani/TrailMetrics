@@ -14,11 +14,10 @@ opt_in_rules:
 disabled_rules:
   - todo
 
-# Not enabled, measured 2026-11-18 on 0.65.1: `async_without_await` reports 15 declarations. All but one are
-# `async` because a protocol requires it (the fakes of TestSupport and the test packages implement Kotlin
-# suspend functions exported through SKIE as `async` requirements, `AppIntent.perform()` in the widget), and
-# `writeMapSnapshot` is `async` on purpose (its doc comment: it runs on the caller's actor). The rule cannot
-# tell a required `async` from a needless one, so enabling it would mean a disable comment on each.
+# Not enabled, measured 2026-11-18 on 0.65.1: `async_without_await` reports 15 declarations. Most are fakes of
+# TestSupport and the test packages and the widget's `AppIntent.perform()`, whose `async` comes from the protocol
+# they implement, and `writeMapSnapshot` is `async` on purpose (its doc comment: it runs on the caller's actor).
+# The rule cannot tell a required `async` from a needless one, so enabling it would mean a disable comment on each.
 
 force_unwrapping: error
 force_cast: error
