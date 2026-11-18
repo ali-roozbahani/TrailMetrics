@@ -66,8 +66,9 @@ is all the plain `detekt` task reads, so the root build points it at every `src/
 (it was NO-SOURCE there before).
 
 - Forbidden: `println`/`print` (use a logger; `ForbiddenMethodCall` cannot resolve them, so
-  `scripts/check-no-println.sh` fails the gate and CI on a bare call in production code) and any `kotlinx.coroutines.GlobalScope` import
-  (`ForbiddenImport`, use `viewModelScope` or an injected scoped `CoroutineScope`).
+  `scripts/check-no-println.sh` fails the gate and CI on a bare call in production code) and any
+  `kotlinx.coroutines.GlobalScope` import (`ForbiddenImport`, use `viewModelScope` or an injected scoped
+  `CoroutineScope`).
 - Thresholds: `LongMethod` 60 lines, `CyclomaticComplexMethod` 15 (both ignore
   `@Composable` functions but apply everywhere else), `TooManyFunctions` 12 per class,
   `LongParameterList` 7 for functions and constructors (`TrackingSessionManager.kt` and
