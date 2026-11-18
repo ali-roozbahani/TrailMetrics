@@ -146,7 +146,7 @@ them). These robustness rules fire (each shown on a planted case): `InjectDispat
 detekt 1.23.8 embeds Kotlin 2.0.21 and cannot read the metadata of Kotlin 2.4 libraries, so a call of a
 Kotlin-declared library function stays unresolved. Off for that reason, with the reason in
 `config/detekt/detekt.yml`: `RedundantSuspendModifier` (false hits on `delay` and `collect`) and
-`SuspendFunSwallowedCancellation`; `ForbiddenMethodCall` does not fire for `println` and `print`.
+`SuspendFunSwallowedCancellation`; `ForbiddenMethodCall` does not fire for `println` and `print` (`scripts/check-no-println.sh` does).
 
 ## Known deviations in the current code
 
@@ -166,5 +166,5 @@ Don't copy these as a pattern for new code. Each names its board record.
   P6; `tracking-location-update-path-cost`).
 - `tbl_activities` has no index on the sorted `startedAtEpochMillis` and the history list reads
   whole rows including both coordinate lists (P5; `history-query-index-and-columns`).
-- detekt does not check `println` and `print` (`ForbiddenMethodCall` cannot resolve them), `runCatching`
+- detekt does not check `runCatching`
   around a suspend call, or a redundant `suspend`; see "Mechanical rules".

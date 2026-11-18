@@ -105,6 +105,10 @@ jobs:
       - name: Scripts index check
         run: scripts/checks/scripts-index.sh --check
 
+      # detekt cannot resolve println/print (config/detekt/detekt.yml), so a text check fails on them.
+      - name: No println in production Kotlin
+        run: scripts/check-no-println.sh
+
       # The self-tests of group `tooling` (scripts/checks/self-tests-tooling.list), which the gate reads
       # too. The list check fails when a script with a --self-test is on neither list.
       - name: Script self-tests

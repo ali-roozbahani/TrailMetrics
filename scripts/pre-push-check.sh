@@ -295,6 +295,9 @@ run_step "protected paths" scripts/check-protected-paths.sh --validate
 # so a failure here keeps the agent from pushing such a branch. Every other workflow change passes.
 run_step "workflow guard" scripts/check-workflow-guard.sh --base "$BASE_REF"
 
+# No println/print in production Kotlin: detekt cannot see them (config/detekt/detekt.yml). Same command as CI's tooling job.
+run_step "no println" scripts/check-no-println.sh
+
 # scripts/README.md indexes every script under scripts/ (one line each). Same as CI's tooling job.
 run_step "scripts index check" scripts/checks/scripts-index.sh --check
 

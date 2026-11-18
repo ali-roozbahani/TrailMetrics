@@ -63,7 +63,7 @@ style:
   ReturnCount:
     active: false
   # Does not fire for `println` and `print`: both are Kotlin-declared, so the typed run cannot resolve them (see the
-  # note above `coroutines`). Kept for the Java methods it can match; the gate does not rely on it for these two.
+  # note above `coroutines`). Kept for the Java methods it can match; `scripts/check-no-println.sh` checks these two.
   ForbiddenMethodCall:
     active: true
     methods:
@@ -78,6 +78,17 @@ style:
         reason: 'GlobalScope leaks coroutines outside any lifecycle. Inject or use viewModelScope/a scoped CoroutineScope instead.'
 
 complexity:
+  # Off (the default), decided for the robustness rules of tm-robustness: neither prevents a crash, a hang or a leak.
+  # Measured 2026-11-18 on the typed and plain runs: LabeledExpression 15 hits, every one read: all are an early
+  # `return@launch`, `return@LaunchedEffect`, `return@withContext`, `return@forEach` or `return@eventually` from a lambda,
+  # the idiomatic Kotlin form, not a loop label; enabling the rule would ban it. CognitiveComplexMethod 4 hits:
+  # `RouteScreen` (27) and `TrackingScreen` (90), both @Composable, `RouteViewModel.startTracking` (15) and
+  # `AndroidLocationRepositoryImpl.observeLocationUpdates` (19). CyclomaticComplexMethod (15) and LongMethod (60)
+  # below already judge function size and branching, and ignore @Composable on purpose.
+  CognitiveComplexMethod:
+    active: false
+  LabeledExpression:
+    active: false
   TooManyFunctions:
     active: true
     thresholdInClasses: 12
