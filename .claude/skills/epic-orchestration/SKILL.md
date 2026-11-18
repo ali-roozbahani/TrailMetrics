@@ -25,6 +25,22 @@ required PR description headings, and boundaries. It applies to every subtask un
 This skill only states where an epic changes the base branch, the scope or the merge
 conditions.
 
+## Topic files
+
+What applies at the start of every epic stays in this file: the roles, deciding epic or single task, committing the
+plan, the `allowed_paths` conventions, the plan and its approval, the integration branch (naming, protection,
+lifecycle). The three files below hold what happens once the plan is approved. Read each when the epic reaches its
+topic, not before. Section headings are unchanged, so a reference to `epic-orchestration`, "<heading>", is found in
+this file or in the file named here. The detail files that already existed (`plan-format.md`, `subtask-prompt.md`,
+`worktree-isolation.md`, `epic-branch-protection.md`, `decisions-history.md`) are named where this file points to them.
+
+| File | Read it when |
+|---|---|
+| `spawning-subtasks.md` ("Spawning subtask agents", "Waves", "Isolation", "What a subtask agent is told") | the plan is approved and the first wave is about to start: which subtasks are ready, disjointness, worktrees, the task prompt |
+| `subtask-prs.md` ("Subtask PRs") | a subtask agent has finished and its PR against the epic branch is opened, reviewed or merged |
+| `merging-the-epic.md` ("Merging the epic into main") | every subtask is merged into the epic branch and the epic PR into `main` is prepared |
+
+
 ## Roles
 
 - **Human**: approves the plan and every change to it, sets up branch protection, merges
@@ -227,7 +243,7 @@ unprotected. Don't create the ruleset yourself.
    `feat(<scope>): <epic summary>`. The body contains the plan link, a status table (one
    row per subtask: branch, PR #, state) and the four `tm-pr-workflow` headings, filled
    in at the end. The orchestrator updates the status table as subtask PRs open and merge.
-3. **Waves**: see below.
+3. **Waves**: see "Waves" (`spawning-subtasks.md`).
 4. **Keeping up with `main`**: if `main` moves while the epic is open, the epic branch
    must include it before it can merge (`main` is strict). Sync through a PR, never a
    direct push: a `chore/<epic-slug>-sync-main` branch off the epic branch, then
@@ -235,153 +251,13 @@ unprotected. Don't create the ruleset yourself.
    are based on), gate, push, and a PR against the epic branch. Conflicts are resolved
    there, within the scope that the conflicting files' owners had. Sync between waves,
    not during one.
-5. **Finish**: see "Merging the epic into main".
+5. **Finish**: see "Merging the epic into main" (`merging-the-epic.md`).
 6. **After merge**: GitHub deletes the remote epic and subtask branches on merge
    ("Automatically delete head branches" is on). Local branches are the agent's
    after-merge cleanup (`tm-agent-loop`, "After-merge cleanup", `merge.md`).
 
 **Abandoning an epic**: close the draft epic PR and delete the branch. Nothing reached
 `main`, which is the point of having an integration branch.
-
-## Spawning subtask agents
-
-### Waves
-
-A subtask is **ready** when every id in its `depends_on` has its PR **merged into the epic
-branch**. An open or approved PR doesn't count: the dependent subtask must branch from
-code that is already on the epic branch. The orchestrator spawns a wave, meaning all
-ready subtasks whose `allowed_paths` are pairwise disjoint. It then waits for the human to
-merge that wave's PRs before it spawns the next one.
-
-Before each wave, check disjointness mechanically, not by eye. For every pair in the
-wave, list which tracked files match both glob sets. If any file matches both, the
-subtasks can't run in parallel. Tracked files alone can't catch two *new* files at the
-same path, so also compare the new file paths the plan names.
-
-### Isolation (read before running two subtasks at once)
-
-Parallel subtasks need separate working trees: two agents on one checkout would switch
-branches under each other. The tool for this is the Agent tool with
-`isolation: "worktree"`, and **the gate and push hook work in a linked worktree** since #40
-(`fix(hooks): resolve the gate pass marker per worktree`):
-
-- `scripts/pre-push-check.sh` writes its pass marker at
-  `git rev-parse --path-format=absolute --git-path .pre-push-check-passed`. That is
-  `.git/` in the main checkout and `.git/worktrees/<name>/` in a linked worktree. If the
-  marker can't be written, the gate fails instead of exiting 0.
-- `scripts/claude-hooks/block-git-push.sh` resolves the checkout from the `cwd` in its
-  hook input (falling back to its own checkout), then finds that checkout's marker the
-  same way, and compares it with that checkout's last commit.
-
-What was verified for the gate and hook in a linked worktree, and what was not yet, is in
-`worktree-isolation.md`.
-
-The caution that still applies to parallel worktrees:
-
-- **Resource contention.** Every subtask runs the full gate. Its heavy steps (Gradle
-  `detekt`, `lint`, `allTests test`, the Kover coverage report and `koverVerify`,
-  `assembleDebug`, plus SwiftLint, the XCFramework build and `xcodebuild` once the diff
-  touches `iosApp/` or the shared layer) run unless `scripts/classify-changes.sh` decides
-  `light`; that script, not this skill, says which changes are `light`. Each worktree has its own build
-  directories and Gradle daemon. Several gates at once on one machine compete for CPU,
-  memory and the shared `~/.gradle` cache locks, and can be slower in total than running
-  them one after another. Default to **at most two** concurrent subtasks, and fewer when
-  more than one of them runs the iOS steps. The human can raise the limit.
-  Since the heavy-run lock (`scripts/heavy-run.sh`, which the gate starts itself under) only one
-  Gradle or `xcodebuild` run goes at a time on this machine, whoever starts it: the others wait and
-  say who they wait for. Parallel subtasks therefore overlap their writing, not their gates, and a
-  wait is neither a failure nor a gate attempt.
-- **Untracked local files don't come along.** A new worktree has no `local.properties`
-  (Android SDK path, `MAPS_API_KEY`) and no `iosApp/TrailMetrics/Secrets.xcconfig`, which
-  the iOS build needs. Both are gitignored. The orchestrator copies them from the main
-  checkout into each worktree before the subtask runs its gate. Never commit them.
-  For an implementer's worktree, `scripts/subagent/worktree.sh create ... --ios --android` puts symbolic
-  links to them in the worktree (never read, printed or copied by the script).
-- **Sequential in the main checkout is still fine.** It's the right choice when the
-  machine can't take concurrent builds or a wave has only one subtask. The ordering,
-  scoping and PR-per-subtask rules are the same either way.
-- Each worktree is cleaned up after its subtask's PR is opened. The branch lives on in
-  the remote.
-
-Never work around the hook (for example by touching the marker by hand, or pushing from a
-command the hook's pattern doesn't match). That's a gate bypass, not a fix.
-
-### What a subtask agent is told
-
-The subtask prompt is the standard task prompt template from `tm-pr-workflow` with an
-**Epic** block added. Write the block into the prompt itself: a spawned agent starts with
-no memory of the planning conversation.
-
-The template, with the Epic block: `subtask-prompt.md`.
-
-Don't pass `model` overrides or extra tools beyond the defaults unless the human asks.
-
-## Subtask PRs
-
-Everything in `tm-pr-workflow` applies. Only these parts change:
-
-- **Base**: `git switch -c <branch> origin/feature/epic/<slug>` (after `git fetch origin`),
-  and `gh pr create --base feature/epic/<slug>`. A subtask PR against `main` is wrong:
-  close it and reopen it against the epic branch.
-- **Scope check before push**: `git diff --name-only origin/feature/epic/<slug>...HEAD`
-  must list only files matching `allowed_paths`. Put the output in the PR under
-  "What changed". The orchestrator re-checks it when the PR opens.
-- **Gate scope**: `pre-push-check.sh` diffs against the merge-base with `origin/main`, not
-  the epic branch. Once the contract subtask is merged, **every** later subtask runs
-  the iOS steps, including an Android-only one, because the epic's shared changes are in
-  its diff. That's expected: it builds iOS against the integrated shared layer. Report it
-  in Tier 1 rather than calling it spurious.
-- **Out of date with the epic branch** (a sibling merged first, and strict blocks the
-  merge): `git merge origin/feature/epic/<slug>` into the subtask branch (not rebase plus
-  force-push), re-run the gate, push, and comment on the PR. That's a new commit, not a
-  retry-budget attempt. A merge conflict means two subtasks' `allowed_paths` overlapped.
-  Stop and report it as a plan defect.
-- **PR description**: the four `tm-pr-workflow` headings, plus a first line
-  `Epic: <slug> · Subtask <id> · depends_on: <ids>` linking the plan and the epic PR.
-  Under Tier 2, give the subtask's `tier2` line from the plan, with the tests' real names.
-  The human may postpone a human check it lists to the epic-level Tier 2, which is their
-  call.
-- **Title**: `type(scope): summary` as usual. Subtask PRs squash-merge into the epic
-  branch, so each subtask becomes one conventional commit there.
-- **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
-  on it. It lists drift and follow-ups in its PR description only, with
-  `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
-- **Merge**: under Decision 5's conditions (`tm-agent-loop`, "Merge conditions", `merge.md`, with the
-  subtask's `allowed_paths` in place of "touches no protected path"). The agent posts its
-  merge check (`tm-agent-loop`, "Auto-merge", `merge.md`); when a condition is "no", the human merges.
-
-## Merging the epic into main
-
-The orchestrator reports readiness. The human merges only when all of these hold:
-
-1. Every subtask in the plan has its PR merged into the epic branch, or was dropped by a
-   plan change the human approved. None is still open.
-2. The epic branch includes the latest `main` (strict protection on `main` enforces this;
-   sync as in Lifecycle step 4).
-3. CI is green on the epic PR for every required check, on its current head.
-4. **The final board PR is merged into the epic branch, and only then** has the
-   orchestrator marked the epic PR ready for review (`gh pr ready <n>`). The final board
-   PR is the one board-only PR an epic uses (`tm-pr-workflow` → Board, rule 5). The
-   orchestrator opens it into the epic branch after every subtask is merged. It is not a
-   plan subtask. It adds `BOARD.md` records for the drift and follow-ups the subtasks
-   reported, and deletes the epic's own record if the epic started from one. The
-   orchestrator has also filled in the epic PR's description: What changed per subtask
-   (with PR links), Skills/docs followed (the union), Tier 1 (the CI result on the epic
-   head; no separate local gate is needed, since nothing new is pushed at this point),
-   Tier 2 (the plan's epic-level list), any Assumptions and Follow-ups from the subtasks,
-   and a `Board:` line listing the records the final board PR added and removed. An epic
-   record on the board always points to its plan under `docs/epics/`.
-5. The epic-level Tier 2 is done **on the integrated epic branch head**: the automated tests
-   that cover the epic's end-to-end behavior on both platforms pass there where such a test
-   can exist (condition 3), the human has done the final smoke check and every human check
-   listed with its reason, and has reviewed the full diff against `main`.
-
-**Merge method (recommendation; the human decides): "Create a merge commit"**, not
-squash. Each subtask is already one conventional commit on the epic branch (`... (#N)`).
-A merge commit keeps them in `main`'s history and keeps each one revertible. Squash would
-collapse the epic into one commit and lose that. The repo allows all three methods. The
-epic PR title is still a valid `type(scope): summary`, because it appears in the merge
-commit.
 
 ## Where this skill made calls the retired workflow doc didn't
 

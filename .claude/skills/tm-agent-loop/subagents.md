@@ -28,7 +28,7 @@ report):
   down before it starts. Your context then stays free for the review and the gate.
 - *A split, at most 2 implementers writing at the same time*: only when the pieces have **disjoint
   allowed paths** (no file can match both lists; check the globs as `epic-orchestration`, "Spawning
-  subtask agents" says, hotspots included: one owner each) and **a contract that you wrote first**:
+  subtask agents" (`spawning-subtasks.md`) says, hotspots included: one owner each) and **a contract that you wrote first**:
   the interfaces, signatures and file ownership, committed to the task branch as its own commit before
   any worktree is created, so both start from it. The usual shape is a Kotlin or Swift side and a
   test or UI side that only use the contract. A piece that needs the other's result is not a split:
