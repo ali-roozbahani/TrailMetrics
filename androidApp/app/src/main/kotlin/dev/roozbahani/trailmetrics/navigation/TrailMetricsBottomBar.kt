@@ -11,6 +11,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
@@ -23,7 +24,10 @@ import dev.roozbahani.trailmetrics.R
 import dev.roozbahani.trailmetrics.core.navigation.AppRoute
 
 @Composable
-fun TrailMetricsBottomBar(navController: NavHostController) {
+fun TrailMetricsBottomBar(
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
     val navBackStackEntry: NavBackStackEntry? by navController.currentBackStackEntryAsState()
     val currentDestination: NavDestination? = navBackStackEntry?.destination
 
@@ -33,7 +37,7 @@ fun TrailMetricsBottomBar(navController: NavHostController) {
         indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = SELECTED_INDICATOR_ALPHA)
     )
 
-    NavigationBar {
+    NavigationBar(modifier = modifier) {
         NavigationBarItem(
             selected = currentDestination.isRouteSelected<AppRoute.RoutePlanning>(),
             onClick = {
