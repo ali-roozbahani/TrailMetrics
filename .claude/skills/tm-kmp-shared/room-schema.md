@@ -1,6 +1,6 @@
 # Changing the database schema (Room)
 
-Moved word for word from `SKILL.md`: the section "Changing the database schema (Room)". The rules are unchanged; they are still cited as `tm-kmp-shared`, "Changing the database schema (Room)".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Changing the database schema (Room)". The rules are unchanged; they are still cited as `tm-kmp-shared`, "Changing the database schema (Room)".
 
 ## Changing the database schema (Room)
 

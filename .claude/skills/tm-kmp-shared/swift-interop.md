@@ -1,6 +1,6 @@
 # SKIE and Swift-facing API design, the `@Throws` policy, iOS location (L1)
 
-Moved word for word from `SKILL.md`: the sections "SKIE and Swift-facing API design" (with "`@Throws` policy (Kotlin called from Swift)") and "iOS location (L1)". The rules are unchanged; they are still cited as `tm-kmp-shared`, "SKIE and Swift-facing API design", "`@Throws` policy" and "iOS location (L1)".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "SKIE and Swift-facing API design" (with "`@Throws` policy (Kotlin called from Swift)") and "iOS location (L1)". The rules are unchanged; they are still cited as `tm-kmp-shared`, "SKIE and Swift-facing API design", "`@Throws` policy" and "iOS location (L1)".
 
 ## SKIE and Swift-facing API design
 

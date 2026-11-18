@@ -1,6 +1,6 @@
 # Build integration, KMP module build setup, Kotlin/Native build cost
 
-Moved word for word from `SKILL.md`: the sections "Build integration", "KMP module build setup" and "Kotlin/Native build cost". The rules are unchanged; they are still cited as `tm-kmp-shared`, "Build integration", "KMP module build setup" and "Kotlin/Native build cost".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Build integration", "KMP module build setup" and "Kotlin/Native build cost". The rules are unchanged; they are still cited as `tm-kmp-shared`, "Build integration", "KMP module build setup" and "Kotlin/Native build cost".
 
 ## Build integration
 
