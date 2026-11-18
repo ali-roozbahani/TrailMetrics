@@ -6,7 +6,7 @@ a line names a file that does not exist. Each script's header says how to run it
 
 ## The gate
 
-- `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1").
+- `scripts/pre-push-check.sh`: the local gate; must pass before any push (`tm-pr-workflow`, "Tier 1"). It prints one line per step and keeps each step's full log in `~/agent-workspace/gate-logs/<run>/` (a failed step also prints its failure block).
 - `scripts/heavy-run.sh`: runs one heavy command (Gradle, xcodebuild, the gate) under the machine-wide lock, so only one runs at a time; a run that waits says for how long, and every run appends to an event log (`--log`).
 - `scripts/android-ui-tests.sh`: runs the Android instrumented tests (`androidApp/app/src/androidTest`) once on a dedicated headless AVD of its own (`TrailMetrics_UITest`, port 5560, `ANDROID_SERIAL` pinned; the developer's emulators are never touched), under `heavy-run.sh`; prints the pins of the run; `--tests <class>` runs one class. The gate runs it when the diff's UI scope includes Android (`tm-testing`, "Rules for `androidTest`").
 - `scripts/ios-ui-tests.sh`: runs the iOS UI tests (scheme `TrailMetricsUITests`, all of them or `--tests <Class[/method]>`) once on a dedicated simulator of its own (`TrailMetrics_UITest`, pinned to the iPhone 17 device type and the iOS 26.5 runtime, shut down and erased before each run; other simulators are never touched); builds the test-only framework variant, filters the log, prints the pins of the run; no retry. The gate runs it, under `heavy-run.sh`, when the diff's UI scope includes iOS (`tm-testing`, "Which test goes where").

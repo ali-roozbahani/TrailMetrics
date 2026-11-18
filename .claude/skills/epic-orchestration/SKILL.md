@@ -29,7 +29,7 @@ conditions.
 
 - **Human**: approves the plan and every change to it, sets up branch protection, merges
   the epic PR into `main` (only the human), merges every subtask PR into the epic branch
-  that an agent may not merge (`tm-agent-loop`, "Merge conditions"), and does the human
+  that an agent may not merge (`tm-agent-loop`, "Merge conditions", `merge.md`), and does the human
   part of Tier 2: the epic's final smoke check and any human check a PR lists with its
   reason (`tm-pr-workflow`, "Tier 2: what automated tests cannot show").
 - **Orchestrator**: the Claude Code session the human is talking to. It drafts the plan,
@@ -48,7 +48,7 @@ agent started with `isolation: "worktree"` is a different thing from an implemen
 The epic PR into `main` is the human's only, on the human's explicit command
 (`docs/epics/agentic-dev-loop.md`, Decision 5). Subtask PRs into the epic branch follow
 Decision 5: an agent may merge one only under the conditions in `tm-agent-loop` ("Merge
-conditions"), where the subtask's plan `allowed_paths` replace "touches no protected path".
+conditions", `merge.md`), where the subtask's plan `allowed_paths` replace "touches no protected path".
 The human merges every other subtask PR.
 
 ## Epic or single task?
@@ -238,7 +238,7 @@ unprotected. Don't create the ruleset yourself.
 5. **Finish**: see "Merging the epic into main".
 6. **After merge**: GitHub deletes the remote epic and subtask branches on merge
    ("Automatically delete head branches" is on). Local branches are the agent's
-   after-merge cleanup (`tm-agent-loop`, "After-merge cleanup").
+   after-merge cleanup (`tm-agent-loop`, "After-merge cleanup", `merge.md`).
 
 **Abandoning an epic**: close the draft epic PR and delete the branch. Nothing reached
 `main`, which is the point of having an integration branch.
@@ -346,9 +346,9 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
 - **Board**: a subtask never edits `BOARD.md`, because parallel siblings would conflict
   on it. It lists drift and follow-ups in its PR description only, with
   `Board: no changes` (`tm-pr-workflow` → Board, rule 5).
-- **Merge**: under Decision 5's conditions (`tm-agent-loop`, "Merge conditions", with the
+- **Merge**: under Decision 5's conditions (`tm-agent-loop`, "Merge conditions", `merge.md`, with the
   subtask's `allowed_paths` in place of "touches no protected path"). The agent posts its
-  merge check (`tm-agent-loop`, "Auto-merge"); when a condition is "no", the human merges.
+  merge check (`tm-agent-loop`, "Auto-merge", `merge.md`); when a condition is "no", the human merges.
 
 ## Merging the epic into main
 

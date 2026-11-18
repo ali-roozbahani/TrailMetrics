@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -114,6 +115,7 @@ fun RouteRoot(
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     var showProfileSheet: Boolean by remember { mutableStateOf(false) }
+    val currentOnStartTrackingClicked by rememberUpdatedState(onStartTrackingClicked)
 
     val permissionHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -150,7 +152,7 @@ fun RouteRoot(
                 }
 
                 is RouteEvent.NavigateToTracking -> {
-                    onStartTrackingClicked(
+                    currentOnStartTrackingClicked(
                         event.startPoint,
                         event.plannedRoutePoints,
                         event.activityType
