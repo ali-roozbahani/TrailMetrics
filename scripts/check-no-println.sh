@@ -9,8 +9,12 @@
 #
 # Production code is every tracked *.kt file outside a test source set (test, androidTest, commonTest,
 # androidHostTest, iosTest, jvmTest, androidUnitTest, androidInstrumentedTest). A line that is only a
-# comment is skipped; a call after a `.` (`System.out.println`, `logger.print`) is not this check's:
-# only a bare call is. Exit 0 clean, 1 a hit (listed as file:line), 2 usage.
+# comment is skipped, and so is anything that is not a bare call: the text of a one-line string literal,
+# a declaration (`fun print(`), and a call after a `.`. A member call (`System.out.println`, `logger.print`)
+# and a qualified call (`kotlin.io.println(`) are not caught on purpose: the check is a text match for the
+# bare call that `println("x")` is, and a call written with a dot is a deliberate choice that review sees.
+# A multi-line (raw) string is not stripped: a line of one that holds `println(` is reported.
+# Exit 0 clean, 1 a hit (listed as file:line), 2 usage.
 # bash 3.2 compatible.
 set -u
 
@@ -20,8 +24,11 @@ TEST_DIRS='/(test|androidTest|commonTest|androidHostTest|iosTest|jvmTest|android
 scan() { # <repo dir>
     (cd "$1" && git ls-files -z '*.kt' | tr '\0' '\n' | grep -vE "$TEST_DIRS" |
         while IFS= read -r f; do
-            grep -nE '(^|[^A-Za-z0-9_.])(println|print)\(' "$f" |
-                grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | sed "s#^#$f:#"
+            # one-line string literals and `fun print(` declarations are blanked first, line for line
+            sed -E 's/"([^"\\]|\\.)*"/""/g; s/fun[[:space:]]+(println|print)\(/fun X(/g' "$f" |
+                grep -nE '(^|[^A-Za-z0-9_.])(println|print)\(' |
+                grep -vE '^[0-9]+:[[:space:]]*(//|\*|/\*)' | cut -d: -f1 |
+                while IFS= read -r n; do echo "$f:$n:$(sed -n "${n}p" "$f")"; done
         done)
 }
 
@@ -32,15 +39,17 @@ if [ "${1:-}" = "--self-test" ] && [ $# -eq 1 ]; then
     printf 'fun a() { println("x") }\n' > domain/src/commonMain/Hit.kt
     printf 'fun a() { print(1) }\n' > app/src/main/Hit2.kt
     printf 'fun a() { println("x") }\n' > app/src/test/InTest.kt
-    printf '// println("x")\n/** print(1) */\n * println(2)\nfun a() { System.out.println("x"); logger.print(1); myprint(2) }\n' > app/src/main/Clean.kt
+    printf '// println("x")\n/** print(1) */\n * println(2)\nfun a() { System.out.println("x"); logger.print(1); myprint(2); kotlin.io.println(3) }\n' > app/src/main/Clean.kt
+    printf 'class P { fun print(x: Int) {} }\nfun println(x: String) {}\n' > app/src/main/Declaration.kt
+    printf 'val a = "call println(x) here"\nval b = "say \\"print(1)\\" twice"\nfun c() { val d = "x"; println("y") }\n' > app/src/main/Literal.kt
     git add -A
     out="$(scan "$WORK")"
     failed=0
-    for want in 'domain/src/commonMain/Hit.kt:1:' 'app/src/main/Hit2.kt:1:'; do
+    for want in 'domain/src/commonMain/Hit.kt:1:' 'app/src/main/Hit2.kt:1:' 'app/src/main/Literal.kt:3:'; do
         echo "$out" | grep -q "^$want" && echo "ok   hit: $want" || { echo "FAIL missing: $want"; failed=1; }
     done
     n="$(echo "$out" | grep -c . || true)"
-    [ "$n" = 2 ] && echo "ok   only the two production hits (a test file, comments and member calls are skipped)" || { echo "FAIL expected 2 hits, got $n:"; echo "$out"; failed=1; }
+    [ "$n" = 3 ] && echo "ok   only the three production hits (a test file, comments, member and qualified calls, a declaration and string literals are skipped)" || { echo "FAIL expected 3 hits, got $n:"; echo "$out"; failed=1; }
     [ "$failed" = 0 ] && echo "no-println check: self-test passed" || echo "no-println check: self-test FAILED"
     exit "$failed"
 fi
