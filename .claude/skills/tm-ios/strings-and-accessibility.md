@@ -41,7 +41,7 @@ no code change.
 - **Not user-visible text, leave as is:** `accessibilityIdentifier`, log messages, `systemName:`
   symbols, URL schemes and notification names, test code and fakes, `UITestSupport`, previews'
   sample data.
-- **Enforced** by two SwiftLint custom rules in `iosApp/.swiftlint.yml` (see "SwiftLint"):
+- **Enforced** by two SwiftLint custom rules in `iosApp/.swiftlint.yml` (see "SwiftLint", `swiftlint.md`):
   `localized_text_without_bundle` (a `Text("literal")` without `bundle:`) and
   `literal_text_in_view_initializer` (a string literal as the first argument of `Button`, `Label`,
   `TextField`, `.navigationTitle`, `.alert`, `.accessibilityLabel` and similar). Both cover
@@ -65,7 +65,7 @@ no code change.
 - Sizes follow the user's text size: fonts are text styles; a fixed size that must grow
   uses `@ScaledMetric`. An animation checks `@Environment(\.accessibilityReduceMotion)`.
 - Decorative images are `.accessibilityHidden(true)`.
-- The map is a UIKit view (next section): give its `UIViewRepresentable` an accessibility label and
+- The map is a UIKit view ("Wrapping a UIKit view (the maps)", `uikit-and-concurrency.md`): give its `UIViewRepresentable` an accessibility label and
   describe the result in text elsewhere on the screen; a polyline is not readable by VoiceOver.
 - Camera moves on a map follow Reduce Motion: a jump when `UIAccessibility.isReduceMotionEnabled`, an
   animation otherwise (`GMSMapView+ReduceMotion.swift` in `Route`; the tracking map has the one-line copy).

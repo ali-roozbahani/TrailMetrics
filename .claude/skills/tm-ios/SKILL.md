@@ -168,7 +168,7 @@ fails, so observe through a use case that turns the failure into a value on the 
   `userInfo["KotlinException"]`. See the `underlyingRouteError` extension in
   `RouteViewModel.swift`, and map to `RouteUiError` via `.toUiError()` with
   `RouteUiErrorGeneral.shared` as the fallback.
-- Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `optional_try`) and
+- Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `swiftlint.md`, `optional_try`) and
   no unstructured `Task { try ... }` without `do/catch` (review only). A caught error reaches the
   user through the ViewModel's `.showError` event, and state stays as it was. Only Kotlin
   functions with `@Throws` can throw into Swift without crashing; see `tm-kmp-shared` ("`@Throws`
