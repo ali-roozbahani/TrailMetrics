@@ -1,6 +1,6 @@
 # XCUITest: the rules
 
-Moved word for word from `SKILL.md`: the section "XCUITest". The rules are unchanged; they are still cited as `tm-testing`, "XCUITest".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "XCUITest". The rules are unchanged; they are still cited as `tm-testing`, "XCUITest".
 
 ## XCUITest
 

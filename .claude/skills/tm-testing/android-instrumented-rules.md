@@ -1,6 +1,6 @@
 # Rules for `androidTest` (a flake is a failed rule)
 
-Moved word for word from `SKILL.md`: the sub-section "Rules for `androidTest` (a flake is a failed rule)". The rules are unchanged; they are still cited as `tm-testing`, "Rules for `androidTest`".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sub-section "Rules for `androidTest` (a flake is a failed rule)". The rules are unchanged; they are still cited as `tm-testing`, "Rules for `androidTest`".
 
 ### Rules for `androidTest` (a flake is a failed rule)
 

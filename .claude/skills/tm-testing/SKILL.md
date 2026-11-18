@@ -15,7 +15,7 @@ named here.
 |---|---|
 | `compose-ui-test-rules.md` ("Compose UI tests"), then `compose-ui-tests.md` | a Compose UI test is written or changed (`src/test` of a feature module with `createAndroidComposeRule`, a robot) |
 | `android-instrumented-rules.md` ("Rules for `androidTest`") | a test under `androidApp/app/src/androidTest` is written or changed |
-| `xcuitest-rules.md` ("XCUITest"), then `xcuitest.md` | an XCUITest, a `UiTestScenario` or a fake in `shared-uitest` is written or changed |
+| `xcuitest-rules.md` ("XCUITest"; the rules D5 determinism, D6 flakes and D7 identifiers of the XCUITest section), then `xcuitest.md` | an XCUITest, a `UiTestScenario` or a fake in `shared-uitest` is written or changed |
 | `room-migration-rules.md` ("Migration cases (Room)"), then `room-migration-tests.md` | a migration case, a frozen fixture or the migration harness is written or changed |
 
 

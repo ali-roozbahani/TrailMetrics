@@ -1,6 +1,6 @@
 # Migration cases (Room): the rules
 
-Moved word for word from `SKILL.md`: the section "Migration cases (Room)". The rules are unchanged; they are still cited as `tm-testing`, "Migration cases (Room)".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Migration cases (Room)". The rules are unchanged; they are still cited as `tm-testing`, "Migration cases (Room)".
 
 ## Migration cases (Room)
 
