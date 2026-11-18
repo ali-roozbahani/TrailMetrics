@@ -851,3 +851,34 @@ restored result also hides a flaky test that would have failed. So the cache sta
 2026-11-17), and `gradle.properties` has no `org.gradle.caching` line. A cache for the compile and lint tasks
 alone would need the test tasks excluded (`outputs.cacheIf { false }`), which this table does not measure.
 
+
+## What a session loads at start, and what the gate prints (2026-11-17)
+
+Measured on a copy of `main` at `821cbf00` (Apple M4, Sonnet 5.5). Numbers, not advice; the decisions taken from
+them are in the PRs named below.
+
+**Context at the start of a session** (a headless scratch session, `/context` after loading the skills through the
+`Skill` tool; no auto-memory in the copy). A bare session is 19.4k tokens (system prompt 2.6k, tools 4.5k, deferred
+tools 14.9k, agents 0.4k, `CLAUDE.md` 2k, skill list 3.9k, messages 6k). Loading `tm-pr-workflow`, `tm-agent-loop`,
+`tm-android`, `tm-robustness` and `tm-testing` (an Android task) makes it 73.1k, so the skills are about 54k tokens.
+The same with `tm-ios` instead of `tm-android` (an iOS task) is 81.3k, about 62k. Files that a task reads later
+(`gate-steps.md`, `gate-enforcement.md`, `queue.md`, `subagents.md`) are not in these numbers.
+
+**What the gate printed** (the five Gradle steps once each, `--console=plain`, warm daemon, lines / bytes as they
+reached the terminal; the gate does not stop at a red step, so a red run prints all five):
+
+| Run | Lines | Bytes |
+|---|---|---|
+| Green | 1,914 | 102,786 |
+| One failing unit test (`domain`) | 1,541 | 89,959 |
+| One compile error (`domain`) | 1,115 | 65,982 |
+| One Detekt finding (`LongParameterList`) | about 1,541 | about 90,516 |
+
+A whole green gate on a full classification printed 11,413 lines / 1,590,323 bytes (the iOS build, package tests and
+UI tests are most of it), and a light one 2,674 lines / 163,167 bytes (the script self-tests are most of that).
+After the filter of `chore/gate-output-filter` the same five Gradle steps print 5 lines / 1,211 bytes (green),
+12 / 2,043 (Detekt finding), 23 / 2,811 (failing test) and 50 / 5,716 (compile error); the full logs are in
+`~/agent-workspace/gate-logs/`.
+
+A `println` in `domain` did not fail the plain `detekt` run (exit 0): `ForbiddenMethodCall` needs type resolution
+(`BOARD.md`, `enable-robustness-lint-rules`).

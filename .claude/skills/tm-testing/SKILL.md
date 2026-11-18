@@ -5,6 +5,20 @@ description: Use whenever writing or reviewing tests anywhere in TrailMetrics �
 
 # TrailMetrics testing
 
+## Topic files
+
+Read each file when the task or the diff reaches its topic, not before; a reviewer reads it for a diff that touches the
+topic. Section headings are unchanged, so a reference to `tm-testing`, "<heading>", is found in this file or in the file
+named here.
+
+| File | Read it when |
+|---|---|
+| `compose-ui-test-rules.md` ("Compose UI tests"), then `compose-ui-tests.md` | a Compose UI test is written or changed (`src/test` of a feature module with `createAndroidComposeRule`, a robot) |
+| `android-instrumented-rules.md` ("Rules for `androidTest`") | a test under `androidApp/app/src/androidTest` is written or changed |
+| `xcuitest-rules.md` ("XCUITest"; the rules D5 determinism, D6 flakes and D7 identifiers of the XCUITest section), then `xcuitest.md` | an XCUITest, a `UiTestScenario` or a fake in `shared-uitest` is written or changed |
+| `room-migration-rules.md` ("Migration cases (Room)"), then `room-migration-tests.md` | a migration case, a frozen fixture or the migration harness is written or changed |
+
+
 ## Stack (fixed — do not introduce an alternative)
 
 | Layer | Framework | Assertions | Mocking |
@@ -28,7 +42,7 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   no `androidTest`) in all three feature modules. Their `build.gradle.kts` lists the catalog
   entries (`robolectric`, `androidx-compose-ui-test-*`) and sets
   `testOptions.unitTests.isIncludeAndroidResources = true` so tests can read string
-  resources. See "Compose UI tests".
+  resources. See "Compose UI tests" (`compose-ui-test-rules.md`).
 - The one `androidTest` source set is in `androidApp/app` ("Which test goes where"); it adds
   `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`) and the existing `kotlin-test`
   to that module only.
@@ -62,7 +76,7 @@ can fail on the defect:
    method, the foreground-service lifecycle, a process boundary. The PR says why ("not provable on the JVM
    because ..."). If a Robolectric test can fail on the defect, write that one, even when an instrumented one
    would also be possible.
-4. **XCUITest**: the iOS counterpart of tier 3 ("XCUITest" below).
+4. **XCUITest**: the iOS counterpart of tier 3 ("XCUITest", `xcuitest-rules.md`).
 5. **Human check** (Tier 2 of `tm-pr-workflow`): only what no tier can show (real GPS in the field, what the
    Maps SDK draws, a human judgement of design), with the reason in the PR.
 
@@ -72,33 +86,6 @@ this machine, the full suite of each platform a branch touches (`scripts/classif
 `androidApp/` Android, `iosApp/` and `shared-uitest/` iOS, `domain`, `data`, `core`, `shared` and the root Gradle
 and catalog files both, docs, skills, tooling scripts and workflow files none); the gate prints the AVD, simulator, runtime and
 Xcode versions it ran on. CI runs no UI tests, on either platform: they run in the gate and in the full run on `main`.
-
-### Rules for `androidTest` (a flake is a failed rule)
-
-- **Run.** `scripts/android-ui-tests.sh [--tests <class>]`: a dedicated AVD of its own (`TrailMetrics_UITest`,
-  headless, its own port, `ANDROID_SERIAL` pinned). The developer's emulator (`Pixel_10` or any other) is
-  never started, wiped or installed on; never run `connectedDebugAndroidTest` by hand against whatever device
-  is attached.
-- **Names** are camelCase, not backtick sentences (a name with a space does not dex below API 30; `minSdk` is 26).
-  Other naming as elsewhere.
-- **Find nodes by visible text** (`By.text`, `By.textContains`, `By.desc`). A `testTag` is a production
-  change, only when nothing else identifies the node.
-- **Waits are bounded polls**: `device.wait(Until..., WAIT_MS)` or `LiveSessionRule.eventually(message) { }`
-  (a deadline and a failure message that names what never happened). No fixed sleep; the poll interval inside
-  the bounded loop is the only one. For an absence, wait for a positive signal first (the Activity is on
-  screen), then assert it. After `pressHome` wait for the Home package before the next step (`LiveSessionRule`
-  does); a failure message that names a state is a lambda, built at the deadline.
-- **Isolation.** One real tracking session per test, started and discarded by `LiveSessionRule`
-  (`manager.discard()` in `after`), so no test leaves a live or stored session: the real graph is shared by
-  every test of the process. A test never depends on another or on device state; a scenario that needs a
-  process boundary is not an ordinary test (it belongs to a host-driven design of its own).
-- **Permissions** are granted in the test (`uiAutomation.grantRuntimePermission`), not by the host.
-- **Red first, once.** Check in the working tree that the test fails when the guarded behavior breaks (revert
-  the fix or remove the guard) and write the red evidence in a commit message. A fix that spans modules is reverted
-  across all of them (`MainActivity` and `TrackingService` for #301).
-- **No retries**: no `@Ignore`, no `assumeTrue` to skip, no Orchestrator or Gradle retry. Red is red; a failure
-  without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log"): a run that fails and then
-  passes is detected and counted by `scripts/ui-flake.sh` ("Local UI flakes").
 
 ## Coroutines / Flow
 
@@ -171,7 +158,7 @@ The iOS UI tests' fakes are Kotlin and live in `shared-uitest` (package
 `dev.roozbahani.trailmetrics.uitest`, `src/iosMain`), not in `TestSupport`. They are hand-written
 like every other fake, count calls in `MutableStateFlow<Int>` counters incremented with `update`,
 hold calls on a `CompletableDeferred` gate and use no delay and no clock. When you write or change
-one, read `xcuitest.md` first. The XCUITest side is in "XCUITest" below.
+one, read `xcuitest.md` first. The XCUITest side is in "XCUITest" (`xcuitest-rules.md`).
 
 ## Testing MVI ViewModels
 
@@ -231,110 +218,8 @@ behavior when the defect is fixed, not deleted.
 | New use case, domain logic | `kotlin.test` in `domain` commonTest on fakes of the repository interfaces. |
 | ViewModel (Android) | A test against `onAction` and `state`/`events` on `core-testing` fakes; when migrating, written against the target State/Action/Event shape first, so it specifies and locks the behavior. |
 | Repository, HTTP call (`data`) | A commonTest on the real repository: Ktor `MockEngine` for HTTP, the Room repository suite for storage. |
-| Room schema | The frozen fixture for the old version, then the `MIGRATION_M_N` case ("Migration cases"). |
+| Room schema | The frozen fixture for the old version, then the `MIGRATION_M_N` case ("Migration cases", `room-migration-rules.md`). |
 | Swift ViewModel, iOS flow | An XCTest in the package's `Tests` on the real Kotlin class built on `TestSupport` fakes; a UI flow: XCUITest. |
-
-## Compose UI tests
-
-When you write or change a Compose UI test, read `compose-ui-tests.md` first: the robot example,
-the real-ViewModel screen-test setup, the double-tap reasoning and the Maps shadow details.
-
-- `ComposeTestRule`, JUnit4 (`@get:Rule`). Use the Robot pattern once a screen has 3+ UI test cases
-  or several tests share setup/assertion sequences: one robot class per screen, every method returns
-  `this` for chaining. Don't reach for it for a 1-2 assertion smoke test: plain
-  `composeTestRule.setContent { ... }` + a couple of `onNodeWith...` calls is clearer there.
-- Screen tests run the real ViewModel (`feature-history`'s `DetailsScreenTest`/`HistoryScreenTest`
-  are the pattern to copy): `@RunWith(RobolectricTestRunner::class)`, `@Config(sdk = [35])` (add
-  `qualifiers = "w411dp-h891dp"` when a `LazyColumn` must compose several rows) and
-  `createAndroidComposeRule<ComponentActivity>()`, so strings come from
-  `rule.activity.getString(...)` instead of being copied into the test.
-- Test the `<X>Root`, not only the stateless `<X>Screen`, so event handling (navigation callback,
-  snackbar) is covered. `@Before` sets the main dispatcher and starts Koin with the feature's UI
-  module plus fakes from `core-testing`; `@After` calls `stopKoin()` and `resetMain()`. Navigation
-  lives in `androidApp/app`, so assert on the Root's callback (count its calls).
-- Hold a suspending call with the fake's gate (a `CompletableDeferred` the fake awaits). Act,
-  assert nothing happened yet, `complete(Unit)`, `rule.waitForIdle()`, assert. No `Thread.sleep`,
-  no real delays.
-- Double tap: `performTouchInput { down(center); up(); down(center); up() }`, never
-  `click(); click()` (the first tap's recomposition can remove the button, so the test passes with
-  or without the guard). Check it once by removing the guard in the working tree: the test must
-  fail on the doubled call.
-- Maps: when the test needs no map callback, wrap the content in
-  `CompositionLocalProvider(LocalInspectionMode provides true)`; the map's content is not tested and
-  no production seam is needed. When the test must drive a map callback (`MapEffect`,
-  `GoogleMap.snapshot { }`), render the map as `TrackingScreenSnapshotTest` does, with test sources
-  only (its `ShadowMapView` must extend `ShadowViewGroup`). A test that renders no map and must see
-  an uninitialized Maps SDK (`TrackingScreenTest`) calls `FakeGoogleMap.uninstallFactories()` first.
-- Find nodes by visible text and content description first; a `testTag` is a production
-  change, so only when nothing else identifies the node. A merged node (a clickable `Card`)
-  matches every text inside it: assert a row with `hasText(a) and hasText(b) ...`.
-
-## XCUITest
-
-When you write or change an XCUITest, a `UiTestScenario` or a fake in `shared-uitest`, read
-`xcuitest.md` first: the run command, the seam and probe in detail, the CI shard and timing details.
-
-The iOS UI tests are `iosApp/TrailMetricsUITests` (XCTest, no other library); the plan and its
-decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
-
-- **Run.** Scheme `TrailMetricsUITests` (⌘U in Xcode, or the `xcodebuild test` command in `tm-ios`,
-  "Build configurations and schemes", piped through `../scripts/filter-xcode-log.sh`). With an empty
-  Maps key the Route UI tests that need the map fail.
-- **What the simulator cannot show.** Real GPS, a locked or screen-off device, the system suspending or terminating the app and the lock-screen rendering of a Live Activity are not reproduced by the simulator or by an XCUITest, so a change to them ends with a human check on a device (`tm-pr-workflow`, "Tier 2: what automated tests cannot show", full text in its `tier2.md`), with its steps and reason.
-- **Seam.** A test starts its scenario with `XCUIApplication.launched(scenario:)` (`Support/`); the
-  name must be the Kotlin `name` of a `UiTestScenario` entry (an unknown name stops the app). Normal
-  Debug and Release builds contain no seam.
-- **Probe.** The overlay's counters are read only on a refresh tap: read them through
-  `UITestProbe.refreshedCounters()` and `releasedCounters()`.
-- **Determinism (D5).**
-  - one `launch` per test, with its scenario; no test depends on another or on simulator state;
-  - wait with `waitForExistence(timeout: 10)`; no `sleep`, no fixed delay, in tests or fakes;
-  - for an absence, wait for a positive signal first (a probe read, a screen change), then
-    assert the element does not exist;
-  - held calls are released only through `uitest.probe.release`;
-  - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
-  - check once in the working tree that the test fails when the guarded behavior breaks.
-- **Shards.** The gate and the full run on `main` run the UI tests in one `scripts/ios-ui-tests.sh` run; plan
-  a shard step in that script when they exceed about
-  10 tests (cap 3).
-- **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
-  failure without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
-- **Identifiers (D7).** Find elements by their text first; a View gets an
-  `accessibilityIdentifier` (`<screen>.<element>`, e.g. `details.deleteButton`) only where text
-  cannot find it (image-only buttons, rows, a label that changes).
-- **Helpers** live in `iosApp/TrailMetricsUITests/Support/`; later scenarios reuse them.
-- **Project file.** The targets use synchronized folders, so a new file needs no project change.
-  If Xcode or a run rewrites `project.pbxproj` or `Info.plist`, `git restore` them; never commit
-  that rewrite (CI's Xcode is older than the local one).
-
-## Migration cases (Room)
-
-When you write a Room migration case or a frozen fixture, read `room-migration-tests.md` first: the
-harness files and how a fixture is built from the schema file.
-
-This section is the canonical statement of the migration test (step 5 of the schema procedure). The
-schema change procedure around it is in `tm-kmp-shared`, "Changing the database schema (Room)". Each
-case writes a database file at an old version with plain SQL, outside Room, opens it through the
-app's builder pipeline and `appMigrations`, and reads every row back through the DAO.
-
-For a migration from M to N:
-- If version M has no fixture yet, add one: its `schemaStatements` are copied from
-  `data/schemas/.../M.json`, its rows are `INSERT` statements in version M's stored form written as
-  literal text (never produced by the current converters), and it goes into
-  `frozenDatabaseVersions`. `FrozenDatabaseVersionsSchemaTest` (host only) fails when a fixture
-  differs from its schema file. Rows cover every column: each `ActivityType` name, null and non-null
-  optional columns, empty and non-empty coordinate lists. A fixture never changes once its version
-  has shipped.
-- Add one case whose name contains `MIGRATION_M_N` (the schema check's rule (c) looks for that
-  text). It opens the fixture and asserts, with `assertEquals` on whole `ActivityEntity` lists,
-  every field of every row at N, including the value the migration gives each new or changed
-  column, and the stored `user_version` N.
-- A test that only names `MIGRATION_M_N`, or asserts a row count without the rows' fields, does
-  not satisfy the reviewer: the schema check accepts it, so the assertions are what prove the
-  rows survive.
-
-Check a new case once in the working tree: break the migration (for example add a `DELETE` of one
-row) and see the case fail on both platforms on the row assertion, then restore.
 
 ## What to test, and coverage priorities (current state: measured, uneven)
 

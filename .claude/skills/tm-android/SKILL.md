@@ -10,6 +10,18 @@ This skill is the source of truth for Android conventions (it replaced the retir
 the current code under `androidApp/` actually does. Where they differ, the code wins for "what
 exists", this skill's MVI section wins for "what new ViewModels should look like".
 
+## Topic files
+
+Read each file when the task or the diff reaches its topic, not before; a reviewer reads it for a diff that touches the
+topic. Section headings are unchanged, so a reference to `tm-android`, "<heading>", is found in this file or in the file
+named here.
+
+| File | Read it when |
+|---|---|
+| `koin-and-gradle.md` ("Koin", "Module / Gradle conventions") | a change registers or changes a Koin module or a `viewModel`/`single` binding, adds a feature module, or edits a `build.gradle.kts`, `settings.gradle.kts` or `libs.versions.toml` under `androidApp/` |
+| `kotlin-conventions.md` ("Naming (Kotlin)", "No deprecated APIs (Kotlin)", "No dead code", "Detekt") | a change names a new class, function, module or package, replaces or suppresses a deprecated call or an opt-in, removes code, or a Detekt step fails; also read by `tm-kmp-shared` for the same Kotlin rules |
+
+
 ## Architecture
 
 - One Gradle module per feature under `androidApp/feature-<name>` (`feature-route`,
@@ -33,7 +45,7 @@ exists", this skill's MVI section wins for "what new ViewModels should look like
   (`ActivityHistoryRepository`), never to its `data` implementation. Enforced: the module graph (a
   feature module cannot see `:data`); reviewer only elsewhere. Violation: `blocking`.
 - One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList` (see
-  "Detekt") are the mechanical signal; a class that mixes state, IO and formatting is the judgement
+  "Detekt", `kotlin-conventions.md`) are the mechanical signal; a class that mixes state, IO and formatting is the judgement
   one, reviewer only. Violation: `important`.
 - Never an `is`/`as` cast on an abstraction to reach a concrete type, and never an interface method
   that an implementer leaves empty or throws `NotImplementedError` from (split the interface).
@@ -95,29 +107,6 @@ Naming: `<Screen>State`, `<Screen>Action`, `<Screen>Event`, `<Screen>Root` (hold
 ViewModel via `koinViewModel()`, observes events), `<Screen>Screen` (pure `state` +
 `onAction`, previewable, no ViewModel reference). Root and Screen live in the same file.
 
-## Koin
-
-Match `TrailMetricsApplication.kt`'s existing style exactly:
-- One `val <x>Module = module { ... }` per feature (`trackingUiModule`, `routeModule`,
-  `historyUiModule`), in that feature's `di/` subpackage
-  (`feature/tracking/di/TrackingUiModule.kt`), registered in `initKoin { modules(...) }`
-  inside `TrailMetricsApplication.onCreate()`
-  (`androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/`). `shared`'s `initKoin()`
-  only registers cross-platform modules; Compose-UI modules must be passed in here.
-- Prefer `viewModelOf(::MyViewModel)` / `singleOf(::Impl)` constructor-reference form.
-  Only fall back to the lambda form (`viewModel { ... }`) when you need a factory
-  method, a qualifier, runtime parameters (`params.get()`), or post-construction setup.
-  Today every module uses the lambda form, including `HistoryViewModel` and
-  `RouteViewModel`, which have no parameters. Don't take that as the pattern for new code.
-- Constructor injection only, resolved with `get()`. No field injection (`by inject()`) and
-  no `KoinComponent` in application code. `KoinComponent` is acceptable only inside
-  `shared`'s `KoinHelper` bridge for iOS. Existing exception: `MainActivity` field-injects
-  `TrackingSessionManager` with `by inject()`. Don't copy it.
-- Cross-platform bindings (anything iOS also needs via `KoinHelper`) go in `shared`/
-  `data`, not here — see `tm-kmp-shared`.
-- Always inject ViewModels with `koinViewModel()` in the Root composable. Never pass a
-  ViewModel down the composable tree.
-
 ## Compose
 
 - The UI is dumb: composables render `state` and forward `Action`s via `onAction`.
@@ -140,7 +129,7 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
   parameter reads the latest callback through `rememberUpdatedState`, or has that callback as its key.
   State a composable owns is `remember`ed, never `mutableStateOf(...)` as a default argument. Why: an
   effect keyed by `Unit` keeps calling the first callback it captured, and a default argument is built
-  again on every call, so the state is lost on recomposition. Example: no example yet. Enforced:
+  again on every call, so the state is lost on recomposition. Example: `HistoryRoot`. Enforced:
   reviewer only. Severity: important. Not a finding: an effect that calls no parameter, or reads only
   the values it is keyed by.
 - A reusable composable (used by more than one screen, or in `core-ui`) takes `modifier: Modifier =
@@ -172,73 +161,6 @@ Match `TrailMetricsApplication.kt`'s existing style exactly:
 - Colors and typography come from `core-ui`'s `designsystem/theme`; no ad-hoc color
   literals in features.
 
-## Module / Gradle conventions
-
-New feature modules follow the existing `androidApp/feature-tracking`-style layout:
-`com.android.library` + `org.jetbrains.kotlin.plugin.compose` plugins (Kotlin comes from
-AGP 9's built-in support; there is no `kotlin-android` plugin), `compileSdk` via
-`release(37) { minorApiLevel = 1 }`, `minSdk 26`, Java 11 source/target compatibility,
-`buildFeatures { compose = true }`, dependencies on `:domain`, `:core`,
-`:androidApp:core-ui`, plus the Compose BOM and Koin BOM (see an existing module's
-`build.gradle.kts` for the exact block — copy its structure, don't hand-roll a new one).
-Register it in `settings.gradle.kts` and add it to `:androidApp:app`'s dependencies.
-All versions come from `libs.versions.toml` — never hardcode a version in a module's
-`build.gradle.kts`.
-
-After changing anything in `domain`, `data`, `core` or `shared`, dependent Android modules
-need a Gradle sync/rebuild. A normal Android Studio run does this automatically. If you see
-stale behavior right after a shared-module change, suspect this first.
-
-## Naming (Kotlin)
-
-- Gradle modules: lowercase, hyphenated (`feature-history`). Packages: lowercase dot
-  segments, no underscores (`dev.roozbahani.trailmetrics.feature.history`, never
-  `featurehistory` or `feature_history`). Detekt's `PackageNaming` only rejects underscores
-  and uppercase-leading segments, so the rest is review-enforced.
-- Classes/interfaces/objects `PascalCase`; interfaces carry no `I` prefix
-  (`ActivityHistoryRepository`, not `IActivityHistoryRepository`). Functions/properties
-  `camelCase`. `@Composable` functions are `PascalCase` (Detekt's `FunctionNaming` ignores
-  `@Composable`).
-- Booleans read as questions: `isLoading`, `canStart`, `hasReachedDestination`,
-  `showProfileSheet` for visibility flags. Never a bare noun. (Detekt's
-  `BooleanPropertyNaming` is off, so this one is review-enforced.)
-- Per-feature types: see the MVI naming above. Koin modules: `<feature>Module` /
-  `<feature>UiModule` in `di/<Feature>Module.kt`.
-- Test names are backtick sentences (`` `saves activity with recalculated calories`() ``),
-  never `test1`. See `tm-testing`. The exception is `androidTest`, where names are camelCase (a name
-  with a space does not dex at `minSdk` 26).
-
-## No deprecated APIs (Kotlin)
-
-`CLAUDE.md` states the rule (never call a deprecated API); the Kotlin specifics:
-- Use the documented replacement (for example `Icons.AutoMirrored.Filled.DirectionsRun`, not
-  `Icons.Filled.DirectionsRun`), including for AndroidX/Compose/Material APIs deprecated in the
-  current BOM.
-- `allWarningsAsErrors = true` is set for every Kotlin module: the root `build.gradle.kts` hooks
-  `plugins.withId("com.android.application")` / `("com.android.library")` for `androidApp/*`
-  (AGP 9 built-in Kotlin, so `org.jetbrains.kotlin.android` is never applied) and the
-  `org.jetbrains.kotlin.multiplatform` block for KMP modules. Any compiler warning, including a
-  deprecation or an unacknowledged `@RequiresOptIn`, fails the build.
-- Experimental APIs (`@RequiresOptIn`, e.g. maps-compose's `MapsComposeExperimentalApi`) also
-  warn. With no stable alternative, opt in as narrowly as possible, at the call expression or the
-  smallest enclosing declaration, with a comment saying why (see `MapEffect` in
-  `TrackingScreen.kt`). Never opt in module-wide via `optIn` compiler options.
-- A genuinely unavoidable deprecation (a third-party library with no replacement yet): suppress it
-  narrowly at the call site with `@Suppress("DEPRECATION")` and a comment stating why, only with
-  human approval, never at file or module level.
-- Don't mark your own APIs `@Deprecated` to phase them out. Update the callers and delete the
-  old API in the same change.
-
-## No dead code
-
-- No commented-out code in a commit. Git history is the backup.
-- No unused private functions, properties, classes or parameters left behind after a
-  refactor. Detekt's `UnusedPrivateMember`/`UnusedPrivateProperty`/`UnusedPrivateClass`/
-  `UnusedParameter` catch the private ones. Unused `internal`/`public` code and unused
-  imports (`UnusedImports` is off) are not caught, so check them yourself.
-- Explanatory comments on *why* are welcome (see `MainActivity`'s `stopTrackingRequested`
-  and `trackingUiModule`'s `CalorieCalculator` note). Commented-out code is not.
-
 ## Module boundaries
 
 Full rules live in `tm-kmp-shared`; load it before touching `domain`/`data`/`core`/`shared`.
@@ -253,32 +175,6 @@ The Android-relevant parts:
   `project(...)` line fails review of the build file); reviewer only for an import inside a module.
   Violation: `blocking`.
 
-## Detekt (CI-enforced, `maxIssues: 0`)
-
-Config: `config/detekt/detekt.yml`, applied to every subproject by the root
-`build.gradle.kts` with `buildUponDefaultConfig = true` and `autoCorrect = true`. Run it
-with `./gradlew detekt`. It is part of the local pre-push gate
-(`scripts/pre-push-check.sh`) and CI.
-
-KMP modules (`domain`, `data`, `core`, `shared`, `shared-uitest`) have no `src/main`, which
-is all the plain `detekt` task reads, so the root build points it at every `src/*` source set
-(it was NO-SOURCE there before).
-
-- Forbidden: `println`/`print` (`ForbiddenMethodCall`, use a logger) and any
-  `kotlinx.coroutines.GlobalScope` import (`ForbiddenImport`, use `viewModelScope` or an
-  injected scoped `CoroutineScope`).
-- Thresholds: `LongMethod` 60 lines, `CyclomaticComplexMethod` 15 (both ignore
-  `@Composable` functions but apply everywhere else), `TooManyFunctions` 12 per class,
-  `LongParameterList` 7 for functions and constructors (`TrackingSessionManager.kt` and
-  `TrackingViewModel.kt` are excluded; a class growing too many parameters is a signal to look at
-  its responsibilities, not to extend the exclude list). Default `MaxLineLength` is 120. `MagicNumber` and `ReturnCount` are off.
-- `!!` is rejected by detekt's `UnsafeCallOnNullableType`, which is on by default, and in review.
-  Use `checkNotNull(x) { "why" }`, or restructure so the nullable type never reaches that point.
-- Don't add excludes to `config/detekt/detekt.yml` and don't add `@Suppress` to make a
-  violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. Any
-  suppression needs explicit human approval and a comment with the reason, on its own line
-  directly above the annotation.
-
 ## Tests
 
 Test code follows `tm-testing` (stack, fakes, `core-testing`, Robolectric, Compose UI tests). Use
@@ -291,13 +187,7 @@ Don't copy these as a pattern for new code.
 - Each screen file also has a public `<X>Screen(...)` overload that only delegates to
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
-- `MainActivity` field-injects with `by inject()` (see Koin).
-- `TrackingRoot`, `RouteRoot`, `DetailsRoot` and `HistoryRoot` collect their events in
-  `LaunchedEffect(Unit)` and call the navigation callback they received at the first composition
-  (the effect rule in "Compose").
-- `TrailMetricsNavHost` has `stopTrackingRequested = mutableStateOf(false)` as a default argument (the
-  production call passes its own); `TrailMetricsBottomBar` and `TrailMetricsNavHost` have no `modifier`
-  parameter (the `modifier` rule in "Compose").
+- `MainActivity` field-injects with `by inject()` (see "Koin", `koin-and-gradle.md`).
 - The `AnimatedContent` in `TrackingScreen` reads `canStart`, `canPause`, `canResume` and `canStop` from
   the outer state in its `else` branch. No test shows the fade overlap this can cause, so the branch is
   as it is (the animation rule in "Compose").

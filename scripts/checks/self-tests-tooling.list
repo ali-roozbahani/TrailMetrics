@@ -48,3 +48,4 @@ tooling	local review prepare self-test	scripts/local-review-prepare.sh
 tooling	local review verdict recorder self-test	scripts/local-review-record-verdict.sh
 tooling	cancel head CI self-test	scripts/cancel-head-ci.sh
 tooling	reviewer input check self-test	scripts/review-input-check.sh
+tooling	gate log prune self-test	scripts/pre-push-check.sh

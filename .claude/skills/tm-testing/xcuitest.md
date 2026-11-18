@@ -1,13 +1,13 @@
 # XCUITest and `shared-uitest`: run, seam, probe, CI
 
-Read from `SKILL.md`, "XCUITest" and "Fakes over mocks". The rules (determinism D5, flakes D6,
+Read from `xcuitest-rules.md`, "XCUITest", and `SKILL.md`, "Fakes over mocks". The rules (determinism D5, flakes D6,
 identifiers D7, the project file) are there; this file holds the procedures and the description of
 the test seam. The plan and its decisions are in `docs/epics/ios-ui-tests.md`.
 
 ## Run
 
 Scheme `TrailMetricsUITests`: in Xcode select it and press ⌘U; from the shell, from `iosApp/`, the
-command in `tm-ios` ("Build configurations and schemes"): `xcodebuild test -scheme
+command in `tm-ios` ("Build configurations and schemes", `build-and-schemes.md`): `xcodebuild test -scheme
 TrailMetricsUITests` with a concrete simulator id, `-skipMacroValidation`, the arm64 flags,
 `CODE_SIGNING_ALLOWED=NO`, piped through `../scripts/filter-xcode-log.sh`. The app needs the
 machine's Maps key configuration for the real map; with an empty key the Route tab shows a message
