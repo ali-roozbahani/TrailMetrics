@@ -75,15 +75,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: only DI modules and the application root name `Dispatchers.*`; the six places receive their dispatcher or scope from Koin (the database builder gets its query context passed in; `TrackingRoot` gets the snapshot dispatcher and passes it to `saveSnapshotToFile`); existing tests pass a test dispatcher.
 - Refs: `data/src/androidMain/.../tracking/TrackingService.kt`; `data/src/commonMain/.../user/UserProfileRepositoryImpl.kt`, `.../local/repository/ActivityHistoryRepositoryImpl.kt`; `data/src/commonMain/.../local/database/DatabaseBuilder.kt`; `androidApp/feature-tracking/.../util/MapSnapshotSaver.kt` (`saveSnapshotToFile`); `androidApp/feature-tracking/.../TrackingScreen.kt` (`TrackingRoot`'s `snapshotDispatcher`); `tm-robustness` D1.
 
-### strictmode-leak-detection-debug
-- Type: task
-- Area: androidApp/app
-- Order: 45
-- Source: PR for tm-robustness-skill
-- Problem: The app has no `StrictMode` policy (thread or VM) and no LeakCanary, so a blocking call on the main thread or a leaked `Activity` or closable is only found by reading (`tm-robustness` C1, M8). LeakCanary is a third-party dependency, so it needs the human's decision; the `StrictMode` policies need none.
-- Done when: a debug-only `StrictMode` thread policy and VM policy (`detectLeakedClosableObjects`, `detectActivityLeaks`, penalty log or death) are set in `TrailMetricsApplication`, or LeakCanary is added by name in a task that approves it, and `tm-robustness` M8 names which one exists.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`; `tm-robustness` M8.
-
 ### enable-robustness-lint-rules
 - Type: task
 - Area: config, scripts
