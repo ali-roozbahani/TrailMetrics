@@ -15,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -143,7 +144,8 @@ internal fun SavedSessionOfferEvents(events: Flow<SavedSessionOfferEvent>) {
 
 @Composable
 fun TrailMetricsNavHost(
-    stopTrackingRequested: MutableState<Boolean> = mutableStateOf(false),
+    stopTrackingRequested: MutableState<Boolean>,
+    modifier: Modifier = Modifier,
     savedSessionOffer: AppRoute.Tracking? = null,
     onSavedSessionOfferConsumed: () -> Unit = {}
 ) {
@@ -151,7 +153,8 @@ fun TrailMetricsNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = AppRoute.RoutePlanning
+        startDestination = AppRoute.RoutePlanning,
+        modifier = modifier
     ) {
         composable<AppRoute.RoutePlanning> {
             RouteScreen(

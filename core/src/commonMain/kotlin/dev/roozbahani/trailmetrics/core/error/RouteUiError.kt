@@ -11,5 +11,5 @@ sealed interface RouteUiError {
 fun RouteError?.toUiError(): RouteUiError = when (this) {
     is RouteError.LocationUnavailable -> RouteUiError.LocationUnavailable
     is RouteError.MissingLocationPermission -> RouteUiError.MissingLocationPermission
-    else -> RouteUiError.General
+    null, is RouteError.InsufficientWaypoints, is RouteError.DirectionsApiError -> RouteUiError.General
 }

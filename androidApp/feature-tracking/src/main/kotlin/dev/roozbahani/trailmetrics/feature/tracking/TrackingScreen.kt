@@ -52,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -129,6 +130,7 @@ fun TrackingRoot(
     val state: TrackingScreenState by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
 
     val permissionHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -165,7 +167,7 @@ fun TrackingRoot(
                     permissionHandler.launch(LOCATION_PERMISSIONS)
                 }
 
-                is TrackingEvent.Saved -> onNavigateBack()
+                is TrackingEvent.Saved -> currentOnNavigateBack()
             }
         }
     }

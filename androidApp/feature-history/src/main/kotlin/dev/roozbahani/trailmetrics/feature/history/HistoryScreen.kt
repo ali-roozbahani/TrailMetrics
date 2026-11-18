@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,11 +92,12 @@ fun HistoryRoot(
     val state: HistoryState by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
+    val currentOnActivityClicked by rememberUpdatedState(onActivityClicked)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is HistoryEvent.NavigateToDetails -> onActivityClicked(event.activityId)
+                is HistoryEvent.NavigateToDetails -> currentOnActivityClicked(event.activityId)
                 is HistoryEvent.ShowError -> {
                     // A child of this effect, so the next event is not held until the snackbar is
                     // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
