@@ -45,7 +45,7 @@ jobs:
         run: ./gradlew lint
 
       - name: Run detekt
-        run: ./gradlew detekt
+        run: ./gradlew detekt detektTyped
 
       - name: Run unit tests
         run: ./gradlew allTests test

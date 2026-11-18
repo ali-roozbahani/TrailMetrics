@@ -26,11 +26,17 @@ class NotificationStopEndsSessionTest {
         device.openNotification()
         // Matched case-insensitively: a notification action label can render in capitals.
         val stop = By.text(Pattern.compile("Stop", Pattern.CASE_INSENSITIVE))
-        assertNotNull(device.wait(Until.findObject(stop), LiveSessionRule.WAIT_MS), "the notification's Stop action never appeared")
+        assertNotNull(
+            device.wait(Until.findObject(stop), LiveSessionRule.WAIT_MS),
+            "the notification's Stop action never appeared",
+        )
 
         session.clickInShade(stop, "the notification's Stop action could not be tapped")
 
-        session.eventually({ "the session is still ${session.manager.currentState.value::class.simpleName} after the notification's Stop" }) {
+        session.eventually({
+            "the session is still ${session.manager.currentState.value::class.simpleName} " +
+                "after the notification's Stop"
+        }) {
             session.manager.currentState.value == TrackingState.Idle
         }
     }

@@ -67,7 +67,8 @@ class LiveSessionRule : ExternalResource() {
         throw AssertionError(message())
     }
 
-    // `UiDevice.launcherPackageName` names the settings app on this image, so ask the package manager for the Home activity.
+    // `UiDevice.launcherPackageName` names the settings app on this image, so ask the package manager for the
+    // Home activity.
     private fun homePackage(): String {
         val resolved = device.executeShellCommand(
             "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
