@@ -802,7 +802,7 @@ linked.
 ## detekt 1.23.8 exception rules: nothing to turn on (spike, 2026-10-22)
 
 detekt runs without type resolution. Five exception rules are already on and report 0, because their name allow-list accepts `_`. `SuspendFunSwallowedCancellation` is off by default and did not fire on a known-bad `runCatching { suspendCall() }` fixture; nothing analyses `commonMain` with type resolution.
-Decision: turn nothing on and keep `_` allowed: the `catch (_: Exception)` sites are boundaries that rethrow `CancellationException`.
+Decision: turn nothing on and keep `_` allowed: the `catch (_: Exception)` sites are boundaries that rethrow `CancellationException`. (The typed run exists since 2026-11-18: see "Typed detekt: a Kotlin 2.4 library call is unresolved".)
 
 ## Swift test wait helper: a 2 s default bound failed three times on CI
 
@@ -882,4 +882,21 @@ After the filter of `chore/gate-output-filter` the same five Gradle steps print 
 
 A `println` in `domain` did not fail the plain `detekt` run (exit 0), and does not fail the typed run
 (`detektTyped`) either: detekt 1.23.8 embeds Kotlin 2.0.21 and cannot resolve a call of a Kotlin 2.4
-library function such as `println` (`config/detekt/detekt.yml`).
+library function such as `println` (`config/detekt/detekt.yml`); `scripts/check-no-println.sh` checks it as text.
+
+## Typed detekt: a Kotlin 2.4 library call is unresolved (2026-11-18)
+
+detekt 1.23.8 embeds Kotlin 2.0.21 and the project compiles with Kotlin 2.4.10. On a planted file in `data`, run through
+the typed task (`detektAndroidMain`), `ForbiddenMethodCall` fired for the Java method `java.lang.Thread.sleep` and did
+not fire for `kotlin.io.println`, `kotlin.collections.listOf`, `kotlin.text.trim` or `kotlinx.coroutines.delay`: the
+metadata of a Kotlin library function is not read, so the call stays unresolved and a rule that needs it stays silent
+(or, for `RedundantSuspendModifier`, calls a function that awaits `delay` redundant). So `println` is not caught by
+detekt, typed or not, and `scripts/check-no-println.sh` checks it as text. `SuspendFunSwallowedCancellation` did not
+report a planted `runCatching { delay(1) }`; `UnsafeCast` cannot be shown firing, the compiler rejects the same casts
+(`allWarningsAsErrors`). The rules that work (`InjectDispatcher`, `SleepInsteadOfDelay`, `GlobalCoroutineUsage`,
+`CastToNullableType`, `LateinitUsage`, `ElseCaseInsteadOfExhaustiveWhen`, `ThrowingExceptionInMain`,
+`NotImplementedDeclaration`) read the source text or the project's own types. The plugin's typed tasks read only the
+android source set (`domain:detektAndroidMain` was `NO-SOURCE`) and none exists for the AGP built-in-Kotlin `androidApp`
+modules, so `build.gradle.kts` adds `detektTypedCommonMain` / `detektTypedCommonTest` and `detektTypedDebug*`
+(`config/detekt/detekt.yml` has the rules and their reasons; the board record `detekt-typed-rules-after-kotlin-2-4-support` waits for a
+detekt release that reads Kotlin 2.4).

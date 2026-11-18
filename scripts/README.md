@@ -28,6 +28,7 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/check-kover-floors.sh`: the Kover floors in `config/kover-floors.properties` only go up.
 - `scripts/check-kover-floors.py`: the implementation behind `check-kover-floors.sh`.
 - `scripts/swiftlint-pin.sh`: the pinned SwiftLint version (`config/swiftlint.pin`): `--check` for the gate, `--install <dir>` for CI (sha256 verified); `--self-test`.
+- `scripts/check-no-println.sh`: fails on a `println(` or `print(` in production Kotlin, which detekt cannot see; `--self-test`.
 - `scripts/check-room-schema.sh`: Room schema files are append-only, a version bump has its migration and test.
 - `scripts/check-room-schema.py`: the implementation behind `check-room-schema.sh`.
 - `scripts/check-skill-rule-changes.sh`: lists removed or rewritten rule lines in skills and `CLAUDE.md` files.

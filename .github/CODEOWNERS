@@ -69,6 +69,7 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/check-kover-floors-fixtures/       @ali-roozbahani
 /scripts/swiftlint-pin.sh                  @ali-roozbahani
 /config/swiftlint.pin                       @ali-roozbahani
+/scripts/check-no-println.sh                @ali-roozbahani
 /scripts/check-room-schema.sh               @ali-roozbahani
 /scripts/check-room-schema.py               @ali-roozbahani
 /scripts/check-room-schema-fixtures/        @ali-roozbahani
