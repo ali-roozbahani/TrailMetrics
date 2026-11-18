@@ -1,7 +1,11 @@
 package dev.roozbahani.trailmetrics.feature.history
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
 import dev.roozbahani.trailmetrics.core.testing.FakeActivityHistoryRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeSnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -106,6 +110,23 @@ class HistoryScreenTest {
         showHistory().clickRow(CoreStrings.activity_type_cycling)
 
         assertEquals(listOf(RIDE.id), clickedActivityIds)
+    }
+
+    @Test
+    fun `a tapped row calls the latest callback after the callback changed`() {
+        activityHistoryRepository.setActivities(listOf(RUN))
+        val latestClickedIds = mutableListOf<Long>()
+        var onActivityClicked by mutableStateOf<(Long) -> Unit>({ clickedActivityIds += it })
+        composeRule.setContent {
+            TrailMetricsTheme { HistoryRoot(onActivityClicked = onActivityClicked) }
+        }
+
+        // The root recomposes with a new callback; the effect that collects the events started before.
+        composeRule.runOnIdle { onActivityClicked = { latestClickedIds += it } }
+        robot.clickRow(CoreStrings.activity_type_running)
+
+        assertEquals(listOf(RUN.id), latestClickedIds)
+        assertEquals(emptyList(), clickedActivityIds)
     }
 
     @Test
