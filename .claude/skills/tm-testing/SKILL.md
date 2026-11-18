@@ -224,8 +224,8 @@ behavior when the defect is fixed, not deleted.
 ## What to test, and coverage priorities (current state: measured, uneven)
 
 The merged Kover report (see `tm-pr-workflow`, Tier 1) is the current measure; `core`
-and `androidApp/core-ui` have no tests of their own, and `androidApp/app` has some but no minimum yet.
-`domain`, `data`, `shared` and the feature modules have a `koverVerify` minimum, so adding untested code there can fail the gate.
+and `androidApp/core-ui` have no tests of their own.
+`domain`, `data`, `shared`, `androidApp/app` and the feature modules have a `koverVerify` minimum, so adding untested code there can fail the gate.
 When asked to raise coverage without a more specific target, prioritize in this order:
 1. `domain`: pure logic first — `CalorieCalculator`, speed/Haversine calculations,
    `TrackingSessionManager`'s state transitions (`UpdateTrackingStateUseCase`), use

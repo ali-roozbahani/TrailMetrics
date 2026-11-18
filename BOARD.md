@@ -57,15 +57,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### app-kover-floor
-- Type: task
-- Area: androidApp
-- Order: 25
-- Source: PR offer-saved-session-at-app-start
-- Problem: `androidApp/app` has unit tests now (20, line coverage 42.9% measured 2026-10-25) but no `koverVerify` minimum: a floor needs an entry in `config/kover-floors.properties` and the module's Kover block reading it, and the build file was authorized for the test source set and its comment only.
-- Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
-- Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
-
 ### enable-robustness-lint-rules
 - Type: task
 - Area: config, scripts
