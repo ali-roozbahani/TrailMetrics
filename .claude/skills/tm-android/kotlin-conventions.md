@@ -57,16 +57,17 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
 
 Config: `config/detekt/detekt.yml`, applied to every subproject by the root
 `build.gradle.kts` with `buildUponDefaultConfig = true` and `autoCorrect = true`. Run it
-with `./gradlew detekt`. It is part of the local pre-push gate
-(`scripts/pre-push-check.sh`) and CI.
+with `./gradlew detekt detektTyped`: `detekt` is the plain run, `detektTyped` the run with type
+resolution (the rules that need it, and which of them fire: `tm-robustness`, "Mechanical rules").
+Both are part of the local pre-push gate (`scripts/pre-push-check.sh`) and CI.
 
 KMP modules (`domain`, `data`, `core`, `shared`, `shared-uitest`) have no `src/main`, which
 is all the plain `detekt` task reads, so the root build points it at every `src/*` source set
 (it was NO-SOURCE there before).
 
-- Forbidden: `println`/`print` (`ForbiddenMethodCall`, use a logger) and any
-  `kotlinx.coroutines.GlobalScope` import (`ForbiddenImport`, use `viewModelScope` or an
-  injected scoped `CoroutineScope`).
+- Forbidden: `println`/`print` (use a logger; `ForbiddenMethodCall` is configured but does not fire for
+  them, so only review catches one) and any `kotlinx.coroutines.GlobalScope` import
+  (`ForbiddenImport`, use `viewModelScope` or an injected scoped `CoroutineScope`).
 - Thresholds: `LongMethod` 60 lines, `CyclomaticComplexMethod` 15 (both ignore
   `@Composable` functions but apply everywhere else), `TooManyFunctions` 12 per class,
   `LongParameterList` 7 for functions and constructors (`TrackingSessionManager.kt` and

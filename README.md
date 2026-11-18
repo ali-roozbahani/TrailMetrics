@@ -173,7 +173,7 @@ The goal is that anyone reading this repository — human or automated — can t
 
 # Android static analysis
 ./gradlew lint
-./gradlew detekt
+./gradlew detekt detektTyped
 
 # iOS static analysis
 cd iosApp && swiftlint lint --strict
