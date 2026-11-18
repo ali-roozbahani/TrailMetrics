@@ -84,6 +84,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: one pure function or use case in `domain` with `kotlin.test` coverage computes them, and both ViewModels only adapt it.
 - Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentMetrics`, `recomputeCalories`); `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-kmp-shared` ("Where logic lives").
 
+### detekt-typed-rules-after-kotlin-2-4-support
+- Type: task
+- Area: config, scripts
+- Order: 54
+- Source: PR for no-println-text-check (owner request, 2026-11-18)
+- Problem: detekt 1.23.8 embeds Kotlin 2.0.21 and cannot read the metadata of Kotlin 2.4 libraries, so a call of a Kotlin-declared function (`println`, `delay`, `runCatching`) stays unresolved in the typed run (`config/detekt/detekt.yml`, `LEARNINGS.md`). Four rules are off or do not fire for that reason: `RedundantSuspendModifier` (2 false hits on `main` at the time), `SuspendFunSwallowedCancellation` (did not report a planted `runCatching { delay(1) }`), `UnsafeCast` (the compiler rejects the same casts first, so this one may stay moot) and `ForbiddenMethodCall` for `println`/`print`, which `scripts/check-no-println.sh` covers as text meanwhile. Reason for a record: it waits for a detekt release the owner chooses to move to (a dependency change, not an agent follow-up).
+- Done when: detekt is upgraded to a release that resolves Kotlin 2.4 library calls; `RedundantSuspendModifier`, `SuspendFunSwallowedCancellation`, `UnsafeCast` and `ForbiddenMethodCall` for `println`/`print` are measured again on a planted case each and enabled where they fire (the reason lines in `config/detekt/detekt.yml` and the `tm-robustness` "Mechanical rules" list updated to match); `scripts/check-no-println.sh`, its gate and CI steps, self-test, index line and CODEOWNERS lines are removed if `ForbiddenMethodCall` replaces it.
+- Refs: `config/detekt/detekt.yml`; `build.gradle.kts` (`detektTyped`); `scripts/check-no-println.sh`; `tm-robustness` ("Mechanical rules"); `LEARNINGS.md` ("detekt 1.23.8 exception rules").
+
 ### ios-release-readiness-restricted-directions-keys
 - Type: task
 - Area: iosApp, androidApp, config
