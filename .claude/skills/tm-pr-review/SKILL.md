@@ -81,7 +81,8 @@ from memory.
    leaks, performance; rule ids and severities), `tm-testing` (testing stack, no
    MockK/Turbine/JUnit5/AssertK/Truth), `tm-pr-workflow` (branch prefix in `branch`,
    `type(scope): summary` commit format, Boundaries). Read them under
-   `.claude/skills/<name>/SKILL.md`. Also `CLAUDE.md`'s hard rules.
+   `.claude/skills/<name>/SKILL.md`. Also `CLAUDE.md`'s hard rules. For the commit format and the headings of
+   the PR description, which are in `.claude/skills/tm-pr-workflow/commits-push-pr.md`, Read that file too.
    A new hardcoded user-visible string in iOS code, or a localized text without the package bundle (`tm-ios`, "Strings"), is blocking.
 3. **Protected paths.** `protected` is `scripts/check-protected-paths.sh --base BASE`
    output. Also check the `diff` file list against `.github/CODEOWNERS` yourself. Any
