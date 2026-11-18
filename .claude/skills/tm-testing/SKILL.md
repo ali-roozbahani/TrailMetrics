@@ -42,7 +42,7 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   no `androidTest`) in all three feature modules. Their `build.gradle.kts` lists the catalog
   entries (`robolectric`, `androidx-compose-ui-test-*`) and sets
   `testOptions.unitTests.isIncludeAndroidResources = true` so tests can read string
-  resources. See "Compose UI tests".
+  resources. See "Compose UI tests" (`compose-ui-test-rules.md`).
 - The one `androidTest` source set is in `androidApp/app` ("Which test goes where"); it adds
   `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`) and the existing `kotlin-test`
   to that module only.
@@ -76,7 +76,7 @@ can fail on the defect:
    method, the foreground-service lifecycle, a process boundary. The PR says why ("not provable on the JVM
    because ..."). If a Robolectric test can fail on the defect, write that one, even when an instrumented one
    would also be possible.
-4. **XCUITest**: the iOS counterpart of tier 3 ("XCUITest" below).
+4. **XCUITest**: the iOS counterpart of tier 3 ("XCUITest", `xcuitest-rules.md`).
 5. **Human check** (Tier 2 of `tm-pr-workflow`): only what no tier can show (real GPS in the field, what the
    Maps SDK draws, a human judgement of design), with the reason in the PR.
 
@@ -218,7 +218,7 @@ behavior when the defect is fixed, not deleted.
 | New use case, domain logic | `kotlin.test` in `domain` commonTest on fakes of the repository interfaces. |
 | ViewModel (Android) | A test against `onAction` and `state`/`events` on `core-testing` fakes; when migrating, written against the target State/Action/Event shape first, so it specifies and locks the behavior. |
 | Repository, HTTP call (`data`) | A commonTest on the real repository: Ktor `MockEngine` for HTTP, the Room repository suite for storage. |
-| Room schema | The frozen fixture for the old version, then the `MIGRATION_M_N` case ("Migration cases"). |
+| Room schema | The frozen fixture for the old version, then the `MIGRATION_M_N` case ("Migration cases", `room-migration-rules.md`). |
 | Swift ViewModel, iOS flow | An XCTest in the package's `Tests` on the real Kotlin class built on `TestSupport` fakes; a UI flow: XCUITest. |
 
 ## What to test, and coverage priorities (current state: measured, uneven)
