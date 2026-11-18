@@ -5,14 +5,12 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.StoredUserProfileUnreadableException
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 class UserProfileRepositoryImpl(
     private val storage: KeyValueStorage,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher
 ) : UserProfileRepository {
 
     override suspend fun getUserProfile(): UserProfile? = withContext(ioDispatcher) {

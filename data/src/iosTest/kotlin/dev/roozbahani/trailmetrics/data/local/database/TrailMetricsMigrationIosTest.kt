@@ -7,6 +7,8 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSUUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 
 // Opens the file through the app's own getRoomDatabase, so the run uses the app's bundled driver.
 @OptIn(ExperimentalForeignApi::class)
@@ -27,7 +29,7 @@ class TrailMetricsMigrationIosTest : TrailMetricsMigrationTest() {
     }
 
     override fun openWithAppPipeline(path: String): TrailMetricsDatabase =
-        getRoomDatabase(Room.databaseBuilder<TrailMetricsDatabase>(name = path))
+        getRoomDatabase(Room.databaseBuilder<TrailMetricsDatabase>(name = path), Dispatchers.IO)
 
     override fun deleteDatabaseDirectory(directory: String) {
         NSFileManager.defaultManager.removeItemAtPath(directory, error = null)

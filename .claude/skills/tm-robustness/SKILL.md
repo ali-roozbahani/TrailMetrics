@@ -141,18 +141,9 @@ tools that are not enabled today are in the PR that wrote this skill and in the 
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code. Each names its board record.
-- No LeakCanary in the app, and the debug `StrictMode` policies see only what they list (M8): a leaked `View`,
-  `Fragment` or `ViewModel` that is not an `Activity`, a leak of the app's own objects (a kept scope or
-  listener) and a blocking call that StrictMode does not instrument (a long computation) go unreported.
 - The location launchers in `RouteScreen` and `TrackingScreen` do nothing on a refusal, there is no
   rationale and no way to the app's settings, and the notification permission is asked on every entry
   with an empty result (S2; `android-location-permission-denial-and-disclosure`).
-- `TrackingService` creates `CoroutineScope(SupervisorJob() + Dispatchers.Default)` itself;
-  `UserProfileRepositoryImpl`, `ActivityHistoryRepositoryImpl`,
-  `saveSnapshotToFile` and `TrackingRoot` (`snapshotDispatcher`) name
-  `Dispatchers.IO` as a default argument, and `DatabaseBuilder.kt` (`getRoomDatabase`) passes
-  `Dispatchers.IO` to `setQueryCoroutineContext`; it is neither a DI module nor the application
-  root (D1; `inject-dispatchers-from-di`).
 - `TrackingSessionManager` keeps a scope (`scope`) and launches `_state.collect { persist(it) }` from
   `init`; `RouteDraftSaver` has the same shape. Both are documented in the code and stay as they are
   (M9).
