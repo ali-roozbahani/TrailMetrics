@@ -321,7 +321,7 @@ subagent, and it does so once, on the final HEAD in the main clone, after the co
 have been taken into the task branch (`tm-agent-loop`, "Subagents"). An implementer's commits are reviewed
 as part of that HEAD, not one by one.
 
-1. Draft the PR description (`tm-pr-workflow`, "PR description") at
+1. Draft the PR description (`tm-pr-workflow`, "PR description", `commits-push-pr.md`) at
    `~/agent-workspace/pr-body-<slug>.md`, without `Reviewer findings`. Commit everything
    (`git status --porcelain` must be empty), then run:
 
@@ -372,7 +372,7 @@ as part of that HEAD, not one by one.
 5. Report the verdict and its findings in the PR description. `ESCALATE_TO_HUMAN` means the
    human decides; say why the reviewer escalated. Each `[important]` finding of the local report
    and of the CI report gets one disposition, one line each, under the heading `Reviewer
-   findings` (`tm-pr-workflow`, "PR description"), before the PR is merged: `fixed in <sha>` |
+   findings` (`tm-pr-workflow`, "PR description", `commits-push-pr.md`), before the PR is merged: `fixed in <sha>` |
    `board record <slug>` (the record has its reason line) | `queued <slug>` (a PR of its own, an
    entry of the local queue; the gate checks that the entry exists, not that it fixes the finding)
    | `rejected: <reason a human can check>`. Before the push, write the local ones with `scripts/local-review-gate.sh disposition

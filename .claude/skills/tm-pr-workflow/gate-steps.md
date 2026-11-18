@@ -27,7 +27,7 @@ Moved word for word from `SKILL.md`, "Tier 1: the local gate" (the bullets from 
   script fetches at depth in a full clone: `scripts/check-board.py` and `scripts/ci/pr-base.sh` do it
   only when the checkout is already shallow, so setting CI's variables by hand is safe.
 - **A failing step** (a timeout of a UI-test step counts) fails the gate, which prints
-  the failed steps and "Do not push". Fix it within the "Retry budget".
+  the failed steps and "Do not push". Fix it within the "Retry budget" (`retry-budget.md`).
 - **Secrets.** Never pass a secret (the Maps key among them) on an `xcodebuild` command line:
   `xcodebuild` echoes its arguments, and the gate's log filter hides only Xcode's
   exported-environment lines. The iOS secrets config (README "iOS", step 2) is git-ignored; when
@@ -53,5 +53,5 @@ Moved word for word from `SKILL.md`, "Tier 1: the local gate" (the bullets from 
   run it: go back. A second hook, `scripts/claude-hooks/require-local-review.sh`, also blocks
   `git push` and `gh pr create` unless the reviewer's own report for the commit that would be
   pushed (the pushed ref resolved to a SHA: `git push origin other:branch` needs the review of
-  `other`) allows it; "Push and PR" says how to satisfy it. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
+  `other`) allows it; "Push and PR" (`commits-push-pr.md`) says how to satisfy it. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
   every new commit) is in `tm-pr-review`, "Orchestrator's part".

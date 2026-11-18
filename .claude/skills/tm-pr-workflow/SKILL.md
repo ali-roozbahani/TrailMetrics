@@ -16,6 +16,21 @@ The task prompt only says *what* to do. Everything below applies to every task w
 prompt restating it, including committing, pushing and opening the PR: the agent does
 those on its own initiative once Tier 1 passes.
 
+## Topic files
+
+Read each file when the task reaches its topic, not before; a reviewer reads it for a diff that touches the topic.
+Section headings are unchanged, so a reference to `tm-pr-workflow`, "<heading>", is found in this file or in the file
+named here. The detail files that already existed (`gate-steps.md`, `gate-enforcement.md`, `tier2.md`, `board.md`,
+`flake-log.md`, `pr-description-extras.md`, `test-counts.md`, `task-template.md`, `after-pr-open.md`,
+`enforcement-and-history.md`) are named where this file points to them.
+
+| File | Read it when |
+|---|---|
+| `commits-push-pr.md` ("Commits", "Push and PR", "PR description") | before the first commit of a task: the commit and PR title format, the push and PR commands, the headings of the PR description and the trailer |
+| `retry-budget.md` ("Retry budget (2 fix attempts)") | the gate is red, or a fix of the gate is being made: what counts as an attempt, what does not, when to stop |
+| `dependency-bump.md` ("Dependency version bump") | a version in `gradle/libs.versions.toml` or an SPM dependency changes |
+
+
 ## Before starting
 
 Every run starts with these steps, for a named task and a board pick alike:
@@ -116,130 +131,9 @@ How it is enforced (the full text, with the exact shapes of the push and PR comm
   `build.gradle.kts`.
 - A task is not done until Tier 1 has been run **and** its result reported in the PR.
 
-## Retry budget (2 fix attempts)
-
-- One attempt = a change aimed at a gate failure, then a full re-run of
-  `scripts/pre-push-check.sh`. The first run doesn't count. If the gate is still red after
-  the second fix attempt (third run), **stop**: don't push, and report which step fails,
-  the relevant output, and what each attempt changed. Then wait.
-- Every stop-and-report, and the final report of a run, has the shape in `tm-agent-loop`, "Report".
-- Environment failures are not attempts. Report them right away rather than working
-  around them: SwiftLint not installed, no Xcode/simulator, Gradle daemon or network
-  errors, a failure that reproduces on a clean `main`.
-- Never "fix" a gate failure by editing lint/Detekt/SwiftLint config, adding
-  `@Suppress`/`swiftlint:disable`, excluding a test or skipping a step. That trades a gate
-  failure for a boundary violation (see Boundaries).
-- The budget covers only the local gate loop. It does **not** cover:
-  - Review feedback on an open PR. Each requested change is a new commit on the same
-    branch, with its own gate run (#31 and #35 each got a second commit this way).
-  - Follow-up PRs. #33 → #34 → #35 and #36 → #37 were chains where a PR's findings or a
-    reviewer's correction led to a new, separately scoped task. None of them was a gate
-    failure: all of #30–#37 were green in CI on the first run.
-  - CI going red after a green local gate. That shouldn't happen (see "CI vs the gate"
-    below). If it does, follow `tm-agent-loop`, section 6 (`watching-ci.md`) (a fix is a new commit through the
-    gate, at most 2 such CI-fix rounds per PR; a flake is re-run once through the script)
-    instead of iterating against CI.
-
 ## Tier 2: what automated tests cannot show
 
 The user-visible behavior of a change is validated by automated tests, not by a human on a device. A human check is listed only for one of three reasons: no automated test can observe it; a test seam or target that does not exist yet, tracked by a queued PR or a board record the PR names; the single final smoke check of a finished end-to-end feature. Each human check gives the behavior, the reason and the exact steps; a docs-, test-, CI- or skill-only change says plainly that nothing user-visible changes. The full text, with what no test can observe in this repo, is in `tier2.md`.
-
-## Commits
-
-- Format: `type(scope): summary`, imperative, lowercase after the colon, no trailing
-  period. Explain the *why* in the body when it isn't obvious.
-- Types in use: `feat`, `fix`, `refactor`, `build`, `docs`, `test` (the set the retired docs listed),
-  plus `chore`, which is the most common type in recent history. Use `chore` for work that fits the `chore/` branch prefix but isn't a
-  better fit for `docs`, `build` or `test`.
-- Scopes in use: a module or platform (`android`, `ios`, `domain`, `data`, `shared`,
-  `core`, `route`) or an area (`ci`, `hooks`, `skills`, `learnings`). Omit the scope
-  only when the change really spans everything.
-- One type per message. Don't combine them (`docs+chore:` in #7 is not the pattern).
-- End every commit message with the attribution trailer the session specifies. The one exception
-  is a local `git merge origin/main` commit (`tm-agent-loop`, section 9): the squash merge drops it
-  from `main`, so it needs no trailer (`git merge origin/main --no-edit`).
-- **A bugfix's red evidence goes in a commit message**: the commit that adds the reproducing test, or
-  the fix commit when they are one, states the test's name and its failure message on the unfixed
-  code. The local and CI reviewers enforce exactly that (`tm-pr-review`, item 4; a missing test or
-  missing evidence is blocking), and `tm-testing`, "Bugfixes: red test first", says the same. The PR
-  description may repeat it, but the commit message is what the reviewer checks.
-
-## Push and PR
-
-- Before the push: draft the PR description, run the reviewer on the final commit, fix, review again, then write the
-  dispositions (`scripts/local-review-gate.sh disposition <sha> '<disposition>' ...`, one
-  argument per `[important]` finding in report order). The hook allows the push and
-  `gh pr create` only for a report of exactly that commit with no `[blocking]` finding (verdict
-  `APPROVE`, or `ESCALATE_TO_HUMAN`) and a disposition for every `[important]` one;
-  `scripts/local-review-gate.sh check <sha>` says why not. Report the hook's reason when it
-  blocks, never work around it (no `git -c`, no alias, no editing the settings).
-- Push the branch you created (`git push -u origin <branch>`), then open the PR against
-  `main` with `gh pr create --base main --title "<PR title>" --body-file <file>`. `gh` must be logged in as an account with write
-  access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
-- Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
-  under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
-  green and Tier 2 has passed (every human check the PR lists is done). A human check
-  listed under Tier 2 does not block a merge the agent makes: it stays in the PR's
-  description, and the human does it when testing the feature (the epic-level Tier 2),
-  not before the merge.
-- The agent's part does not end at the open PR: the run continues with `tm-agent-loop`,
-  sections 6 to 8 (watch CI, read the verdict, merge conditions), and the "Merge check" comment is
-  posted on every PR.
-- **The PR title becomes the commit on `main`.** PRs are squash-merged as
-  `<PR title> (#N)`, so the title must itself be a valid `type(scope): summary`.
-
-### PR description
-
-Required. It is final before the push that starts CI: CI's reviewer reads the description when the run
-starts, so a later edit is not what that run reviewed. Write the gate result and the local review's
-dispositions into it before the push, and give the PR that body at creation; only what the CI reviewer
-itself reports can come after.
-Draft it at `~/agent-workspace/pr-body-<slug>.md` before the local review, without
-`Reviewer findings`: it is the local reviewer's `TASK` (`scripts/review-task.sh <draft>`), as it
-is CI's. The PR is created from it with `--title "<PR title>"` and `--body-file`: an optional `Title:`
-first line and the blank line below it are not part of the body, so when the draft has one, write the
-body file first with `scripts/set-pr-body.sh --print-body <draft> > <body file>` and give `gh` that
-file (a draft without a `Title:` line is the body file itself). A `Board: -slug` line brings that record's Problem and Done when to the
-reviewer; a task with no record states its Task and Scope in "What changed". `Reviewer findings` is
-added after the reviews. Use these headings, and keep all four even when one is
-"nothing to check":
-
-1. **What changed**: the diff in reviewer terms, including what was deliberately *not*
-   changed if the Scope named it.
-2. **Skills/docs followed**: e.g. `tm-kmp-shared`, `tm-robustness`, `tm-testing`, `tm-pr-workflow`.
-3. **Tier 1**: the gate result on the pushed HEAD, which steps ran, and why the iOS steps
-   were skipped if they were. For test changes, include test counts before and after
-   (from `allTests` JUnit XML, not `./gradlew test`), counted as `test-counts.md` says:
-   - Report before and after for each module the PR touches. No repo-wide total.
-4. **Tier 2**: for each user-visible behavior the change alters, the automated test that
-   covers it (by name), or a human check with its reason and steps (see "Tier 2: what
-   automated tests cannot show"); or, for a docs-, test-, CI- or skill-only change, an
-   explicit "nothing user-visible changes" and why. "Nothing to check on a device" without
-   test names is not enough for a change that alters user-visible behavior.
-
-Add these when they apply (the full text of each, with the rule that each Follow-ups or Drift bullet ends with where the item went, is in `pr-description-extras.md`): **Reviewer findings** (one line per `[important]` finding with its disposition), **Assumptions**, **Follow-ups (out of scope, not changed)**, **Drift found (not fixed)**, **Board** (always, one line: `Board: +slug-a, -slug-c` or `Board: no changes`) and **Corrections**.
-
-End the description with the attribution line the session specifies.
-
-The description of an open PR (the `Reviewer findings` added after the reviews, any later change) is set from the draft with `scripts/set-pr-body.sh <PR number> <draft>`: `gh pr edit` needs the `read:org` scope, which the machine token lacks.
-
-## Dependency version bump
-
-A bump that deprecates APIs ends with no deprecated call and no suppression. With `allWarningsAsErrors = true`
-(`tm-android`, "No deprecated APIs (Kotlin)") the compiler's deprecation warnings are the work list.
-
-1. Bump the version (`gradle/libs.versions.toml`) in the first commit, then build every platform target: the
-   Android build and `allTests`, and the iOS framework (`scripts/build-kmp-framework.sh`).
-2. Take each deprecation warning as a work item and replace the call with the replacement that the library
-   names (its `ReplaceWith`, release notes or migration guide). Decide by the receiver's declared type, never by a
-   find and replace of a method name: the same name exists on unrelated types.
-3. One commit per call-site family (the same old call replaced the same way).
-4. Never silence a deprecation with `@Suppress("DEPRECATION")` or by lowering `allWarningsAsErrors`. A call with no
-   replacement is a stop-and-report.
-5. Run the gate, and the full UI scope when UI code changed (`scripts/classify-changes.sh --ui-scope` says which). The
-   PR lists the bumped versions and each call-site family.
-6. Kotlin, SKIE, the Compose compiler plugin, KSP and Room's KSP processor move together: a Kotlin bump checks
-   that each supports the new Kotlin version.
 
 ## Boundaries
 

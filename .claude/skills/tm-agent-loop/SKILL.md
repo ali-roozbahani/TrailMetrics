@@ -94,7 +94,7 @@ unrelated side effect.
 
 ## 4. Local review
 
-Draft the PR description first (`tm-pr-workflow`, "PR description"; no `Reviewer findings`
+Draft the PR description first (`tm-pr-workflow`, "PR description", `commits-push-pr.md`; no `Reviewer findings`
 yet), then run the `pr-reviewer` on the final HEAD as `tm-pr-review`, "Orchestrator's part"
 describes: `scripts/local-review-prepare.sh <draft>` fills the inputs and writes its message to a
 file, the reviewer is started with the two-line prompt it prints, and
@@ -108,7 +108,7 @@ section 7's reason rule) before the push. A new commit needs a new review. A blo
 - `APPROVE`: continue.
 - `CHANGES`, or blocking findings under `ESCALATE_TO_HUMAN`: fix them as a new commit and
   review again. That is one review fix attempt. The budget is **2 review fix attempts per
-  PR**, separate from the gate's 2 fix attempts (`tm-pr-workflow`, "Retry budget"). If the
+  PR**, separate from the gate's 2 fix attempts (`tm-pr-workflow`, "Retry budget", `retry-budget.md`). If the
   third review still has a blocking finding: stop, don't push, report the findings.
 - Notes and `[important]` findings never trigger another round; each `[important]` gets its
   disposition in the PR description (`tm-pr-review`, "Orchestrator's part", step 5).
