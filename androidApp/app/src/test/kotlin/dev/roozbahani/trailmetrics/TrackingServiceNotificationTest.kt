@@ -25,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -100,7 +101,10 @@ class TrackingServiceNotificationTest {
             // `onDestroy` cancels the service scope, but work that is already running on a Default thread (building the
             // notification) goes on until it returns, and it needs what this test set up (the launcher activity of the
             // package manager shadow, Koin). Wait until that work is over before the test environment is torn down.
-            runBlocking { serviceScope(service).coroutineContext.job.join() }
+            runBlocking {
+                // Bounded, so a collector that never returns fails the test with a message instead of hanging the run.
+                withTimeout(SERVICE_SCOPE_JOIN_TIMEOUT_MILLIS) { serviceScope(service).coroutineContext.job.join() }
+            }
         }
         stopKoin()
     }
@@ -142,5 +146,9 @@ class TrackingServiceNotificationTest {
 
         assertEquals(TrackingService.ACTION_STOP_TRACKING, intent.action)
         assertTrue(StopTrackingAuthorization.isAuthorized(intent))
+    }
+
+    private companion object {
+        const val SERVICE_SCOPE_JOIN_TIMEOUT_MILLIS = 10_000L
     }
 }
