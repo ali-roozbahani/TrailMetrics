@@ -443,9 +443,11 @@ fi
 # --- iOS (only when relevant files changed, and the decision is full) ---
 if [ "$RUN_IOS_STEPS" = true ]; then
     if command -v swiftlint >/dev/null 2>&1; then
+        # The version in config/swiftlint.pin is what CI installs; another version here could pass what CI fails.
+        run_step "swiftlint version" scripts/swiftlint-pin.sh --check
         run_step "swiftlint" bash -c 'cd iosApp && swiftlint lint --strict'
     else
-        FAILURES+=("swiftlint (not installed — install with 'brew install swiftlint')")
+        FAILURES+=("swiftlint (not installed — scripts/swiftlint-pin.sh --install <dir>, then put <dir> first on PATH)")
     fi
 
     # The SwiftLint rules' self-tests, group `ios-swiftlint` of scripts/checks/self-tests.list: the

@@ -12,7 +12,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   `AndroidLocationRepositoryImpl.observeLocationUpdates` (`awaitClose { removeLocationUpdates }`),
   `TrackingLiveActivityController` (observer added in `init`, removed in `deinit`). Enforced:
   reviewer only on Android (no lint check for listener registration); SwiftLint
-  `notification_center_detachment` (on), `discarded_notification_center_observer` (off).
+  `notification_center_detachment` and `discarded_notification_center_observer` (both on).
   Severity: blocking.
 - **M2** Android: no `Context`, `Activity`, `View` or composable lambda held by a ViewModel,
   singleton, companion object or long-lived coroutine; an `Application` context is the only one a
@@ -34,7 +34,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   (`[weak self]`); delegates are `weak`; a `Timer` or `NotificationCenter` observer is invalidated or
   removed; no strong cycle between a view model and its closures or publishers. Why: a cycle never
   deinits. Example: `TrackingViewModel` (`[weak self]` in both observation tasks and the stop
-  closure). Enforced: SwiftLint `weak_delegate` and `unowned_variable_capture` are off; the rest
+  closure). Enforced: SwiftLint `weak_delegate` and `unowned_variable_capture` (both on); the rest
   reviewer only. Severity: blocking for a stored closure with a strong `self`, else important.
   A leak test (the iOS side of M8): make the object in a scope, keep a `weak var` to it, drop the strong
   reference, run the pending work (`await` the tasks it started), then `XCTAssertNil` the weak

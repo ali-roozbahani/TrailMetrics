@@ -9,11 +9,8 @@ import XCTest
 
 final class MapSnapshotWriterTests: XCTestCase {
 
-    private var directory: URL!
-
-    override func setUpWithError() throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    }
+    // XCTest makes a new instance per test method, so every test gets its own directory.
+    private let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 
     override func tearDownWithError() throws {
         if FileManager.default.fileExists(atPath: directory.path) {

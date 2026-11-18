@@ -5,9 +5,20 @@ opt_in_rules:
   - closure_spacing
   - empty_count
   - fatal_error_message
+  - weak_delegate
+  - discarded_notification_center_observer
+  - unhandled_throwing_task
+  - unowned_variable_capture
+  - implicitly_unwrapped_optional
 
 disabled_rules:
   - todo
+
+# Not enabled, measured 2026-11-18 on 0.65.1: `async_without_await` reports 15 declarations. All but one are
+# `async` because a protocol requires it (the fakes of TestSupport and the test packages implement Kotlin
+# suspend functions exported through SKIE as `async` requirements, `AppIntent.perform()` in the widget), and
+# `writeMapSnapshot` is `async` on purpose (its doc comment: it runs on the caller's actor). The rule cannot
+# tell a required `async` from a needless one, so enabling it would mean a disable comment on each.
 
 force_unwrapping: error
 force_cast: error
