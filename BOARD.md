@@ -161,9 +161,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp
 - Order: 71
 - Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: Xcode can generate Swift symbols for String Catalog keys. Whether that works inside the six SPM packages (the bundle is the package's) and replaces the `String(localized:bundle:)` and `Text(..., bundle: .module)` forms is not known. Reason for a record: an experiment whose result changes a rule in `tm-ios` ('Strings'), so the owner decides what to adopt.
-- Done when: One compile check in one package reports whether generated symbols work there, with the evidence; the owner decides whether `tm-ios` ('Strings') and the two SwiftLint custom rules change.
-- Refs: `.claude/skills/tm-ios/SKILL.md` ('Strings'); `iosApp/.swiftlint.yml`; `iosApp/Packages/*/Sources/*/Localizable.xcstrings`.
+- Problem: Xcode can generate Swift symbols for String Catalog keys. Whether that works inside the six SPM packages (the bundle is the package's) and replaces the `String(localized:bundle:)` and `Text(..., bundle: .module)` forms is not known. Reason for a record: an experiment whose result changes a rule in `tm-ios` ('Strings', `strings-and-accessibility.md`), so the owner decides what to adopt.
+- Done when: One compile check in one package reports whether generated symbols work there, with the evidence; the owner decides whether `tm-ios` ('Strings', `strings-and-accessibility.md`) and the two SwiftLint custom rules change.
+- Refs: `.claude/skills/tm-ios/strings-and-accessibility.md` ('Strings'); `iosApp/.swiftlint.yml`; `iosApp/Packages/*/Sources/*/Localizable.xcstrings`.
 
 ### pr-description-ios-test-count
 - Type: task
@@ -199,7 +199,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: owner decision 2026-11-16 (iOS skills spike follow-up)
 - Problem: There is no setting for metric or imperial units, and numbers, units and durations are formatted in the Kotlin `domain` today (`MetricsFormatter`) and by hand in the widget. The direction (owner decision 2026-11-16) is to format user-visible numbers per platform and locale, not in the domain; moving the existing formatting is a refactor that is not scheduled. Parked as a product decision.
 - Done when: A decision on the setting (follow the locale or an in-app choice) and on who formats; then the formatting moved per platform with tests, and `shared-metrics-formatter-user-visible-strings` and `ios-hardcoded-number-formatting` resolved.
-- Refs: `domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/util/MetricsFormatter.kt`; `iosApp/TrackingWidget/TrackingLiveActivity.swift`; `shared-metrics-formatter-user-visible-strings`; `ios-hardcoded-number-formatting`; `tm-ios` ('Numbers, units and durations').
+- Refs: `domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/util/MetricsFormatter.kt`; `iosApp/TrackingWidget/TrackingLiveActivity.swift`; `shared-metrics-formatter-user-visible-strings`; `ios-hardcoded-number-formatting`; `tm-ios` ('Numbers, units and durations', `strings-and-accessibility.md`).
 
 ### ios-dynamic-type-beyond-the-pass
 - Type: task
@@ -208,7 +208,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: owner decision 2026-11-16 (iOS skills spike follow-up)
 - Problem: The accessibility pass on the production screens (queue PR) covers labels, grouped metric cells, scaled sizes and Reduce Motion. Layouts at the largest Dynamic Type sizes (wrapping, scrolling, the Live Activity and widget) are not checked. Parked as a product and design decision.
 - Done when: The largest accessibility sizes are checked on every screen and the widget, the layout decisions are made, and a UI test or audit covers them.
-- Refs: `iosApp/Packages/*/Sources`; `iosApp/TrackingWidget/`; `tm-ios` ('Accessibility').
+- Refs: `iosApp/Packages/*/Sources`; `iosApp/TrackingWidget/`; `tm-ios` ('Accessibility', `strings-and-accessibility.md`).
 
 ### store-assets
 - Type: task
@@ -235,7 +235,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: owner decision 2026-11-16 (open human checks of PR #322 and #325)
 - Problem: Part of the epic `ios-release-readiness`. The accessibility pass of PR #325 is checked by `AccessibilityAuditUITests` (element descriptions and hit regions, run in the gate), but not Reduce Motion, the scaled zoom buttons at large text sizes, the widget's grouping on the lock screen or how the screens sound. Reason for a record: an owner decision of 2026-11-16 to track this pass here; it is the owner's manual pass on a device, needed before a release and not before a merge, and the owner decides when it is done.
 - Done when: The owner has done a manual pass with VoiceOver, Reduce Motion and the largest text size: on Route the top bar and zoom buttons read "User Profile", "Reset", "Zoom in", "Zoom out"; in History and Details the metric cells read as label and value pairs and the type icon is skipped; with Reduce Motion on, Zoom in jumps and the maps follow a position without panning animation; at the largest text size the zoom buttons grow and stay tappable; the Live Activity on the lock screen reads each metric as one element; findings are fixed or declined, and this record is deleted.
-- Refs: `iosApp/TrailMetricsUITests/Accessibility/AccessibilityAuditUITests.swift`; `iosApp/Packages/Route/Sources/Route/GMSMapView+ReduceMotion.swift`; `ios-release-readiness`; `ios-dynamic-type-beyond-the-pass`; `tm-ios` ("Accessibility").
+- Refs: `iosApp/TrailMetricsUITests/Accessibility/AccessibilityAuditUITests.swift`; `iosApp/Packages/Route/Sources/Route/GMSMapView+ReduceMotion.swift`; `ios-release-readiness`; `ios-dynamic-type-beyond-the-pass`; `tm-ios` ("Accessibility", `strings-and-accessibility.md`).
 
 ### tracking-ui-timer-independent-of-location
 - Type: task
@@ -272,7 +272,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: docs/epics/ios-ui-tests.md Q9 (PR #138), 2026-10-13
 - Problem: `iosApp/Packages/SharedKit/Package.swift` points its `binaryTarget` at `shared/build/XCFrameworks/debug/TrailMetricsShared.xcframework` for every build configuration, and `scripts/build-kmp-framework.sh` builds only the debug XCFramework (`:shared:assembleTrailMetricsSharedDebugXCFramework`). So a Release build of the app links the debug Kotlin framework. That framework no longer contains the Swift test support or the iOS UI-test fakes: both live in `shared-uitest`, which is built only into a test-only variant of the framework (`docs/epics/ios-ui-tests.md`, D1), and `scripts/check-production-framework.sh` checks that the production framework has none of it. What remains is that the Release build links a debug-configuration framework. Measured on 2026-11-17 (Apple M4, Kotlin 2.4.10, warm caches): the release link of one slice (`:shared:linkReleaseFrameworkIosArm64`) takes 52 s against about 11 s for a debug link; the release arm64 static archive is 22.6 MB against 70.5 MB per debug slice (the debug XCFramework is 147 MB). The framework's bundle ID is set in `shared` and `shared-uitest` (`binaryOption("bundleId", ...)`); the Release path has to check that the release framework's debug info reaches the app's dSYM, so that Kotlin frames are symbolicated (`ios-crash-reporting-and-symbolication`).
 - Done when: a Release app build links a release XCFramework that contains no test-support or UI-test code, shown by a command in the PR (for example a symbol check on the Release app binary), and the gate and CI still build and test with the debug XCFramework.
-- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/SwiftTestSupport.kt`; `scripts/check-production-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/SKILL.md` ("Build integration").
+- Refs: `iosApp/Packages/SharedKit/Package.swift`; `scripts/build-kmp-framework.sh`; `shared/build.gradle.kts` (`binaries.framework`); `shared-uitest/src/iosMain/kotlin/dev/roozbahani/trailmetrics/uitest/testsupport/SwiftTestSupport.kt`; `scripts/check-production-framework.sh`; `docs/epics/ios-ui-tests.md` (F4, D1, Q9); `.claude/skills/tm-ios/build-and-schemes.md` ("Build integration").
 
 ### ios-simulator-only-framework-slice
 - Type: task
@@ -669,7 +669,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: task 61b stage 1 (owner's report request)
 - Problem: An Xcode build of the app rewrites `iosApp/TrackingWidget/Localizable.xcstrings`: it adds `"extractionState" : "stale"` and drops the final newline. Cause: with `SWIFT_EMIT_LOC_STRINGS = YES` (the widget target) the compiler extracts each target's string literals into `.stringsdata`, and Xcode's String Catalog sync marks every catalog key that no target extracted as `stale`, then writes the file with its own serializer (no final newline). Three widget keys, `Cycling`, `Running` and `Walking`, are never extracted: the widget shows them as `Text(LocalizedStringKey(context.attributes.activityType), bundle: .main)`, a runtime string. Measured on Xcode 27.1 with the gate's command line (`xcodebuild build -scheme TrailMetrics`, simulator): 7 of the 10 widget keys are extracted, every key of the app and of the three package catalogs is, and the command-line build changed no catalog. The rewrite therefore comes from a build in the Xcode app, whose catalog sync runs after the build; that build was not run here. Recorded, not fixed: report-only by the owner's task; the owner chooses the change.
 - Done when: the owner has chosen, and a build in Xcode leaves every catalog unchanged. Smallest change found: give the three keys `"extractionState" : "manual"` in the widget catalog (the state Xcode gives a key added by hand, which it never marks stale); no build setting or code changes. Alternatives: make the keys literals the compiler extracts (a `switch` over the activity type returning `Text("Running", bundle: .main)` and so on: a code change), or a gate check that fails on `"stale"` or a missing final newline in a catalog (it detects the rewrite, it does not stop it). Turning `SWIFT_EMIT_LOC_STRINGS` off for the widget target would leave every widget key unextracted, which is worse.
-- Refs: `iosApp/TrackingWidget/Localizable.xcstrings`; `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`LocalizedStringKey(context.attributes.activityType)`); `iosApp/TrailMetrics.xcodeproj/project.pbxproj` (`SWIFT_EMIT_LOC_STRINGS`, `LOCALIZATION_PREFERS_STRING_CATALOGS`); `.claude/skills/tm-ios/SKILL.md` ("Strings").
+- Refs: `iosApp/TrackingWidget/Localizable.xcstrings`; `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`LocalizedStringKey(context.attributes.activityType)`); `iosApp/TrailMetrics.xcodeproj/project.pbxproj` (`SWIFT_EMIT_LOC_STRINGS`, `LOCALIZATION_PREFERS_STRING_CATALOGS`); `.claude/skills/tm-ios/strings-and-accessibility.md` ("Strings").
 
 ### scripts-folder-moves
 - Type: task
