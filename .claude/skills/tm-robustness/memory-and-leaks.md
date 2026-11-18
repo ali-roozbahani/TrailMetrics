@@ -44,8 +44,13 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   Enforced: reviewer only. Severity: important.
 - **M8** Android: a debug build runs a leak check: LeakCanary or the `StrictMode` VM policy
   (`detectLeakedClosableObjects`, `detectActivityLeaks`). Why: leaks are found by running, not
-  reading. Example: no example yet (neither exists: see "Known deviations in the current code", `SKILL.md`). Enforced: reviewer only.
-  Severity: important.
+  reading. Example: `TrailMetricsApplication` installs `installDebugStrictMode` (`DebugStrictMode.kt`) in
+  debug builds (a release build has no policy): a thread policy (`detectAll`) and a VM policy (leaked
+  closables, activities and SQLite objects), penalty log, not death (a crash would make the instrumented
+  tests flaky on CI emulators). It reports what the framework instruments: a disk or network call on the
+  main thread, a closable, `Activity` or SQLite object that is garbage collected unclosed. It does not catch
+  a leaked `View`, `Fragment` or `ViewModel`, a leak through the app's own scope or listener, or a long
+  computation on the main thread. Enforced: reviewer only. Severity: important.
 - **M9** A new non-UI class (a use case, repository, manager or saver) does not create or keep a
   `CoroutineScope` and does not launch from `init`: it exposes `suspend` functions or a `Flow`, or its
   owner starts it with one named `start(scope)` call. Why: a launch from `init` runs before the object

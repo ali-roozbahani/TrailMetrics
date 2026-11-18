@@ -66,15 +66,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `config/kover-floors.properties` has an `app` entry a little below the measured coverage (1 to 2 points, rounded down), `androidApp/app/build.gradle.kts` reads it like `androidApp/feature-tracking/build.gradle.kts`, `koverVerify` fails when the entry is set 1 point above the measured value, and the build file's Kover comment no longer says there is no floor.
 - Refs: `androidApp/app/build.gradle.kts`; `config/kover-floors.properties`; `tm-pr-workflow` (Coverage ratchet).
 
-### strictmode-leak-detection-debug
-- Type: task
-- Area: androidApp/app
-- Order: 45
-- Source: PR for tm-robustness-skill
-- Problem: The app has no `StrictMode` policy (thread or VM) and no LeakCanary, so a blocking call on the main thread or a leaked `Activity` or closable is only found by reading (`tm-robustness` C1, M8). LeakCanary is a third-party dependency, so it needs the human's decision; the `StrictMode` policies need none.
-- Done when: a debug-only `StrictMode` thread policy and VM policy (`detectLeakedClosableObjects`, `detectActivityLeaks`, penalty log or death) are set in `TrailMetricsApplication`, or LeakCanary is added by name in a task that approves it, and `tm-robustness` M8 names which one exists.
-- Refs: `androidApp/app/src/main/kotlin/dev/roozbahani/trailmetrics/TrailMetricsApplication.kt`; `tm-robustness` M8.
-
 ### enable-robustness-lint-rules
 - Type: task
 - Area: config, scripts

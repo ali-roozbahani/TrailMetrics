@@ -141,7 +141,6 @@ tools that are not enabled today are in the PR that wrote this skill and in the 
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code. Each names its board record.
-- No `StrictMode` policy and no LeakCanary anywhere in the app (M8; `strictmode-leak-detection-debug`).
 - The location launchers in `RouteScreen` and `TrackingScreen` do nothing on a refusal, there is no
   rationale and no way to the app's settings, and the notification permission is asked on every entry
   with an empty result (S2; `android-location-permission-denial-and-disclosure`).
