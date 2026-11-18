@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,11 +88,12 @@ fun DetailsRoot(
     val state: DetailsState by viewModel.state.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val resources = LocalResources.current
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                DetailsEvent.Deleted -> onNavigateBack()
+                DetailsEvent.Deleted -> currentOnNavigateBack()
                 is DetailsEvent.ShowError -> {
                     // A child of this effect, so the next event is not held until the snackbar is
                     // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
