@@ -3,10 +3,59 @@
 # Mirrors ci.yml's jobs so CI is a confirmation, not a discovery step.
 #
 # Exit codes: 0 = all required checks passed. Non-zero = do not push.
+#
+#   scripts/pre-push-check.sh --self-test   the self-test of the log prune below (no step runs; exit 0 = all ok)
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# prune_gate_logs <root>: removes the run directories of the gate's logs that are older than 3 days, and only those:
+# a directory directly under <root> whose whole name is YYYYMMDD-HHMMSS-<pid>, the name the gate gives its own run
+# (GATE_LOG_DIR below). Any other directory under <root> stays, whatever its age, because <root> may be set with
+# TM_GATE_LOG_DIR to a directory that holds other things.
+prune_gate_logs() {
+    local root="$1" dir name
+    for dir in "$root"/*/; do
+        [ -d "$dir" ] || continue
+        name="$(basename "$dir")"
+        [[ "$name" =~ ^[0-9]{8}-[0-9]{6}-[0-9]+$ ]] || continue
+        find "${dir%/}" -maxdepth 0 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
+    done
+}
+
+# The self-test of prune_gate_logs, run before anything else (no heavy-run lock, no git): a foreign directory under the
+# root survives, even an old one, and so do a recent run directory and a name that only starts like a run directory;
+# an old run directory goes.
+if [ "${1:-}" = --self-test ]; then
+    ST_ROOT="$(mktemp -d)" || { echo "pre-push-check self-test: FAILED, no temp dir"; exit 1; }
+    trap 'rm -rf "$ST_ROOT"' EXIT
+    ST_FAIL=0
+    mkdir "$ST_ROOT/20200101-000000-123" "$ST_ROOT/20990101-000000-123" "$ST_ROOT/keep-me" "$ST_ROOT/Documents" \
+        "$ST_ROOT/20200101-000000-abc" "$ST_ROOT/20200101-000000-123-extra" "$ST_ROOT/x20200101-000000-123"
+    : > "$ST_ROOT/loose-file"
+    for old in 20200101-000000-123 keep-me Documents 20200101-000000-abc 20200101-000000-123-extra x20200101-000000-123; do
+        touch -t 202001010000 "$ST_ROOT/$old"
+    done
+    touch -t 202001010000 "$ST_ROOT/loose-file"
+    prune_gate_logs "$ST_ROOT"
+    st_expect() { # st_expect <present|absent> <name> <why>
+        if [ "$1" = present ] && [ ! -e "$ST_ROOT/$2" ]; then echo "FAIL: $2 was removed ($3)"; ST_FAIL=$((ST_FAIL + 1))
+        elif [ "$1" = absent ] && [ -e "$ST_ROOT/$2" ]; then echo "FAIL: $2 survived ($3)"; ST_FAIL=$((ST_FAIL + 1))
+        else echo "ok: $2 $1 ($3)"; fi
+    }
+    st_expect absent 20200101-000000-123 "an old run directory goes"
+    st_expect present 20990101-000000-123 "a run directory that is not 3 days old stays"
+    st_expect present keep-me "a foreign directory stays, old as it is"
+    st_expect present Documents "a foreign directory stays, old as it is"
+    st_expect present 20200101-000000-abc "the pid part must be digits"
+    st_expect present 20200101-000000-123-extra "the whole name must match"
+    st_expect present x20200101-000000-123 "the whole name must match"
+    st_expect present loose-file "a file stays"
+    echo "pre-push-check self-test: $ST_FAIL failed"
+    [ "$ST_FAIL" -eq 0 ]
+    exit $?
+fi
 
 # One heavy run (Gradle, xcodebuild, this gate) at a time on this machine: start again under
 # scripts/heavy-run.sh, which waits while another heavy run is going. Inside it TM_HEAVY_RUN_HELD
@@ -45,8 +94,8 @@ if ! mkdir -p "$GATE_LOG_DIR" 2>/dev/null; then
     echo "Gate stopped before any step. Do not push."
     exit 1
 fi
-# Runs older than 3 days go; only directories of this root, never anything else.
-find "$GATE_LOG_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
+# Runs older than 3 days go (only run directories of this root: see prune_gate_logs).
+prune_gate_logs "$GATE_LOG_ROOT"
 GATE_STEP_NO=0
 GATE_QUIET_PASSED=0
 

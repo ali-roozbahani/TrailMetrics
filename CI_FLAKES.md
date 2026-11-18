@@ -346,12 +346,17 @@ run, and the jobs it hit are counted below.
 - Signature: job `Android build — lint, Detekt, tests, coverage, debug build, Room export`, step `Run unit tests`, every Robolectric
   test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher", caused by
   `java.io.IOException at HttpURLConnection` (Robolectric could not download its Android framework jar)
-- Count: 1
+- Count: 2
 - Status: open
 - Occurrences:
   - 2026-11-16, run 43919159264 (push to `main`, merge of #319, a skills-only change), re-run: no (a run on `main` is never re-run).
     138 tests failed in 4 test tasks (`:data:testAndroidHostTest` 71 of 133, and the `testDebugUnitTest` tasks of `feature-history` and
     `app`), 138 of 138 with this error line; no other failure in the log (no compile, lint or detekt error, no assertion on a value).
     The PR's own run of the same head passed
+  - 2026-11-18, run 44214500058 (push to `main`, merge of #338, a test-only change), re-run: no. 71 of 133 tests of
+    `:data:testAndroidHostTest` and 28 of 42 of `:androidApp:app:testDebugUnitTest` failed, each with the error line
+    "java.lang.AssertionError at MavenArtifactFetcher" and `Caused by: java.io.IOException at HttpURLConnection`; the first 20
+    failures read are all of that kind (no compile, lint or Detekt error, no assertion on a value). The PR's own run of the same
+    head passed. The owner acknowledged the run
 - Notes: class infra (network from the runner to the artifact repository), not the diff. Nothing is changed for it now (owner decision
   of 2026-11-16: no caching or retry fix at count 1); a recurrence is handled by the normal flake rules.
