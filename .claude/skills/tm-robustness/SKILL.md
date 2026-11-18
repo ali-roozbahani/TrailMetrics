@@ -17,8 +17,8 @@ the reason, where the repo already does it (`Example`, or `no example yet`), wha
 
 No rule here is a `note`. `Android` and `iOS` mark a rule for one platform; the rest apply to
 Kotlin and Swift alike. `reviewer only` means no tool checks it. The detekt rule names are those
-of detekt 1.23.8; "plain" detekt is the gate's `detekt` task, which has no type resolution, so a
-rule that needs it never fires there (see "Mechanical rules").
+of detekt 1.23.8; "plain" detekt is the gate's `detekt` task, which has no type resolution, and "typed"
+is `detektTyped`, which the gate and CI also run (see "Mechanical rules").
 
 ## Topic files
 
@@ -39,14 +39,15 @@ file when the task or the diff reaches its topic, not before; a reviewer reads i
   computation) on the main thread or in a lifecycle callback (`onCreate`, `onReceive`,
   `onStartCommand`, `body`, `init`). Why: the main thread drives input and drawing; 5 s blocked is
   an ANR. Example: `ActivityHistoryRepositoryImpl` (`withContext(ioDispatcher)`). Enforced:
-  reviewer only (`runBlocking` and `Thread.sleep` have no rule; detekt `SleepInsteadOfDelay`
-  needs type resolution). Severity: blocking.
+  reviewer only (`runBlocking` has no rule; detekt `SleepInsteadOfDelay`, typed, reports
+  `Thread.sleep` inside a suspend function). Severity: blocking.
 - **C2** Never `!!`, read a `lateinit` before it is set, or use an unchecked cast or an index on
   external data (network, disk, intent extras, nav arguments); use `checkNotNull(x) { "why" }`,
   `as?`, `getOrNull`. Why: each throws on input you do not control. Example: no `!!` and no
   `lateinit` in production Kotlin. Enforced: detekt `UnsafeCallOnNullableType` (on by default),
-  `UnsafeCast` (type resolution, plain detekt skips it); `lateinit` and index access reviewer only
-  (`LateinitUsage` is off). Severity: blocking.
+  `CastToNullableType` and `LateinitUsage` (production code; test source sets are excluded); the
+  compiler rejects a cast that can never succeed (`allWarningsAsErrors`), so detekt `UnsafeCast` adds
+  nothing; index access reviewer only. Severity: blocking.
 - **C3** Swift: never a force unwrap `!`, `try!` or `as!` on external data. Why: each traps and
   kills the process. Example: none in production Swift. Enforced: SwiftLint `force_unwrapping`,
   `force_try`, `force_cast` (all errors). Severity: blocking.
@@ -100,8 +101,8 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
 - **D1** No hard-coded `Dispatchers.*` in a class, not as a default argument either: inject a
   `CoroutineDispatcher` (or a scope); only a DI module and the application root name `Dispatchers`.
   Why: a test cannot replace it. Example: the DI module `CommonTrackingModule` names
-  `Dispatchers.Default` (scope). Enforced: detekt `InjectDispatcher` (type resolution: plain
-  detekt never fires, see deviations). Severity: blocking.
+  `Dispatchers.Default` (scope). Enforced: detekt `InjectDispatcher` (typed run; it
+  skips `di/*Module.kt` and the test source sets). Severity: blocking.
 - **D2** `Main` for UI state only, `IO` for blocking IO, `Default` for CPU work. Why: a wrong pool
   starves the UI or the IO threads. Example: `ActivityHistoryRepositoryImpl` (IO). Enforced:
   reviewer only. Severity: blocking when it puts blocking work on `Main` (C1), else important.
@@ -111,7 +112,8 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   Enforced: reviewer only. Severity: important.
 - **D4** No `Dispatchers.Unconfined` and no `GlobalScope` in production code. Why: no lifecycle,
   no cancellation, untestable ordering. Example: none in production code. Enforced: detekt
-  `ForbiddenImport` (`GlobalScope` import only); `Unconfined` reviewer only. Severity: blocking.
+  `ForbiddenImport` (`GlobalScope` import) and `GlobalCoroutineUsage` (typed run); `Unconfined`
+  reviewer only. Severity: blocking.
 - **D5** Tests inject a test dispatcher (`tm-testing`, `tm-android` "Tests"). Why: real
   dispatchers make tests slow and flaky. Example: `tm-testing`. Enforced: reviewer only.
   Severity: important.
@@ -134,9 +136,17 @@ R4, R6, M4, P7 are merged into M2, M1, R3, M5.
 
 ## Mechanical rules
 
-Rules that a tool can check go to the tool, not to more prose here. The measured hits of the
-tools that are not enabled today are in the PR that wrote this skill and in the board record
-`enable-robustness-lint-rules`. Do not add a prose rule for something a tool rule would check.
+Rules that a tool can check go to the tool, not to more prose here. Do not add a prose rule for
+something a tool rule would check. The gate and CI run `./gradlew detekt detektTyped`: the plain task
+reads every source set, the typed one resolves types in the Android and common source sets of every
+module (`iosMain` and `iosTest` get the plain task only: detekt 1.23.8 has no type resolution for
+them). These robustness rules fire (each shown on a planted case): `InjectDispatcher`,
+`SleepInsteadOfDelay`, `GlobalCoroutineUsage`, `CastToNullableType`, `LateinitUsage`,
+`ElseCaseInsteadOfExhaustiveWhen`, `ThrowingExceptionInMain` and `NotImplementedDeclaration`.
+detekt 1.23.8 embeds Kotlin 2.0.21 and cannot read the metadata of Kotlin 2.4 libraries, so a call of a
+Kotlin-declared library function stays unresolved. Off for that reason, with the reason in
+`config/detekt/detekt.yml`: `RedundantSuspendModifier` (false hits on `delay` and `collect`) and
+`SuspendFunSwallowedCancellation`; `ForbiddenMethodCall` does not fire for `println` and `print`.
 
 ## Known deviations in the current code
 
@@ -156,5 +166,5 @@ Don't copy these as a pattern for new code. Each names its board record.
   P6; `tracking-location-update-path-cost`).
 - `tbl_activities` has no index on the sorted `startedAtEpochMillis` and the history list reads
   whole rows including both coordinate lists (P5; `history-query-index-and-columns`).
-- detekt `InjectDispatcher`, `UnsafeCast`, `SleepInsteadOfDelay` and `RedundantSuspendModifier` are
-  on by default but need type resolution; the gate runs plain `detekt` (`enable-robustness-lint-rules`).
+- detekt does not check `println` and `print` (`ForbiddenMethodCall` cannot resolve them), `runCatching`
+  around a suspend call, or a redundant `suspend`; see "Mechanical rules".

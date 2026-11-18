@@ -15,11 +15,55 @@ console-reports:
     - 'ProjectStatisticsReport'
     - 'NotificationReport'
 
+# Typed rules (`./gradlew detektTyped`, the gate and CI run it next to the plain `detekt`; root build.gradle.kts).
+# detekt 1.23.8 embeds Kotlin 2.0.21 and the project compiles with Kotlin 2.4.10, so the embedded compiler cannot
+# read the metadata of Kotlin-declared library functions (kotlin-stdlib, kotlinx-coroutines): a call of one stays
+# unresolved, while a Java method (`Thread.sleep`) and the project's own sources resolve. Measured on a planted file
+# (2026-11-18): `ForbiddenMethodCall` fired for `java.lang.Thread.sleep` and not for `kotlin.io.println`,
+# `kotlin.collections.listOf` or `kotlinx.coroutines.delay`. The rules below are the ones shown firing on a planted
+# case; the two that are off, and `ForbiddenMethodCall` for `println`, name their reason.
+coroutines:
+  GlobalCoroutineUsage:
+    active: true
+  InjectDispatcher:
+    active: true
+    # D1 (tm-robustness): a DI module names the dispatchers. The test source sets are detekt's default excludes
+    # plus androidHostTest, a source set name the default list does not know (the same list as FunctionNaming).
+    excludes: ['**/di/*Module.kt', '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
+  SleepInsteadOfDelay:
+    active: true
+  # Off: it reports a function that calls a Kotlin-declared suspend function (`delay`, `Flow.collect`) as redundant,
+  # because the call is unresolved (see above). Measured: 2 hits on current main, both false
+  # (`TrackingService.collectTrackingState` calls `collect`, `MapSnapshotSaverTest.save` calls a suspend function).
+  RedundantSuspendModifier:
+    active: false
+  # Off: it needs `runCatching` and the suspend call inside it resolved; a planted
+  # `suspend fun f() = runCatching { delay(1) }` was not reported.
+  SuspendFunSwallowedCancellation:
+    active: false
+
+potential-bugs:
+  CastToNullableType:
+    active: true
+  LateinitUsage:
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/androidHostTest/**']
+  ElseCaseInsteadOfExhaustiveWhen:
+    active: true
+
+exceptions:
+  ThrowingExceptionInMain:
+    active: true
+  NotImplementedDeclaration:
+    active: true
+
 style:
   MagicNumber:
     active: false
   ReturnCount:
     active: false
+  # Does not fire for `println` and `print`: both are Kotlin-declared, so the typed run cannot resolve them (see the
+  # note above `coroutines`). Kept for the Java methods it can match; the gate does not rely on it for these two.
   ForbiddenMethodCall:
     active: true
     methods:

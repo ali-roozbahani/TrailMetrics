@@ -1,5 +1,8 @@
+import com.android.build.api.variant.AndroidComponentsExtension
+import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.attributes.Attribute
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -46,6 +49,18 @@ subprojects {
         autoCorrect = true
     }
 
+    // Typed detekt (type resolution): `detektTyped` runs in every Kotlin module and is what the gate
+    // and CI run next to the plain `detekt`. Generated code (KSP's Room classes) is not ours to lint.
+    tasks.withType<Detekt>().configureEach {
+        // A pattern is relative to each source root, which cannot name a build directory, so match
+        // the file's absolute path.
+        exclude { it.file.path.contains("/build/generated/") }
+    }
+    val detektTyped = tasks.register("detektTyped") {
+        group = "verification"
+        description = "Runs detekt with type resolution on every source set it can resolve (see config/detekt/detekt.yml)."
+    }
+
     plugins.withId("org.jetbrains.kotlin.jvm") {
         configure<KotlinJvmProjectExtension> {
             compilerOptions {
@@ -66,6 +81,32 @@ subprojects {
                     allWarningsAsErrors.set(true)
                 }
             }
+
+            // AGP's built-in Kotlin never applies org.jetbrains.kotlin.android, so detekt's plugin
+            // registers no typed task here; register one per compilation, with its source directory
+            // and the compilation's classpath.
+            val androidKotlin = extensions.getByType<KotlinAndroidProjectExtension>()
+            listOf("debug" to "src/main", "debugUnitTest" to "src/test", "debugAndroidTest" to "src/androidTest")
+                .forEach { (compilationName, sourceDir) ->
+                    if (!file(sourceDir).exists()) return@forEach
+                    val typedTask = tasks.register<Detekt>("detektTyped${compilationName.replaceFirstChar { it.uppercase() }}") {
+                        description = "Runs detekt with type resolution on $sourceDir."
+                        val compilation = androidKotlin.target.compilations.getByName(compilationName)
+                        setSource(files(sourceDir))
+                        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+                        buildUponDefaultConfig = true
+                        jvmTarget = "11"
+                        val dependencies = configurations.getByName("${compilationName}CompileClasspath").incoming
+                            .artifactView {
+                                isLenient = true
+                                attributes.attribute(Attribute.of("artifactType", String::class.java), "android-classes-jar")
+                            }.files
+                        val androidJar = (project.extensions.getByName("androidComponents") as AndroidComponentsExtension<*, *, *>)
+                            .sdkComponents.bootClasspath
+                        classpath.setFrom(dependencies, compilation.output.classesDirs, androidJar)
+                    }
+                    detektTyped.configure { dependsOn(typedTask) }
+                }
         }
     }
 
@@ -81,6 +122,39 @@ subprojects {
         // itself keeps only the *.kt and *.kts files.
         configure<DetektExtension> {
             source.setFrom(files("src"))
+        }
+
+        // Typed run. The plugin's `detektAndroidMain` / `detektAndroidHostTest` read only the android
+        // source set directory and resolve types against the Android compilation's classpath. That
+        // compilation also compiles commonMain / commonTest, so two more tasks take those directories
+        // and the classpath of the plugin's task. The plugin's iOS and metadata tasks have no type
+        // resolution in detekt 1.23.8, so iosMain / iosTest are covered by the plain `detekt` only.
+        afterEvaluate {
+            val androidTarget = extensions.getByType<KotlinMultiplatformExtension>().targets.findByName("android")
+            // shared-uitest has no Android target, so it has no typed task: plain `detekt` only.
+            if (androidTarget == null) return@afterEvaluate
+            val androidMainOutput = androidTarget.compilations.getByName("main").output.classesDirs
+            val androidJar = (extensions.getByName("androidComponents") as AndroidComponentsExtension<*, *, *>)
+                .sdkComponents.bootClasspath
+            fun dependencies(configurationName: String) = configurations.getByName(configurationName).incoming
+                .artifactView {
+                    isLenient = true
+                    attributes.attribute(Attribute.of("artifactType", String::class.java), "android-classes-jar")
+                }.files
+            listOf(
+                Triple("detektAndroidMain", "commonMain", files(dependencies("androidCompileClasspath"), androidJar)),
+                Triple("detektAndroidHostTest", "commonTest", files(dependencies("androidHostTestCompileClasspath"), androidJar, androidMainOutput)),
+            ).forEach { (pluginTaskName, sourceDir, classes) ->
+                val commonTask = tasks.register<Detekt>("detektTyped${sourceDir.replaceFirstChar { it.uppercase() }}") {
+                    description = "Runs detekt with type resolution on src/$sourceDir."
+                    setSource(files("src/$sourceDir"))
+                    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+                    buildUponDefaultConfig = true
+                    jvmTarget = "11"
+                    classpath.setFrom(classes)
+                }
+                detektTyped.configure { dependsOn(pluginTaskName, commonTask) }
+            }
         }
     }
 }

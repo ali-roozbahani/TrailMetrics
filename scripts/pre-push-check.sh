@@ -397,7 +397,7 @@ if [ "$DECISION" = full ]; then
     # it only for a real difference; copyRoomSchemas finds no source and leaves data/schemas/ alone.
     rm -rf "$REPO_ROOT/data/build/intermediates/room/schemas"
 
-    run_step "detekt"        ./gradlew detekt --console=plain
+    run_step "detekt"        ./gradlew detekt detektTyped --console=plain
     run_step "android lint"  ./gradlew lint --console=plain
     run_step "unit tests"    ./gradlew allTests test --console=plain
 

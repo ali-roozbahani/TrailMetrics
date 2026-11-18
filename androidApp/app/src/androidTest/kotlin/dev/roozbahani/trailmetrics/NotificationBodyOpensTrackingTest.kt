@@ -24,7 +24,10 @@ class NotificationBodyOpensTrackingTest {
         val device = session.device
         device.openNotification()
         val body = By.textContains("Tracking...")
-        assertNotNull(device.wait(Until.findObject(body), LiveSessionRule.WAIT_MS), "the service's notification never appeared")
+        assertNotNull(
+            device.wait(Until.findObject(body), LiveSessionRule.WAIT_MS),
+            "the service's notification never appeared",
+        )
 
         session.clickInShade(body, "the notification body could not be tapped")
 

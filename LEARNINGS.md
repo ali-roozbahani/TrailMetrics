@@ -880,5 +880,6 @@ After the filter of `chore/gate-output-filter` the same five Gradle steps print 
 12 / 2,043 (Detekt finding), 23 / 2,811 (failing test) and 50 / 5,716 (compile error); the full logs are in
 `~/agent-workspace/gate-logs/`.
 
-A `println` in `domain` did not fail the plain `detekt` run (exit 0): `ForbiddenMethodCall` needs type resolution
-(`BOARD.md`, `enable-robustness-lint-rules`).
+A `println` in `domain` did not fail the plain `detekt` run (exit 0), and does not fail the typed run
+(`detektTyped`) either: detekt 1.23.8 embeds Kotlin 2.0.21 and cannot resolve a call of a Kotlin 2.4
+library function such as `println` (`config/detekt/detekt.yml`).
