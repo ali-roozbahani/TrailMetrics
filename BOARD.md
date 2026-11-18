@@ -57,14 +57,14 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### enable-robustness-lint-rules
+### swiftlint-analyzer-rules
 - Type: task
-- Area: config, scripts
+- Area: iosApp, config, scripts
 - Order: 50
-- Source: PR for tm-robustness-skill
-- Problem: The Swift side of the robustness rules is open (the Kotlin side, the typed detekt run, is done). CI installs SwiftLint with `brew install swiftlint`, so its version is whatever Homebrew has, and the gate's local version can differ. SwiftLint opt-in rules with 0 hits when measured: `weak_delegate`, `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture`, `implicitly_unwrapped_optional`; `async_without_await` 1. SwiftLint's analyzer rules (they need a compile log) were not measured. Config and gate files are protected, so a human decides. Added 2026-11-16 (owner decision, iOS skills spike follow-up).
-- Done when: SwiftLint's version is pinned in CI and the gate's local check compares against it, the analyzer rules are measured and enabled or declined with a reason, the 0-hit rules above are enabled, `async_without_await` is fixed or declined with a reason, and `tm-robustness`' and `tm-ios`' "Enforced" lines name the new rules.
-- Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh`; `.github/workflows/ci.yml`; `tm-robustness` ("Mechanical rules").
+- Source: PR for swiftlint-pin-and-opt-in-rules
+- Problem: SwiftLint's analyzer rules need a compile log (`swiftlint analyze --compiler-log-path`) and are not run by the gate or CI. Measured 2026-11-18 on 0.65.1 with the log of a clean `xcodebuild` build of the `TrailMetrics` scheme (filtered by `scripts/filter-xcode-log.sh`): `capture_variable` 0 hits (9 s), `typesafe_array_init` 0 (1 s), `unused_declaration` 3 (6 s), `unused_import` 28 (116 s), `explicit_self` 521 (50 s; the code does not use `self.` and the tm-ios style does not ask for it, so it stays declined). Declined for now: the gate's iOS build is incremental, so its log lacks the compile commands of the files it did not rebuild and an analysis of it silently skips them; a clean build for the log costs a full compile in the gate and in CI's `ios-build` job. Needs an owner decision: a clean-build step for the log (its minutes in the gate and CI) against the value of 0 to 3 hits per rule; `unused_import` is also listed in `opt_in_rules` of `iosApp/.swiftlint.yml`, where it does nothing and prints a warning on every run.
+- Done when: the owner decides which analyzer rules run, and the gate and CI run them on a compile log of a clean build, or the record is deleted with the reason; `unused_import` is moved to `analyzer_rules` or removed from `opt_in_rules`.
+- Refs: `iosApp/.swiftlint.yml`; `scripts/pre-push-check.sh` (iOS build step); `.github/workflows/ci.yml` (`ios-build`); `tm-ios` ("SwiftLint").
 
 ### ios-launcher-depends-on-concrete-location-repository
 - Type: task
