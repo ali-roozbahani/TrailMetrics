@@ -18,6 +18,7 @@ struct StopTrackingIntent: LiveActivityIntent {
     // TrackingLiveActivityController's observer). Per this feature's confirmed scope, the
     // rare case where the app process has been fully terminated is not
     // handled here.
+    // swiftlint:disable:next async_without_await - `AppIntent.perform()` is `async throws`
     func perform() async throws -> some IntentResult {
         CFNotificationCenterPostNotification(
             CFNotificationCenterGetDarwinNotifyCenter(),

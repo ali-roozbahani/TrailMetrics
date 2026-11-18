@@ -10,14 +10,20 @@ opt_in_rules:
   - unhandled_throwing_task
   - unowned_variable_capture
   - implicitly_unwrapped_optional
+  - async_without_await
 
 disabled_rules:
   - todo
 
-# Not enabled, measured 2026-11-18 on 0.65.1: `async_without_await` reports 15 declarations. Most are fakes of
-# TestSupport and the test packages and the widget's `AppIntent.perform()`, whose `async` comes from the protocol
-# they implement, and `writeMapSnapshot` is `async` on purpose (its doc comment: it runs on the caller's actor).
-# The rule cannot tell a required `async` from a needless one, so enabling it would mean a disable comment on each.
+# async_without_await (measured 2026-11-18 on 0.65.1, 13 hits, each one read): on. SwiftLint gives this rule no
+# per-path exclusion, so each of the 12 declarations whose `async` the protocol they implement declares carries a
+# `// swiftlint:disable:next async_without_await - <reason>` comment (tm-ios, "SwiftLint"), on its own or joined with
+# the `identifier_name` one of the SKIE names:
+#   - the 9 `__name` fake methods that SKIE gives a Kotlin `suspend fun`: FakeUserProfileRepository,
+#     FakeLocationRepository, FakeActivityHistoryRepository (3), FakeRouteDraftStore (2), FakeTrackingSessionStore (2);
+#   - FakeLiveActivityClient `update` and `end` (`async` in `LiveActivityClient`);
+#   - `StopTrackingIntent.perform()` (`async throws` in the AppIntents interface).
+# The 13th hit, `writeMapSnapshot`, was `async` with nothing awaited and no caller that needed it: made synchronous.
 
 force_unwrapping: error
 force_cast: error

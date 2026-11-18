@@ -17,8 +17,9 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   `brew install swiftlint` gives only the newest release, so install the pin into a directory and put it first on PATH.
   A new version is a change of that file with the lint run on it. The opt-in rules `weak_delegate`,
   `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture` and
-  `implicitly_unwrapped_optional` are on. `async_without_await` and the analyzer rules (`swiftlint analyze`, which
-  needs a compile log) are not; the reasons are in `iosApp/.swiftlint.yml` and the board record `swiftlint-analyzer-rules`.
+  `implicitly_unwrapped_optional` and `async_without_await` are on (a declaration whose `async` a protocol requires
+  carries the disable comment with that reason, as in `iosApp/.swiftlint.yml`). The analyzer rules (`swiftlint analyze`,
+  which needs a compile log) are not; the reason is in the board record `swiftlint-analyzer-rules`.
 - `--strict` promotes every warning to a failure. The `warning` thresholds are the real
   limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic
   complexity 15.

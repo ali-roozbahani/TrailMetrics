@@ -97,7 +97,7 @@ struct TrackingMapView: UIViewRepresentable {
                 let path: String?
                 if let directory = snapshotDirectory() {
                     // Explicit hop: the encoding and the write must not run on the main actor.
-                    path = await Task.detached { await writeMapSnapshot(image, to: directory) }.value
+                    path = await Task.detached { writeMapSnapshot(image, to: directory) }.value
                 } else {
                     path = nil
                 }

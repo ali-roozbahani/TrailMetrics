@@ -51,11 +51,13 @@ final class FakeLiveActivityClient: LiveActivityClient {
         return id
     }
 
+    // swiftlint:disable:next async_without_await - `LiveActivityClient` declares it `async`
     func update(id: String, state: TrackingActivityAttributes.ContentState, staleDate: Date?) async {
         updatedIDs.append(id)
         updates.append(Sent(state: state, staleDate: staleDate))
     }
 
+    // swiftlint:disable:next async_without_await - `LiveActivityClient` declares it `async`
     func end(id: String, finalState: TrackingActivityAttributes.ContentState?, dismissal: LiveActivityDismissal) async {
         endCalls.append(EndCall(id: id, finalState: finalState, dismissal: dismissal))
         existingIDs.removeAll { $0 == id }

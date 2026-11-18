@@ -106,7 +106,7 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
         return SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<NSArray>(values: values)))
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getActivity`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun getActivity`
     public func __getActivity(id: Int64) async throws -> ActivityRecord? {
         try lock.withLock {
             if isFailingStorage { throw StorageError() }
@@ -115,7 +115,7 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
         }
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun deleteActivity`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun deleteActivity`
     public func __deleteActivity(id: Int64) async throws {
         try lock.withLock {
             if isFailingStorage { throw StorageError() }
@@ -125,7 +125,7 @@ public final class FakeActivityHistoryRepository: NSObject, ActivityHistoryRepos
     }
 
     // Returns the save count as the new id, like an auto-incrementing primary key.
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun saveActivity`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun saveActivity`
     public func __saveActivity(activity: ActivityRecord) async throws -> KotlinLong {
         try lock.withLock {
             if isFailingStorage { throw StorageError() }

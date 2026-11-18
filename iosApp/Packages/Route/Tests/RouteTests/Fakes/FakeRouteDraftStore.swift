@@ -46,7 +46,7 @@ final class FakeRouteDraftStore: NSObject, RouteDraftStore {
         continuation?.resume()
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun save`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun save`
     func __save(draft: StoredRouteDraft) async throws {
         try lock.withLock {
             if isSaveFailing { throw StoreFailure() }
@@ -72,7 +72,7 @@ final class FakeRouteDraftStore: NSObject, RouteDraftStore {
         }
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun clear`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun clear`
     func __clear() async throws {
         lock.withLock {
             recordedClearCount += 1
