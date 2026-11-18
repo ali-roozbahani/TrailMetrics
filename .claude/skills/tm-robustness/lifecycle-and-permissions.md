@@ -1,6 +1,6 @@
 # Intents and permissions, process death and lifecycle (S1, S2, R1, R2, R3, R5, R7)
 
-Moved word for word from `SKILL.md`: the sections "Intents and permissions" and "Process death and lifecycle". The rules are unchanged; they are still cited as `tm-robustness`, rules S1, S2, R1, R2, R3, R5 and R7.
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Intents and permissions" and "Process death and lifecycle". The rules are unchanged; they are still cited as `tm-robustness`, rules S1, S2, R1, R2, R3, R5 and R7.
 
 ## Intents and permissions
 

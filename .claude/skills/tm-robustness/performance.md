@@ -1,6 +1,6 @@
 # Performance and efficiency (P1 to P6, P8, P9)
 
-Moved word for word from `SKILL.md`: the section "Performance and efficiency". The rules are unchanged; they are still cited as `tm-robustness`, rules P1 to P6, P8 and P9.
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Performance and efficiency". The rules are unchanged; they are still cited as `tm-robustness`, rules P1 to P6, P8 and P9.
 
 ## Performance and efficiency
 
