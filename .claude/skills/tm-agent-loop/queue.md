@@ -170,3 +170,19 @@ The shape of `SKILL.md`, "Report" (Done, Not done, Not verified), with one line 
 the run under Done or Not done: slug, PR, and what it ended as: `merged <merge sha>`, `handed to
 the owner` (with its merge command), `dropped` (why), or `not pushed` (its status and what it
 waits for).
+
+## The full UI run on main
+
+Moved word for word from `SKILL.md`, section 9 (the bullet that was there). The rule is unchanged; it is still cited as `tm-agent-loop`, section 9.
+
+- **The full UI run on main** (owner decision of 2026-11-15). When `queue.sh next` prints `DONE`, before the
+  final report, with the clone on a clean, pulled `main`, run `scripts/main-ui-run.sh --auto`. The script
+  decides, not you: it keeps the SHA of the last full run of both platforms' UI suites and runs only when `main`
+  has code changes since (the classifier's `--ui-scope` is not `none`) or no run is recorded; a docs-only
+  history prints `NOT_DUE`. It runs the suites like the gate does (same runners, pins, limits, no retry),
+  records the result, and on a red keeps the logs and adds the queue entry `main-ui-red-<sha>`: that entry is
+  the first of the queue, and `queue.sh next` says what to do (a `bugfix/` PR through the gate). A run that was
+  due when a session ended is shown by `scripts/main-ui-run.sh --status` at the start of the next task
+  (`tm-pr-workflow`, "Before starting"): run `--auto` then if the queue is empty. Before a release (a tag, a
+  store build) run `scripts/main-ui-run.sh --release`: it runs when due and exits 0 only when the full run of
+  the current `main` is green. Nothing in this repository releases yet, so the release step must call it.

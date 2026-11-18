@@ -16,7 +16,7 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   required. The Android and iOS checks were required before #38 merged.
 - **The review check is required, but green is not approval.** `Review — pr-reviewer`
   (`.github/workflows/pr-review.yml`) is green for both `APPROVE` and `ESCALATE_TO_HUMAN`;
-  the verdict is read from its annotation (`tm-agent-loop`, section 7).
+  the verdict is read from its annotation (`tm-agent-loop`, section 7, `merge.md`).
   The annotation holds the verdict and the count of `[important]` findings; the report is the workflow
   artifact `pr-review-report` of that run (kept 7 days), which the agent downloads with
   `gh run download` after `CHANGES`, blocking findings or a count above zero (`tm-agent-loop`,

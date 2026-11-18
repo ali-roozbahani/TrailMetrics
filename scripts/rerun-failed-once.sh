@@ -1,5 +1,5 @@
 #!/bin/bash
-# Re-runs the failed jobs of a finished GitHub Actions run, once (tm-agent-loop, section 6).
+# Re-runs the failed jobs of a finished GitHub Actions run, once (tm-agent-loop, section 6, watching-ci.md).
 # The only way an agent re-runs a CI job: "once" is enforced here, not left to prose.
 #
 #   scripts/rerun-failed-once.sh <run id>

@@ -22,7 +22,7 @@ How it is enforced, and what that means for the order of operations:
   from `local.properties`, so a board record or a PR text names it). Write such text with the Write or Edit tool
   and give a command its path (`git commit -F <file>`, `--body-file <file>`, `queue.sh add --task <file>`). The
   rules are the guard against reading those files: never weaken them, never route a denied command around them
-  (`tm-agent-loop`, "When the permission classifier denies a command").
+  (`tm-agent-loop`, "When the permission classifier denies a command", `denied-commands.md`).
 - **Shapes of the push and PR commands.** The hooks read the command text and the session
   directory, so use these shapes and nothing cleverer:
   - Run the gate as a command of its own, from the clone: `scripts/pre-push-check.sh`.

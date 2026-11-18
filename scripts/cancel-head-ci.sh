@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cancels the workflow runs of an open pull request's current head that have not finished, at the moment
-# the agent decides to fix a reviewer finding (tm-agent-loop, section 6): the fix replaces that head, and
+# the agent decides to fix a reviewer finding (tm-agent-loop, section 6, watching-ci.md): the fix replaces that head, and
 # the old head's CI would otherwise keep a runner busy until the push cancels it (ci.yml and
 # pr-review.yml use `cancel-in-progress`). The one place where the loop cancels a run; it never cancels
 # anything else, and `scripts/rerun-failed-once.sh` and `scripts/wait-for-checks.sh` never do.
@@ -20,7 +20,7 @@
 # may still be running. Exit 1: refused (reason on stderr). Exit 2: usage error, a missing tool, a `gh`
 # read that failed or a cancel that failed. Cancelling takes a few
 # seconds to show; the runs of the superseded head then end as `cancelled`, which is expected
-# (tm-agent-loop, section 6, "SUPERSEDED").
+# (tm-agent-loop, section 6, watching-ci.md, "SUPERSEDED").
 #
 # --self-test runs every case in scripts/cancel-head-ci-fixtures/ against a fake `gh` (no network): a case
 # directory holds `arg`, pr.json, runs.json, `login` (the account), `expected` (output), `expected-exit`,
