@@ -63,7 +63,7 @@ style:
   ReturnCount:
     active: false
   # Does not fire for `println` and `print`: both are Kotlin-declared, so the typed run cannot resolve them (see the
-  # note above `coroutines`). Kept for the Java methods it can match; the gate does not rely on it for these two.
+  # note above `coroutines`). Kept for the Java methods it can match; `scripts/check-no-println.sh` checks these two.
   ForbiddenMethodCall:
     active: true
     methods:

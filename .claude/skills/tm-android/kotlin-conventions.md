@@ -65,8 +65,8 @@ KMP modules (`domain`, `data`, `core`, `shared`, `shared-uitest`) have no `src/m
 is all the plain `detekt` task reads, so the root build points it at every `src/*` source set
 (it was NO-SOURCE there before).
 
-- Forbidden: `println`/`print` (use a logger; `ForbiddenMethodCall` is configured but does not fire for
-  them, so only review catches one) and any `kotlinx.coroutines.GlobalScope` import
+- Forbidden: `println`/`print` (use a logger; `ForbiddenMethodCall` cannot resolve them, so
+  `scripts/check-no-println.sh` fails the gate and CI on a bare call in production code) and any `kotlinx.coroutines.GlobalScope` import
   (`ForbiddenImport`, use `viewModelScope` or an injected scoped `CoroutineScope`).
 - Thresholds: `LongMethod` 60 lines, `CyclomaticComplexMethod` 15 (both ignore
   `@Composable` functions but apply everywhere else), `TooManyFunctions` 12 per class,

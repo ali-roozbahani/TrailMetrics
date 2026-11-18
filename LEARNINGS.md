@@ -882,4 +882,4 @@ After the filter of `chore/gate-output-filter` the same five Gradle steps print 
 
 A `println` in `domain` did not fail the plain `detekt` run (exit 0), and does not fail the typed run
 (`detektTyped`) either: detekt 1.23.8 embeds Kotlin 2.0.21 and cannot resolve a call of a Kotlin 2.4
-library function such as `println` (`config/detekt/detekt.yml`).
+library function such as `println` (`config/detekt/detekt.yml`); `scripts/check-no-println.sh` checks it as text.
