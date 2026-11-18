@@ -44,7 +44,7 @@ Moved word for word from `SKILL.md`: the section "Memory and leaks". The rules a
   Enforced: reviewer only. Severity: important.
 - **M8** Android: a debug build runs a leak check: LeakCanary or the `StrictMode` VM policy
   (`detectLeakedClosableObjects`, `detectActivityLeaks`). Why: leaks are found by running, not
-  reading. Example: no example yet (neither exists: see deviations). Enforced: reviewer only.
+  reading. Example: no example yet (neither exists: see "Known deviations in the current code", `SKILL.md`). Enforced: reviewer only.
   Severity: important.
 - **M9** A new non-UI class (a use case, repository, manager or saver) does not create or keep a
   `CoroutineScope` and does not launch from `init`: it exposes `suspend` functions or a `Flow`, or its
@@ -52,4 +52,4 @@ Moved word for word from `SKILL.md`: the section "Memory and leaks". The rules a
   is fully built and a test cannot step it, and a kept scope needs someone to cancel it. Example: no
   example yet. Enforced: reviewer only. Severity: important. Not a finding: a ViewModel's
   `viewModelScope`, a service scope that `onDestroy` cancels (M3), a scope a DI module creates and hands in,
-  or a class that exists today (see deviations).
+  or a class that exists today (see "Known deviations in the current code", `SKILL.md`).

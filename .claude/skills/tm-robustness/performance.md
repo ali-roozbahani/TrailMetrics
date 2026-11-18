@@ -16,11 +16,11 @@ Moved word for word from `SKILL.md`: the section "Performance and efficiency". T
   Severity: important (blocking when it blocks the main actor: D6).
 - **P4** A per-location-update or per-tick path allocates little and is conflated or sampled before
   it reaches the UI (map polylines especially). Why: it runs for as long as the session. Example:
-  no example yet (see deviations). Enforced: reviewer only. Severity: important.
+  no example yet (see "Known deviations in the current code", `SKILL.md`). Enforced: reviewer only. Severity: important.
 - **P5** Room: queries run off the main thread, a filtered or sorted column has an index, no query
   per item (N+1), no loading a whole table for one row. Why: query cost grows with the table.
   Example: `ActivityDao.getById` (primary key); the sorted `startedAtEpochMillis` has no index (see
-  deviations). Enforced: reviewer only; a new index is a schema change (`tm-kmp-shared`).
+  "Known deviations in the current code", `SKILL.md`). Enforced: reviewer only; a new index is a schema change (`tm-kmp-shared`).
   Severity: important.
 - **P6** Battery: the location priority and interval are the lowest that meet the feature, and
   updates stop when no screen or session needs them. Why: location is the largest battery cost.

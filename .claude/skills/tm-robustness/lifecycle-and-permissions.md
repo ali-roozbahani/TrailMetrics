@@ -18,7 +18,7 @@ Moved word for word from `SKILL.md`: the sections "Intents and permissions" and 
   a `SecurityException` becomes the typed error (E3). Why: a user who refused twice has no other way
   back, and a cached grant outlives the user's change in settings. Example:
   `AndroidLocationRepositoryImpl` maps `SecurityException` to `MissingLocationPermission` and holds no
-  permission state; the launchers do not meet the rest (see deviations). Enforced: reviewer only.
+  permission state; the launchers do not meet the rest (see "Known deviations in the current code", `SKILL.md`). Enforced: reviewer only.
   Severity: important.
 
 ## Process death and lifecycle
