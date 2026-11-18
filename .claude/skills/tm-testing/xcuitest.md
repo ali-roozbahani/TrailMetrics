@@ -1,6 +1,6 @@
 # XCUITest and `shared-uitest`: run, seam, probe, CI
 
-Read from `SKILL.md`, "XCUITest" and "Fakes over mocks". The rules (determinism D5, flakes D6,
+Read from `xcuitest-rules.md`, "XCUITest", and `SKILL.md`, "Fakes over mocks". The rules (determinism D5, flakes D6,
 identifiers D7, the project file) are there; this file holds the procedures and the description of
 the test seam. The plan and its decisions are in `docs/epics/ios-ui-tests.md`.
 

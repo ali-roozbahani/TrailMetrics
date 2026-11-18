@@ -266,7 +266,7 @@ open every older database and keep its rows. The procedure, in order:
    `data/src/commonMain/.../local/database/Migrations.kt` and add it to `appMigrations`, which
    `getRoomDatabase` adds to the builder. The app and the harness use the same list.
 5. Add the frozen fixture of version M (if missing) and the case named for `MIGRATION_M_N`:
-   `tm-testing`, "Migration cases (Room)" is the canonical statement of what they must contain.
+   `tm-testing`, "Migration cases (Room)" (`room-migration-rules.md`) is the canonical statement of what they must contain.
 6. A destructive step (dropping a table or column, deleting or rewriting rows,
    `fallbackToDestructiveMigration`) and any change of the database file name
    (`DATABASE_FILE_NAME`, pinned by `DatabaseFileNameTest`), its directory or the driver is the
