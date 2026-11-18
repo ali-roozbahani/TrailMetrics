@@ -9,14 +9,13 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import dev.roozbahani.trailmetrics.data.R
+import dev.roozbahani.trailmetrics.data.di.trackingServiceScopeQualifier
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -28,7 +27,7 @@ class TrackingService : Service(), KoinComponent {
 
     private val logger by inject<Logger>()
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val serviceScope by inject<CoroutineScope>(trackingServiceScopeQualifier)
 
     private var trackingStateObservationJob: Job? = null
 

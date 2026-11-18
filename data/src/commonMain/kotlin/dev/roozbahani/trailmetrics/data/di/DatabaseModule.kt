@@ -9,10 +9,13 @@ import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.database.WriteTransaction
 import dev.roozbahani.trailmetrics.data.local.database.getDatabaseBuilder
 import dev.roozbahani.trailmetrics.data.local.database.getRoomDatabase
+import kotlinx.coroutines.CoroutineDispatcher
 import org.koin.dsl.module
 
 val databaseModule = module {
-    single<TrailMetricsDatabase> { getRoomDatabase(getDatabaseBuilder()) }
+    single<TrailMetricsDatabase> {
+        getRoomDatabase(getDatabaseBuilder(), get<CoroutineDispatcher>(ioDispatcherQualifier))
+    }
     single<ActivityDao> { get<TrailMetricsDatabase>().activityDao() }
     single<TrackingSessionDao> { get<TrailMetricsDatabase>().trackingSessionDao() }
     single<TrackingSessionPlanDao> { get<TrailMetricsDatabase>().trackingSessionPlanDao() }

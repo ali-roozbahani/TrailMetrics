@@ -88,11 +88,12 @@ import dev.roozbahani.trailmetrics.domain.util.formatCalories
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import dev.roozbahani.trailmetrics.domain.util.formatElapsedTime
 import dev.roozbahani.trailmetrics.domain.util.formatSpeed
+import dev.roozbahani.trailmetrics.feature.tracking.di.snapshotDispatcherQualifier
 import dev.roozbahani.trailmetrics.feature.tracking.util.saveSnapshotToFile
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 
 /**
@@ -118,9 +119,9 @@ fun TrackingRoot(
     initialStartPoint: Coordinates,
     plannedRoutePoints: List<Coordinates>,
     activityType: ActivityType,
-    onNavigateBack: () -> Unit,
-    snapshotDispatcher: CoroutineDispatcher = Dispatchers.IO
+    onNavigateBack: () -> Unit
 ) {
+    val snapshotDispatcher: CoroutineDispatcher = koinInject(snapshotDispatcherQualifier)
     val viewModel: TrackingViewModel = koinViewModel(parameters = {
         parametersOf(
             activityType,

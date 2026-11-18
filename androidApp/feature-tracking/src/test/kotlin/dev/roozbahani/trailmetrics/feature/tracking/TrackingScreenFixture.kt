@@ -16,11 +16,13 @@ import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
+import dev.roozbahani.trailmetrics.feature.tracking.di.snapshotDispatcherQualifier
 import dev.roozbahani.trailmetrics.feature.tracking.di.trackingUiModule
 import dev.roozbahani.trailmetrics.core.testing.FakeClock
 import dev.roozbahani.trailmetrics.core.testing.FakeLogger
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +41,8 @@ import org.koin.dsl.module
  * [TrackingSessionManager] over [locationRepository], a real [SaveActivityUseCase] over
  * [activityHistoryRepository]. Shared by the Compose UI test classes of the tracking screen.
  */
-class TrackingScreenFixture {
+@OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+class TrackingScreenFixture(private val snapshotDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher()) {
 
     private val testScheduler = TestCoroutineScheduler()
 
@@ -76,6 +79,7 @@ class TrackingScreenFixture {
                     single<Clock> { clock }
                     single { SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock) }
                     single<SnapshotFileDeleter> { FakeSnapshotFileDeleter(deleteFromDisk = true) }
+                    single<CoroutineDispatcher>(snapshotDispatcherQualifier) { snapshotDispatcher }
                 }
             )
         }
