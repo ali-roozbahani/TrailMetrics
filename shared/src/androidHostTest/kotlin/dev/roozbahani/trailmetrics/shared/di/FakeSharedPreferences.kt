@@ -6,12 +6,12 @@ internal class FakeSharedPreferences : SharedPreferences {
     private val values = mutableMapOf<String, Any?>()
 
     override fun getAll(): MutableMap<String, *> = values.toMutableMap()
-    override fun getString(key: String, defValue: String?): String? = values[key] as? String ?: defValue
+    override fun getString(key: String, defValue: String?): String? = values[key]?.let { it as String } ?: defValue
     override fun getStringSet(key: String, defValues: MutableSet<String>?): MutableSet<String>? = defValues
-    override fun getInt(key: String, defValue: Int): Int = values[key] as? Int ?: defValue
-    override fun getLong(key: String, defValue: Long): Long = values[key] as? Long ?: defValue
-    override fun getFloat(key: String, defValue: Float): Float = values[key] as? Float ?: defValue
-    override fun getBoolean(key: String, defValue: Boolean): Boolean = values[key] as? Boolean ?: defValue
+    override fun getInt(key: String, defValue: Int): Int = values[key]?.let { it as Int } ?: defValue
+    override fun getLong(key: String, defValue: Long): Long = values[key]?.let { it as Long } ?: defValue
+    override fun getFloat(key: String, defValue: Float): Float = values[key]?.let { it as Float } ?: defValue
+    override fun getBoolean(key: String, defValue: Boolean): Boolean = values[key]?.let { it as Boolean } ?: defValue
     override fun contains(key: String): Boolean = key in values
     override fun edit(): SharedPreferences.Editor = FakeEditor()
     override fun registerOnSharedPreferenceChangeListener(
