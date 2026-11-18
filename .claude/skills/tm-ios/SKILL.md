@@ -10,6 +10,20 @@ This skill is the source of truth for iOS conventions (it replaced the retired
 current code under `iosApp/` actually does. Where they differ, the code wins for "what
 exists", the rules here win for "what new code should look like".
 
+## Topic files
+
+Read each file when the task or the diff reaches its topic, not before; a reviewer reads it for a diff that touches the
+topic. Section headings are unchanged, so a reference to `tm-ios`, "<heading>", is found in this file or in the file
+named here.
+
+| File | Read it when |
+|---|---|
+| `strings-and-accessibility.md` ("Strings", "Accessibility", "Numbers, units and durations") | a change adds or edits user-visible text, a String Catalog, an accessibility label or trait, or formats a number, a unit or a duration |
+| `uikit-and-concurrency.md` ("Wrapping a UIKit view (the maps)", "Swift concurrency settings per target") | a change wraps a UIKit view (`UIViewRepresentable`, the maps) or touches a `Package.swift`, an Xcode target's concurrency or isolation settings |
+| `build-and-schemes.md` ("Build integration", "Build configurations and schemes") | a change touches the Xcode project, a scheme, a build phase, the XCFramework build, `xcodebuild` flags or a build configuration |
+| `swiftlint.md` ("SwiftLint") | a SwiftLint step fails, or a change touches `iosApp/.swiftlint.yml` or adds a `swiftlint:disable` |
+
+
 ## Architecture
 
 - One local Swift Package per feature under `iosApp/Packages/<Feature>/` (`History`,
@@ -154,7 +168,7 @@ fails, so observe through a use case that turns the failure into a value on the 
   `userInfo["KotlinException"]`. See the `underlyingRouteError` extension in
   `RouteViewModel.swift`, and map to `RouteUiError` via `.toUiError()` with
   `RouteUiErrorGeneral.shared` as the fallback.
-- Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `optional_try`) and
+- Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `swiftlint.md`, `optional_try`) and
   no unstructured `Task { try ... }` without `do/catch` (review only). A caught error reaches the
   user through the ViewModel's `.showError` event, and state stays as it was. Only Kotlin
   functions with `@Throws` can throw into Swift without crashing; see `tm-kmp-shared` ("`@Throws`
@@ -203,246 +217,6 @@ fails, so observe through a use case that turns the failure into a value on the 
   rule: a small `#if DEBUG` preview-fakes file in the package that owns the screen, hand-written
   against the Kotlin interfaces, which keeps `TestSupport` out of the app.
 
-## Strings
-
-No user-visible text is a hardcoded string. Every text the user reads (labels, button titles,
-navigation and tab titles, alerts, empty and error states, accessibility labels and hints, map
-marker titles) comes from a String Catalog, `Localizable.xcstrings`, next to the sources of the
-package that shows it (`iosApp/Packages/<Feature>/Sources/<Feature>/`), of the app target
-(`iosApp/TrailMetrics/`) or of the widget extension (`iosApp/TrackingWidget/`). Language: English
-for now (`defaultLocalization: "en"`). Adding one means adding its column to the catalogs,
-no code change.
-
-- **Bundle.** Inside an SPM package SwiftUI looks in the main bundle unless told otherwise, so a
-  literal without the package bundle is silently not localized. Only `Text` takes `bundle:`;
-  every other view takes its text as a `Text`:
-
-  ```swift
-  Text("Generate Route", bundle: .module)
-  Button { save() } label: { Text("Save", bundle: .module) }
-  Label { Text("Reset", bundle: .module) } icon: { Image(systemName: "arrow.clockwise") }
-  TextField(text: $weightInput) { Text("Weight (kg)", bundle: .module) }
-  .navigationTitle(Text("User Profile", bundle: .module))
-  .alert(Text("Error", bundle: .module), isPresented: $isShown) { ... }
-  ```
-
-  In the app and widget targets the bundle is the main one: `bundle: .main`.
-- **Outside a View** (ViewModel, error and formatter texts, `GMSMarker.title`) a `String` shown
-  with `Text(string)` is verbatim and never localized, so make the string with
-  `String(localized: "key", bundle: .module)`. Use a computed property, not a `static let`, so it
-  follows the language at the time it is read. A child view that shows a label takes a `Text`
-  (`HistoryMetricCell(label: Text("metric_distance", bundle: .module), ...)`), not a `String`.
-  The Live Activity's `activityType` stays an English identifier that the widget localizes with
-  its own catalog (`Text(LocalizedStringKey(activityType), bundle: .main)`).
-- **Keys.** The English text is the key (`Text("Generate Route", ...)`). A text used in several
-  places of a package, or one that is formatted, gets a descriptive snake_case key
-  (`delete_activity_title`, `general_error_message`) whose English value is in the catalog.
-  Interpolated texts use format arguments in the key, never `+`. A new key is added to the
-  catalog in the same change, with an `en` string unit.
-- **Not user-visible text, leave as is:** `accessibilityIdentifier`, log messages, `systemName:`
-  symbols, URL schemes and notification names, test code and fakes, `UITestSupport`, previews'
-  sample data.
-- **Enforced** by two SwiftLint custom rules in `iosApp/.swiftlint.yml` (see "SwiftLint"):
-  `localized_text_without_bundle` (a `Text("literal")` without `bundle:`) and
-  `literal_text_in_view_initializer` (a string literal as the first argument of `Button`, `Label`,
-  `TextField`, `.navigationTitle`, `.alert`, `.accessibilityLabel` and similar). Both cover
-  production sources of the packages, the app target and the widget only. They cannot see a
-  `String` that is shown later (`Text(message)`), so review checks that those strings are made
-  with `String(localized:bundle:)` (`tm-pr-review`). Self-test of the rules:
-  `scripts/check-localized-strings.sh --self-test` (in the gate's iOS steps).
-- A package's tests resolve one of its keys through `Bundle.module` with
-  `LocalizationAssertions.assertResolves` (TestSupport); copy `HistoryTests/LocalizationTests.swift`
-  for a new package (it needs `@testable import`).
-- Known limits, not fixed here: the texts that `MetricsFormatter` (Kotlin) returns, with their
-  unit words, and the widget's own number formatting are hardcoded (board:
-  `shared-metrics-formatter-user-visible-strings`, `ios-hardcoded-number-formatting`).
-
-## Accessibility
-
-- Every control that shows only an icon has an `accessibilityLabel` made with `String(localized:)`
-  or a `Text` (see "Strings"), and the same for a state it shows only by color or shape.
-- A cell that shows a value and its label (the metric cells) is one element:
-  `.accessibilityElement(children: .combine)`, so VoiceOver reads "label, value" once.
-- Sizes follow the user's text size: fonts are text styles; a fixed size that must grow
-  uses `@ScaledMetric`. An animation checks `@Environment(\.accessibilityReduceMotion)`.
-- Decorative images are `.accessibilityHidden(true)`.
-- The map is a UIKit view (next section): give its `UIViewRepresentable` an accessibility label and
-  describe the result in text elsewhere on the screen; a polyline is not readable by VoiceOver.
-- Camera moves on a map follow Reduce Motion: a jump when `UIAccessibility.isReduceMotionEnabled`, an
-  animation otherwise (`GMSMapView+ReduceMotion.swift` in `Route`; the tracking map has the one-line copy).
-- Enforced: `AccessibilityAuditUITests` runs Xcode's accessibility audit (element descriptions, hit regions)
-  on Route, History, Details and Tracking in the gate's UI tests; a new screen adds its case there. Reduce
-  Motion, the scaled sizes and the widget have no automated check: reviewer only. Violation: `important`.
-
-## Wrapping a UIKit view (the maps)
-
-- `makeUIView` creates the view and its delegate once; `updateUIView` runs on every state change of
-  the SwiftUI parent, so it applies only what changed (compare against what the `Coordinator` last
-  applied) instead of clearing and rebuilding the map. Both maps do this (`routeMapChanges(from:to:)` and
-  `trackingMapChanges(from:to:)` are the pure, tested parts); a new map view does the same.
-- The `Coordinator` keeps what `updateUIView` must remember between calls (the last camera
-  coordinates, `planAlreadySeen`), as `RouteMapView` and `TrackingMapView` do. No second strong
-  reference to the `GMSMapView` outside the representable: `TrackingMapView`'s comment records the
-  dealloc crash that a binding to it caused (`RouteMapView` still has one: `@Binding var mapView`).
-- Work that the map needs from the screen (a snapshot) is requested with a value (`snapshotRequestID`)
-  and answered by a closure, not by handing the `GMSMapView` out.
-- `dismantleUIView` is where the wrapper's own tasks end (`TrackingMapView` cancels `snapshotTask`).
-
-## Swift concurrency settings per target
-
-Read from `iosApp/TrailMetrics.xcodeproj/project.pbxproj` and the six `Package.swift` files; check
-them again before relying on them, because they change the meaning of the same code.
-
-| Target | Language mode | Default actor isolation | Approachable concurrency |
-|---|---|---|---|
-| `TrailMetrics` (app) | 5.0 | `MainActor` | on |
-| `TrackingWidgetExtension` | 5.0 | `nonisolated` (unset) | off |
-| `TrailMetricsUITests` | 5.0 | `nonisolated` (unset) | off |
-| the six packages (tools 5.9) | 5 | `nonisolated` (unset) | off |
-
-So a type in the app target is `@MainActor` without saying it, and a type in a package is not: write
-the `@MainActor` on a package type and do not move code between a package and the app target without
-re-reading its isolation (D7 in `tm-robustness`).
-
-## Numbers, units and durations
-
-- User-visible numbers, units and durations are formatted per platform and locale. The direction
-  (owner decision) is not to format them in the Kotlin `domain`; moving the existing formatting out of
-  Kotlin is a refactor of its own and is not scheduled (the two board records in "Strings").
-- New Swift code does not use `String(format:)` for a number the user reads. Use the format styles
-  (`value.formatted(...)`, `Measurement` with `.formatted(.measurement(...))`, `Duration.formatted`,
-  `Date.FormatStyle`), which follow the locale, or `Text(value, format:)`.
-- Existing exceptions, not to copy: `TrackingWidget/TrackingLiveActivity.swift` formats
-  distance, pace and elapsed time with `String(format:)` (board: `ios-hardcoded-number-formatting`).
-
-## Build integration (XCFramework pre-action + Run Script)
-
-- `scripts/build-kmp-framework.sh` is the one place that decides whether the shared
-  XCFramework needs Gradle. It hashes the **content** of every `*.kt`/`*.kts` under
-  `domain/src data/src core/src shared/src shared-uitest/src`, plus `settings.gradle.kts`, the root
-  `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`,
-  `gradle/wrapper/gradle-wrapper.properties`, `domain|data|core|shared|shared-uitest/build.gradle.kts` and
-  `local.properties` (if present; BuildKonfig compiles its API key into the framework). It
-  compares the variant and that hash against `shared/build/.xcode_kmp_stamp` and runs
-  `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework` when the hash or the variant
-  changed or the XCFramework is missing. With `--variant uitest` it also builds the test-only
-  variant of `shared-uitest`, checks its API against production's (`scripts/check-variant-api.sh`)
-  and copies it over the same
-  debug path (ADR-002, "Amendment"). The stamp is deleted before Gradle and written only after
-  it succeeds. `SharedKit/Package.swift` points at the **debug** XCFramework output.
-  Deliberately not hashed: `gradlew`, `gradle/wrapper/gradle-wrapper.jar` and
-  `gradle/gradle-daemon-jvm.properties`. `gradle-wrapper.properties` names the Gradle version;
-  the first two only launch that version and the third only selects the JVM that runs the
-  Gradle daemon, so none of them is expected to change the Kotlin/Native output. The gate's iOS
-  filter (`IOS_PATHS`) still lists all three, so its iOS steps run when the build tooling
-  changes. On a machine whose stamp matches, a diff of only these files makes the gate's
-  "KMP XCFramework" step print "up to date" and skip Gradle. That is intended; if a change to
-  one of them ever does change the framework, delete the stamp to force the rebuild.
-- Callers:
-  - The shared `TrailMetrics` scheme
-    (`TrailMetrics.xcodeproj/xcshareddata/xcschemes/TrailMetrics.xcscheme`) runs it as a
-    Build pre-action. That is what makes a single build pick up a Kotlin change: Xcode copies
-    the XCFramework (`ProcessXCFramework`) and compiles the Swift packages *before* any of
-    the app target's phases run. The pre-action output, including Gradle errors, is in the
-    build log, and a failing pre-action fails the build.
-  - The shared `TrailMetricsUITests` scheme has the same Build pre-action (see "Build
-    configurations and schemes").
-  - The `TrailMetrics` target's "Build KMP Shared Framework" Run Script phase (first phase,
-    `alwaysOutOfDate = 1`, output `.xcode_kmp_stamp`) runs it with `--build-phase` as a
-    safety net. If the pre-action didn't run, it rebuilds and then fails the build with
-    "build again" rather than link the stale copy. Don't declare the XCFramework as a phase
-    output: Xcode reports "Cycle inside TrailMetrics".
-  - `scripts/pre-push-check.sh` runs it before the iOS build, then
-    `scripts/check-production-framework.sh` on the production framework, and runs it with
-    `--variant uitest` right before the package tests (see below).
-  - CI's `ios-build` job runs it in its "Build KMP Shared Framework" step, before the iOS
-    simulator tests and the `xcodebuild` build, runs `scripts/check-production-framework.sh`
-    after it, and builds the variant in the step "Build test-only framework variant" before
-    "Run iOS package tests", which also runs the variant's API check (`scripts/check-variant-api.sh`).
-    The iOS UI tests are not built or run in CI: the gate's iOS UI step (`scripts/ios-ui-tests.sh`) builds the
-    variant and the UI-test target and runs them.
-- The Swift package tests link the **test-only variant**, not production: the Kotlin test
-  support they need (`SwiftTestFlow`, `SwiftFailingTestFlow`, `SwiftTestScope`, `SwiftTestResult`, `SwiftTestRepositories`,
-  package `dev.roozbahani.trailmetrics.uitest.testsupport`) is in `shared-uitest`. The production
-  framework contains none of it; `scripts/check-production-framework.sh` (gate and `ios-build`)
-  fails when any of those names, or the `testsupport` package name, is in its binary. The
-  variant's API check (`scripts/check-variant-api.sh`) lists these five classes with the UI-test
-  seam as the only names allowed in the variant alone.
-- A per-user `xcuserdata/.../TrailMetrics.xcscheme` with the same name shadows the shared
-  scheme and has no pre-action. If every Kotlin change ends in the "build again" error,
-  delete the per-user copy.
-- `xcodebuild test` inside a package directory (`iosApp/Packages/<Name>`) uses the package's
-  own scheme. It runs neither the pre-action nor the phase, so run
-  `scripts/build-kmp-framework.sh --variant uitest` first (the gate does): the package tests
-  need the test-only variant. A normal build afterwards rebuilds production.
-- Building the app from the command line (the command is CI's `ios-build` "Build iOS app"
-  step; the gate runs the same one):
-
-  ```bash
-  cd iosApp
-  xcodebuild build -project TrailMetrics.xcodeproj -scheme TrailMetrics \
-    -destination "generic/platform=iOS Simulator" -skipMacroValidation \
-    ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
-  ```
-
-  Without the architecture flags a build on clean derived data fails (the XCFramework has no
-  x86_64 slice). The gate also pipes the output through `scripts/filter-xcode-log.sh`, which
-  hides the exported build settings (they include the Maps key) from the log.
-- The app target sets `ENABLE_USER_SCRIPT_SANDBOXING = NO` in its three configurations (the project level has
-  `YES`) because the "Build KMP Shared Framework" phase writes `shared/build/.xcode_kmp_stamp` and can run Gradle,
-  which a sandboxed script phase cannot do. The pre-action is a scheme action, not a build phase.
-- Never run `integrateEmbedAndSign` or `integrateLinkagePackage` (the Kotlin Gradle plugin's tasks that rewrite an
-  Xcode project for `embedAndSignAppleFrameworkForXcode` or SwiftPM import) on this project: they add a second
-  integration next to the pre-action and the phase. Enforced: reviewer only. Violation: `blocking`.
-- Never disable, reorder or bypass the pre-action or the phase, and keep the shell logic in
-  the script, not inline in the scheme or the project file.
-- Unexpected "missing/stale symbol from `TrailMetricsShared`": look in the build log for the
-  "Build KMP Shared Framework" pre-action and phase lines
-  ("rebuilding shared framework..." / "up to date, skipping Gradle build"). Deleting the stamp
-  forces the next build to run Gradle.
-- `./gradlew clean` wipes the XCFramework; the next Xcode build has to regenerate it.
-
-## Build configurations and schemes
-
-- The project has three build configurations: `Debug`, `Release` and `Debug-UITest`.
-  `Debug-UITest` is a copy of `Debug` in every configuration list (the project, `TrailMetrics`,
-  `TrackingWidgetExtension`, `TrailMetricsUITests`); the only difference is at the project level,
-  where `SWIFT_ACTIVE_COMPILATION_CONDITIONS` is `DEBUG UITEST_SEAM $(inherited)`. So the project's
-  targets see `UITEST_SEAM` and `DEBUG`; the Swift packages see `DEBUG` only. A build setting
-  added to or changed in `Debug` belongs in `Debug-UITest` too.
-- Keep `Debug` in the name of a configuration that should build like Debug: Xcode picks the
-  SwiftPM packages' debug or release build from the name (seen with `xcodebuild`: a
-  configuration named `UITest` built the packages as Release, `-O`, whole-module, no `DEBUG`).
-- Two shared schemes build the app:
-  - `TrailMetrics`, the normal scheme: Run, Test and Analyze on `Debug`, Profile and Archive on
-    `Release`, and no testables. It links the production framework. CI's "Build iOS app" step
-    and the gate build it.
-  - `TrailMetricsUITests`, the UI-test scheme: the same Build pre-action, Test and Launch on
-    `Debug-UITest`, the `TrailMetricsUITests` testables and that target's build-for-testing
-    entry. It links the test-only variant of the framework (built by `shared-uitest`, ADR-002
-    "Amendment").
-- How the variant is picked: `scripts/build-kmp-framework.sh` builds the variant when Xcode's
-  `CONFIGURATION` is `Debug-UITest` (the pre-action and the `--build-phase` safety net alike),
-  and with `--variant uitest` when it is called outside Xcode; otherwise it builds production.
-  Both go to the same debug path, which `SharedKit/Package.swift` links in every configuration.
-- Running the UI tests locally (a concrete simulator; the pre-action builds the variant):
-
-  ```bash
-  cd iosApp
-  xcodebuild test -project TrailMetrics.xcodeproj -scheme TrailMetricsUITests \
-    -destination "platform=iOS Simulator,id=<simulator id>" -skipMacroValidation \
-    ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
-    2>&1 | ../scripts/filter-xcode-log.sh
-  ```
-
-  Add `-only-testing:TrailMetricsUITests/<TestClass>` for one class. Without the architecture
-  flags a build on clean derived data fails (the XCFramework has no x86_64 slice). The filter
-  hides the exported build settings, which carry the Maps key, from the log.
-- After a UI-test run the debug path holds the variant until the next normal build. That build
-  rebuilds production on its own: the stamp records the variant, so its pre-action prints
-  "KMP source or framework variant changed, rebuilding shared framework (production)..." and
-  replaces the variant before anything links it.
-
 ## Naming (Swift)
 
 - Types `PascalCase`, functions/properties `camelCase`. No `I` prefix and booleans read as
@@ -477,44 +251,6 @@ re-reading its isolation (D7 in `tm-robustness`).
 - Otherwise as `tm-android` ("No dead code"): no commented-out code, no unused declarations.
 - No unused imports (`unused_import` is enabled). Import `SharedKit`, not
   `TrailMetricsShared`.
-
-## SwiftLint (CI-enforced, `--strict`)
-
-Config: `iosApp/.swiftlint.yml`. Run it from `iosApp/` with `swiftlint lint --strict`. It
-runs in `scripts/pre-push-check.sh` (whenever a file other than markdown under `iosApp/`,
-`domain/`, `data/`, `core/`, `shared/` or `shared-uitest/` changed, or a root Gradle file: `build.gradle.kts`,
-`settings.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml`, or a file that runs the
-Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`,
-`gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in CI's `ios-build` job, followed by an `xcodebuild` simulator build.
-
-- `--strict` promotes every warning to a failure. The `warning` thresholds are the real
-  limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic
-  complexity 15.
-- `force_unwrapping`, `force_cast` and `force_try` are errors. Restructure with
-  `guard let`/`if let`, `as?` with explicit `else` handling, or `do`/`catch`.
-- Opt-in rules on top of the defaults: `force_unwrapping`, `unused_import`, `explicit_init`,
-  `closure_spacing`, `empty_count` (use `.isEmpty`), `fatal_error_message`.
-- Custom rule `optional_try` (error): a regex for `try?`, not matched inside comments and
-  string literals (`excluded_match_kinds`); `try` and `try!` are not its business (`force_try`
-  covers `try!`). Handle the error with `do`/`catch`; a deliberate `try?` needs the
-  `swiftlint:disable:next optional_try - <reason>` comment on the line above, allowed only for a
-  best-effort side effect whose failure the user can't act on, the reason saying why the error can
-  be dropped there. The only two in production code are `SnapshotFileDeleter.deleteBestEffort` (an orphaned image
-  file after the record is gone) and `ActivityKitLiveActivityClient`'s `Activity.request` (Live
-  Activities can be turned off); the test helper `waitUntil` (TestSupport)
-  carries the same comment; no other `try?` is left
-  under `iosApp/`. SwiftLint does not check that a reason is there or true: review does. An invalid `excluded_match_kinds` name only prints "Invalid configuration for
-  'optional_try' rule" and turns the rule off, without failing `--strict`; `scripts/check-optional-try.sh --self-test`
-  (in the gate's iOS steps and CI's `ios-build`) lints fixtures with the committed config, fails on that message,
-  and shows the rule silently off on a config with an unknown kind.
-- Custom rules `localized_text_without_bundle` and `literal_text_in_view_initializer` (error):
-  see "Strings". They match source text with `included`/`excluded` path regexes, so a new
-  production source folder outside `Packages/*/Sources`, the files directly in `iosApp/TrailMetrics/`
-  and `iosApp/TrackingWidget/` needs its path added to both rules.
-- Don't add `// swiftlint:disable` comments and don't edit `.swiftlint.yml` to make a
-  violation pass. Refactor instead, or ask if the rule genuinely doesn't fit. A suppression
-  needs explicit human approval and a stated reason. Every existing one has the form
-  `// swiftlint:disable:next <rule> - <reason>`.
 
 ## Known deviations in the current code
 
