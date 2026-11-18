@@ -172,7 +172,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Source: owner decision 2026-11-16 (iOS skills spike follow-up)
 - Problem: The PR description's Tier 1 asks for test counts per module from `allTests`; the iOS package and UI test counts are not part of that method (`test-counts.md`). Reason for a record: a change to the PR description rules in `tm-pr-workflow` (a skill the owner decides on).
 - Done when: `test-counts.md` says how the iOS package test count (and the UI test count) are read and reported, and the reviewer's check names it.
-- Refs: `.claude/skills/tm-pr-workflow/test-counts.md`; `.claude/skills/tm-pr-workflow/SKILL.md` ('PR description').
+- Refs: `.claude/skills/tm-pr-workflow/test-counts.md`; `.claude/skills/tm-pr-workflow/commits-push-pr.md` ('PR description').
 
 ### healthkit-workout-with-route
 - Type: task

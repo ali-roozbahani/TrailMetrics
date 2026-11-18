@@ -58,7 +58,7 @@ those are the orchestrator's.
 
 Commit to your worktree's branch when a coherent piece works, with
 `git add <the files you changed>` and `git commit -m "<type>(<scope>): <summary>" -m "<why, if not obvious>"`
-(imperative, lowercase after the colon, no trailing period; `tm-pr-workflow`, "Commits"), ending the
+(imperative, lowercase after the colon, no trailing period; `tm-pr-workflow`, "Commits", `commits-push-pr.md`), ending the
 message with the lines `Commit trailer` gives. No merge commits, no amend of a commit that was reported.
 Do not put the words of a push or of a PR creation command into any command or message (a repository
 hook refuses a command that merely contains them).

@@ -1,6 +1,6 @@
 # PR description: the headings added when they apply
 
-Moved word for word from `SKILL.md`, "PR description" (from "Add these when they apply" to "Corrections"). The rules are unchanged; `SKILL.md` keeps the list of headings.
+Moved word for word from `SKILL.md`, then `commits-push-pr.md`, "PR description" (from "Add these when they apply" to "Corrections"). The rules are unchanged; `commits-push-pr.md` keeps the list of headings.
 
 Add these when they apply. Recent PRs use them consistently:
 

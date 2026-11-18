@@ -29,7 +29,7 @@ How it is enforced, and what that means for the order of operations:
   - Push with `git push -u origin <branch>` (or `HEAD`), alone or followed by a suffix such as
     `2>&1 | tail -5`. Open the PR with `gh pr create --base main --title "<PR title>" --body-file <file>`
     (`gh` refuses without `--title` when it is not interactive; `<file>` is the draft without its
-    `Title:` line, see "PR description"), the same suffix allowed. The branch must exist locally.
+    `Title:` line, see "PR description", `commits-push-pr.md`), the same suffix allowed. The branch must exist locally.
   - From another directory: `git -C <absolute path of the clone> push -u origin <branch>`, or
     `cd <absolute path of the clone> && git push -u origin <branch>`. A `cd` target with `~`, a
     variable, `-` or a missing directory, or a `cd` inside `( )`, `{ }` or a `||` list, blocks the

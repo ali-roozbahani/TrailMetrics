@@ -1,6 +1,6 @@
 # Test counts for the PR description
 
-Read from `SKILL.md`, "PR description". The rules are there; this file holds how the counts of Tier 1 are taken.
+Read from `commits-push-pr.md`, "PR description". The rules are there; this file holds how the counts of Tier 1 are taken.
 
    - One count per module and test task: each KMP module per target (`domain`, `data`:
      `testAndroidHostTest` and `iosSimulatorArm64Test`; `shared` and `shared-uitest`:
