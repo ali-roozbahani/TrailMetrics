@@ -16,6 +16,6 @@ Recorded so the first real epic can confirm or correct them:
 - "Ready" means the dependency is merged, not just its PR opened.
 - Merge commit for epic → `main`, where every other PR is squash-merged.
 - Parallel subtasks run in linked worktrees, which the gate and hook support since #40
-  (verified 2026-09-29, see "Isolation"), with a default cap of two concurrent subtasks
+  (verified 2026-09-29, see "Isolation", `spawning-subtasks.md`), with a default cap of two concurrent subtasks
   to limit build contention. An earlier version of this skill said the gate/hook
   probably broke in worktrees and made sequential the default; that was true before #40.

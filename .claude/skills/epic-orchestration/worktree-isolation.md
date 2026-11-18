@@ -1,6 +1,6 @@
 # Parallel worktrees: what was verified
 
-Read from `SKILL.md`, "Isolation". The rules are there; this file holds the record of what was verified and what was not.
+Read from `spawning-subtasks.md`, "Isolation". The rules are there; this file holds the record of what was verified and what was not.
 
 Verified on 2026-09-29 against `main` at `09a86a8`:
 - In a throwaway linked worktree, the full gate passed (exit 0) and wrote the marker under
