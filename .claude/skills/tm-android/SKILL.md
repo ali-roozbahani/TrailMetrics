@@ -129,7 +129,7 @@ ViewModel via `koinViewModel()`, observes events), `<Screen>Screen` (pure `state
   parameter reads the latest callback through `rememberUpdatedState`, or has that callback as its key.
   State a composable owns is `remember`ed, never `mutableStateOf(...)` as a default argument. Why: an
   effect keyed by `Unit` keeps calling the first callback it captured, and a default argument is built
-  again on every call, so the state is lost on recomposition. Example: no example yet. Enforced:
+  again on every call, so the state is lost on recomposition. Example: `HistoryRoot`. Enforced:
   reviewer only. Severity: important. Not a finding: an effect that calls no parameter, or reads only
   the values it is keyed by.
 - A reusable composable (used by more than one screen, or in `core-ui`) takes `modifier: Modifier =
@@ -188,12 +188,6 @@ Don't copy these as a pattern for new code.
   `<X>Root`, kept so `MainActivity`'s NavHost call sites didn't change. It shares its name
   with the stateless `<X>Screen(state, onAction, ...)`.
 - `MainActivity` field-injects with `by inject()` (see "Koin", `koin-and-gradle.md`).
-- `TrackingRoot`, `RouteRoot`, `DetailsRoot` and `HistoryRoot` collect their events in
-  `LaunchedEffect(Unit)` and call the navigation callback they received at the first composition
-  (the effect rule in "Compose").
-- `TrailMetricsNavHost` has `stopTrackingRequested = mutableStateOf(false)` as a default argument (the
-  production call passes its own); `TrailMetricsBottomBar` and `TrailMetricsNavHost` have no `modifier`
-  parameter (the `modifier` rule in "Compose").
 - The `AnimatedContent` in `TrackingScreen` reads `canStart`, `canPause`, `canResume` and `canStop` from
   the outer state in its `else` branch. No test shows the fade overlap this can cause, so the branch is
   as it is (the animation rule in "Compose").

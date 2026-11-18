@@ -1,6 +1,6 @@
 # Room migration tests: harness and fixture construction
 
-Read from `SKILL.md`, "Migration cases (Room)". The rules for a fixture and a `MIGRATION_M_N` case
+Read from `room-migration-rules.md`, "Migration cases (Room)". The rules for a fixture and a `MIGRATION_M_N` case
 are there; this file holds the harness description and how a fixture is built.
 
 ## Harness

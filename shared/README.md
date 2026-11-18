@@ -76,7 +76,7 @@ stay out of the Swift header.
   XCFramework must be rebuilt. In day-to-day iOS development this happens
   automatically via `scripts/build-kmp-framework.sh`, which the Xcode
   `TrailMetrics` scheme's Build pre-action and the "Build KMP Shared
-  Framework" phase run (see `.claude/skills/tm-ios` → "Build integration");
+  Framework" phase run (see `.claude/skills/tm-ios/build-and-schemes.md` → "Build integration");
   when working from the command line, run that script (or
   `./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework`) manually.
   `scripts/build-kmp-framework.sh --variant uitest` puts the test-only

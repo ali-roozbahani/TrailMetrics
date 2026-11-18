@@ -3,10 +3,59 @@
 # Mirrors ci.yml's jobs so CI is a confirmation, not a discovery step.
 #
 # Exit codes: 0 = all required checks passed. Non-zero = do not push.
+#
+#   scripts/pre-push-check.sh --self-test   the self-test of the log prune below (no step runs; exit 0 = all ok)
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# prune_gate_logs <root>: removes the run directories of the gate's logs that are older than 3 days, and only those:
+# a directory directly under <root> whose whole name is YYYYMMDD-HHMMSS-<pid>, the name the gate gives its own run
+# (GATE_LOG_DIR below). Any other directory under <root> stays, whatever its age, because <root> may be set with
+# TM_GATE_LOG_DIR to a directory that holds other things.
+prune_gate_logs() {
+    local root="$1" dir name
+    for dir in "$root"/*/; do
+        [ -d "$dir" ] || continue
+        name="$(basename "$dir")"
+        [[ "$name" =~ ^[0-9]{8}-[0-9]{6}-[0-9]+$ ]] || continue
+        find "${dir%/}" -maxdepth 0 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
+    done
+}
+
+# The self-test of prune_gate_logs, run before anything else (no heavy-run lock, no git): a foreign directory under the
+# root survives, even an old one, and so do a recent run directory and a name that only starts like a run directory;
+# an old run directory goes.
+if [ "${1:-}" = --self-test ]; then
+    ST_ROOT="$(mktemp -d)" || { echo "pre-push-check self-test: FAILED, no temp dir"; exit 1; }
+    trap 'rm -rf "$ST_ROOT"' EXIT
+    ST_FAIL=0
+    mkdir "$ST_ROOT/20200101-000000-123" "$ST_ROOT/20990101-000000-123" "$ST_ROOT/keep-me" "$ST_ROOT/Documents" \
+        "$ST_ROOT/20200101-000000-abc" "$ST_ROOT/20200101-000000-123-extra" "$ST_ROOT/x20200101-000000-123"
+    : > "$ST_ROOT/loose-file"
+    for old in 20200101-000000-123 keep-me Documents 20200101-000000-abc 20200101-000000-123-extra x20200101-000000-123; do
+        touch -t 202001010000 "$ST_ROOT/$old"
+    done
+    touch -t 202001010000 "$ST_ROOT/loose-file"
+    prune_gate_logs "$ST_ROOT"
+    st_expect() { # st_expect <present|absent> <name> <why>
+        if [ "$1" = present ] && [ ! -e "$ST_ROOT/$2" ]; then echo "FAIL: $2 was removed ($3)"; ST_FAIL=$((ST_FAIL + 1))
+        elif [ "$1" = absent ] && [ -e "$ST_ROOT/$2" ]; then echo "FAIL: $2 survived ($3)"; ST_FAIL=$((ST_FAIL + 1))
+        else echo "ok: $2 $1 ($3)"; fi
+    }
+    st_expect absent 20200101-000000-123 "an old run directory goes"
+    st_expect present 20990101-000000-123 "a run directory that is not 3 days old stays"
+    st_expect present keep-me "a foreign directory stays, old as it is"
+    st_expect present Documents "a foreign directory stays, old as it is"
+    st_expect present 20200101-000000-abc "the pid part must be digits"
+    st_expect present 20200101-000000-123-extra "the whole name must match"
+    st_expect present x20200101-000000-123 "the whole name must match"
+    st_expect present loose-file "a file stays"
+    echo "pre-push-check self-test: $ST_FAIL failed"
+    [ "$ST_FAIL" -eq 0 ]
+    exit $?
+fi
 
 # One heavy run (Gradle, xcodebuild, this gate) at a time on this machine: start again under
 # scripts/heavy-run.sh, which waits while another heavy run is going. Inside it TM_HEAVY_RUN_HELD
@@ -33,13 +82,69 @@ if ! scripts/check-full-clone.sh; then
 fi
 
 FAILURES=()
+
+# What reaches the terminal: one line per step, and for a failed step the failure block. The full output of every
+# step goes to a log file in the agent workspace, so a red run costs about a page, not the whole build log
+# (the output of a gate run used to be thousands of lines). Exit codes, step order,
+# the retry budget and the steps themselves are unchanged: every step still runs, whatever an earlier one did.
+GATE_LOG_ROOT="${TM_GATE_LOG_DIR:-$HOME/agent-workspace/gate-logs}"
+GATE_LOG_DIR="$GATE_LOG_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
+if ! mkdir -p "$GATE_LOG_DIR" 2>/dev/null; then
+    echo "!!  cannot create the log directory $GATE_LOG_DIR"
+    echo "Gate stopped before any step. Do not push."
+    exit 1
+fi
+# Runs older than 3 days go (only run directories of this root: see prune_gate_logs).
+prune_gate_logs "$GATE_LOG_ROOT"
+GATE_STEP_NO=0
+GATE_QUIET_PASSED=0
+
+# gate_failure_excerpt <log>: what a failed step shows. Gradle's "What went wrong" block (at most 20 lines), then the
+# first 40 error lines of the log (compiler errors, failed tests, assertion and exception lines, detekt findings,
+# the gate's own "!!" lines). A log with neither shows its last 40 lines, so a failure is never printed empty.
+gate_failure_excerpt() {
+    local log="$1" went errors
+    went="$(awk '/^\* What went wrong:/{f=1} /^\* Try:/{f=0} f' "$log" | head -n 20)"
+    errors="$(grep -E '^e: |: error:|: Error:|FAILED|Exception|AssertionError|\[[A-Za-z]+\]$|^!! ' "$log" | head -n 40)"
+    if [ -z "$went" ] && [ -z "$errors" ]; then
+        errors="$(tail -n 40 "$log")"
+    fi
+    [ -n "$went" ] && printf '%s\n' "$went" | sed 's/^/      /'
+    [ -n "$errors" ] && printf '%s\n' "$errors" | sed 's/^/      /'
+    return 0
+}
+
+# run_step <name> <command...>: runs the command with all its output in a log file, prints one line (status, name,
+# seconds, log path) and, for a failed step, the failure block. With GATE_QUIET=true a step that passed prints nothing
+# (the caller prints one summary line, `gate_quiet_summary`): for the self-test loops, which have dozens of steps.
 run_step() {
     local name="$1"; shift
-    echo "==> $name"
-    if ! "$@"; then
+    local log started elapsed status slug
+    GATE_STEP_NO=$((GATE_STEP_NO + 1))
+    slug="$(printf '%s' "$name" | tr -c 'A-Za-z0-9' '-' | cut -c1-48)"
+    log="$(printf '%s/%02d-%s.log' "$GATE_LOG_DIR" "$GATE_STEP_NO" "$slug")"
+    started=$SECONDS
+    "$@" >"$log" 2>&1
+    status=$?
+    elapsed=$((SECONDS - started))
+    if [ $status -eq 0 ]; then
+        if [ "${GATE_QUIET:-false}" = true ]; then
+            GATE_QUIET_PASSED=$((GATE_QUIET_PASSED + 1))
+        else
+            printf '  ok    %-40s %4ss  %s\n' "$name" "$elapsed" "$log"
+        fi
+    else
         FAILURES+=("$name")
-        echo "!!  $name FAILED"
+        printf '  FAIL  %-40s %4ss  %s\n' "$name" "$elapsed" "$log"
+        gate_failure_excerpt "$log"
+        echo "      full log: $log"
     fi
+}
+
+# One line for a loop of quiet steps: how many passed. A failed one printed its own FAIL line above.
+gate_quiet_summary() {
+    printf '  ok    %-40s %4s  %s\n' "$1: $GATE_QUIET_PASSED passed" "" "$GATE_LOG_DIR"
+    GATE_QUIET_PASSED=0
 }
 
 # run_limited <seconds> <command> [args...]: runs the command with a hard limit for the whole step
@@ -199,14 +304,15 @@ run_step "scripts index check" scripts/checks/scripts-index.sh --check
 run_step "heavy scripts check" scripts/check-heavy-scripts.sh
 
 # Script self-tests: the lists scripts/checks/self-tests-tooling.list and scripts/checks/self-tests.list, which
-# CI runs too. Their check fails when a script with a --self-test is on neither. One gate step per line, so the output
-# still names each self-test; the list is read on fd 3, so a self-test cannot read it from
+# CI runs too. Their check fails when a script with a --self-test is on neither. One gate step per line, each with its own
+# log (a failed one prints its own FAIL line, a passed one only counts in the summary line); the list is read on fd 3, so a self-test cannot read it from
 # stdin. Fail closed: a list that cannot be read is a failure, not zero steps.
 run_step "self-test list check" scripts/checks/self-tests.sh --check
 if SELF_TESTS="$(scripts/checks/self-tests.sh --list tooling macos)"; then
     while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
-        run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+        GATE_QUIET=true run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
     done 3<<< "$SELF_TESTS"
+    gate_quiet_summary "script self-tests (tooling, macos)"
 else
     FAILURES+=("self-test list (scripts/checks/self-tests.sh --list tooling macos failed)")
 fi
@@ -348,8 +454,9 @@ if [ "$RUN_IOS_STEPS" = true ]; then
     if command -v swiftlint >/dev/null 2>&1; then
         if SELF_TESTS="$(scripts/checks/self-tests.sh --list ios-swiftlint)"; then
             while IFS=$'\t' read -r -u 3 SELF_TEST_NAME SELF_TEST_SCRIPT; do
-                run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
+                GATE_QUIET=true run_step "$SELF_TEST_NAME" "$SELF_TEST_SCRIPT" --self-test
             done 3<<< "$SELF_TESTS"
+            gate_quiet_summary "script self-tests (ios-swiftlint)"
         else
             FAILURES+=("self-test list (scripts/checks/self-tests.sh --list ios-swiftlint failed)")
         fi
@@ -483,6 +590,7 @@ echo "==> review verdict (report only, never fails the gate)"
 report_review_verdict || true
 
 echo
+echo "Logs of every step: $GATE_LOG_DIR"
 if [ ${#FAILURES[@]} -eq 0 ]; then
     echo "All required checks passed. Safe to commit/push."
     # --git-path resolves to this checkout's own git dir: .git/ in the main checkout,

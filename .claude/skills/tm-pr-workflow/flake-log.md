@@ -28,7 +28,7 @@ format). It is not protected, and a PR that touches only that file is not a boar
   small PR of its own (`chore/flake-log-<slug>`, a queue entry; light CI). The update of a run of a
   PR that is still red or waiting for a fix may go into that PR when a push is happening anyway.
   The agent may merge a PR that touches only `CI_FLAKES.md` once the merge conditions of
-  `tm-agent-loop`, section 8 hold.
+  `tm-agent-loop`, section 8 (`merge.md`) hold.
 - At count 3 for an `open` entry, add a `BOARD.md` record in the PR you are working on (type
   task, slug `flake-<slug>`, Problem with the occurrences, Done when: the flake no longer fails
   or the runner/test is changed so it cannot, shown on 5 consecutive runs) and mark the entry
