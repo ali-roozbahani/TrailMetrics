@@ -39,3 +39,13 @@ Added on 2026-11-19, when the skill was read against the first epic's plan (`run
 - The epic's board changes and the plan's `Status` are the last commit of the integration branch and travel in the epic PR; there is no final board PR and no extra human merge.
 - Open: the local review's base is the merge-base with `origin/main` (`scripts/local-review-prepare.sh`), which makes a subtask's review see the whole epic diff; the skill works around it with a review-scope line in the draft description
   (board record `epic-subtask-review-base`).
+
+Added on 2026-11-19, after a review of the local-merge flow for stops that the first run could predict:
+
+- **A stop is resolved by a decision that rides in the command.** Before, "the same sentence resumes the run" would have run the local review of the same commit again, got the same escalation, and stopped again. Now the owner says the sentence again with the decision after it
+  (or ahead of the stop, for one he expects); the run records it in `keep-decisions.md` with the subtask, the reviewed commit and the reasons, applies it to that subtask and commit only, once, and never decides for the owner.
+- **A stopped subtask does not stop the run.** The run goes on with every subtask that does not depend on it, and ends with the report when nothing else is ready, so the owner who is away loses less.
+- **The review is told what the plan names.** The reviewer escalates deleted or weakened tests (item 5), a change of what Swift sees or of an `@Throws` (item 6) and a listed rule line (item 10) unless its `TASK` names the change. The subtask's draft description therefore has a "Named by the plan" part built from the plan's acceptance and contract,
+  so a change the plan calls for does not stop the run. The rule-line check (`scripts/check-skill-rule-changes.sh feature/epic/<slug> HEAD`) is run first: the first epic's S4 edit of a `tm-android` sentence prints `none` (measured), because the lines it rewrites hold no rule word.
+- **`main` comes into an open epic PR only by a local merge that is reviewed and gated** (never GitHub's "update branch", whose merge commit no local check saw), and a resume on an open PR does only what is due.
+

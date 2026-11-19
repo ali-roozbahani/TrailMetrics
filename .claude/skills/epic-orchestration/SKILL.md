@@ -49,7 +49,7 @@ The owner starts an approved epic with one sentence: "run the epic `<slug>`". Th
 by `running-an-epic.md` and asks for nothing else: it checks what has to be checked, creates the integration branch, runs the
 waves in the order the plan's `depends_on` gives, merges each subtask locally into the integration branch after its own local
 review and gate, pushes the branch once and opens the one epic PR, watches its CI, fixes what CI finds, and ends with the epic PR
-open, green and waiting for the owner, and a report. The same sentence resumes a run that stopped. Without that command, an
+open, green and waiting for the owner, and a report. The same sentence resumes a run that stopped, and carries the owner's decision when the run stopped for one ("run the epic `<slug>`, S4: accept the escalation"): `running-an-epic.md`, "The owner's decisions at a stop". Without that command, an
 epic whose plan is approved stays as it is (`tm-agent-loop`, section 1).
 
 **The owner's decision of 2026-11-19, and a hypothesis:** a subtask is **not** a PR. There is no per-subtask PR and no per-subtask CI.
