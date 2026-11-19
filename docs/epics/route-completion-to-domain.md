@@ -367,7 +367,7 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
 10. **Local review base:** `scripts/local-review-prepare.sh` and the gate compare with the merge-base with `origin/main`. For the final review and gate on the
     integrated branch that is exactly right: the whole epic against `main`. For a subtask's local review it is too wide, because the branch holds the earlier
     subtasks: the draft description that is the review's `TASK` says that the scope is the commits `feature/epic/route-completion-to-domain..<subtask branch>` and lists the
-    subtask's `allowed_paths`. A `--base` option for the script is a decision for the owner (board record `epic-subtask-review-base`).
+    subtask's `allowed_paths`. A `--base` option for the script is a decision for the owner, recorded with the skill change that implements this flow, not here.
 11. **No CI until the end (the owner's hypothesis, to be tested by this run):** the subtasks are merged on the local gate and local reviews alone; CI and the CI
     reviewer run once, on the epic PR. A failure that only CI shows (a different environment, a flake, the CI reviewer's reading of the whole diff) appears after
     every subtask is merged; the fix goes onto the same branch and is pushed to the open PR. The first run records the numbers that let the owner judge the
@@ -397,6 +397,7 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
 
 ## How this epic is run (the owner's decision of 2026-11-19)
 
+- **Not to be run before the skill change.** This flow is implemented by the `epic-orchestration` change that makes the subtasks merge locally (the owner's decision of 2026-11-19). Until that change is merged, the skill on `main` still describes subtask PRs and a final board PR, which this plan contradicts: the owner's sentence "run the epic `route-completion-to-domain`" is not given before it is merged.
 - **Locally, subtask by subtask.** For each subtask: a local branch from the integration branch, a worker (`implementer`) in a worktree, the orchestrator takes the commits
   in, runs the local `pr-reviewer` and the gate on the subtask branch, and merges it into `feature/epic/route-completion-to-domain` with a merge commit that names the subtask. A subtask whose
   review or gate does not pass within its budget stops the run with a report. Workers run in parallel only as far as the waves, the disjoint paths and the heavy-run lock allow.
