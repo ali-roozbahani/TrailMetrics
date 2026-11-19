@@ -48,7 +48,7 @@ The completion rule is **not** in `domain`.
    `lastIndex >= size - 3` and `currentLocation.distanceTo(plannedRoutePoints.last()) <= 25.0`;
 3. returns true exactly once (the latch).
 
-`TrackingViewModel.withRouteCompletion` (`TrackingViewModel.kt:151`) calls it inside
+`TrackingViewModel.withRouteCompletion` calls it inside
 `combine(...).map(::withRouteCompletion).stateIn(viewModelScope, WhileSubscribed(5_000))`, with
 `state.currentPath.lastOrNull()` (the path of `Tracking`, `Paused` and `Finished`), and on true calls
 `trackingSessionManager.stop()`. It copies `routeProgress` and `hasReachedDestination` into
@@ -76,7 +76,7 @@ The card shows when `hasReachedDestination || viewModel.canFinish` (`TrackingVie
 
 Tests: none in a Swift package (a View cannot be unit tested with the fakes). The only coverage is the UI test
 `TrackingFinishTwiceUITests` (the fixture walk reaches the end and the "Finish" button appears) and
-`UiTestFakesTest.kt:220` (the fixture walk ends inside the radius).
+the iOS-side `UiTestFakesTest` in `shared-uitest` (it calls `calculateRouteProgress` to check that the fixture walk ends inside the radius).
 
 ### Differences between the platforms
 
@@ -152,7 +152,7 @@ Branches use the three allowed prefixes. Every PR runs the gate in full: each to
   `previousIndex = 3`; each fails today with `IllegalArgumentException` or `IndexOutOfBoundsException` and returns the
   clamped result after. A valid-input case asserts the result is unchanged.
 - Must stay green unchanged: the 5 existing `RouteProgressTest` cases, the 19 `RouteCompletionTrackerTest` cases,
-  `TrackingViewModelTest`, `UiTestFakesTest` (line 220 calls it).
+  `TrackingViewModelTest`, `UiTestFakesTest` (it calls `calculateRouteProgress`).
 - Leaves working: both platforms, identical behavior. Raises the `domain` Kover floor if coverage rises
   ("Coverage ratchet").
 
@@ -209,7 +209,7 @@ Branches use the three allowed prefixes. Every PR runs the gate in full: each to
 ### PR 5: documentation sweep and closing the record
 
 - Branch: `chore/route-completion-docs-and-board`. Depends on: the last code PR. Touches: docs, skills, `BOARD.md`.
-- Change: `tm-android` SKILL.md lines 113 to 116 (the `RouteCompletionTracker` mention is on line 115) (they name `RouteCompletionTracker` as Android's);
+- Change: `tm-android` SKILL.md, section "Compose", the bullet on logic like route progress/completion (it names `RouteCompletionTracker` as Android's);
   `domain/README.md` (the `tracking/` line); the plan's Status line; `BOARD.md`: delete the record
   `route-completion-to-domain` in its own commit `chore(board): remove route-completion-to-domain`, and remove
   `After: route-completion-to-domain` from `tracking-ui-timer-independent-of-location`.
