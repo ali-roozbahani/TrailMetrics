@@ -16,7 +16,7 @@ Everything in `tm-pr-workflow` applies. Only these parts change:
   diff so far, earlier subtasks included. The draft PR description says in "What changed" that the scope of the review is the commits of this subtask,
   `origin/feature/epic/<slug>..HEAD`, and lists its `allowed_paths`; the reviewer judges those commits against the subtask's acceptance. The CI reviewer
   compares with the PR's base (the epic branch tip) and needs no such line, but it also reads the `allowed_paths` from the description (`tm-pr-review`, "Inputs"). A `--base` option of the
-  prepare script would remove the workaround: it is a script change, left to the owner (see the PR that changed this file).
+  prepare script would remove the workaround: it is a script change, left to the owner (board: `epic-subtask-review-base`).
 - **Gate scope**: `pre-push-check.sh` diffs against the merge-base with `origin/main`, not
   the epic branch. Once the first subtask touching the shared layer is merged, **every** later subtask runs
   the iOS steps, including an Android-only one, because the epic's shared changes are in

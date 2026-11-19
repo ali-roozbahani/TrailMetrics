@@ -66,6 +66,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: detekt is upgraded to a release that resolves Kotlin 2.4 library calls; `RedundantSuspendModifier`, `SuspendFunSwallowedCancellation`, `UnsafeCast` and `ForbiddenMethodCall` for `println`/`print` are measured again on a planted case each and enabled where they fire (the reason lines in `config/detekt/detekt.yml` and the `tm-robustness` "Mechanical rules" list updated to match); `scripts/check-no-println.sh`, its gate and CI steps, self-test, index line and CODEOWNERS lines are removed if `ForbiddenMethodCall` replaces it.
 - Refs: `config/detekt/detekt.yml`; `build.gradle.kts` (`detektTyped`); `scripts/check-no-println.sh`; `tm-robustness` ("Mechanical rules"); `LEARNINGS.md` ("Typed detekt: a Kotlin 2.4 library call is unresolved").
 
+### epic-subtask-review-base
+- Type: task
+- Area: scripts, docs
+- Order: 56
+- Source: review of `epic-orchestration` for the first epic (owner request, 2026-11-19)
+- Problem: `scripts/local-review-prepare.sh` and `scripts/pre-push-check.sh` compare with the merge-base with `origin/main`. For a subtask PR into an epic branch the local `pr-reviewer` therefore sees the whole epic diff so far, earlier subtasks included, and judges it against one subtask's acceptance; the CI reviewer compares with the PR's base and does not have the problem. `epic-orchestration` (`subtask-prs.md`) works around it with a review-scope line in the PR description. Reason for a record: a change to the review and gate scripts (a `--base <branch>` option, its self-tests and registration, and the push hook that reads the recorded review) is a tooling change the owner decides, and no epic has run yet to show how much the workaround costs.
+- Done when: the owner decides. If yes: the prepare and gate scripts take a base branch for a branch whose PR targets an epic branch (the merge-base with it instead of `origin/main`), with `--self-test` cases, `subtask-prs.md` drops the workaround line, and this record is deleted. If no: the workaround stays, the first epic's "Drift found" says what it cost, and this record is deleted.
+- Refs: `scripts/local-review-prepare.sh`; `scripts/pre-push-check.sh`; `scripts/review-task.sh`; `.claude/skills/epic-orchestration/subtask-prs.md` ("Review scope"); `docs/epics/route-completion-to-domain.md`.
+
 ### ios-release-readiness-restricted-directions-keys
 - Type: task
 - Area: iosApp, androidApp, config
