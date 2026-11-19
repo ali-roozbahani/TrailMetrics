@@ -464,15 +464,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides. If surfaced: a failing `TrackingSessionStore.save` reaches the UI as an event or state, and a throwing restore in `handleRestart` leaves a notice, each asserted in `TrackingSessionManagerTest` and `RestartActionTest`. If not: `tm-robustness` E4 names these two paths as accepted exceptions.
 - Refs: `domain/src/commonMain/.../tracking/TrackingSessionManager.kt` (`persist`); `data/src/androidMain/.../tracking/RestartAction.kt` (`handleRestart`); `domain/src/commonTest/.../tracking/TrackingSessionManagerTest.kt`; `data/src/androidHostTest/.../tracking/RestartActionTest.kt`; `tm-robustness` E4.
 
-### tracking-control-rules-to-domain
-- Type: task
-- Area: domain, androidApp/feature-tracking, iosApp/Tracking
-- Order: 320
-- Source: sweep tm-kmp-shared
-- Problem: `tm-kmp-shared` "Where logic lives" puts the can-start/can-pause rules in `domain` ("Do not re-implement it separately in an Android ViewModel and a Swift ViewModel"); the skill gives the rule no severity, read here as `important`. The four rules (`canStart`, `canPause`, `canResume`, `canStop`) are hand-written twice: in Android `TrackingScreenState` and in iOS `TrackingViewModel`. The two copies already disagree. On Android `canStart` is `Idle` and not restoring; on iOS it is `idle` or `finished`, so iOS offers Start over a finished, unsaved session and Android does not. Count 1 cause, 4 rules on each platform. Not the metrics and the calories, which `TrackingMetricsUseCase` computes in `domain`. Recorded, not fixed: which `canStart` is right is a product decision, and the move changes `domain`, both ViewModels and their tests.
-- Done when: `domain` has the four rules as a pure function or property of `TrackingState` with `kotlin.test` cases, and `grep -n -E 'var canStart|val canStart' androidApp/feature-tracking/src/main iosApp/Packages/Tracking/Sources -r` shows each platform only delegating to it; the `Finished` case of `canStart` is the owner's decision, the same on both platforms.
-- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`TrackingScreenState`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `canPause`, `canResume`, `canStop`); `domain/.../model/TrackingState.kt`; `tm-kmp-shared` ("Where logic lives").
-
 ### live-activity-throttle-uses-wall-clock
 - Type: task
 - Area: iosApp/Tracking
@@ -559,9 +550,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp/Tracking
 - Order: 460
 - Source: sweep tm-ios
-- Problem: `tm-ios` "SKIE interop": keep the `switch onEnum(of: value)` exhaustive so a new Kotlin case breaks the Swift build (no severity given; read as `important`). In `TrackingViewModel`, `canStop` and `currentPath` switch on `onEnum(of: trackingState)` and end in `default:`, so a new `TrackingState` case would compile and silently fall into the default (not stoppable, empty path). Count 2, one file (`currentMetrics` lists every case since PR restore-fixes). The other switches on `onEnum(of:)` (`ContentView`, `HistoryViewModel`, `RouteUiError+Message`, `onStopClicked`) list every case. Recorded, not fixed: this sweep changes no code; it overlaps with `tracking-control-rules-to-domain`, which may move these rules to `domain`.
-- Done when: `grep -n 'default:' iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` returns nothing and each of the two properties lists all `TrackingState` cases (or is replaced by the shared domain rule).
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStop`, `currentPath`); `tm-ios` ("SKIE interop from Swift"); `tracking-control-rules-to-domain`.
+- Problem: `tm-ios` "SKIE interop": keep the `switch onEnum(of: value)` exhaustive so a new Kotlin case breaks the Swift build (no severity given; read as `important`). In `TrackingViewModel`, `currentPath` switches on `onEnum(of: trackingState)` and ends in `default:`, so a new `TrackingState` case would compile and silently fall into the default (empty path). `canStop` had the same shape and now asks `domain`'s `availableControls`. Count 1, one file (`currentMetrics` lists every case since PR restore-fixes). The other switches on `onEnum(of:)` (`ContentView`, `HistoryViewModel`, `RouteUiError+Message`, `onStopClicked`) list every case. Recorded, not fixed: this sweep changes no code.
+- Done when: `grep -n 'default:' iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` returns nothing and `currentPath` lists all `TrackingState` cases (or is replaced by the shared domain rule).
+- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentPath`); `tm-ios` ("SKIE interop from Swift").
 
 ### ios-contentview-calls-koinhelper
 - Type: task
