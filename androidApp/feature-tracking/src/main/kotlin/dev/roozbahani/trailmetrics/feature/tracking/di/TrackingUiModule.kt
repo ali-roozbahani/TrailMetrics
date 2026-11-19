@@ -14,13 +14,13 @@ val trackingUiModule = module {
     // A feature module cannot see `:data`, so it defines the IO dispatcher it needs itself, once, here.
     single<CoroutineDispatcher>(snapshotDispatcherQualifier) { Dispatchers.IO }
 
-    // CalorieCalculator is registered in commonMain's useCaseModule (data/di/UseCaseModule.kt)
+    // TrackingMetricsUseCase is registered in commonMain's useCaseModule (data/di/UseCaseModule.kt)
     // so both platforms share one registration.
     viewModel { params ->
         TrackingViewModel(
             trackingSessionManager = get(),
             userProfileRepository = get(),
-            calorieCalculator = get(),
+            trackingMetricsUseCase = get(),
             saveActivityUseCase = get(),
             activityType = params.get(),
             plannedRoutePoints = params.get(),

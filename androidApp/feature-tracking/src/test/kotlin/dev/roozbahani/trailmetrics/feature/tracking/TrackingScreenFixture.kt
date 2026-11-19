@@ -12,6 +12,7 @@ import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
@@ -76,6 +77,7 @@ class TrackingScreenFixture(private val snapshotDispatcher: CoroutineDispatcher 
                     single { sessionManager }
                     single<UserProfileRepository> { userProfileRepository }
                     single { CalorieCalculator() }
+                    single { TrackingMetricsUseCase(get()) }
                     single<Clock> { clock }
                     single { SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock) }
                     single<SnapshotFileDeleter> { FakeSnapshotFileDeleter(deleteFromDisk = true) }

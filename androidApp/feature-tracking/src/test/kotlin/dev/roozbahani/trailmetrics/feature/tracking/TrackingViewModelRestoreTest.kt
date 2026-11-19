@@ -12,6 +12,7 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
@@ -84,7 +85,7 @@ class TrackingViewModelRestoreTest {
         val viewModel = TrackingViewModel(
             trackingSessionManager = manager,
             userProfileRepository = userProfileRepository,
-            calorieCalculator = CalorieCalculator(),
+            trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
             saveActivityUseCase = SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock),
             activityType = ActivityType.Cycling,
             plannedRoutePoints = plannedRoutePoints,

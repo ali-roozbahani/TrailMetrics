@@ -136,7 +136,7 @@ class UiTestEntryTest {
         helper.trackingSessionManager()
         helper.saveActivityUseCase()
         helper.observeActivitiesUseCase()
-        helper.calorieCalculator()
+        helper.trackingMetricsUseCase()
         helper.clock()
         helper.routeDraftKeeper()
         val koin = KoinPlatform.getKoin()

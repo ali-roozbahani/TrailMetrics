@@ -8,7 +8,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
-import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import org.koin.core.component.KoinComponent
@@ -22,7 +22,7 @@ class KoinHelper : KoinComponent {
     private val trackingSessionManagerDep: TrackingSessionManager by inject()
     private val saveActivityUseCaseDep: SaveActivityUseCase by inject()
     private val observeActivitiesUseCaseDep: ObserveActivitiesUseCase by inject()
-    private val calorieCalculatorDep: CalorieCalculator by inject()
+    private val trackingMetricsUseCaseDep: TrackingMetricsUseCase by inject()
     private val clockDep: Clock by inject()
     private val routeDraftKeeperDep: RouteDraftKeeper by inject()
     private val snapshotFileDeleterDep: SnapshotFileDeleter by inject()
@@ -34,7 +34,7 @@ class KoinHelper : KoinComponent {
     fun trackingSessionManager(): TrackingSessionManager = trackingSessionManagerDep
     fun saveActivityUseCase(): SaveActivityUseCase = saveActivityUseCaseDep
     fun observeActivitiesUseCase(): ObserveActivitiesUseCase = observeActivitiesUseCaseDep
-    fun calorieCalculator(): CalorieCalculator = calorieCalculatorDep
+    fun trackingMetricsUseCase(): TrackingMetricsUseCase = trackingMetricsUseCaseDep
     fun clock(): Clock = clockDep
     fun snapshotFileDeleter(): SnapshotFileDeleter = snapshotFileDeleterDep
 

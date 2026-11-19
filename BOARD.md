@@ -57,15 +57,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### tracking-metrics-calories-to-domain
-- Type: task
-- Area: domain, iosApp/Tracking, androidApp/feature-tracking
-- Order: 53
-- Source: PR for tm-robustness-cleanup
-- Problem: The metrics extraction from `TrackingState` and the calorie recompute are hand-written in both `TrackingViewModel`s (Android's and iOS `TrackingViewModel.swift`: `currentMetrics`, `recomputeCalories`); `tm-kmp-shared` ("Where logic lives") puts derived state both platforms need in `domain`. Moving it changes both ViewModels and adds a use case with tests, so it is a task of its own.
-- Done when: one pure function or use case in `domain` with `kotlin.test` coverage computes them, and both ViewModels only adapt it.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`currentMetrics`, `recomputeCalories`); `androidApp/feature-tracking/.../TrackingViewModel.kt`; `tm-kmp-shared` ("Where logic lives").
-
 ### detekt-typed-rules-after-kotlin-2-4-support
 - Type: task
 - Area: config, scripts
@@ -478,9 +469,9 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: domain, androidApp/feature-tracking, iosApp/Tracking
 - Order: 320
 - Source: sweep tm-kmp-shared
-- Problem: `tm-kmp-shared` "Where logic lives" puts the can-start/can-pause rules in `domain` ("Do not re-implement it separately in an Android ViewModel and a Swift ViewModel"); the skill gives the rule no severity, read here as `important`. The four rules (`canStart`, `canPause`, `canResume`, `canStop`) are hand-written twice: in Android `TrackingScreenState` and in iOS `TrackingViewModel`. The two copies already disagree. On Android `canStart` is `Idle` and not restoring; on iOS it is `idle` or `finished`, so iOS offers Start over a finished, unsaved session and Android does not. Count 1 cause, 4 rules on each platform. Not the `tracking-metrics-calories-to-domain` record, which names only the metrics extraction and the calorie recompute. Recorded, not fixed: which `canStart` is right is a product decision, and the move changes `domain`, both ViewModels and their tests.
+- Problem: `tm-kmp-shared` "Where logic lives" puts the can-start/can-pause rules in `domain` ("Do not re-implement it separately in an Android ViewModel and a Swift ViewModel"); the skill gives the rule no severity, read here as `important`. The four rules (`canStart`, `canPause`, `canResume`, `canStop`) are hand-written twice: in Android `TrackingScreenState` and in iOS `TrackingViewModel`. The two copies already disagree. On Android `canStart` is `Idle` and not restoring; on iOS it is `idle` or `finished`, so iOS offers Start over a finished, unsaved session and Android does not. Count 1 cause, 4 rules on each platform. Not the metrics and the calories, which `TrackingMetricsUseCase` computes in `domain`. Recorded, not fixed: which `canStart` is right is a product decision, and the move changes `domain`, both ViewModels and their tests.
 - Done when: `domain` has the four rules as a pure function or property of `TrackingState` with `kotlin.test` cases, and `grep -n -E 'var canStart|val canStart' androidApp/feature-tracking/src/main iosApp/Packages/Tracking/Sources -r` shows each platform only delegating to it; the `Finished` case of `canStart` is the owner's decision, the same on both platforms.
-- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`TrackingScreenState`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `canPause`, `canResume`, `canStop`); `domain/.../model/TrackingState.kt`; `tm-kmp-shared` ("Where logic lives"); `tracking-metrics-calories-to-domain`.
+- Refs: `androidApp/feature-tracking/.../TrackingViewModel.kt` (`TrackingScreenState`); `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift` (`canStart`, `canPause`, `canResume`, `canStop`); `domain/.../model/TrackingState.kt`; `tm-kmp-shared` ("Where logic lives").
 
 ### live-activity-throttle-uses-wall-clock
 - Type: task

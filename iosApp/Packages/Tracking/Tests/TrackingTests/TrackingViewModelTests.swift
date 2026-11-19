@@ -157,6 +157,27 @@ final class TrackingViewModelTests: TrackingTestCase {
         XCTAssertEqual(viewModel.calories, expectedCalories(for: viewModel))
     }
 
+    func test_metricsAndCalories_areTheSharedUseCaseResultForTheSameState() async {
+        let viewModel = makeSubject(
+            updates: TrackingFixtures.movingUpdates,
+            profile: UserProfile(weightKg: Self.weightKg)
+        ).viewModel
+        viewModel.onStartClicked()
+        await waitUntil {
+            viewModel.currentPath.count == TrackingFixtures.movingPath.count && viewModel.calories != nil
+        }
+
+        let shared = TrackingMetricsUseCase(calorieCalculator: CalorieCalculator()).invoke(
+            state: viewModel.trackingState,
+            activityType: viewModel.activityType,
+            weightKg: KotlinDouble(value: Self.weightKg)
+        )
+
+        XCTAssertNotNil(shared.calories)
+        XCTAssertEqual(viewModel.calories, shared.calories?.doubleValue)
+        XCTAssertEqual(viewModel.currentMetrics, shared.metrics)
+    }
+
     func test_calories_withoutProfile_areNil() async {
         let subject = makeSubject(updates: TrackingFixtures.movingUpdates, profile: nil)
         let viewModel = subject.viewModel

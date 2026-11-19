@@ -53,8 +53,9 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
 - Derived state that both platforms need (metrics-from-state, calorie recompute,
   can-start/can-pause rules) belongs in `domain` as a pure function or use case, tested
   once. Do not re-implement it separately in an Android ViewModel and a Swift ViewModel.
-  Known duplication today: metrics extraction from `TrackingState` and calorie recompute
-  logic, both currently hand-written on each platform's ViewModel.
+  The metrics and the calories of a `TrackingState` come from `TrackingMetricsUseCase`; the
+  can-start/can-pause rules are still written on each platform's ViewModel
+  (`tracking-control-rules-to-domain`).
 - Platform ViewModels only adapt shared logic to UI state/Action/Event. They do not own
   business rules.
 - One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList`

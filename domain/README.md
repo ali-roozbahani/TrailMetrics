@@ -16,7 +16,7 @@ Compose, or any platform framework.
   the contract.
 - **Use cases** (`usecase/`): single-purpose orchestration classes
   (`GetCurrentLocationUseCase`, `GenerateClosedRouteUseCase`,
-  `SaveActivityUseCase`). A use case exists when it combines more than one
+  `SaveActivityUseCase`, `TrackingMetricsUseCase`). A use case exists when it combines more than one
   repository call or applies business rules on top of a raw repository
   method — a thin passthrough to a single repository call is usually not
   worth a use case.

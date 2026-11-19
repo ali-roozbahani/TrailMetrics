@@ -77,7 +77,7 @@ struct TrackingSubject {
             storedSessionReadState: savedSessionOffer,
             trackingSessionManager: trackingSessionManager,
             userProfileRepository: userProfileRepository,
-            calorieCalculator: calorieCalculator,
+            trackingMetricsUseCase: TrackingMetricsUseCase(calorieCalculator: calorieCalculator),
             saveActivityUseCase: SaveActivityUseCase(
                 activityHistoryRepository: activityHistoryRepository,
                 calorieCalculator: calorieCalculator,
