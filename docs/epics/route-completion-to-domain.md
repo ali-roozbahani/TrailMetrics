@@ -1,25 +1,25 @@
 # Epic: Route completion to `domain`, run by `TrackingSessionManager`
 
 - **Slug:** route-completion-to-domain
-- **Status:** approved by the owner on 2026-11-19 (answers 1 to 4 below, section 5). No code has changed yet; this
-  document is the plan. Question 5 (section 5) is open and does not block PR 1 to PR 4. Rewritten on 2026-11-19 after the
-  owner chose Option B for Question 1; the first version recommended Option A on a wrong premise (see "Correction").
+- **Integration branch:** feature/epic/route-completion-to-domain
+- **Goal:** the route counts as completed in one place, `domain`, and `TrackingSessionManager` runs the detection, so a session ends at
+  the end of the planned route on both platforms whatever the UI is doing: also with the phone locked and the screen off. The
+  ViewModels and screens only show the result: `TrackingView.swift` renders only, and Android's `withRouteCompletion`,
+  `RouteCompletionTracker` and `hasReachedDestination` are gone (the finish card follows `canSave`). `calculateRouteProgress` does not throw
+  for an out-of-range input.
+- **Out of scope:** the thresholds (25 m, last 3 points: decision 3); progress of a restored session (it starts from index 0 again:
+  decision 4); persisting progress across process death; the map drawing; the notification that tells the user a session ended by itself
+  (decision 5: its own task after this epic is merged, see `Source` of its board record `session-ended-by-itself-notification`); a
+  discard control for a finished session (board record `finished-session-discard-control`); any change to `BOARD.md` by a subtask (the
+  epic's final board PR does that).
+- **Approved by:** the owner, 2026-11-19, with the answers of "Decisions of the owner" below (recorded here from the owner's decisions
+  given for this update). The owner decided on 2026-11-19 that this runs as an epic by `epic-orchestration`. The owner still merges the
+  PR that adds this plan to `main` (`/docs/epics/` is a protected path), and the epic PR into `main`.
+
+- **Status:** plan, approved 2026-11-19. This file is on `main` before the epic branch exists; the first commit on the epic branch sets
+  this line to `running`, and the last board PR of the epic sets it to `done`. Live status (which PRs are open or merged) is in the epic PR's
+  description, never in this file.
 - **Source:** BOARD.md record `route-completion-to-domain` (Order 60).
-- **Integration branch:** none. A chain of ordinary PRs against `main`. `epic-orchestration`, "Epic or
-  single task?", says an epic needs an integration branch only when `main` must not hold the half-built
-  state. Every PR below leaves `main` working, and the PRs are strictly sequential up to PR 3, so waves and
-  `allowed_paths` add nothing. PR 4 and PR 5 are independent of each other (one platform each); the queue builds
-  one entry at a time, so they run one after the other. Each PR is an entry of the local queue.
-- **Goal:** the route counts as completed in one place, `domain`, and `TrackingSessionManager` runs the detection,
-  so a session ends at the end of the planned route on both platforms whatever the UI is doing: also with the phone
-  locked and the screen off. The ViewModels and screens only show the result: `TrackingView.swift` renders only, and
-  Android's `withRouteCompletion` and `RouteCompletionTracker` are gone. `calculateRouteProgress` does not throw for an
-  out-of-range input.
-- **Out of scope:** the thresholds (25 m, last 3 points: decision 3); progress of a restored session (it starts from
-  index 0 again: decision 4); persisting progress across process death; the map drawing; telling the user that a session
-  ended while the phone was locked (Question 5).
-- **Approved by:** the owner, 2026-11-19, with the four answers of section 5 (recorded here from the owner's decisions
-  given for this update). The owner still merges this PR (`/docs/epics/` is a protected path).
 
 ## Correction (what the first version of this plan got wrong)
 
@@ -109,7 +109,7 @@ the iOS-side `UiTestFakesTest` in `shared-uitest` (it calls `calculateRouteProgr
 | D8 | Test coverage | 19 + 4 cases | 0 unit cases, 1 UI test | iOS completion is unprotected |
 
 No difference changes what the user sees in a normal walk with the screen on. D2 is the one that matters with the screen off, and it is
-what the owner's decision 1 changes on both platforms on purpose (PR 3).
+what the owner's decision 1 changes on both platforms on purpose (S2).
 
 ### Finding: a route passed while the phone is locked
 
@@ -147,8 +147,10 @@ our reading; no test shows it, and the plan does not change the window.
    `restore()` (from `SessionDetails.plannedRoute`; progress starts from index 0, decision 4), and calls `update` in its location
    collector right after it dispatches each `LocationReceived`. On `reachedNow` it calls its own `stop()` (the state becomes
    `Finished`, the launcher stops, the stored session stays until it is saved: the same result as Android's `stop()` today). It exposes
-   `routeProgress: StateFlow<RouteProgress?>` (null before the first fix and with no plan). The constructor and the Koin graph do not
-   change: the tracker is built inside. A new session after `discard()` gets a new tracker.
+   `routeProgress: StateFlow<RouteProgress?>` (null before the first fix and with no plan). `stop()` becomes idempotent: in `Idle` and
+   `Finished` it does nothing (no event, no launcher call). That is what keeps the Android and iOS code that still calls `stop()` at the
+   route's end green until S4 and S5 remove it. The constructor and the Koin graph do not change: the tracker is built inside. A new
+   session after `discard()` gets a new tracker.
 
    Evaluated at each fix and nowhere else: a resume at the route's end completes at the first fix after the resume, not at the
    resume itself (the old Android rule evaluated at the next state emission). The tracker is touched only inside the collector
@@ -157,10 +159,9 @@ our reading; no test shows it, and the plan does not change the window.
 **Stays in the platforms:**
 
 - What the UI does with the result: Android's `TrackingViewModel` puts `routeProgress` into `TrackingScreenState`; iOS's
-  `TrackingViewModel` publishes it. The finish card follows `canSave` (decision 2: `hasReachedDestination` is removed from the
-  card's condition and from the state).
-- The iOS Live Activity: it ends when the observed state turns `Finished`, whoever caused it (PR 2). Android's equivalent is the
-  foreground service, which the manager's `stop()` already stops through `TrackingServiceLauncher`.
+  `TrackingViewModel` publishes it. The finish card follows `canSave` (decision 2).
+- The iOS Live Activity: it ends when the observed state turns `Finished`, whoever caused it (S3). Android's equivalent is the foreground
+  service, which the manager's `stop()` already stops through `TrackingServiceLauncher`.
 - Drawing the traveled segment, the camera, the card.
 
 **Why Option B:** the decision "the session is at the end of its route" is a rule about the session, not about a screen; the
@@ -169,137 +170,240 @@ background location). Option A would have kept the rule in the UI layer, where t
 Correction). `tm-kmp-shared`, "Where logic lives": derived state and rules both platforms need are in `domain`, tested once, and
 ViewModels only adapt.
 
-## 3. The PRs, in order
+**Why an epic, and why this slicing:** the owner decided on 2026-11-19 that this runs as an epic. The work moves between `domain`, Android and
+iOS, and `main` should not hold a half-built state: between the manager ending sessions (S2) and the iOS cleanup (S5) the iOS Live Activity
+is ended by the S3 observation and the View's own detection is redundant, which is fine on an integration branch and would be a chain of
+careful interim states on `main`. Domain work has one owner at a time (hotspot rule): S1 then S2. The iOS Live Activity preparation (S3) and the
+domain guard (S1) touch disjoint files and run together. After the contract (S2), the Android and iOS sides are disjoint and run together.
 
-Branches use the three allowed prefixes. Every PR runs the gate in full. Dependencies: PR 1 and PR 2 are independent; PR 3 needs
-PR 1; PR 4 needs PR 2 and PR 3; PR 5 needs PR 4; PR 6 needs PR 5. The queue builds one at a time.
+## Subtasks
 
-### PR 1: `calculateRouteProgress` does not throw for an out-of-range input
+```yaml
+- id: S1
+  title: Guard calculateRouteProgress against an out-of-range index
+  branch: bugfix/route-completion-to-domain-progress-guard
+  skills: [tm-kmp-shared, tm-testing, tm-robustness]
+  depends_on: []
+  allowed_paths:
+    - domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/model/RouteProgress.kt
+    - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/model/RouteProgressTest.kt
+  acceptance:
+    - calculateRouteProgress does not throw for a previousIndex equal to or above plannedRoute.size, for a negative previousIndex, for a
+      negative searchWindow, or for a one-point route with previousIndex 3; the result for each is the clamped one (previousIndex
+      clamped to 0..lastIndex, a negative searchWindow counted as 0).
+    - The result for every input that is valid today is unchanged.
+    - The KDoc says what is clamped.
+    - Red test first (tm-testing, "Bugfixes: red test first"): the commit message names the failing test and its failure on the unfixed code.
+  tier2: none user-visible. RouteProgressTest, new cases written first and red on the unfixed code (`previousIndex at the size does not
+    throw`, `previousIndex past the size does not throw`, `negative previousIndex does not throw`, `negative searchWindow counts as zero`,
+    `one-point route with a large previousIndex does not throw`, `valid input keeps its result`); the 5 existing cases stay green unchanged.
 
-- Branch: `bugfix/route-progress-out-of-range-index`. Touches: `domain` only.
-- Change: the guard of section 2.1, KDoc updated.
-- Proof: red test first (`tm-testing`, "Bugfixes: red test first") in `RouteProgressTest`: `previousIndex` equal to and above
-  `plannedRoute.size`, `previousIndex = -1`, `searchWindow = -5`, a one-point route with `previousIndex = 3`; each fails today with an
-  exception and passes after; a valid-input case asserts the result is unchanged.
-- Must stay green unchanged: the 5 existing `RouteProgressTest` cases, the 19 `RouteCompletionTrackerTest` cases (still on Android),
-  `TrackingViewModelTest`, the iOS-side `UiTestFakesTest` (it calls the function).
-- Leaves working: both platforms, identical behavior.
+- id: S2
+  title: Domain RouteCompletionTracker, run by TrackingSessionManager, which ends the session at the route's end
+  branch: feature/route-completion-to-domain-session-ends
+  skills: [tm-kmp-shared, tm-testing, tm-robustness]
+  depends_on: [S1]
+  allowed_paths:
+    - domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/tracking/RouteCompletionTracker.kt
+    - domain/src/commonMain/kotlin/dev/roozbahani/trailmetrics/domain/tracking/TrackingSessionManager.kt
+    - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/tracking/RouteCompletionTrackerTest.kt
+    - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/tracking/TrackingSessionManagerRouteCompletionTest.kt
+    - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/fakes/**
+    - domain/README.md
+    - config/kover-floors.properties
+  acceptance:
+    - RouteCompletionTracker is public in dev.roozbahani.trailmetrics.domain.tracking with update(location, state) returning
+      RouteCompletionUpdate(progress, reachedNow); reachedNow is true exactly once; the two constants are private and the rule is the
+      Android one unchanged (25.0 m, progress index at least size - 3, state Tracking, a non-empty plan, never completes without a plan).
+    - TrackingSessionManager creates a tracker in start(..., plannedRoute) and in restore() (index 0), evaluates it after each
+      LocationReceived and nowhere else, calls its own stop() on reachedNow, and exposes routeProgress as a StateFlow (null before the first
+      fix and without a plan). A new session gets a new tracker.
+    - stop() is idempotent: in Idle and Finished it does nothing (no event, no launcher call).
+    - The session ends by itself with no collector of any flow: fixes along the plan end with currentState Finished, the launcher stopped
+      once, the stored session kept (not cleared), and the session path ends with the fix that completed it.
+    - The constructor of TrackingSessionManager and the Koin graph do not change (the KoinGraph tests of shared stay green unchanged).
+    - No file under androidApp/ or iosApp/ changes; every existing Android and iOS test stays green unchanged (the gate runs them).
+    - The domain Kover floor is raised by the ratchet rule, to the measured coverage minus 1 to 2 points, rounded down.
+  tier2: domain commonTest, kotlin.test, on the Android host and the iOS simulator. RouteCompletionTrackerTest has the 19 cases of Android's
+    RouteCompletionTrackerTest, same names, adapted to update/RouteCompletionUpdate (thresholds pinned, empty plan, no progress before a
+    location, progress never backwards, same location twice, completes exactly once, third-to-last point, a point before the last three, past
+    the end inside and outside the threshold, the start of a closed loop, paused at the end, idle and finished, exactly at and just beyond
+    25 m). TrackingSessionManagerRouteCompletionTest: `the session ends at the route's end with nobody collecting any flow`, `progress
+    advances with each fix while nothing collects`, `a plan-less session never ends by itself`, `a paused session does not end until the first
+    fix after resume`, `the session ends once, not at each later fix`, `a second session after discard ends again`, `a restored session
+    starts progress from index 0`, `the completing fix is the last point of the path`, `stop is a no-op in idle and finished`. The existing
+    TrackingSessionManagerTest and TrackingSessionManagerPersistenceTest cases stay green unchanged.
 
-### PR 2: the iOS Live Activity ends whenever the observed state turns `Finished`
+- id: S3
+  title: iOS ends the Live Activity whenever the observed state turns Finished
+  branch: chore/route-completion-to-domain-ios-live-activity
+  skills: [tm-ios, tm-testing, tm-robustness]
+  depends_on: []
+  allowed_paths:
+    - iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift
+    - iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift
+    - iosApp/Packages/Tracking/Tests/**
+  acceptance:
+    - When TrackingViewModel observes the state turn Finished, it ends the Live Activity with the final distance, time and speed, whether
+      or not onStopClicked() ran.
+    - The Live Activity is ended once per session even though onStopClicked() also ends it.
+    - Nothing else changes for the user: Stop, Stop and Exit and the Live Activity's own Stop behave as before.
+    - Red test first for the first case (it fails on the current code).
+  tier2: XCTest in TrackingViewModelLiveActivityTests on the real TrackingViewModel over TestSupport fakes: `test_sessionFinishedByTheManager_endsTheLiveActivityOnce`
+    (the session is stopped through the manager, not the ViewModel) and `test_onStopClicked_endsTheLiveActivityOnce`. Every existing
+    TrackingViewModelLiveActivityTests and TrackingLiveActivityControllerTests case stays green unchanged.
 
-- Branch: `chore/ios-live-activity-ends-on-finished`. Touches: `iosApp/Packages/Tracking`.
-- Why first: today the only way to `Finished` on iOS is the ViewModel's own `onStopClicked()`, which ends the Live Activity. After
-  PR 4 the manager ends the session, so the ViewModel has to end the Live Activity when it sees `Finished`. Doing it before keeps
-  every PR working. The end must happen once per session even though `onStopClicked()` also ends it.
-- Proof: XCTest in `TrackingViewModelLiveActivityTests` on the real ViewModel over `TestSupport` fakes: a session driven to `Finished`
-  through the manager (`trackingSessionManager.stop()`, not the ViewModel) ends the Live Activity once; Stop through the ViewModel
-  ends it once. Written first and red for the first case.
-- Must stay green unchanged: every existing `TrackingViewModelLiveActivityTests` and `TrackingLiveActivityControllerTests` case.
-- Leaves working: iOS unchanged for the user.
+- id: S4
+  title: Android shows the session's route progress and end from the manager, and drops its own tracker
+  branch: feature/route-completion-to-domain-android
+  skills: [tm-android, tm-testing, tm-robustness]
+  depends_on: [S2]
+  allowed_paths:
+    - androidApp/feature-tracking/**
+    - .claude/skills/tm-android/SKILL.md
+  acceptance:
+    - TrackingViewModel puts the manager's routeProgress into TrackingScreenState; it holds no completion rule and calls no stop() for the
+      route's end.
+    - androidApp/feature-tracking/.../RouteCompletionTracker.kt and RouteCompletionTrackerTest.kt are deleted, and withRouteCompletion and
+      hasReachedDestination are gone; the finish card follows canSave (decision 2).
+    - When the manager ends the session while nobody collects the ViewModel's state (the locked screen), collecting the state afterwards
+      gives Finished, canSave true and the progress at the end.
+    - Existing tests change only where they name hasReachedDestination (three assertions in TrackingViewModelTest and the construction in
+      TrackingScreenStateTest); every other existing case in feature-tracking stays green unchanged.
+    - The feature-tracking Kover floor (92) still holds without lowering it; if it does not, stop and report (re-plan trigger).
+    - The tm-android "Compose" bullet that names RouteCompletionTracker as Android's is updated to say the manager owns the rule.
+  tier2: TrackingViewModelTest: `the session ends at the route's end while nobody collects the state` (new), the four existing completion cases
+    adapted only where they name hasReachedDestination (`route progress follows location updates`, `reaching the end of the planned route
+    stops tracking and keeps the progress`, `reaching the end again in a later session does not stop a second time`, `a session stopped at the
+    route end can be finished and saved`), TrackingScreenStateTest (the card follows canSave), TrackingScreenTest and the Compose tests unchanged.
+    The locked-screen human check is in the epic-level Tier 2.
 
-### PR 3: the domain `RouteCompletionTracker`, owned by `TrackingSessionManager`, exposing `routeProgress` (no auto-stop yet)
+- id: S5
+  title: iOS TrackingView renders only; TrackingViewModel publishes the manager's route progress
+  branch: chore/route-completion-to-domain-ios
+  skills: [tm-ios, tm-testing, tm-robustness]
+  depends_on: [S2, S3]
+  allowed_paths:
+    - iosApp/Packages/Tracking/**
+  acceptance:
+    - TrackingViewModel observes the manager's routeProgress (for await, cancelled with the state observation) and publishes it
+      (public private(set)); it holds no completion rule.
+    - TrackingView loses routeProgress, lastProgressIndex, hasReachedDestination, routeCompletionIndexMargin,
+      routeCompletionThresholdMeters, isRouteCompleted, updateRouteProgress and both onChange blocks; the finish card follows canFinish.
+    - Reaching the route's end ends the session with no View involved: state Finished, canFinish true, launcher stop count 1, Live
+      Activity ended once.
+    - Red test first where it can be: the new tests do not compile before the change (the red evidence is the missing member, said plainly).
+    - grep for isRouteCompleted, lastProgressIndex, routeCompletionThresholdMeters, routeCompletionIndexMargin and hasReachedDestination
+      in iosApp/Packages/Tracking/Sources prints nothing.
+  tier2: XCTest in TrackingViewModelTests (or a new TrackingViewModelRouteCompletionTests) on the real TrackingViewModel over TestSupport fakes:
+    `test_routeProgress_followsTheFixes`, `test_reachingTheRouteEnd_finishesTheSessionWithoutAView`, `test_atTheRouteEnd_whilePaused_doesNotFinishUntilResume`,
+    `test_anEmptyPlan_neverFinishes`, `test_theFinishCard_followsCanFinish`. TrackingFinishTwiceUITests (the fixture walk reaches the end and
+    Finish appears), TrackingViewModelTests, SavedSessionOfferTests, TrackingViewModelClearSessionTests, TrackingViewModelFinishTests and the S3 tests
+    stay green unchanged. The locked-screen human check is in the epic-level Tier 2.
+```
 
-- Branch: `feature/session-route-progress-in-manager`. Depends on: PR 1. Touches: `domain` (and its README).
-- Change: the tracker class and the manager's ownership and `routeProgress` flow of section 2, without the call to `stop()`. The tracker is
-  used (progress), so no dead code. Android and iOS do not read `routeProgress` yet.
-- Proof (`domain` commonTest, `kotlin.test`, the existing fakes): `RouteCompletionTrackerTest` with the 19 cases of Android's file, same
-  names, moved and adapted to `update`/`RouteCompletionUpdate`; `TrackingSessionManagerTest` new cases: progress advances with each fix
-  while nothing collects any flow; no progress without a plan; a new session gets a fresh tracker; a restored session starts from index
-  0 (decision 4, pinned).
-- Must stay green unchanged: all existing `TrackingSessionManagerTest` and `UpdateTrackingStateUseCaseTest` cases, and everything on
-  Android and iOS (they do not use the new flow). Android's own tracker and its tests stay in this PR.
-- Leaves working: both platforms, identical behavior. Raises the `domain` Kover floor by the ratchet rule.
+## Waves
 
-### PR 4: the session ends by itself at the route's end, on both platforms (the intended behavior change); Android shows the result
+- Wave 1: S1 ∥ S3   (disjoint: the two domain files `RouteProgress.kt` and `RouteProgressTest.kt` vs `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`,
+  `TrackingLiveActivityController.swift` and `iosApp/Packages/Tracking/Tests/**`; checked on the globs and on the tracked files: no file matches both)
+- Wave 2: S2   (domain is one owner at a time: the tracker, `TrackingSessionManager`, its tests, the fakes, the README and the Kover floor)
+- Wave 3: S4 ∥ S5   (disjoint: `androidApp/feature-tracking/` and `.claude/skills/tm-android/SKILL.md` vs `iosApp/Packages/Tracking/`; no file matches both, and neither
+  touches `domain/`, `androidApp/app/`, `iosApp/TrailMetrics/`, the Xcode project or a build file)
 
-- Branch: `feature/session-ends-at-route-end`. Depends on: PR 2 and PR 3. Touches: `domain`, `androidApp/feature-tracking`.
-- Change: the manager calls its `stop()` on `reachedNow`. Android: `TrackingViewModel` reads `routeProgress` from the manager; the
-  internal `RouteCompletionTracker`, `RouteCompletionTrackerTest`, `withRouteCompletion` and `hasReachedDestination` are deleted
-  (decision 2: the card follows `canSave`).
-- Proof: `domain`: with no collector of any flow, fixes along the plan end with `currentState` `Finished`, `routeProgress` at the end, the
-  launcher stopped once, the stored session kept; not at the end of a plan that is empty; not while paused; stops once, not at each
-  later fix; stopped by the manager from inside its own collector without losing the fix (the session path ends with that fix). Android
-  `TrackingViewModelTest`: the manager is driven to the route's end **while nobody collects the ViewModel's state** (the locked screen),
-  then the state is collected: it is `Finished`, `canSave` is true, the progress is at the end. These are the proofs that the end of
-  the session does not depend on any UI subscriber.
-- Existing tests that change, and only these: the three assertions of `TrackingViewModelTest` on `hasReachedDestination` (they assert
-  `Finished` and `canSave` instead) and the construction of `TrackingScreenState` with `hasReachedDestination` in
-  `TrackingScreenStateTest`. Every other case of both files, `TrackingFinishTwiceUITests` and the Compose tests stay green unchanged.
-- iOS in this PR: untouched. Its View still runs its own detection, which now rarely fires because the manager has already
-  stopped the session (it needs the `.tracking` state); when it does, its `onStopClicked()` is harmless: same final state, and the
-  Live Activity end is idempotent (PR 2). The behavior change reaches iOS through the shared manager.
-- **Human check, the one of the epic (Tier 2, what no test can observe: a locked screen and background location delivery):**
-  - Android (emulator or device): plan a short closed route, Start, play a location route that ends at the route's end (the emulator's
-    route playback), lock the screen before the end and wait for the playback to finish, unlock: the "Route completed" card shows,
-    the foreground notification is gone, Finish saves one History entry.
-  - iOS (simulator with a simulated route, or a device): the same with the device locked (Cmd+L in the simulator): on unlock the card
-    shows and the Live Activity has ended.
-- Leaves working: both platforms end the session at the end of the route; Android's own copy of the rule is deleted; iOS still has its
-  own redundant View code until PR 5.
+The waves follow from `depends_on`: S1 and S3 have none; S2 needs S1; S4 needs S2; S5 needs S2 and S3. S3 and S5 both write under
+`iosApp/Packages/Tracking/` but in different waves, and S5 starts only after S3 is merged into the epic branch. Gates are serialized by the
+heavy-run lock whatever the waves say.
 
-### PR 5: iOS `TrackingView` renders only
+## Acceptance coverage
 
-- Branch: `chore/ios-route-completion-in-viewmodel`. Depends on: PR 4. Touches: `iosApp/Packages/Tracking`.
-- Change: `TrackingViewModel` publishes `routeProgress` from the manager's flow (observed with `for await` like the state, and
-  cancelled with it); `TrackingView` loses `routeProgress`, `lastProgressIndex`, `hasReachedDestination`, the two constants,
-  `isRouteCompleted`, `updateRouteProgress` and both `onChange` blocks; the card follows `canFinish`.
-- Proof: XCTests on the real ViewModel over `TestSupport` fakes, as `TrackingViewModelTests` does: progress follows the fixes; reaching
-  the end ends the session (state `Finished`, `canFinish`, launcher stop count 1, Live Activity ended once) with no View involved;
-  not while paused; an empty plan never completes. Written first; they do not compile before the change (the red evidence is the
-  missing member, said plainly).
-- Must stay green unchanged: `TrackingFinishTwiceUITests`, all of `TrackingViewModelTests`, `SavedSessionOfferTests`,
-  `TrackingViewModelClearSessionTests`, `TrackingViewModelFinishTests`, the Live Activity tests of PR 2.
-- Leaves working: both platforms use the manager's rule; D1 and D6 are gone.
+| Goal criterion | Subtask | Check that proves it |
+|---|---|---|
+| `calculateRouteProgress` does not throw for out-of-range input | S1 | the new `RouteProgressTest` cases |
+| the completion rule is in `domain` with `kotlin.test` coverage | S2 | `RouteCompletionTrackerTest` (19 cases), the 25 m and last-3 cases pin decision 3 |
+| the session ends at the route's end with no UI subscriber, on both platforms | S2, S4, S5 | `the session ends at the route's end with nobody collecting any flow` (domain), `the session ends at the route's end while nobody collects the state` (Android), `test_reachingTheRouteEnd_finishesTheSessionWithoutAView` (iOS); the locked-screen human check |
+| Android has no tracker of its own and no `hasReachedDestination` | S4 | the greps of the definition of done; the changed tests named in S4 |
+| `TrackingView` renders only | S5 | the grep in S5's acceptance; `TrackingFinishTwiceUITests` green |
+| the finish card follows `canSave` | S4, S5 | `TrackingScreenStateTest`, `test_theFinishCard_followsCanFinish` |
+| the Live Activity ends when the session ends by itself | S3 | `test_sessionFinishedByTheManager_endsTheLiveActivityOnce` |
 
-### PR 6: documentation sweep and closing the record
+## Re-plan trigger
 
-- Branch: `chore/route-completion-docs-and-board`. Depends on: PR 5. Touches: docs, skills, `BOARD.md`.
-- Change: `tm-android` SKILL.md, section "Compose", the bullet on route progress and completion (it names `RouteCompletionTracker` as
-  Android's); `domain/README.md` (the `tracking/` entry); this plan's Status line. `BOARD.md`: delete the record
-  `route-completion-to-domain` in its own commit `chore(board): remove route-completion-to-domain`, and remove
-  `After: route-completion-to-domain` from `tracking-ui-timer-independent-of-location` in the same commit. Each earlier PR sweeps the
-  names it makes stale ("Docs follow the code you changed"); this PR is what is left, and may be only the board commit.
-- Proof: `scripts/check-board.sh` and `scripts/check-board.sh --base` pass; the greps of section 6 return nothing.
+Stop and ask the owner (the plan is changed only with approval, as a `chore(epic)` commit through a PR) when:
 
-## 4. Risks and what could change user-visible behavior
+- S2 cannot keep an existing test green unchanged, in particular because making `stop()` idempotent breaks one;
+- a subtask needs a file outside its `allowed_paths` (a Koin module, `KoinHelper`, a build file, `shared`, the Xcode project);
+- the `feature-tracking` Kover floor (92) falls below its minimum after S4, since a floor is not lowered by a PR;
+- `TrackingFinishTwiceUITests` fails on the epic branch after S2 or S5 and the cause is the interim state of the two platforms;
+- the iOS Live Activity cannot be ended once per session without changing `TrackingLiveActivityController`'s contract beyond S3's paths;
+- a human check of the epic-level Tier 2 shows the session does not end with the phone locked.
 
-1. **The intended change (PR 4):** on both platforms a session now ends by itself at the end of the planned route also with the phone
-   locked. The user may come back to a finished session they did not end, with no notice (Question 5). The Android foreground
-   notification disappears; the iOS Live Activity ends.
-2. **The interim in iOS (PR 4 to PR 5):** the View's own detection can still fire once on a session the manager already ended. It calls
-   `onStopClicked()`, which reads the same `Finished` state back and ends the Live Activity (idempotent after PR 2). The existing UI test
-   `TrackingFinishTwiceUITests` must stay green; if it does not, PR 5 is merged into PR 4 and the plan says so.
-3. **`stop()` inside the collector:** the manager's `stop()` cancels `locationObservationJob`, which is the coroutine that calls it. The fix
-   that triggered it is already dispatched; the PR 4 test pins that the path ends with that fix and that the session stops once.
-4. **Threads:** the tracker is created before the collector launches and touched only in it; a second `start()` or `restore()` replaces it
-   before launching the next collector. No lock; a test starts two sessions in a row.
-5. **A resume at the end** completes at the first fix after the resume, not at the resume (section 2). Pinned by a test.
-6. **Kover floors:** PR 4 deletes a covered Android class and its tests, so `feature-tracking` (floor 92) may fall; PR 3 and PR 4 add
-   `domain` coverage (floor 96, raised by the ratchet rule). Measure `:androidApp:feature-tracking:koverLog` before and after; if the
-   module falls below its floor, stop and report: a floor is not lowered by a PR (`scripts/check-kover-floors.sh`).
-7. **Restored sessions** (decision 4, unchanged): a restored session is `Paused`, a new tracker starts from index 0 and each fix moves
-   progress by at most 10 route points, so a restored session on a long route completes only after progress has caught up (the finding
-   of section 1). The manager sees every fix, so it catches up as the user moves, and the plan does not change that.
-8. **Process death while locked:** unchanged. The session is stored and comes back `Paused` (the manager's `restore`); no completion is
+## Risks and what could change user-visible behavior
+
+1. **The intended change (S2, visible when S2 is on the epic branch and reaches `main`):** on both platforms a session ends by itself at the end
+   of the planned route also with the phone locked. The user may come back to a finished session they did not end, with no notice until the
+   notification task (decision 5). The Android foreground notification disappears; the iOS Live Activity ends.
+2. **The interim on the epic branch (S2 to S5):** the iOS View's own detection can still fire once on a session the manager already ended. It calls
+   `onStopClicked()`, which reads the same `Finished` state back; the Live Activity end is idempotent after S3, and the manager's `stop()` is
+   idempotent after S2. `TrackingFinishTwiceUITests` must stay green on the epic branch; if it does not, that is a re-plan trigger.
+3. **`stop()` inside the collector:** the manager's `stop()` cancels `locationObservationJob`, which is the coroutine that calls it. The fix that
+   triggered it is already dispatched; an S2 test pins that the path ends with that fix and that the session stops once.
+4. **Threads:** the tracker is created before the collector launches and touched only in it; a second `start()` or `restore()` replaces it before
+   launching the next collector. No lock; an S2 test starts two sessions in a row.
+5. **A resume at the end** completes at the first fix after the resume, not at the resume (section 2). Pinned by an S2 test.
+6. **`stop()` becomes idempotent in `Idle` and `Finished`:** a caller that relied on a launcher stop there loses it. The code reading says none does
+   (the Android and iOS screens stop only an active session); the gate on S2 runs every existing test to show it.
+7. **Kover floors:** S4 deletes a covered Android class and its tests, so `feature-tracking` (floor 92) may fall; S2 adds `domain` coverage (floor 96, raised
+   by the ratchet rule). Measure `:androidApp:feature-tracking:koverLog` before and after; if the module falls below its floor, stop and report.
+8. **Restored sessions** (decision 4, unchanged): a restored session is `Paused`, a new tracker starts from index 0 and each fix moves progress by at
+   most 10 route points, so on a long route completion is detected only after progress has caught up (the finding of section 1). The manager sees
+   every fix, so it catches up as the user moves, and the plan does not change that.
+9. **Process death while locked:** unchanged. The session is stored and comes back `Paused` (`TrackingSessionManager.restore`); no completion is
    evaluated while the process is gone.
-9. **Existing tests that change:** only those named in PR 3 (`RouteCompletionTrackerTest` moves) and PR 4 (the `hasReachedDestination`
-   assertions and one state construction).
+10. **Local review base:** `scripts/local-review-prepare.sh` and the gate compare with the merge-base with `origin/main`, so for a subtask PR the local review
+    sees the whole epic diff so far. The subtask's PR description names its own commits (`origin/feature/epic/route-completion-to-domain..HEAD`) as the review scope.
+    A `--base` option for the script is a decision for the owner (see the PR that changes the epic skill).
 
-## 5. Decisions of the owner (2026-11-19) and the open question
+## Decisions of the owner (2026-11-19)
 
-1. **Where does completion run? Option B.** In `TrackingSessionManager`, so a session ends at the end of the route even with the phone
-   locked and the screen off, on both platforms, whatever the UI is doing. This is the intended new behavior on both platforms.
-   The ViewModels and screens only show the result. (The first version recommended Option A, on the false premise in "Correction".)
-2. **Drop `hasReachedDestination` from the finish-card condition: yes.** The card follows `canSave` (PR 4 on Android, PR 5 on iOS).
+1. **Option B.** The detection of route completion runs in `TrackingSessionManager`, so a session ends at the end of the route even with the phone locked
+   and the screen off, on both platforms, whatever the UI is doing. This is the intended new behavior on both platforms. The ViewModels and screens only
+   show the result. (The first version of the plan recommended Option A, on the false premise in "Correction".)
+2. **Drop `hasReachedDestination` from the finish-card condition: yes.** The card follows `canSave` (S4 on Android, S5 on iOS).
 3. **Keep 25 m and "within the last 3 points": yes.** No threshold changes in this epic, including for the finding of section 1.
 4. **Restored sessions keep starting progress from index 0:** not changed in this epic.
+5. **Question 5, answered yes: the user gets a notification when a session ends by itself at the route's end.** It is not a subtask of this epic. It is its
+   own task, recorded on the board as `session-ended-by-itself-notification`, and it starts after this epic is merged into `main`: it needs a design (a
+   permission text on iOS, a channel on Android, what tapping it opens, one domain event both platforms use). The epic's S2 gives that task what it needs
+   (the manager is the single place where the session ends by itself) and does not add the event.
+6. **This runs as an epic by `epic-orchestration`:** an integration branch, subtask agents, one human merge into `main`; the order of the work comes from the
+   `depends_on` of this plan, not from any instruction given at run time.
 
-**Question 5 (open, does not block PR 1 to PR 4): tell the user that a session ended by itself while the phone was locked?** After
-PR 4 the user can unlock to a finished session with no sign of when or why. **Recommendation: no new notification in this epic.** The iOS Live
-Activity shows the ended state and the Android foreground notification disappears; a notification needs its own permission text on iOS and
-its own design on both. If the owner wants it, it is a task of its own after PR 4; ask before PR 4 is merged so the human check can include it.
+## Epic-level Tier 2 (on the integrated branch before the merge to `main`)
 
-## 6. Definition of done
+Automated, on the epic branch's head (CI and the gate):
+
+- The session ends at the route's end with no UI subscriber: `TrackingSessionManagerRouteCompletionTest` (domain, Android host and iOS simulator),
+  `TrackingViewModelTest` `the session ends at the route's end while nobody collects the state` (Android), `test_reachingTheRouteEnd_finishesTheSessionWithoutAView` (iOS).
+- The fixture walk reaches the end and "Finish" appears on iOS: `TrackingFinishTwiceUITests`, unchanged; the Android Compose and ViewModel tests of the finish card.
+- The Live Activity ends once when the manager ends the session: `test_sessionFinishedByTheManager_endsTheLiveActivityOnce`.
+
+Human checks (what no test can observe: a locked screen and background location delivery), done by the owner on the integrated epic branch, with the reason in the
+epic PR:
+
+- **Android** (emulator or device): plan a short closed route, Start, play a location route that ends at the route's end (the emulator's route playback), lock the
+  screen before the end and wait for the playback to finish, unlock: the "Route completed" card shows, the foreground notification is gone, Finish saves one History entry.
+- **iOS** (simulator with a simulated route, or a device): the same with the device locked (Cmd+L in the simulator): on unlock the card shows and the Live Activity has ended.
+- **Final smoke check:** with the screen on, walk the same route on both platforms: the card appears at the end on both, Finish saves one History entry, and nothing else on
+  the Tracking screen changed (Start, Pause, Resume and Stop behave as before).
+
+## The epic's final board PR (not a subtask)
+
+Opened by the orchestrator into the epic branch after every subtask is merged (`tm-pr-workflow`, "Board", rule 5). It deletes the record `route-completion-to-domain`
+in its own commit `chore(board): remove route-completion-to-domain` and removes `After: route-completion-to-domain` from `tracking-ui-timer-independent-of-location`
+in the same commit; it adds the records for the drift and the follow-ups the subtasks reported in their PR descriptions; it sets this plan's Status line to `done`.
+The record `session-ended-by-itself-notification` already exists (added with this plan) and stays.
+
+## Definition of done
 
 The epic is done when all of these hold on `main`:
 
@@ -307,11 +411,10 @@ The epic is done when all of these hold on `main`:
   prints nothing, and `TrackingView.swift` holds no route-completion state.
 - `find androidApp -name RouteCompletionTracker.kt` prints nothing and `grep -rn "withRouteCompletion\|hasReachedDestination" androidApp --include='*.kt'`
   prints nothing; `RouteCompletionTracker` and its 19 `kotlin.test` cases are in `domain`.
-- `TrackingSessionManager` ends a session at the end of the route with no UI subscriber, proved by a `domain` test and by the Android
-  ViewModel test of PR 4; the iOS ViewModel tests of PR 5 prove the iOS side.
+- `TrackingSessionManager` ends a session at the end of the route with no UI subscriber, proved by the tests of the epic-level Tier 2.
 - `RouteProgressTest` has the out-of-range cases and `calculateRouteProgress` throws for no input.
-- The gate and CI are green on every PR, and `scripts/main-ui-run.sh --auto` is green after the last merge.
-- The locked-screen human check of PR 4 is done on both platforms, and Question 5 is answered or recorded as a task of its own.
-- `BOARD.md` no longer has the record `route-completion-to-domain`: PR 6 deletes it in its own commit
-  (`chore(board): remove route-completion-to-domain`) and removes it from the `After:` line of `tracking-ui-timer-independent-of-location` in
-  the same commit; `scripts/check-board.sh --base` passes.
+- Every subtask PR is merged into the epic branch, the final board PR is merged into it, the epic PR is ready and its CI is green on the current head, and the
+  owner has merged it (a merge commit, `epic-orchestration`, "Merging the epic into main").
+- The owner's human checks of the epic-level Tier 2 are done.
+- `scripts/main-ui-run.sh --auto` is green after the merge.
+- `BOARD.md` no longer has the record `route-completion-to-domain`, and `scripts/check-board.sh --base` passes.
