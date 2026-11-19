@@ -1,50 +1,27 @@
 # Merging the epic into main
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Merging the epic into main". The rules are unchanged; they are still cited as `epic-orchestration`, "Merging the epic into main". "The orchestrator's part" and "After the merge" below were added on 2026-11-19 with `running-an-epic.md`.
+The section "Merging the epic into main" of `SKILL.md` moved here and was rewritten on 2026-11-19 for the local-merge flow (`running-an-epic.md`): the subtasks are not PRs, the integration branch is pushed once, and the one PR carries the board commit and the plan's `Status`. The rules are still cited as `epic-orchestration`, "Merging the epic into main".
 
 ## Merging the epic into main
 
 The orchestrator reports readiness. The human merges only when all of these hold:
 
-1. Every subtask in the plan has its PR merged into the epic branch, or was dropped by a
-   plan change the human approved. None is still open.
-2. The epic branch includes the latest `main` (strict protection on `main` enforces this;
-   sync as in "Lifecycle" step 4, `SKILL.md`).
-3. CI is green on the epic PR for every required check, on its current head.
-4. **The final board PR is merged into the epic branch, and only then** has the
-   orchestrator marked the epic PR ready for review (`gh pr ready <n>`). The final board
-   PR is the one board-only PR an epic uses (`tm-pr-workflow` → Board, rule 5). The
-   orchestrator opens it into the epic branch after every subtask is merged. It is not a
-   plan subtask. It adds `BOARD.md` records for the drift and follow-ups the subtasks
-   reported, and deletes the epic's own record if the epic started from one. The
-   orchestrator has also filled in the epic PR's description: What changed per subtask
-   (with PR links), Skills/docs followed (the union), Tier 1 (the CI result on the epic
-   head; no separate local gate is needed, since nothing new is pushed at this point),
-   Tier 2 (the plan's epic-level list), any Assumptions and Follow-ups from the subtasks,
-   and a `Board:` line listing the records the final board PR added and removed. An epic
-   record on the board always points to its plan under `docs/epics/`.
-5. The epic-level Tier 2 is done **on the integrated epic branch head**: the automated tests
-   that cover the epic's end-to-end behavior on both platforms pass there where such a test
-   can exist (condition 3), the human has done the final smoke check and every human check
-   listed with its reason, and has reviewed the full diff against `main`.
+1. Every subtask in the plan is merged into the integration branch (an `Epic-Subtask: <id>` trailer on a merge commit each), or was dropped by a plan change the human approved.
+2. The branch includes the latest `main` (strict protection on `main` enforces this; the orchestrator took `main` once before the final review, and if `main` moved after the PR was opened, GitHub's "update branch" or the same local merge, gated again, brings it in).
+3. CI is green on the epic PR for every required check, on its current head, and the CI reviewer's findings are answered (`tm-agent-loop`, sections 6 and 7).
+4. **The board commit is on the branch.** It is the last commit of the integration branch and part of the epic PR: the epic's record deleted, the records for the follow-ups the subtasks reported, the plan's `Status` set to `done`, with the epic PR's `Board:` line listing them (`tm-pr-workflow`, "Board", rule 5). There is no board PR and no separate human merge for it.
+5. The epic-level Tier 2 is done **on the epic PR's head**: the automated tests that cover the epic's end-to-end behavior pass there (condition 3 and the full local gate before the push), the human has done the final smoke check and every human check listed with its reason, and has reviewed the full diff against `main`.
 
-**Merge method (recommendation; the human decides): "Create a merge commit"**, not
-squash. Each subtask is already one conventional commit on the epic branch (`... (#N)`).
-A merge commit keeps them in `main`'s history and keeps each one revertible. Squash would
-collapse the epic into one commit and lose that. The repo allows all three methods. The
-epic PR title is still a valid `type(scope): summary`, because it appears in the merge
-commit.
+**Merge method (recommendation; the human decides): "Create a merge commit"**, not squash. Each subtask is one merge commit on the branch (`... (subtask <id>)`, with the worker's commits under it), and a merge commit
+keeps them in `main`'s history and keeps each one revertible. Squash would collapse the epic into one commit and lose that. The repo allows all three methods. The epic PR title is a valid `type(scope): summary`, because it
+appears in the merge commit.
 
 ## The orchestrator's part
 
-Once every row of the status table is `merged` (`running-an-epic.md`, step 4), in this order, with no instruction from the owner:
-
-1. Open the final board PR, `chore/<slug>-board`, into the epic branch (`tm-pr-workflow`, "Board", rule 5): the epic's record deleted in its own commit, the `After:` line, the records for the drift and follow-ups the subtasks reported, and the plan's `Status` set to `done`. It is a board-only PR (the one exception of rule 4) and it edits a protected path (the plan), so the human merges it; the orchestrator waits as in `running-an-epic.md`, step 3.5.
-2. If `main` moved, sync through a PR (`SKILL.md`, "Lifecycle", step 4), merged by the agent only when every file `main` changed since the epic branch's base is unprotected.
-3. Fill in the epic PR's description (the headings of condition 4 above), set it with `scripts/set-pr-body.sh <epic PR> <draft>`, run `gh pr ready <n>`, and wait for every required check on its current head (`scripts/wait-for-checks.sh --until-complete <n>`). A red check is a stop: report it; the orchestrator does not re-run or cancel anything on the epic PR beyond what `tm-agent-loop`, section 6, allows.
-4. The report: the epic PR's link and head SHA, the exact merge command (`gh pr merge <n> --merge --match-head-commit <40-character SHA>`), the human checks of the plan's epic-level Tier 2 that the owner has to do (each with its steps), the subtask PRs the owner merged, and "Drift found".
+Once the last subtask is merged: `running-an-epic.md`, step 4 (take `main`, the board commit, the description, one local review and one full gate of the whole branch, one push, the PR, CI, the fixes), and step 5 (the report with the exact merge command
+`gh pr merge <n> --merge --match-head-commit <40-character SHA>`, the human checks with their steps, the notes of the escalated local reviews, and "Drift found" with the evidence). The orchestrator never merges the epic PR.
 
 ## After the merge
 
-GitHub deletes the remote epic and subtask branches. The next run of the orchestrator (`tm-pr-workflow`, "Before starting") prunes the merged local branches and reads `scripts/main-ui-run.sh --status`: a merge of an epic changes code, so the full UI run is due and runs with an empty queue. Work that the plan names as starting after the epic (a board record with `After: <slug>`) is then free to start.
-
+GitHub deletes the remote epic branch. The next run of the orchestrator (`tm-pr-workflow`, "Before starting") prunes the merged local branches, deletes the epic's local branch and run record, and reads `scripts/main-ui-run.sh --status`: a merge of an epic
+changes code, so the full UI run is due and runs with an empty queue. Work that the plan names as starting after the epic (a board record with `After: <slug>`) is then free to start.

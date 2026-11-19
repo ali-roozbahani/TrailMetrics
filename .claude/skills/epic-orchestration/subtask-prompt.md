@@ -10,8 +10,8 @@ The orchestrator writes the file with the Write tool at the path `scripts/subage
 ## Goal
 <the subtask's title and acceptance criteria, verbatim from the plan>
 Out of scope: <the epic's out-of-scope list and anything subtask-specific>
-Epic: docs/epics/<epic-slug>.md on origin/feature/epic/<epic-slug> (read it; subtask <id>).
-depends_on: <ids>, already merged into the epic branch: <what they added that you use>
+Epic: docs/epics/<epic-slug>.md in your worktree (read it; subtask <id>).
+depends_on: <ids>, already merged into the integration branch: <what they added that you use>
 Parallel sibling(s) this wave: <ids and their allowed paths>. Do not touch those paths.
 
 ## Worktree
@@ -39,4 +39,4 @@ Red test first, where the plan says so: run the test on the unfixed code, see it
 <the attribution trailer the session specifies>
 ```
 
-The branch the orchestrator opens the PR from is the plan's `branch` (the subtask's branch), never the worktree's `chore/wt-...` branch: `worktree.sh take` brings the commits into it.
+The branch the orchestrator integrates is the plan's `branch` (the subtask's branch), never the worktree's `chore/wt-...` branch: `worktree.sh take` brings the commits into it, and `subtask-merge.md` takes it from there. No PR is opened for a subtask.

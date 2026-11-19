@@ -1,25 +1,36 @@
 # Running an approved epic from one command
 
-Read from `SKILL.md`, "The command". This file is the whole procedure of an epic run: the orchestrator follows it from the owner's sentence to the epic PR that is ready, with no other instruction. The order of the work comes from the plan's `depends_on`, never from the owner at run time. The other files of this skill hold the rules the steps use: `spawning-subtasks.md` (waves, workers), `subtask-prompt.md` (what a worker is given), `subtask-prs.md` (a subtask's PR), `merging-the-epic.md` (the end), `epic-branch-protection.md` (the ruleset check).
+Read from `SKILL.md`, "The command". This file is the whole procedure of an epic run: the orchestrator follows it from the owner's sentence to the epic PR that is open, green and waiting for the owner, with no other instruction. The order of the work comes from the plan's `depends_on`, never from the owner at run time. The other files of this skill hold the rules the steps use: `spawning-subtasks.md` (waves, workers), `subtask-prompt.md` (what a worker is given), `subtask-merge.md` (integrating one subtask), `merging-the-epic.md` (the end), `epic-branch-protection.md` (the ruleset check).
+
+**The decision this flow rests on (the owner, 2026-11-19), and a hypothesis:** a subtask is not a PR. Each is built by its worker, taken in, reviewed and gated locally, and merged locally into the integration branch. The branch is pushed once, and one PR into `main` gets CI and the CI reviewer. The first run tests the decision: see "Evidence".
 
 ## The command
 
 > run the epic `<slug>`
 
-That sentence is all the owner gives. It starts the epic when its branch does not exist and resumes it when it does: the state of a run is in GitHub (the epic PR's status table, the subtask PRs, the branches) and in the plan, never in a session, so the same sentence after a stop continues where the run stopped.
+That sentence is all the owner gives. It starts the epic when its integration branch does not exist and resumes it when it does. The state of a run is in two places, so the same sentence continues a stopped run, also in a new session on the same machine: the **integration branch** (`feature/epic/<slug>`, local until step 5) and the **run record** (below). The branch says which subtasks are merged; the run record says when, how long, and what was noted.
 
-The command means the owner has approved the plan. It does not mean the owner will merge anything on request: the owner's part is listed at the end of this file.
+The command means the owner has approved the plan. The owner's part is listed at the end of this file.
+
+## The run record
+
+A directory outside the repository, `~/agent-workspace/epics/<slug>/`, made by the orchestrator, with two files. Their names start with `keep-` so the workspace cleaner (`tm-agent-loop`, "Preconditions") does not delete them:
+
+- `keep-run.log`: one tab-separated line per event, appended with `printf`: UTC time, subtask id (or `-`), event, detail. Events: `start`, `ready`, `worker-start`, `worker-done`, `take`, `review-start`, `review-end` (verdict, findings), `gate-start`, `gate-end` (exit code), `merged` (the merge commit), `stop` (reason), `final-review-start`, `final-review-end`, `final-gate-start`, `final-gate-end`, `pushed`, `pr-opened` (number), `ci-start`, `ci-end` (conclusion per job), `ci-fix`, `flake`. The times are wall-clock; the seconds of a review or a gate are the difference of its two lines. This log is the data of "Evidence".
+- `keep-notes.md`: what the subtasks found and the orchestrator must not lose: drift, follow-ups (each with the reason a `BOARD.md` record or a fix is right), the notes of a local review that escalated (`ESCALATE_TO_HUMAN` with no blocking finding), and every `[important]` finding with its disposition. The epic PR's description and the board commit are written from it.
+
+A run record that is lost does not lose the work (the branch has it); it loses the times and the notes, and the report says so.
 
 ## 1. Before anything is created (all of it automatic; stop only when a check fails)
 
 Stop at the first failed check and report it (what failed, the exact output, what the owner has to do). Nothing is created before all of them pass.
 
 1. `tm-pr-workflow`, "Before starting", and `tm-agent-loop`, "Preconditions": identity, clean tree, `main` pulled, merged branches pruned, the recent runs of `main` (an unacknowledged red run stops the run), the workspace cleaner.
-2. **The plan is on `main` and approved.** `docs/epics/<slug>.md` exists on `origin/main`; its "Approved by" line names the owner and a date; its Integration branch is `feature/epic/<slug>`; the board record of the epic (`BOARD.md`) exists and points to the plan. A plan that is only in an open PR, or has `Approved by: pending`, is not approved: report that it waits for the owner and stop.
+2. **The plan is on `main` and approved.** `docs/epics/<slug>.md` exists on `origin/main`; its "Approved by" line names the owner and a date; its Integration branch is `feature/epic/<slug>`; the board record of the epic exists and points to the plan. A plan that is only in an open PR, or has `Approved by: pending`, is not approved: report that it waits for the owner and stop.
 3. **The queue is not in the way.** `scripts/queue/queue.sh next` prints `DONE`, or `WAIT <slug> #<n> owner` lines only. Any `BUILD`, `FINISH_BUILD`, `PUSH`, `HOLD` or `WAIT ... agent` means queue work is open: finish it first (`tm-agent-loop`, section 9) and report. While the epic runs the queue is not used (see "The queue and the epic").
 4. **The plan can be run.** Check the file, by commands, not by eye:
    - the `yaml` block parses by reading: ids are unique, every `depends_on` id exists, there is no cycle, and every subtask has `branch`, `skills`, `allowed_paths`, `acceptance` and `tier2`;
-   - every branch is `<feature|bugfix|chore>/<slug>-<subtask-slug>`, the names are distinct, and none exists yet (`git ls-remote --heads origin '<branch>'` prints nothing);
+   - every branch is `<feature|bugfix|chore>/<slug>-<subtask-slug>`, the names are distinct, and none exists locally or on `origin` yet;
    - every `allowed_paths` entry is a file path or a directory written `dir/**` (it becomes `--allow dir` of `scripts/subagent/worktree.sh`), with no `..` and nothing under `.git`; a glob in any other form is a plan defect: stop;
    - every skill named exists under `.claude/skills/`;
    - **the paths of each wave are disjoint**, checked on the tracked files and on the new paths the plan names:
@@ -42,76 +53,66 @@ Stop at the first failed check and report it (what failed, the exact output, wha
      EOF
      ```
 
-     Any file printed is a plan defect: stop. Also compare the new file paths each subtask of a wave names;
-   - the subtasks whose `allowed_paths` include a protected path: `scripts/check-protected-paths.sh --files <path>...` per subtask. Their PRs are the human's to merge (`tm-agent-loop`, "Merge conditions", `merge.md`, condition 6); the report says which.
-5. **The ruleset for the epic branches is right** (`epic-branch-protection.md`, "Pre-flight check"). A missing or wrong ruleset is a stop, not a repair: the orchestrator never changes a ruleset.
-6. **The epic does not already run.** `git ls-remote --heads origin 'feature/epic/<slug>'`: when it prints a branch, this run is a resume: skip "2. Create the epic branch" and go to "3. The wave loop", whose first step reads the state.
+     Any file printed is a plan defect: stop. Also compare the new file paths each subtask of a wave names.
+5. **No ruleset blocks the epic PR's fixes** (`epic-branch-protection.md`, "Pre-flight check"). An active ruleset that applies to `feature/epic/<slug>` and requires a pull request or status checks is a stop: the owner deletes it. The orchestrator never changes a ruleset.
+6. **The epic does not already run.** `git branch --list 'feature/epic/<slug>'` and `git ls-remote --heads origin 'feature/epic/<slug>'`: a local branch means this run is a resume (skip step 2, read the state in step 3.1); a branch on `origin` and none locally is a stop (someone pushed it; the orchestrator does not guess).
 
-## 2. Create the epic branch and the draft epic PR
+## 2. Create the integration branch and the run record
 
-1. `git switch -c feature/epic/<slug> origin/main`. The plan is already on `main` (step 2 above), so the branch has no commit of its own; the first commit makes one: it sets the value of the plan's `Status` bullet to `running, started <date>` and changes nothing else, as `chore(epic): start <slug>` with the attribution trailer.
-2. Draft the epic PR's description at `~/agent-workspace/pr-body-epic-<slug>.md`: the first line `Title: feat(<scope>): <the epic's one-line summary>` (a valid `type(scope): summary`: it appears in the merge commit), the plan link, and the status table (below). `Board:` line and the other headings are filled at the end (`merging-the-epic.md`).
-3. Local review of the commit (`tm-agent-loop`, section 4: `scripts/local-review-prepare.sh <draft>`, the `pr-reviewer`, `scripts/local-review-record-verdict.sh`), the gate (`scripts/pre-push-check.sh`, `light` for a plan line), then `git push -u origin feature/epic/<slug>`. A direct push is allowed once, to create the branch: the ruleset's pull-request rule does not apply to creating it. Every later change reaches the branch through a PR.
-4. `gh pr create --draft --base main --head feature/epic/<slug> --title "<title>" --body-file <body>` (the body file is `scripts/set-pr-body.sh --print-body <draft>`; the PR title is the draft's `Title:` line). The epic PR is the human's to merge (`tm-agent-loop`, "Never").
-
-**The status table** is the epic's live state, in the epic PR's description, one row per subtask, written by the orchestrator and set with `scripts/set-pr-body.sh <epic PR> <draft>` after every change:
-
-```
-| Subtask | Branch | Wave | State | PR | Merged by |
-|---|---|---|---|---|---|
-| S1 | bugfix/<slug>-<subtask-slug> | 1 | merged | #<n> | agent |
-| S2 | feature/<slug>-<subtask-slug> | 2 | waiting-human | #<n> | |
-| S3 | chore/<slug>-<subtask-slug> | 1 | building | | |
-| S4 | feature/<slug>-<subtask-slug> | 3 | blocked-by S2 | | |
-```
-
-States: `blocked-by <ids>`, `ready`, `building`, `integrating` (the worker's commits are taken in and the review or the gate runs), `in-ci`, `waiting-human` (the Merge check says why), `merged`, `dropped` (only with the owner's approval of a plan change). The plan file is never edited for status.
+1. `git switch -c feature/epic/<slug> origin/main`. The branch is local, has no commit of its own yet, and is not pushed.
+2. `mkdir -p ~/agent-workspace/epics/<slug>` and the two files; append the `start` line.
 
 ## 3. The wave loop
 
-Repeat until every subtask is `merged`. Each pass starts by reading the state again, from GitHub and not from memory:
+Repeat until every subtask is merged. Each pass starts by reading the state again, not by remembering it:
 
 ```bash
-git fetch origin --prune
-gh pr list --base feature/epic/<slug> --state all --json number,state,headRefName,mergedAt,mergeStateStatus
+git branch --list '<type>/<slug>-*'                  # subtask branches in flight
+scripts/subagent/worktree.sh list                    # workers' worktrees
+git log origin/main..feature/epic/<slug> --grep='^Epic-Subtask: ' --format='%h %s%n%b'   # merged subtasks (the trailer)
+tail -n 20 ~/agent-workspace/epics/<slug>/keep-run.log
 ```
 
-1. **Ready** subtasks: every id in `depends_on` has its PR merged into the epic branch (`spawning-subtasks.md`, "Waves"), and the subtask has no open PR or live worker. A subtask whose PR is open and not merged is `in-ci` or `waiting-human`, not ready.
-2. **A wave** is the ready subtasks whose `allowed_paths` are pairwise disjoint (the check of step 1.4 again on the ready set), at most 2 at a time (`spawning-subtasks.md`, "Isolation"). When more are ready than the cap or the disjointness allows, the plan's order of ids decides which go first; the rest wait for the next pass. No instruction from the owner is needed or taken for this.
-3. **For each subtask of the wave** (`spawning-subtasks.md`, "Workers"): create its branch from `origin/feature/epic/<slug>`, start its `implementer` in a worktree, take the commits in, run the local review and the gate, push, open the PR against the epic branch, watch CI, then merge or hand over (`subtask-prs.md`). The PRs of one wave are integrated one at a time (heavy runs are serialized by `scripts/heavy-run.sh` whatever the waves say); the second worker keeps writing while the first is integrated.
-4. **Merging a subtask PR** follows `tm-agent-loop`, "Merge conditions" (`merge.md`), with condition 6 replaced by the plan's `allowed_paths` and with the read of `main` skipped: the base is the epic branch. All six "yes": merge with `gh pr merge <n> --squash --match-head-commit <sha> --subject "<title> (#<n>)" --body ""`, post the Merge check, set the row to `merged` with `Merged by: agent`. Any "no": post the Merge check, set the row to `waiting-human`, and go on with the work that does not depend on it (step 5).
-5. **When a human has to merge**: the orchestrator does not stop while other work is ready. When nothing else is ready or running, it waits for the PRs in `waiting-human` with one background command that exits at the first change, and acts on it:
+1. **Merged** subtasks are the ones whose id is in an `Epic-Subtask:` trailer on the integration branch. **Ready** subtasks have every `depends_on` id merged, no live branch and no live worker. A subtask with a branch but no merge is in flight: if its worktree has commits not taken, `take` them; if its branch has commits, continue at the integration steps of `subtask-merge.md`; if it has neither, start its worker again.
+2. **A wave** is the ready subtasks whose `allowed_paths` are pairwise disjoint (the check of step 1.4 again on the ready set), at most 2 workers writing at a time (`spawning-subtasks.md`, "Isolation"). When more are ready than the cap or the disjointness allows, the plan's order of ids decides which go first; the rest wait for the next pass. No instruction from the owner is needed or taken for this.
+3. **Per subtask** (`spawning-subtasks.md`, "Workers"; `subtask-merge.md`): create its branch from the integration branch, start its `implementer` in a worktree, take the commits in, then **integrate it**: bring the branch up to the integration tip, scope check, local review, gate, local merge. Integrations are **one at a time** (the heavy-run lock serializes gates anyway, and the merge result must equal the gated tree); the second worker keeps writing while the first is integrated.
+4. **A subtask that does not pass stops the run.** A `[blocking]` finding still there after 2 review fix attempts, or a gate that stays red after its 2 fix attempts (`tm-pr-workflow`, "Retry budget"), is a stop: log `stop`, leave the branch as it is, and report what failed with the evidence. The run is resumed by the same sentence after the owner decides.
+5. **A stop that belongs to the plan** (the plan's "Re-plan trigger", a subtask that needs a path outside its `allowed_paths`, a worker's `NEEDS_CONTRACT_CHANGE`, a flaw in the plan found while building): stop, log it, and report what the owner has to decide. The plan changes only with the owner's approval, as a `chore(epic)` commit on the integration branch.
+6. **Nothing in the loop waits for a human.** The orchestrator merges each subtask locally; there is no subtask PR to merge, no Merge check and no CI to wait for before the next subtask. The loop ends when the last subtask is merged.
 
-   ```bash
-   # PRS="<n> <n> ..." the waiting subtask PRs; run with run_in_background, timeout 10 minutes, and run it again until the wait below runs out
-   while true; do
-     for n in $PRS; do
-       s="$(gh pr view "$n" --json state --jq .state)"
-       [ "$s" != OPEN ] && echo "$s #$n" && exit 0
-     done
-     sleep 60
-   done
-   ```
+## 4. The end: the board commit, the whole-branch review and gate
 
-   `MERGED #<n>`: the row is `merged` (`Merged by: owner`), start the next pass. `CLOSED #<n>`: the owner dropped it: a plan defect: stop and report. The wait for the owner ends after 180 minutes in total (the queue's owner wait): the run then ends with the report, which names each PR it waits for, with its merge command and the full 40-character head SHA, and the resume sentence. The same command resumes it.
-6. **A subtask PR that is behind the epic branch** because a sibling merged first (strict): `git merge origin/feature/epic/<slug> --no-edit` into the subtask branch (its own tool call), review, gate, push, comment (`subtask-prs.md`). A merge conflict means two subtasks' `allowed_paths` overlapped: a plan defect: stop and report.
-7. **Keeping up with `main`** (`SKILL.md`, "Lifecycle", step 4) is done between waves, only when `main` has changed a file that matches an `allowed_paths` of a subtask not yet merged, and once more before the epic PR is made ready (`merging-the-epic.md`). A sync PR (`chore/<slug>-sync-main`) is merged by the agent only when every file `main` changed since the epic branch's base is unprotected; otherwise it is the human's.
-8. **A stop that belongs to the plan** (the plan's "Re-plan trigger", a subtask that needs a path outside its `allowed_paths`, a worker's `NEEDS_CONTRACT_CHANGE`, two retries of the gate used up, a red CI after its one re-run): stop the run, leave the rows as they are, and report what the owner has to decide. The plan changes only with the owner's approval, as a `chore(epic)` commit through a PR.
+When every subtask is merged:
 
-## 4. The end
+1. **Take `main` once** (`SKILL.md`, "Lifecycle", step 3): `git fetch origin`, and when `origin/main` has moved, `git merge origin/main --no-edit` into the integration branch (its own tool call; conflicts resolved within the scope of the files' owners).
+2. **The board commit** (`tm-pr-workflow`, "Board", rule 5), the last commit of the branch: the epic's record deleted and its slug removed from every `After:` line and mention (the `chore(board): remove <slug>` form), the records for the follow-ups and drift in `keep-notes.md` that need an owner decision or design (`tm-pr-workflow`, "Board", rule 1: an agent-doable follow-up is a queue entry after the epic, not a record), and the plan's `Status` bullet set to `done`.
+3. **Draft the epic PR's description** at `~/agent-workspace/epics/<slug>/keep-pr-body.md`: first line `Title: feat(<scope>): <the epic's one-line summary>` (a valid `type(scope): summary`; it appears in the merge commit), What changed per subtask (the merge commits), Skills/docs followed (the union), Tier 1, Tier 2 (the plan's epic-level Tier 2, with the human checks and their steps), Assumptions, Follow-ups and Drift (each ending `(queue: <slug>)` or `(board: <slug>)`), a "For the owner" part with the notes of the local reviews that escalated, `Reviewer findings`, and the `Board:` line.
+4. **One local review and one gate of the whole branch**, which are what the push hook reads: `scripts/local-review-prepare.sh <draft>` on the final HEAD (its base, the merge-base with `origin/main`, is exactly right here: the whole epic against `main`), the `pr-reviewer`, `scripts/local-review-record-verdict.sh` (the verdict must be for the HEAD that will be pushed, with no `[blocking]` and a disposition for every `[important]`), then `scripts/pre-push-check.sh` on that same HEAD, full (the epic touches the shared layer and both apps, so the Android and iOS steps and both UI suites run). No commit after the gate: a new commit needs a new review and a new gate. Budgets as `tm-agent-loop`, section 4 and `tm-pr-workflow`, "Retry budget".
+5. **Push once, open the PR.** `git push -u origin feature/epic/<slug>` (the hook passes only with the recorded review and the gate marker of that HEAD), then `gh pr create --base main --head feature/epic/<slug> --title "<title>" --body-file <body>` with the body from the draft (`scripts/set-pr-body.sh --print-body <draft>`). `ci.yml` also runs on the push, so the branch is pushed here and at no other time. The PR is not a draft.
+6. **Watch CI** (`tm-agent-loop`, section 6, `watching-ci.md`): `scripts/wait-for-checks.sh --review-first <PR>`, then the rest; log `ci-start` and `ci-end`. A red job or a CI reviewer finding: the fix is a commit on the same branch, through the local review and the gate, pushed to the open PR; the limits are the usual (one re-run of a failed job, 2 CI-fix rounds, `tm-agent-loop`, sections 6 and 7). Each round is logged (`ci-fix`).
+7. **The Merge check comment** on the epic PR (`tm-agent-loop`, "Auto-merge"): its condition 6 is "no" when the plan or another protected file is in it, so the human merges. The orchestrator never merges the epic PR.
 
-When every row is `merged`:
+## 5. The report
 
-1. The final board PR (`tm-pr-workflow`, "Board", rule 5): from the epic branch, `chore/<slug>-board`, into the epic branch. It carries what the plan says (the epic record deleted in its own commit, the `After:` line, the records for the drift and follow-ups the subtasks reported in their descriptions, the plan's `Status` set to `done`). The plan is under `/docs/epics/`, a protected path, so the human merges this PR: it is the one more human merge of every epic. Wait for it as in step 5.
-2. Sync with `main` if it moved (step 7), then fill in the epic PR's description (`merging-the-epic.md`), `gh pr ready <n>`, and wait for CI on the epic PR's current head (`scripts/wait-for-checks.sh`).
-3. The report (`tm-agent-loop`, "Report"), with a "Drift found" part, as the skill says: which assumption of this skill was confirmed or corrected by the run (the worktree `cwd`, the ruleset, the merge conditions, the status table, the waits), each with the evidence. Then stop: the epic PR is the owner's to merge.
+The report of `tm-agent-loop`, "Report", ends the run: the epic PR's link and head SHA, the state of CI, the exact merge command (`gh pr merge <n> --merge --match-head-commit <40-character SHA>`), the human checks of the plan's epic-level Tier 2 that the owner has to do with their steps, the notes of the escalated local reviews, and **"Drift found"** with the **"Evidence"** below.
+
+### Evidence (the part that tests the decision to merge locally)
+
+The "Drift found" part has a short measured comparison from the run record, with real numbers and no estimate:
+
+- for each subtask: the wall time of its local review and of its local gate, and the number of fix attempts of each;
+- the wall time of the whole-branch review and gate, of the one CI run on the epic PR, and of every re-run or CI-fix round;
+- anything that CI or the CI reviewer found that the local gate and the local reviews had not (name it, say which check found it and why the local ones did not), and the reverse (a local finding CI would have missed);
+- every flake (the job, the signature, whether a re-run cleared it);
+- the assumptions of this skill that the run confirmed or corrected (the worktree `cwd`, the push hook with a merge commit at HEAD, the local merge order, the run record), each with its evidence.
+
+The owner judges the decision from this, not from opinion, and changes it if the evidence says he was wrong.
 
 ## The queue and the epic
 
-An epic run does not use the local PR queue (`scripts/queue/queue.sh`): the queue knows only PRs against `main`. A subtask PR is not an entry; it is tracked by the status table and the plan. `scripts/queue/watch-prs.sh` lists open PRs of every base and is not used to wait for an epic. The heavy-run lock is shared by everything: every gate and every worker's test run goes through `scripts/heavy-run.sh`, and a wait for it is neither a failure nor a gate attempt. While the epic runs, no other work starts in the session: a follow-up found goes into a subtask's PR description and, at the end, into the final board PR. After the epic is merged, the next run starts the queue again. A run of the queue that finds an open epic branch does not touch it.
+An epic run does not use the local PR queue (`scripts/queue/queue.sh`): the subtasks are not PRs, and the one epic PR is opened at the end of the run, so nothing of the epic is an entry. The heavy-run lock is shared by everything: every gate and every worker's test run goes through `scripts/heavy-run.sh`, and a wait for it is neither a failure nor a gate attempt. While the epic runs, no other work starts in the session: a follow-up found goes to `keep-notes.md` and, at the end, to the board commit or, for an agent-doable one, to a queue entry after the epic is merged. After the epic PR is open the run ends with the report; the queue starts again in the next run. A run of the queue that finds an open epic branch does not touch it.
 
 ## What the owner does
 
-- **Before the run:** the ruleset for `feature/epic/*` has the four required checks with the names of the CI jobs (the pre-flight says if not; the owner edits it, the orchestrator never does); the plan is merged into `main` with its approval line; the machine is on, logged in as `peter-christofer-bot`, with the iOS secrets config and `local.properties` in the clone.
-- **During the run:** merge a subtask PR when its Merge check says "no" (a protected path, or a reviewer verdict other than a bare `APPROVE`); merge the final board PR; answer a stop that belongs to the plan. Nothing else.
-- **At the end:** do the human checks of the plan's epic-level Tier 2 on the integrated epic branch, review the full diff, and merge the epic PR with a merge commit (`merging-the-epic.md`).
+- **Before the run:** delete the ruleset for `feature/epic/*` if there is one (the pre-flight says if it applies; the owner deletes it, the orchestrator never does); merge the plan's PR into `main`; have the machine on, logged in as `peter-christofer-bot`, with the iOS secrets config and `local.properties` in the clone.
+- **After the run:** do the human checks of the plan's epic-level Tier 2 on the epic PR's head, review the PR, and merge it with a merge commit (`merging-the-epic.md`). Answer a stop that belongs to the plan; that is the only thing the run asks during its course.

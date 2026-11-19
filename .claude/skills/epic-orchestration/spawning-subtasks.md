@@ -6,13 +6,12 @@ The section "Spawning subtask agents" of `SKILL.md` moved here, with "Waves", "I
 
 ### Waves
 
-A subtask is **ready** when every id in its `depends_on` has its PR **merged into the epic
-branch**. An open or approved PR doesn't count: the dependent subtask must branch from
-code that is already on the epic branch. The orchestrator starts a wave, meaning all
-ready subtasks whose `allowed_paths` are pairwise disjoint, at most 2 at a time. It integrates the
-wave's PRs, merges those it may merge (`tm-agent-loop`, "Merge conditions", `merge.md`), and for the ones
-only the human may merge it goes on with whatever else is ready, and waits only when nothing else is
-(`running-an-epic.md`, step 3). The next wave starts as soon as its `depends_on` are merged, not when a
+A subtask is **ready** when every id in its `depends_on` is **merged into the integration
+branch** (a merge commit with its `Epic-Subtask:` trailer). A subtask that is built but not merged doesn't count: the dependent subtask must branch from
+code that is already on the integration branch. The orchestrator starts a wave, meaning all
+ready subtasks whose `allowed_paths` are pairwise disjoint, at most 2 workers at a time. It integrates the
+wave's subtasks one at a time and merges each locally into the integration branch (`subtask-merge.md`); it
+waits for nobody (`running-an-epic.md`, step 3). The next wave starts as soon as its `depends_on` are merged, not when a
 whole wave is.
 
 Before each wave, check disjointness mechanically, not by eye. For every pair in the
@@ -25,7 +24,7 @@ same path, so also compare the new file paths the plan names.
 A worker is the `implementer` subagent (`.claude/agents/implementer.md`, `tm-agent-loop`, "Subagents"). One worker per subtask; the orchestrator
 integrates its commits. For each subtask of a wave, from the main clone with a clean tree:
 
-1. `git fetch origin && git switch -c <the subtask's branch> origin/feature/epic/<slug>`. The branch is the plan's `branch`; it stays checked out in the main clone
+1. `git switch -c <the subtask's branch> feature/epic/<slug>`. The branch is the plan's `branch`; it is local and is never pushed, and it stays checked out in the main clone
    until the worker's commits are taken.
 2. `scripts/subagent/worktree.sh create <name> --from <the subtask's branch> --allow <path>... [--ios] [--android]`, with `<name>` the subtask id in lower case
    (`s2`) and one `--allow` per `allowed_paths` entry: a file path as it is, `dir/**` as `dir`. `--ios` and `--android` as the subtask's tests need them (the links
@@ -37,16 +36,16 @@ integrates its commits. For each subtask of a wave, from the main clone with a c
    test results are its claim; the gate reruns everything.
 5. On `BLOCKED` or `NEEDS_CONTRACT_CHANGE`: the orchestrator decides within the plan. A file outside `allowed_paths`, or a change of the contract the plan
    fixes, is a plan defect: stop and report (`running-an-epic.md`, step 3.8). The orchestrator never widens a worker's allowed paths.
-6. `scripts/subagent/worktree.sh remove <name>` once the commits are taken, then the review and the gate (`subtask-prs.md`).
+6. `scripts/subagent/worktree.sh remove <name>` once the commits are taken, then the integration steps: the branch brought up to the integration tip, the local review, the gate and the local merge (`subtask-merge.md`).
 
 A subtask that is small (a few files, a plan line) may be done by the orchestrator itself, as `tm-agent-loop`, "Subagents" says for any task; it
-still stays inside `allowed_paths`, and the status table says nothing different.
+still stays inside `allowed_paths`, and is integrated like a worker's (`subtask-merge.md`).
 
 ### Isolation (read before running two workers at once)
 
 Parallel workers need separate working trees: two agents on one checkout would switch branches under each other. The worktrees are those of
 `scripts/subagent/worktree.sh`, under `<main clone>/.claude/worktrees/<name>`, each on its own local branch `chore/wt-<name>` that is never pushed. The
-integration (take, review, gate, push, PR) happens in the main clone, so **the gate and the push hook never run in a worktree** for an epic, which removes
+integration (take, review, gate, local merge) happens in the main clone, so **the gate never runs in a worktree** for an epic, which removes
 the question of the pass marker per worktree (it is verified, see `worktree-isolation.md`, and not relied on here).
 
 - **Resource contention.** Every subtask runs the full gate. Its heavy steps (Gradle
@@ -60,7 +59,7 @@ the question of the pass marker per worktree (it is verified, see `worktree-isol
 - **Untracked local files don't come along.** `--ios` and `--android` of `worktree.sh create` put symbolic links to the iOS secrets config and `local.properties` in
   the worktree. Never read, print, copy or commit them. A gate in the main clone has the real files.
 - **Sequential is still fine** when a wave has one subtask or the machine cannot take two. The ordering, scoping and PR-per-subtask rules are the same either way.
-- A worktree is removed after its commits are taken. The subtask's branch lives on until its PR is merged; GitHub deletes the remote branch.
+- A worktree is removed after its commits are taken. The subtask's branch lives on until it is merged locally, then it is deleted.
 
 Never work around a hook (for example by touching the gate marker by hand, or pushing from a command the hook's pattern doesn't match). That's a gate bypass, not a fix.
 
@@ -68,6 +67,6 @@ Never work around a hook (for example by touching the gate marker by hand, or pu
 
 The worker's prompt is one line, `TASK_FILE: <path>`; the task is the file (`subtask-prompt.md`): the subtask's title, its worktree, its `allowed_paths` verbatim, its acceptance
 verbatim, the contract, what to read, the tests to run and the commit trailer. Write the epic block into the file itself: a worker starts with no memory of the
-planning conversation, and a hook blocks any command that merely contains the text of a push or of a PR creation, so a task is never spelled out in a command.
+planning conversation, and a hook blocks any command that merely contains the text of a push or of a PR creation, so a task is never spelled out in a command. The task file does not mention a PR: there is none for a subtask.
 
 Don't pass `model` overrides or extra tools beyond the defaults unless the human asks.

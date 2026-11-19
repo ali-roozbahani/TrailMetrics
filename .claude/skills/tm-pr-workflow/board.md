@@ -21,7 +21,7 @@ step of the gate and of CI's `tooling` job.
      owner merges): a queue entry and a PR of its own (`tm-agent-loop`, section 9), never a
      record.
    - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
-     or design; an epic, and the follow-ups its final board PR records (rule 5); an item the
+     or design; an epic, and the follow-ups its board commit records (rule 5); an item the
      queue refuses
      because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
      at count 3 ("Flake log"; a runner-not-acquired failure never is). An `[important]` reviewer finding not fixed in the PR is deferred as
@@ -48,22 +48,20 @@ step of the gate and of CI's `tooling` job.
    `Board: no changes`.
 4. **No board-only PRs.** Never open a PR just to update the board. The human or planner
    passes items found outside a PR into the next task's prompt; add them in that PR. The
-   only exceptions are an epic's final board PR (rule 5) and a sweep PR: a PR that changes
+   only exception is a sweep PR: a PR that changes
    only `BOARD.md` is allowed when every record it adds has `Source: sweep <skill>`, the
    `<skill>` of each is on the "Open sweeps" line below, and its description says under
    "What changed" that the owner's sweep task names it. The reviewer checks the Source lines
    and that sentence; nothing else about such a PR is exempt. The owner removes a name from
    the line when its stage is done, and sets the line to `none` when the sweep ends.
    Open sweeps (the owner edits this line, in a protected PR): none.
-5. **Epics.** Parallel subtask workers never edit `BOARD.md`, because their edits would
-   conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
-   description. Once every subtask is merged into the epic branch, the orchestrator opens
-   **one** final board PR into the epic branch. It is not a plan subtask (not in the plan,
-   no `allowed_paths`). It adds the records the subtasks reported, deletes the epic's own
-   record if the epic started from one, sets the plan's `Status` to `done` (a protected
-   path: the human merges this PR), and carries the `Board:` line. It reaches `main`
-   with the epic PR, whose own `Board:` line repeats those changes. An epic record points
-   to its plan under `docs/epics/`.
+5. **Epics.** A subtask of an epic is not a PR and never edits `BOARD.md`, because parallel subtasks
+   would conflict on it (this overrides rule 1 for them). It lists drift and follow-ups in the run
+   record of the epic. Once every subtask is merged into the integration branch, the orchestrator makes
+   **one** board commit, the last commit of the branch, which is part of the epic PR. It is not a plan
+   subtask (not in the plan, no `allowed_paths`). It adds the records the subtasks reported, deletes the
+   epic's own record if the epic started from one, sets the plan's `Status` to `done`, and the epic
+   PR's `Board:` line lists those changes. An epic record points to its plan under `docs/epics/`.
 6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
    Never rename or renumber a slug. The one exception: a PR may change the `Order` of other
    records only to make room for an insertion, and says so under "What changed".
