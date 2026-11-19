@@ -139,6 +139,4 @@ CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android`
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code.
-- `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not `LocationRepository`,
-  because `setBackgroundUpdatesEnabled` is not on the interface (see "Module boundaries";
-  `ios-launcher-depends-on-concrete-location-repository`).
+- None today.
