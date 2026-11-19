@@ -5,7 +5,7 @@ Read from `SKILL.md`, "Where this skill made calls the retired workflow doc didn
 Recorded so the first real epic can confirm or correct them:
 
 - Branch naming `feature/epic/<slug>` and sibling subtask branches: the retired workflow doc
-  named no convention. `ci.yml`'s `feature/**` trigger forces the prefix.
+  named no convention. It was first thought that `ci.yml`'s `feature/**` trigger forces the prefix; that trigger filters the base branch of a pull request, so it forces nothing, and the prefix is the branch-type rule of `tm-pr-workflow`, "Branching" (corrected 2026-11-19).
 - (Superseded 2026-11-19, see below.) Protection for epic branches through a single ruleset: the retired workflow doc
   predated required checks on `main` and said nothing about epic branches.
 - (Superseded 2026-11-19, see below.) Subtask merges into the epic branch: the retired workflow doc only forbade merging into

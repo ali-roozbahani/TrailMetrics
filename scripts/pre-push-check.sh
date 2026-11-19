@@ -295,6 +295,10 @@ run_step "protected paths" scripts/check-protected-paths.sh --validate
 # so a failure here keeps the agent from pushing such a branch. Every other workflow change passes.
 run_step "workflow guard" scripts/check-workflow-guard.sh --base "$BASE_REF"
 
+# A push trigger may name only branches that never have a pull request (main): a push run and a pull_request run for the
+# same head commit are two runs. CI's tooling job runs this script's --self-test, which also scans the committed workflows.
+run_step "ci triggers" scripts/check-ci-triggers.sh
+
 # No println/print in production Kotlin: detekt cannot see them (config/detekt/detekt.yml). Same command as CI's tooling job.
 run_step "no println" scripts/check-no-println.sh
 

@@ -1,0 +1,6 @@
+name: CI
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

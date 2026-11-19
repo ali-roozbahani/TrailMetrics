@@ -12,8 +12,8 @@
 # checks: running | green | red | missing, read by scripts/wait-for-checks.sh itself (one read, no
 # wait: WAIT_FOR_CHECKS_MAX_SECONDS=0) on the head SHA: ALL_GREEN is green, any FAILED line (the
 # reviewer's early failure included) is red, TIMEOUT with a check still running is running, TIMEOUT
-# with nothing running and a required check absent is missing (a PR whose base is not main gets
-# no CI). Behind: `behind_by` of the compare API between the base branch's head and the PR head.
+# with nothing running and a required check absent is missing (a PR whose base is neither main
+# nor `feature/**` gets no CI: ci.yml's pull_request filter). Behind: `behind_by` of the compare API between the base branch's head and the PR head.
 #
 # --wait takes the open PRs of its first read as the watched set and exits at the first read that
 # shows an event for one of them, printing every event of that read, one per line (exit 0):

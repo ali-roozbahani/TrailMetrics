@@ -1,0 +1,12 @@
+name: CI
+on:
+  pull_request:
+    branches: [ main, 'feature/**' ]
+  # Only main is tested after a push.
+  push:
+    branches: [ main ]
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

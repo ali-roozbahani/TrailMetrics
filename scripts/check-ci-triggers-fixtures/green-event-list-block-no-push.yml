@@ -1,0 +1,9 @@
+name: Review
+on:
+  - pull_request
+  - workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
