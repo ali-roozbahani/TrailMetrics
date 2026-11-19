@@ -60,7 +60,7 @@ public final class FakeLocationRepository: NSObject, LocationRepository {
         return SkieSwiftFlow(SkieKotlinFlow(SwiftTestFlow<LocationUpdate>(values: updates)))
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun getCurrentLocation`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun getCurrentLocation`
     public func __getCurrentLocation() async throws -> Any? {
         lock.withLock {
             recordedCallCount += 1

@@ -17,7 +17,11 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
     private var clockNow = Date(timeIntervalSinceReferenceDate: 1_000_000)
 
     private func makeController(_ client: FakeLiveActivityClient) -> TrackingLiveActivityController {
-        TrackingLiveActivityController(client: client, now: { [unowned self] in clockNow }, onStopRequested: {})
+        TrackingLiveActivityController(
+            client: client,
+            now: { [weak self] in self?.clockNow ?? .distantPast },
+            onStopRequested: {}
+        )
     }
 
     func test_start_withNoOtherActivity_requestsOne() {

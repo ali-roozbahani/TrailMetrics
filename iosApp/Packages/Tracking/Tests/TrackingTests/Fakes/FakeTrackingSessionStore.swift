@@ -48,7 +48,7 @@ final class FakeTrackingSessionStore: NSObject, TrackingSessionStore {
 
     func setClearFailing(_ failing: Bool) { lock.withLock { isClearFailing = failing } }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun save`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun save`
     func __save(session: StoredTrackingSession) async throws {
         lock.withLock { stored = session }
     }
@@ -69,7 +69,7 @@ final class FakeTrackingSessionStore: NSObject, TrackingSessionStore {
         }
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun clear`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun clear`
     func __clear() async throws {
         try lock.withLock {
             recordedClearCount += 1

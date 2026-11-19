@@ -91,6 +91,8 @@ ALLOWLIST=(
 #   check-room-schema.*      `--check-export-fresh` is a step after the Android build, in CI and the gate
 #   check-localized-strings.*, check-optional-try.*   SwiftLint rules; their self-tests run only in
 #                            CI's iOS job (group ios-swiftlint)
+#   swiftlint-pin.sh         CI's iOS job installs and checks SwiftLint with it, the gate's iOS steps check the
+#                            version with it; its self-test is a `tooling` one (light)
 #   classify-changes.sh      CI's plan job runs it and its decision gates the Android and iOS jobs; also the
 #                            gate's (a wrong list would make everything light). Its fixtures are read only by its
 #                            --self-test, a `tooling` self-test: light
@@ -110,6 +112,7 @@ HEAVY_SCRIPTS=(
     'scripts/check-localized-strings-fixtures/**'
     'scripts/check-optional-try.sh'
     'scripts/check-optional-try-fixtures/**'
+    'scripts/swiftlint-pin.sh'
     'scripts/classify-changes.sh'
     'scripts/ci/**'
     'scripts/checks/self-tests.sh'

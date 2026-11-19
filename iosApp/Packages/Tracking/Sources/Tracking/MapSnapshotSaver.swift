@@ -30,11 +30,10 @@ func snapshotDirectory() -> URL? {
     return directory
 }
 
-/// PNG-encodes `image` and writes it into `directory`. The function is nonisolated, but the app
-/// target builds with `NonisolatedNonsendingByDefault`, so it runs on its caller's actor: the caller
-/// must hop off the main actor (`TrackingMapView` calls it from `Task.detached`). Returns the file
-/// path, or nil when the encoding or the write fails.
-func writeMapSnapshot(_ image: UIImage, to directory: URL) async -> String? {
+/// PNG-encodes `image` and writes it into `directory`. The function is nonisolated and synchronous, so
+/// it runs on whatever thread calls it: the caller must hop off the main actor (`TrackingMapView` calls
+/// it from `Task.detached`). Returns the file path, or nil when the encoding or the write fails.
+func writeMapSnapshot(_ image: UIImage, to directory: URL) -> String? {
     guard let data = image.pngData() else { return nil }
 
     let fileName = "activity_\(Int(Date().timeIntervalSince1970 * 1000)).png"

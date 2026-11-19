@@ -11,6 +11,15 @@ runs in `scripts/pre-push-check.sh` (whenever a file other than markdown under `
 Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`,
 `gradle/gradle-daemon-jvm.properties`, or `scripts/build-kmp-framework.sh`) and in CI's `ios-build` job, followed by an `xcodebuild` simulator build.
 
+- One SwiftLint version everywhere: `config/swiftlint.pin` (version and the sha256 of the release's
+  `portable_swiftlint.zip`). CI installs exactly it (`scripts/swiftlint-pin.sh --install`) and the gate's step
+  `swiftlint version` fails when the `swiftlint` on PATH is another version (`scripts/swiftlint-pin.sh --check`);
+  `brew install swiftlint` gives only the newest release, so install the pin into a directory and put it first on PATH.
+  A new version is a change of that file with the lint run on it. The opt-in rules `weak_delegate`,
+  `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture` and
+  `implicitly_unwrapped_optional` and `async_without_await` are on (a declaration whose `async` a protocol requires
+  carries the disable comment with that reason, as in `iosApp/.swiftlint.yml`). The analyzer rules (`swiftlint analyze`,
+  which needs a compile log) are not; the reason is in the board record `swiftlint-analyzer-rules`.
 - `--strict` promotes every warning to a failure. The `warning` thresholds are the real
   limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic
   complexity 15.

@@ -194,8 +194,14 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -switch /Applications/Xcode.app
 
+      # The pinned release (config/swiftlint.pin), checked against its sha256: `brew install swiftlint` gives
+      # whatever version Homebrew has that day, while the gate checks the pin.
       - name: Install SwiftLint
-        run: brew install swiftlint
+        run: |
+          scripts/swiftlint-pin.sh --install "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/swiftlint/swiftlint" version
+          PATH="$RUNNER_TEMP/swiftlint:$PATH" scripts/swiftlint-pin.sh --check
 
       - name: Run SwiftLint
         run: |

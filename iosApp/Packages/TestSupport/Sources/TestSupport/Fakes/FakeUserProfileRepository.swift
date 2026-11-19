@@ -78,7 +78,7 @@ public final class FakeUserProfileRepository: NSObject, UserProfileRepository {
         }
     }
 
-    // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun saveUserProfile`
+    // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun saveUserProfile`
     public func __saveUserProfile(userProfile: UserProfile) async throws {
         try lock.withLock {
             if isFailingStorage { throw StorageError() }

@@ -32,7 +32,7 @@ if [ "${1:-}" != "--self-test" ] || [ $# -ne 1 ]; then
     exit 2
 fi
 if ! command -v swiftlint >/dev/null 2>&1; then
-    echo "swiftlint is not installed (brew install swiftlint)" >&2
+    echo "swiftlint is not installed (scripts/swiftlint-pin.sh --install <dir>, then put <dir> first on PATH)" >&2
     exit 2
 fi
 

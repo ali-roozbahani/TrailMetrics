@@ -578,8 +578,8 @@ the stamp if one of them ever does change the framework).
   project — it surfaces the first time a full `build` (not just `assemble`
   or `test`) is run against a KMP module using both KSP and Android Lint.
 - SwiftLint is not reliably preinstalled on GitHub Actions' `macos-latest`
-  runners (on PR #104's run `brew install swiftlint` poured 0.65.1), so
-  CI's `ios-build` job runs an unpinned `brew install swiftlint`. A newer
+  runners, so CI's `ios-build` job installs the release pinned in
+  `config/swiftlint.pin` (it used to run an unpinned `brew install swiftlint`). A newer
   SwiftLint can reject an `excluded_match_kinds` name of the `optional_try`
   rule and switch it off without failing `--strict`; that is why
   `scripts/check-optional-try.sh --self-test` runs next to it.

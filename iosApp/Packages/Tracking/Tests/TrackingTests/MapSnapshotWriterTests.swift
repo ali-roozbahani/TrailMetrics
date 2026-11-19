@@ -9,11 +9,8 @@ import XCTest
 
 final class MapSnapshotWriterTests: XCTestCase {
 
-    private var directory: URL!
-
-    override func setUpWithError() throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    }
+    // XCTest makes a new instance per test method, so every test gets its own directory.
+    private let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 
     override func tearDownWithError() throws {
         if FileManager.default.fileExists(atPath: directory.path) {
@@ -28,8 +25,8 @@ final class MapSnapshotWriterTests: XCTestCase {
         }
     }
 
-    func test_write_createsPngFileInDirectory() async throws {
-        let path = await writeMapSnapshot(image(), to: directory)
+    func test_write_createsPngFileInDirectory() throws {
+        let path = writeMapSnapshot(image(), to: directory)
 
         let writtenPath = try XCTUnwrap(path)
         let url = URL(fileURLWithPath: writtenPath)
@@ -39,19 +36,19 @@ final class MapSnapshotWriterTests: XCTestCase {
         XCTAssertNotNil(UIImage(contentsOfFile: writtenPath))
     }
 
-    func test_write_unwritableDirectory_returnsNil() async throws {
+    func test_write_unwritableDirectory_returnsNil() throws {
         // A regular file where the directory should be: creating the directory fails.
         let blocker = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try Data().write(to: blocker)
 
-        let path = await writeMapSnapshot(image(), to: blocker.appendingPathComponent("sub"))
+        let path = writeMapSnapshot(image(), to: blocker.appendingPathComponent("sub"))
 
         XCTAssertNil(path)
         try FileManager.default.removeItem(at: blocker)
     }
 
-    func test_discard_removesFile() async throws {
-        let written = await writeMapSnapshot(image(), to: directory)
+    func test_discard_removesFile() throws {
+        let written = writeMapSnapshot(image(), to: directory)
         let path = try XCTUnwrap(written)
 
         discardSnapshotFile(atPath: path)

@@ -50,7 +50,7 @@ file when the task or the diff reaches its topic, not before; a reviewer reads i
   nothing; index access reviewer only. Severity: blocking.
 - **C3** Swift: never a force unwrap `!`, `try!` or `as!` on external data. Why: each traps and
   kills the process. Example: none in production Swift. Enforced: SwiftLint `force_unwrapping`,
-  `force_try`, `force_cast` (all errors). Severity: blocking.
+  `force_try`, `force_cast` (all errors) and `implicitly_unwrapped_optional`. Severity: blocking.
 - **C4** An exception thrown by Kotlin that Swift calls follows the `@Throws` policy in
   `tm-kmp-shared` ("`@Throws` policy", `swift-interop.md`); do not restate it there or here. Why: an undeclared
   exception terminates the iOS process. Example: `SaveActivityUseCase`. Enforced: reviewer only.
@@ -92,7 +92,7 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   Enforced: reviewer only. Severity: blocking.
 - **E4** The failure of a background job (a coroutine, a `Task`, a service) is observable as state
   or an event, not lost. Why: a failed save or sync the user never hears about is data loss.
-  Example: `ObserveActivitiesUseCase` emits `Failed`. Enforced: reviewer only. Severity: blocking.
+  Example: `ObserveActivitiesUseCase` emits `Failed`. Enforced: SwiftLint `unhandled_throwing_task` (on, for a `Task` whose error nothing reads); otherwise reviewer only. Severity: blocking.
   Accepted exception (owner, PR #250): the route draft. `RouteDraftSaver` logs a failed save or read,
   planning goes on, no notice; the plan is cheap to make again, not data the user recorded.
 
