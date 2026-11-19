@@ -1,16 +1,16 @@
 package dev.roozbahani.trailmetrics.data.tracking
 
-import dev.roozbahani.trailmetrics.data.location.IosLocationRepositoryImpl
+import dev.roozbahani.trailmetrics.domain.tracking.BackgroundLocationUpdates
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingServiceLauncher
 
 class IosTrackingServiceLauncher(
-    private val locationRepository: IosLocationRepositoryImpl
+    private val backgroundLocationUpdates: BackgroundLocationUpdates
 ) : TrackingServiceLauncher {
     override fun start() {
-        locationRepository.setBackgroundUpdatesEnabled(true)
+        backgroundLocationUpdates.setEnabled(true)
     }
 
     override fun stop() {
-        locationRepository.setBackgroundUpdatesEnabled(false)
+        backgroundLocationUpdates.setEnabled(false)
     }
 }
