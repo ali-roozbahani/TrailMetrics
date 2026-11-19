@@ -68,6 +68,8 @@ struct TrackingMapChanges: Equatable {
     var redrawsRecordedLine: Bool
     var movesMarker: Bool
 
+    // Read only by TrackingMapChangesTests (SwiftLint's analyzer saw no production reader on 2026-11-19); kept as the
+    // test's one question "is anything redrawn".
     var isEmpty: Bool {
         !redrawsPlannedRoute && !redrawsTraveledSegment && !redrawsRecordedLine && !movesMarker
     }

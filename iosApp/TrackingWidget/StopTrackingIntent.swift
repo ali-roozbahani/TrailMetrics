@@ -7,6 +7,8 @@ import AppIntents
 import Foundation
 
 struct StopTrackingIntent: LiveActivityIntent {
+    // `title` is a requirement of `AppIntent`: the system reads it, nothing in the code does (SwiftLint's analyzer
+    // reports it as unused, 2026-11-19).
     static var title: LocalizedStringResource = "Stop Tracking"
     static var description = IntentDescription("Stops the current TrailMetrics tracking session.")
 
