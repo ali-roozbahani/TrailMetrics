@@ -123,7 +123,7 @@ Call this out explicitly in the PR description if you touch event-emitting code.
 ## Cross-platform change order
 
 For a feature touching shared + both UIs: shared layer changes go in first and merge to
-the epic branch; Android UI and iOS UI then proceed independently since they only touch
+the integration branch of the epic; Android UI and iOS UI then proceed independently since they only touch
 `androidApp/` and `iosApp/` respectively.
 
 ## Kotlin conventions (domain / data / core / shared)

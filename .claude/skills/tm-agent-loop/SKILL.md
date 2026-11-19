@@ -57,8 +57,11 @@ task is a new run; the human clears the session between runs.
 scripts/check-board.sh --next
 ```
 
-- An epic or `figma-design-system`: don't code. Write the plan for the human to approve
-  (`tm-pr-workflow`, "Board", rule 0) and stop.
+- `figma-design-system`, or an epic with no plan on `main` approved by the owner: don't code. Write the plan for
+  the human to approve (`tm-pr-workflow`, "Board", rule 0) and stop.
+- An epic whose approved plan is on `main`: run it only on the owner's command "run the epic `<slug>`", by
+  `epic-orchestration` (`running-an-epic.md`), which is a run of its own and does not use the queue. Without that
+  command, report that the epic waits for it and do not start it.
 - A record that is unclear, or whose Done when contradicts the code: stop and report.
 - Otherwise the record is the task. Its Problem and Done when are what the PR description
   must cover; the reviewer's `TASK` is that description (section 4), and the `Board: -slug`
@@ -167,7 +170,7 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
 
 - The identity is wrong, or an environment failure.
 - The gate's retry budget or the review fix budget is exhausted.
-- The record is an epic or unclear.
+- The record is an epic with no approved plan or no owner command, or is unclear.
 - A protected-path change the task did not call for.
 - CI still red on the same SHA after its one re-run, the script refuses, a third failing push after
   2 CI-fix rounds, or the reviewer check is `UNKNOWN` (section 6).
@@ -216,8 +219,8 @@ The final report to the human has three parts: Done, Not done, Not verified.
   wall: don't try to get around them.
 - Merge a PR for which one of section 8's conditions is not met, or an epic PR into `main`.
 - Let a subagent push, open, review or merge a PR, run the gate, touch the queue or the review
-  records, or integrate: only the orchestrator does (section "Subagents"). Start a heavy run around
-  `scripts/heavy-run.sh`.
+  records, or integrate: only the orchestrator does (section "Subagents"; the subtask worker of an epic is an
+  `implementer` too, `epic-orchestration`, "Roles"). Start a heavy run around `scripts/heavy-run.sh`.
 - Do not join git commands that depend on each other with `;`. Join them with `&&`, so a failed
   command stops what follows (a failed `git revert` once let a following
   `git commit --amend` run). Run a history-changing command (`git revert`, `merge`,

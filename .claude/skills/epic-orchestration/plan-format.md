@@ -139,7 +139,7 @@ them is valid. The table gives every criterion of the Goal a subtask and the che
 criterion that no subtask covers shows as an empty row. The trigger names what the orchestrator finds
 while it works (a contract that has to change, a subtask that needs a path outside its `allowed_paths`, a
 check that cannot be written) that sends the plan back to the human instead of being patched in the
-subtask PRs.
+subtasks.
 
 Notes on the example: S2 and S3 don't need `androidApp/app/**` or `iosApp/TrailMetrics/**`
 because History is already routed on both platforms. If a feature needed a new screen

@@ -24,7 +24,7 @@ equal the prompt's.
   CI's reviewer gets: a fixed header, the description between its markers, and each board
   record the description's `Board:` line removes, as it is on `origin/main`. The draft is
   `~/agent-workspace/pr-body-<slug>.md`, written before the review without `Reviewer findings`.
-  An epic subtask's description carries its `allowed_paths`. Task text that is not in the
+  An epic subtask's draft description (its local review is not a PR) carries its `allowed_paths` and the review scope (`epic-orchestration`, `subtask-merge.md`). Task text that is not in the
   description is not in `TASK`.
 
 `INPUT_DIR` holds plain git output (commands under "Orchestrator's part"): `head`, `base`,
@@ -132,7 +132,7 @@ from memory.
    `.claude/skills/tm-pr-workflow/board.md`, which you Read). Every bullet under
    "Follow-ups" and "Drift found" ends with `(#<n>)`, `(queue: <slug>)` or `(board: <slug>)`; a
    bullet with none is blocking. Each `BOARD.md` record the diff adds states in its Problem one
-   of the reasons rule 1 admits (owner decision or design, an epic or its final board PR's
+   of the reasons rule 1 admits (owner decision or design, an epic or its board commit's
    records, the queue's limit of 5, an owner-opened sweep, a flake escalated at count 3, never a "job not acquired by a runner" one);
    a record whose only reason is that the agent could do it, and a record or follow-up whose
    reason is a same-subject fix within the sweep bound, are blocking; a record the task
@@ -144,8 +144,8 @@ from memory.
    line naming another skill is blocking), and "What changed" says the owner's sweep task
    names it; a missing Source line or sentence is blocking. Exception
    (rule 5): a parallel subtask of an epic with an integration branch never edits
-   `BOARD.md` and lists its follow-ups and drift in its PR description instead, without the
-   ending (the epic's final board PR records them).
+   `BOARD.md` and lists its follow-ups and drift in its draft description instead, without the
+   ending (the epic's board commit, a commit of the one epic PR, records them).
 9. **Docs follow the code** (`tm-pr-workflow`, "Docs follow the code you changed"). A skill
    or `CLAUDE.md` line that describes code this diff changed is updated in the diff. No line
    numbers in docs, skills, board records or comments (a `<path>:<number>` reference, or
