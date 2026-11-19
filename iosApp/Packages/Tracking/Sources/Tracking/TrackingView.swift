@@ -76,7 +76,7 @@ public struct TrackingView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
-                    if viewModel.canPause || viewModel.canResume {
+                    if viewModel.canStop {
                         showExitConfirmation = true
                     } else {
                         dismiss()

@@ -3,7 +3,7 @@
 //  TrackingTests
 //
 //  Repeated Finish: one save and one `onSaved` per finished session, a retry after a
-//  failed save, and a new save after a new session.
+//  failed save, and no second save or session after a save.
 //
 
 import SharedKit
@@ -59,7 +59,7 @@ final class TrackingViewModelFinishTests: TrackingTestCase {
         XCTAssertEqual(recorder.events.count, 1)
     }
 
-    func test_onFinishClicked_afterStartOfNewSession_savesAgain() async {
+    func test_onFinishClicked_afterASave_neitherStartsNorSavesAgain() async {
         let activityHistoryRepository = FakeActivityHistoryRepository()
         let subject = await makeFinishedSubject(activityHistoryRepository: activityHistoryRepository)
         let viewModel = subject.viewModel
@@ -67,18 +67,17 @@ final class TrackingViewModelFinishTests: TrackingTestCase {
         viewModel.onFinishClicked(snapshotFilePath: "first") { onSavedCallCount += 1 }
         await waitUntil { onSavedCallCount == 1 }
 
-        // Stop cancelled the ViewModel's state observation (the known limitation in tm-ios,
-        // "ViewModel shape"), so wait on the session manager's
-        // second location collection instead; Stop reads the manager's state directly.
+        // Stop cancelled the ViewModel's state observation (the known limitation in tm-ios, "ViewModel
+        // shape"), so this instance still shows Finished: Start is not offered over it, and the screen
+        // leaves after the save.
+        XCTAssertFalse(viewModel.canStart)
         viewModel.onStartClicked()
-        await waitUntil { subject.locationRepository.observeCallCount == 2 }
-        viewModel.onStopClicked()
         viewModel.onFinishClicked(snapshotFilePath: "second") { onSavedCallCount += 1 }
 
-        await waitUntil { onSavedCallCount == 2 }
         await Task.yield()
-        XCTAssertEqual(onSavedCallCount, 2)
-        XCTAssertEqual(activityHistoryRepository.savedActivities.map(\.snapshotFilePath), ["first", "second"])
+        XCTAssertEqual(subject.locationRepository.observeCallCount, 1, "No second session was started")
+        XCTAssertEqual(onSavedCallCount, 1)
+        XCTAssertEqual(activityHistoryRepository.savedActivities.map(\.snapshotFilePath), ["first"])
     }
 
     // MARK: - Finish without a loaded profile

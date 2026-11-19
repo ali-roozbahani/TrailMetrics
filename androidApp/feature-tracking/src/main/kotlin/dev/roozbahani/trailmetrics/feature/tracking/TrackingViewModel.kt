@@ -8,9 +8,11 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
+import dev.roozbahani.trailmetrics.domain.model.TrackingControls
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
+import dev.roozbahani.trailmetrics.domain.model.availableControls
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
@@ -160,7 +162,7 @@ class TrackingViewModel(
 
     private fun start(startCoordinates: Coordinates) {
         // A stored or unsaved session is never replaced: its first save would overwrite the stored one.
-        if (isRestoring.value || trackingSessionManager.currentState.value !is TrackingState.Idle) return
+        if (!trackingSessionManager.currentState.value.availableControls(isRestoring.value).canStart) return
         isSessionSaved = false
         snapshotInUse = null
         viewModelScope.launch {
@@ -292,18 +294,24 @@ data class TrackingScreenState(
     val traveledSegmentToDraw: List<Coordinates>
         get() = if (recordedPathToDraw.isNotEmpty()) emptyList() else routeProgress?.traveledSegment.orEmpty()
 
-    /** Only in Idle, and once the stored session is loaded: Start must never replace a session that exists. */
+    /** The controls the user may use now: the rules are `domain`'s, this only asks (`availableControls`). */
+    private val controls: TrackingControls
+        get() = trackingState.availableControls(isRestoring)
+
     val canStart: Boolean
-        get() = trackingState is TrackingState.Idle && !isRestoring
+        get() = controls.canStart
 
     val canPause: Boolean
-        get() = trackingState is TrackingState.Tracking
+        get() = controls.canPause
 
     val canResume: Boolean
-        get() = trackingState is TrackingState.Paused
+        get() = controls.canResume
 
     val canStop: Boolean
-        get() = trackingState is TrackingState.Tracking || trackingState is TrackingState.Paused
+        get() = controls.canStop
+
+    val canSave: Boolean
+        get() = controls.canSave
 }
 
 private const val MIN_POINTS_FOR_LINE = 2

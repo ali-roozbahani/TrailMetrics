@@ -52,37 +52,28 @@ public class TrackingViewModel: ObservableObject {
 
     private var liveActivityController: TrackingLiveActivityController?
 
-    public var canStart: Bool {
-        switch onEnum(of: trackingState) {
-        case .idle, .finished: return !storedSessionReadState.isRestoring
-        case .tracking, .paused: return false
-        }
+    /// The controls the user may use now. The rules are `domain`'s (`availableControls`, the same ones
+    /// Android asks); this only reads them.
+    private var controls: TrackingControls {
+        trackingState.availableControls(isRestoring: storedSessionReadState.isRestoring)
     }
 
-    public var canPause: Bool {
-        if case .tracking = onEnum(of: trackingState) { return true }
-        return false
-    }
+    public var canStart: Bool { controls.canStart }
 
-    /// A Finished session waits to be saved: the route's end, or a restored one. Not while it is discarded.
-    public var canFinish: Bool {
-        if case .finished = onEnum(of: trackingState) { return !isDiscarding }
-        return false
-    }
+    public var canPause: Bool { controls.canPause }
 
-    public var canResume: Bool { isPaused }
+    /// A Finished session waits to be saved: the route's end, or a restored one. Not while it is discarded
+    /// (a presentation detail of this screen: Stop passes through Finished on its way to Idle).
+    public var canFinish: Bool { controls.canSave && !isDiscarding }
+
+    public var canResume: Bool { controls.canResume }
 
     private var isPaused: Bool {
         if case .paused = onEnum(of: trackingState) { return true }
         return false
     }
 
-    public var canStop: Bool {
-        switch onEnum(of: trackingState) {
-        case .tracking, .paused: return true
-        default: return false
-        }
-    }
+    public var canStop: Bool { controls.canStop }
 
     public var currentPath: [Coordinates] {
         switch onEnum(of: trackingState) {
@@ -249,7 +240,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func onStartClicked() {
-        guard !storedSessionReadState.isRestoring else { return }
+        guard canStart else { return }
         isSessionSaved = false
         trackingSessionManager.start(
             startPoint: startPoint,
