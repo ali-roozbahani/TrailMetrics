@@ -13,6 +13,7 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
@@ -92,7 +93,7 @@ class TrackingViewModelSnapshotFileTest {
                 TrackingViewModel(
                     trackingSessionManager = sessionManager,
                     userProfileRepository = userProfileRepository,
-                    calorieCalculator = CalorieCalculator(),
+                    trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
                     saveActivityUseCase = SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock),
                     activityType = ActivityType.Cycling,
                     plannedRoutePoints = emptyList(),

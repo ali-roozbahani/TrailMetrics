@@ -255,6 +255,4 @@ fails, so observe through a use case that turns the failure into a value on the 
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code.
-- `TrackingViewModel` extracts the metrics from `TrackingState` and recomputes calories itself, the same
-  rules Android's `TrackingViewModel` holds (`tm-kmp-shared`, "Where logic lives";
-  `tracking-metrics-calories-to-domain`).
+- None today.

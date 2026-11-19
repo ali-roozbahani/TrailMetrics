@@ -14,6 +14,7 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
@@ -92,7 +93,7 @@ class TrackingViewModelTest {
         val viewModel = TrackingViewModel(
             trackingSessionManager = sessionManager,
             userProfileRepository = userProfileRepository,
-            calorieCalculator = CalorieCalculator(),
+            trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
             saveActivityUseCase = SaveActivityUseCase(activityHistoryRepository, CalorieCalculator(), clock),
             activityType = activityType,
             plannedRoutePoints = plannedRoutePoints,
@@ -322,6 +323,24 @@ class TrackingViewModelTest {
         testScheduler.runCurrent()
         assertIs<TrackingState.Finished>(viewModel.state.value.trackingState)
         assertEquals(trackingCalories, viewModel.state.value.calories)
+    }
+
+    @Test
+    fun `the state shows the domain result for the same state and weight and activity type`() = runTest(testScheduler) {
+        userProfileRepository.userProfile = PROFILE
+        val viewModel = createViewModel()
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        receiveLocation(NEXT, millisAfterStart = 60_000L)
+        for (step in listOf({}, { viewModel.onAction(TrackingAction.Pause) }, { sessionManager.stop() })) {
+            step()
+            testScheduler.runCurrent()
+            val state = viewModel.state.value
+            val domain = TrackingMetricsUseCase(CalorieCalculator())
+            val result = domain(state.trackingState, ActivityType.Cycling, PROFILE.weightKg)
+            assertEquals(assertNotNull(result.calories), state.calories)
+            assertEquals(result.metrics, state.currentMetrics)
+        }
     }
 
     @Test

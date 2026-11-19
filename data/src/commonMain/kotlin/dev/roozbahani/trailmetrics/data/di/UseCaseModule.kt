@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.GetCurrentLocationUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.ObserveActivitiesUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.Clock
@@ -15,6 +16,7 @@ val useCaseModule = module {
     factory { GetCurrentLocationUseCase(get()) }
     factory { UpdateTrackingStateUseCase() }
     factory { CalorieCalculator() }
+    factory { TrackingMetricsUseCase(calorieCalculator = get<CalorieCalculator>()) }
     factory {
         SaveActivityUseCase(
             activityHistoryRepository = get<ActivityHistoryRepository>(),

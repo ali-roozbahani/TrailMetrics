@@ -50,7 +50,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   `UnusedParameter` catch the private ones. Unused `internal`/`public` code and unused
   imports (`UnusedImports` is off) are not caught, so check them yourself.
 - Explanatory comments on *why* are welcome (see `MainActivity`'s `stopTrackingRequested`
-  and `trackingUiModule`'s `CalorieCalculator` note). Commented-out code is not.
+  and `trackingUiModule`'s `TrackingMetricsUseCase` note). Commented-out code is not.
 
 
 ## Detekt (CI-enforced, `maxIssues: 0`)

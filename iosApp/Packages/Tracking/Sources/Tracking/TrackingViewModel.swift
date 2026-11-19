@@ -34,7 +34,7 @@ public class TrackingViewModel: ObservableObject {
     private let storedSessionReadState: any StoredSessionReadState
     private let trackingSessionManager: TrackingSessionManager
     private let userProfileRepository: UserProfileRepository
-    private let calorieCalculator: CalorieCalculator
+    private let trackingMetricsUseCase: TrackingMetricsUseCase
     private let saveActivityUseCase: SaveActivityUseCase
     private let clock: Clock
 
@@ -103,16 +103,18 @@ public class TrackingViewModel: ObservableObject {
         }
     }
 
+    /// What the metrics panel shows, from the shared `TrackingMetricsUseCase` (the same one Android uses).
+    private var metricsSummary: TrackingMetricsSummary {
+        trackingMetricsUseCase.invoke(
+            state: trackingState,
+            activityType: activityType,
+            weightKg: loadedUserProfile.map { KotlinDouble(value: $0.weightKg) }
+        )
+    }
+
     /// The numbers the metrics panel shows: in every state that has a session, Finished included, so the panel
     /// stays above the Finish card after Stop and after a restore of a Finished session (as on Android).
-    public var currentMetrics: TrackingMetrics? {
-        switch onEnum(of: trackingState) {
-        case .tracking(let data): return data.metrics
-        case .paused(let data): return data.metrics
-        case .finished(let data): return data.metrics
-        case .idle: return nil
-        }
-    }
+    public var currentMetrics: TrackingMetrics? { metricsSummary.metrics }
 
     public convenience init(
         activityType: ActivityType,
@@ -121,7 +123,7 @@ public class TrackingViewModel: ObservableObject {
         storedSessionReadState: any StoredSessionReadState,
         trackingSessionManager: TrackingSessionManager = KoinHelper().trackingSessionManager(),
         userProfileRepository: UserProfileRepository = KoinHelper().userProfileRepository(),
-        calorieCalculator: CalorieCalculator = KoinHelper().calorieCalculator(),
+        trackingMetricsUseCase: TrackingMetricsUseCase = KoinHelper().trackingMetricsUseCase(),
         saveActivityUseCase: SaveActivityUseCase = KoinHelper().saveActivityUseCase(),
         clock: Clock = KoinHelper().clock()
     ) {
@@ -132,7 +134,7 @@ public class TrackingViewModel: ObservableObject {
             storedSessionReadState: storedSessionReadState,
             trackingSessionManager: trackingSessionManager,
             userProfileRepository: userProfileRepository,
-            calorieCalculator: calorieCalculator,
+            trackingMetricsUseCase: trackingMetricsUseCase,
             saveActivityUseCase: saveActivityUseCase,
             clock: clock,
             liveActivityClient: ActivityKitLiveActivityClient()
@@ -147,7 +149,7 @@ public class TrackingViewModel: ObservableObject {
         storedSessionReadState: any StoredSessionReadState,
         trackingSessionManager: TrackingSessionManager,
         userProfileRepository: UserProfileRepository,
-        calorieCalculator: CalorieCalculator,
+        trackingMetricsUseCase: TrackingMetricsUseCase,
         saveActivityUseCase: SaveActivityUseCase,
         clock: Clock,
         liveActivityClient: LiveActivityClient
@@ -158,7 +160,7 @@ public class TrackingViewModel: ObservableObject {
         self.storedSessionReadState = storedSessionReadState
         self.trackingSessionManager = trackingSessionManager
         self.userProfileRepository = userProfileRepository
-        self.calorieCalculator = calorieCalculator
+        self.trackingMetricsUseCase = trackingMetricsUseCase
         self.saveActivityUseCase = saveActivityUseCase
         self.clock = clock
 
@@ -243,18 +245,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     private func recomputeCalories() {
-        guard let metrics = currentMetrics,
-              let userProfile = loadedUserProfile,
-              let averageSpeed = metrics.averageSpeedMetersPerSecond?.floatValue else {
-            calories = nil
-            return
-        }
-        calories = calorieCalculator.calculate(
-            activityType: activityType,
-            averageSpeedMetersPerSecond: averageSpeed,
-            weightKg: userProfile.weightKg,
-            durationMillis: metrics.elapsedMillis
-        )
+        calories = metricsSummary.calories?.doubleValue
     }
 
     public func onStartClicked() {

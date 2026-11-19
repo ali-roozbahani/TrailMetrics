@@ -170,7 +170,7 @@ against the old per-action public methods once a screen has been migrated to MVI
 @Test
 fun `Pause action pauses an active tracking session`() = runTest(testScheduler) {
     // sessionManager: a real TrackingSessionManager built from fakes (see "Fakes over mocks")
-    val viewModel = TrackingViewModel(sessionManager, fakeProfileRepo, CalorieCalculator(), saveActivityUseCase, ActivityType.Running, emptyList(), fakeClock)
+    val viewModel = TrackingViewModel(sessionManager, fakeProfileRepo, TrackingMetricsUseCase(CalorieCalculator()), saveActivityUseCase, ActivityType.Running, emptyList(), fakeClock)
     // state is stateIn(WhileSubscribed): keep a subscriber for the whole test
     backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
 

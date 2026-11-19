@@ -14,7 +14,8 @@ import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
-import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
+import dev.roozbahani.trailmetrics.domain.usecase.TrackingMetricsUseCase
+import dev.roozbahani.trailmetrics.domain.usecase.sessionMetrics
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.SnapshotFileDeleter
 import kotlinx.coroutines.CancellationException
@@ -36,7 +37,7 @@ import kotlinx.coroutines.launch
 class TrackingViewModel(
     private val trackingSessionManager: TrackingSessionManager,
     private val userProfileRepository: UserProfileRepository,
-    private val calorieCalculator: CalorieCalculator,
+    private val trackingMetricsUseCase: TrackingMetricsUseCase,
     private val saveActivityUseCase: SaveActivityUseCase,
     private val activityType: ActivityType,
     private val plannedRoutePoints: List<Coordinates>,
@@ -103,18 +104,7 @@ class TrackingViewModel(
         retainedSnapshotPath,
         isRestoring
     ) { trackingState, userProfile, retainedPath, restoring ->
-        val metrics: TrackingMetrics? = trackingState.sessionMetrics()
-
-        val calories: Double? = if (metrics != null && userProfile != null) {
-            metrics.averageSpeedMetersPerSecond?.let { averageSpeed ->
-                calorieCalculator.calculate(
-                    activityType = activityType,
-                    averageSpeedMetersPerSecond = averageSpeed,
-                    weightKg = userProfile.weightKg,
-                    durationMillis = metrics.elapsedMillis
-                )
-            }
-        } else null
+        val calories = trackingMetricsUseCase(trackingState, activityType, userProfile?.weightKg).calories
 
         TrackingScreenState(
             trackingState = trackingState,
@@ -270,14 +260,6 @@ class TrackingViewModel(
 
     private suspend fun readProfileAgain(): UserProfile? =
         userProfileRepository.getUserProfile().also { _userProfile.value = it }
-}
-
-/** The metrics of a session that exists, running, paused or finished; null while idle. */
-private fun TrackingState.sessionMetrics(): TrackingMetrics? = when (this) {
-    is TrackingState.Tracking -> metrics
-    is TrackingState.Paused -> metrics
-    is TrackingState.Finished -> metrics
-    TrackingState.Idle -> null
 }
 
 /** Named to avoid colliding with the domain [TrackingState] it wraps. */

@@ -158,9 +158,7 @@ Don't copy these as a pattern for new code. Each names its board record.
   `init`; `RouteDraftSaver` has the same shape. Both are documented in the code and stay as they are
   (M9).
 - `IosTrackingServiceLauncher` takes the concrete
-  `IosLocationRepositoryImpl` (`ios-launcher-depends-on-concrete-location-repository`); the iOS
-  `TrackingViewModel` recomputes metrics and calories that belong in `domain`
-  (`tracking-metrics-calories-to-domain`).
+  `IosLocationRepositoryImpl` (`ios-launcher-depends-on-concrete-location-repository`).
 - Every location update copies the whole path (`path + coordinates` in `UpdateTrackingStateUseCase`)
   and the polyline is rebuilt from it; no conflation or distance filter on either platform (P4,
   P6; `tracking-location-update-path-cost`).
