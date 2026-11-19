@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
+import dev.roozbahani.trailmetrics.domain.tracking.BackgroundLocationUpdates
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.channels.ProducerScope
@@ -78,7 +79,7 @@ internal fun applyBackgroundTracking(settings: LocationManagerSettings, enabled:
 }
 
 @OptIn(ExperimentalForeignApi::class)
-class IosLocationRepositoryImpl : LocationRepository {
+class IosLocationRepositoryImpl : LocationRepository, BackgroundLocationUpdates {
 
     private var pendingCurrentLocation: Continuation<Result<Coordinates>>? = null
     private var pendingAuthorization: Continuation<Boolean>? = null
@@ -168,7 +169,7 @@ class IosLocationRepositoryImpl : LocationRepository {
         }
     }
 
-    fun setBackgroundUpdatesEnabled(enabled: Boolean) {
+    override fun setEnabled(enabled: Boolean) {
         applyBackgroundTracking(CLLocationManagerSettings(locationManager), enabled)
     }
 }

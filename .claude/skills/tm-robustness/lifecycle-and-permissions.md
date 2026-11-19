@@ -48,7 +48,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   in-progress session; no work assumes the app stays in the foreground. Why: iOS suspends and
   terminates apps without a callback you can rely on. Example: `SavedSessionOfferModel` restores the
   stored session once per launch and offers it (no `scenePhase` use; background location is enabled by
-  `IosLocationRepositoryImpl.setBackgroundUpdatesEnabled`).
+  `IosLocationRepositoryImpl.setEnabled`, the `BackgroundLocationUpdates` of `domain`).
   Enforced: reviewer only. Severity: blocking when the reviewer verifies in the files the loss of
   data the user recorded or entered (the session, the route draft, a saved activity), important
   for a likely gap the files cannot prove.

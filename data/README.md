@@ -31,7 +31,8 @@ does not publish that target yet).
   via the composition pattern — Kotlin/Native forbids mixing Kotlin and
   Objective-C supertypes directly). `AndroidTrackingServiceLauncher` starts
   a real foreground Service; `IosTrackingServiceLauncher` toggles CoreLocation
-  background updates directly, since iOS has no foreground-service concept.
+  background updates through the `domain` interface `BackgroundLocationUpdates`, since iOS has no
+  foreground-service concept.
 
 ## What does NOT belong here
 
