@@ -120,13 +120,29 @@ final class TrackingViewModelTests: TrackingTestCase {
             return XCTFail("Expected Finished, got \(viewModel.trackingState)")
         }
         XCTAssertEqual(finished.metrics.path, TrackingFixtures.movingPath)
-        XCTAssertTrue(viewModel.canStart)
+        XCTAssertFalse(viewModel.canStart, "A finished session that is not saved is not started over")
         XCTAssertFalse(viewModel.canPause)
         XCTAssertFalse(viewModel.canResume)
         XCTAssertFalse(viewModel.canStop)
         XCTAssertTrue(viewModel.currentPath.isEmpty, "currentPath only covers Tracking and Paused")
         XCTAssertEqual(viewModel.currentMetrics?.path, TrackingFixtures.movingPath, "The numbers stay after Stop")
         XCTAssertEqual(subject.serviceLauncher.stopCount, 1)
+    }
+
+    func test_onStartClicked_overAFinishedUnsavedSession_doesNothing() async {
+        let subject = makeSubject(updates: TrackingFixtures.movingUpdates)
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count }
+        viewModel.onStopClicked()
+        XCTAssertTrue(viewModel.trackingState is TrackingStateFinished)
+
+        viewModel.onStartClicked()
+
+        XCTAssertFalse(viewModel.canStart)
+        XCTAssertTrue(viewModel.trackingState is TrackingStateFinished, "The unsaved session is kept")
+        XCTAssertTrue(viewModel.canFinish)
+        XCTAssertEqual(subject.serviceLauncher.startCount, 1, "No second session was started")
     }
 
     func test_onStopClicked_fromPaused_isFinished() async {
