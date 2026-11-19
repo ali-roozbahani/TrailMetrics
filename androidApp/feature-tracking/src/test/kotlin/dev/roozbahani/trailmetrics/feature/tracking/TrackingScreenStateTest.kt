@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.model.availableControls
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -129,6 +130,22 @@ class TrackingScreenStateTest {
     @Test
     fun `canStop is true only while tracking or paused`() {
         assertForEveryState(mapOf(IDLE to false, TRACKING to true, PAUSED to true, FINISHED to false)) { it.canStop }
+    }
+
+    @Test
+    fun `the controls are exactly what domain says, for every state and both restoring values`() {
+        ALL_STATES.forEach { trackingState ->
+            listOf(false, true).forEach { restoring ->
+                val state = TrackingScreenState(trackingState = trackingState, isRestoring = restoring)
+                val expected = trackingState.availableControls(isRestoring = restoring)
+                val message = "for $trackingState, restoring $restoring"
+                assertEquals(expected.canStart, state.canStart, message)
+                assertEquals(expected.canPause, state.canPause, message)
+                assertEquals(expected.canResume, state.canResume, message)
+                assertEquals(expected.canStop, state.canStop, message)
+                assertEquals(expected.canSave, state.canSave, message)
+            }
+        }
     }
 
     private fun metricsOf(path: List<Coordinates>) = METRICS.copy(path = path)

@@ -209,7 +209,7 @@ fun TrackingScreen(
     val context = LocalContext.current
 
     var showExitConfirmation by remember { mutableStateOf(false) }
-    val hasActiveSession = state.canPause || state.canResume
+    val hasActiveSession = state.canStop
 
     BackHandler(enabled = hasActiveSession) {
         showExitConfirmation = true
@@ -357,7 +357,7 @@ fun TrackingScreen(
                 }
 
                 AnimatedContent(
-                    targetState = state.hasReachedDestination || state.trackingState is TrackingState.Finished,
+                    targetState = state.hasReachedDestination || state.canSave,
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
