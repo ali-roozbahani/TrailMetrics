@@ -11,14 +11,14 @@
   decision 4); persisting progress across process death; the map drawing; the notification that tells the user a session ended by itself
   (decision 5: its own task after this epic is merged, see `Source` of its board record `session-ended-by-itself-notification`); a
   discard control for a finished session (board record `finished-session-discard-control`); any change to `BOARD.md` by a subtask (the
-  epic's final board PR does that).
+  orchestrator's board commit at the end of the run does that, on the integration branch).
 - **Approved by:** the owner, 2026-11-19, with the answers of "Decisions of the owner" below (recorded here from the owner's decisions
   given for this update). The owner decided on 2026-11-19 that this runs as an epic by `epic-orchestration`. The owner still merges the
-  PR that adds this plan to `main` (`/docs/epics/` is a protected path), and the epic PR into `main`.
+  PR that adds this plan to `main` (`/docs/epics/` is a protected path), and the epic PR into `main`: the one PR of the run.
 
-- **Status:** plan, approved 2026-11-19. This file is on `main` before the epic branch exists; the first commit on the epic branch sets
-  this line to `running`, and the last board PR of the epic sets it to `done`. Live status (which PRs are open or merged) is in the epic PR's
-  description, never in this file.
+- **Status:** plan, approved 2026-11-19. This file is on `main` before the integration branch exists. The orchestrator's last commit on the
+  integration branch (the board commit) sets this line to `done`, so it reaches `main` with the epic PR and the owner has no extra merge for it.
+  The live state of a run is on the integration branch and in the run record (section "How this epic is run"), never in this file.
 - **Source:** BOARD.md record `route-completion-to-domain` (Order 60).
 
 ## Correction (what the first version of this plan got wrong)
@@ -170,13 +170,16 @@ background location). Option A would have kept the rule in the UI layer, where t
 Correction). `tm-kmp-shared`, "Where logic lives": derived state and rules both platforms need are in `domain`, tested once, and
 ViewModels only adapt.
 
-**Why an epic, and why this slicing:** the owner decided on 2026-11-19 that this runs as an epic. The work moves between `domain`, Android and
+**Why an epic, and why this slicing:** the owner decided on 2026-11-19 that this runs as an epic, with the subtasks merged locally (section "How this epic is run"). The work moves between `domain`, Android and
 iOS, and `main` should not hold a half-built state: between the manager ending sessions (S2) and the iOS cleanup (S5) the iOS Live Activity
 is ended by the S3 observation and the View's own detection is redundant, which is fine on an integration branch and would be a chain of
 careful interim states on `main`. Domain work has one owner at a time (hotspot rule): S1 then S2. The iOS Live Activity preparation (S3) and the
 domain guard (S1) touch disjoint files and run together. After the contract (S2), the Android and iOS sides are disjoint and run together.
 
 ## Subtasks
+
+A subtask is not a PR: its `branch` is a local branch that the orchestrator creates from the integration branch, builds with a worker, reviews and gates
+locally, and merges locally into `feature/epic/route-completion-to-domain`. These branches are never pushed.
 
 ```yaml
 - id: S1
@@ -311,7 +314,7 @@ domain guard (S1) touch disjoint files and run together. After the contract (S2)
   touches `domain/`, `androidApp/app/`, `iosApp/TrailMetrics/`, the Xcode project or a build file)
 
 The waves follow from `depends_on`: S1 and S3 have none; S2 needs S1; S4 needs S2; S5 needs S2 and S3. S3 and S5 both write under
-`iosApp/Packages/Tracking/` but in different waves, and S5 starts only after S3 is merged into the epic branch. Gates are serialized by the
+`iosApp/Packages/Tracking/` but in different waves, and S5 starts only after S3 is merged locally into the integration branch. Gates are serialized by the
 heavy-run lock whatever the waves say.
 
 ## Acceptance coverage
@@ -328,10 +331,12 @@ heavy-run lock whatever the waves say.
 
 ## Re-plan trigger
 
-Stop and ask the owner (the plan is changed only with approval, as a `chore(epic)` commit through a PR) when:
+Stop and ask the owner (the plan is changed only with approval, as a `chore(epic)` commit on the integration branch, which travels in the epic PR) when:
 
 - S2 cannot keep an existing test green unchanged, in particular because making `stop()` idempotent breaks one;
 - a subtask needs a file outside its `allowed_paths` (a Koin module, `KoinHelper`, a build file, `shared`, the Xcode project);
+- a subtask's local review has a `[blocking]` finding after the review fix budget, or its gate stays red after the retry budget;
+- the epic PR's CI or the CI reviewer finds something the local gate and local reviews did not, and it is not fixed within the usual budgets (two CI-fix rounds);
 - the `feature-tracking` Kover floor (92) falls below its minimum after S4, since a floor is not lowered by a PR;
 - `TrackingFinishTwiceUITests` fails on the epic branch after S2 or S5 and the cause is the interim state of the two platforms;
 - the iOS Live Activity cannot be ended once per session without changing `TrackingLiveActivityController`'s contract beyond S3's paths;
@@ -342,7 +347,7 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
 1. **The intended change (S2, visible when S2 is on the epic branch and reaches `main`):** on both platforms a session ends by itself at the end
    of the planned route also with the phone locked. The user may come back to a finished session they did not end, with no notice until the
    notification task (decision 5). The Android foreground notification disappears; the iOS Live Activity ends.
-2. **The interim on the epic branch (S2 to S5):** the iOS View's own detection can still fire once on a session the manager already ended. It calls
+2. **The interim on the integration branch (S2 to S5), where only the local gate looks:** the iOS View's own detection can still fire once on a session the manager already ended. It calls
    `onStopClicked()`, which reads the same `Finished` state back; the Live Activity end is idempotent after S3, and the manager's `stop()` is
    idempotent after S2. `TrackingFinishTwiceUITests` must stay green on the epic branch; if it does not, that is a re-plan trigger.
 3. **`stop()` inside the collector:** the manager's `stop()` cancels `locationObservationJob`, which is the coroutine that calls it. The fix that
@@ -359,9 +364,14 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
    every fix, so it catches up as the user moves, and the plan does not change that.
 9. **Process death while locked:** unchanged. The session is stored and comes back `Paused` (`TrackingSessionManager.restore`); no completion is
    evaluated while the process is gone.
-10. **Local review base:** `scripts/local-review-prepare.sh` and the gate compare with the merge-base with `origin/main`, so for a subtask PR the local review
-    sees the whole epic diff so far. The subtask's PR description names its own commits (`origin/feature/epic/route-completion-to-domain..HEAD`) as the review scope.
-    A `--base` option for the script is a decision for the owner (see the PR that changes the epic skill).
+10. **Local review base:** `scripts/local-review-prepare.sh` and the gate compare with the merge-base with `origin/main`. For the final review and gate on the
+    integrated branch that is exactly right: the whole epic against `main`. For a subtask's local review it is too wide, because the branch holds the earlier
+    subtasks: the draft description that is the review's `TASK` says that the scope is the commits `feature/epic/route-completion-to-domain..<subtask branch>` and lists the
+    subtask's `allowed_paths`. A `--base` option for the script is a decision for the owner (board record `epic-subtask-review-base`).
+11. **No CI until the end (the owner's hypothesis, to be tested by this run):** the subtasks are merged on the local gate and local reviews alone; CI and the CI
+    reviewer run once, on the epic PR. A failure that only CI shows (a different environment, a flake, the CI reviewer's reading of the whole diff) appears after
+    every subtask is merged; the fix goes onto the same branch and is pushed to the open PR. The first run records the numbers that let the owner judge the
+    decision (section "How this epic is run", "Evidence").
 
 ## Decisions of the owner (2026-11-19)
 
@@ -375,20 +385,45 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
    own task, recorded on the board as `session-ended-by-itself-notification`, and it starts after this epic is merged into `main`: it needs a design (a
    permission text on iOS, a channel on Android, what tapping it opens, one domain event both platforms use). The epic's S2 gives that task what it needs
    (the manager is the single place where the session ends by itself) and does not add the event.
-6. **This runs as an epic by `epic-orchestration`:** an integration branch, subtask agents, one human merge into `main`; the order of the work comes from the
+6. **This runs as an epic by `epic-orchestration`:** an integration branch, a worker per subtask, one human merge into `main`; the order of the work comes from the
    `depends_on` of this plan, not from any instruction given at run time.
+7. **The subtasks merge locally; there is one PR and one CI run (the owner's decision of 2026-11-19, and a hypothesis the first run tests):** a subtask is built by its
+   worker, taken in by the orchestrator, reviewed and gated locally, and merged locally into the integration branch. There is no PR and no CI per subtask. When every
+   subtask is merged, the integration branch is pushed once and the one PR `feature/epic/route-completion-to-domain` into `main` is opened; CI and the CI reviewer run on it, and the
+   owner reviews it and merges it with a merge commit. The reasons the owner gave: the local merge and the local gate are much faster than GitHub's CI, so a CI run per
+   subtask mostly buys waiting; one CI run on the final PR is enough and necessary; the owner is asked to merge or review one PR, not several. The ruleset for
+   `feature/epic/*` is not used (it would refuse a fix pushed to the open epic PR after a red CI); the owner deletes it himself, and `main`'s own protection guards the epic PR.
+   The owner will change his mind if the first run gives evidence that he is wrong, which is why the run records evidence.
 
-## Epic-level Tier 2 (on the integrated branch before the merge to `main`)
+## How this epic is run (the owner's decision of 2026-11-19)
 
-Automated, on the epic branch's head (CI and the gate):
+- **Locally, subtask by subtask.** For each subtask: a local branch from the integration branch, a worker (`implementer`) in a worktree, the orchestrator takes the commits
+  in, runs the local `pr-reviewer` and the gate on the subtask branch, and merges it into `feature/epic/route-completion-to-domain` with a merge commit that names the subtask. A subtask whose
+  review or gate does not pass within its budget stops the run with a report. Workers run in parallel only as far as the waves, the disjoint paths and the heavy-run lock allow.
+- **One push, one PR.** When every subtask is merged and the board commit is made, the integration branch gets a local review and a full gate as a whole (the whole epic against
+  `main`), is pushed once, and the one epic PR into `main` is opened. `ci.yml` runs on a push to `feature/epic/**`, so there is no push as a backup.
+- **Board and `Status` travel in the epic PR.** The board commit (below) is the last commit of the integration branch.
+- **If the epic PR's CI is red or the CI reviewer finds something:** fixes are commits on the same branch, reviewed and gated locally, and pushed to the open PR, within the usual
+  retry budgets.
+- **The owner's part:** delete the ruleset for `feature/epic/*`, merge this plan's PR, have the machine ready, do the human checks on the epic PR's head, review the PR and merge it with a merge commit.
+- **Evidence (the part that tests the decision).** The run's final report has a "Drift found" part with a short measured comparison from real numbers: the wall time of each
+  subtask's local review and local gate; the wall time of the one CI run on the epic PR (and of any re-run); anything that CI or the CI reviewer found that the local gate and
+  local reviews had not, or the reverse; any flake. The owner judges the local-merge decision from it.
+
+## Epic-level Tier 2
+
+Automated, on the integrated branch before the PR is opened (the full local gate: the Android and iOS unit tests, the iOS package tests and both UI-test suites):
 
 - The session ends at the route's end with no UI subscriber: `TrackingSessionManagerRouteCompletionTest` (domain, Android host and iOS simulator),
   `TrackingViewModelTest` `the session ends at the route's end while nobody collects the state` (Android), `test_reachingTheRouteEnd_finishesTheSessionWithoutAView` (iOS).
 - The fixture walk reaches the end and "Finish" appears on iOS: `TrackingFinishTwiceUITests`, unchanged; the Android Compose and ViewModel tests of the finish card.
 - The Live Activity ends once when the manager ends the session: `test_sessionFinishedByTheManager_endsTheLiveActivityOnce`.
 
-Human checks (what no test can observe: a locked screen and background location delivery), done by the owner on the integrated epic branch, with the reason in the
-epic PR:
+Only the epic PR's CI and CI reviewer can show (and the run records whether they did): a difference between the CI environment and this machine (the runners, the pinned
+simulator and Xcode, a clean checkout), a flake, the CI reviewer's reading of the whole diff, and the checks that run only there (the tooling job).
+
+Human checks (what no test can observe: a locked screen and background location delivery), done by the owner on the epic PR's head (the branch is pushed with the PR), with the reason in
+the epic PR:
 
 - **Android** (emulator or device): plan a short closed route, Start, play a location route that ends at the route's end (the emulator's route playback), lock the
   screen before the end and wait for the playback to finish, unlock: the "Route completed" card shows, the foreground notification is gone, Finish saves one History entry.
@@ -396,12 +431,12 @@ epic PR:
 - **Final smoke check:** with the screen on, walk the same route on both platforms: the card appears at the end on both, Finish saves one History entry, and nothing else on
   the Tracking screen changed (Start, Pause, Resume and Stop behave as before).
 
-## The epic's final board PR (not a subtask)
+## The epic's board commit (not a subtask)
 
-Opened by the orchestrator into the epic branch after every subtask is merged (`tm-pr-workflow`, "Board", rule 5). It deletes the record `route-completion-to-domain`
-in its own commit `chore(board): remove route-completion-to-domain` and removes `After: route-completion-to-domain` from `tracking-ui-timer-independent-of-location`
-in the same commit; it adds the records for the drift and the follow-ups the subtasks reported in their PR descriptions; it sets this plan's Status line to `done`.
-The record `session-ended-by-itself-notification` already exists (added with this plan) and stays.
+The last commit of the integration branch, made by the orchestrator after every subtask is merged (`tm-pr-workflow`, "Board", rule 5), and part of the epic PR: it deletes the record
+`route-completion-to-domain` and removes `After: route-completion-to-domain` from `tracking-ui-timer-independent-of-location` (one commit, `chore(board): remove route-completion-to-domain`);
+it adds the records for the drift and the follow-ups the subtasks reported in the run record; it sets this plan's Status line to `done`.
+The records `session-ended-by-itself-notification` and `finished-session-discard-control` already exist and stay.
 
 ## Definition of done
 
@@ -413,8 +448,9 @@ The epic is done when all of these hold on `main`:
   prints nothing; `RouteCompletionTracker` and its 19 `kotlin.test` cases are in `domain`.
 - `TrackingSessionManager` ends a session at the end of the route with no UI subscriber, proved by the tests of the epic-level Tier 2.
 - `RouteProgressTest` has the out-of-range cases and `calculateRouteProgress` throws for no input.
-- Every subtask PR is merged into the epic branch, the final board PR is merged into it, the epic PR is ready and its CI is green on the current head, and the
-  owner has merged it (a merge commit, `epic-orchestration`, "Merging the epic into main").
+- Every subtask is merged locally into the integration branch and the board commit is its last commit; the integration branch had a local review and a full gate as a whole before its
+  one push; the epic PR is open, its CI is green on the current head, and the owner has merged it (a merge commit, `epic-orchestration`, "Merging the epic into main").
+- The run's report has the measured comparison of "How this epic is run" ("Evidence"), so the owner can judge the local-merge decision.
 - The owner's human checks of the epic-level Tier 2 are done.
 - `scripts/main-ui-run.sh --auto` is green after the merge.
 - `BOARD.md` no longer has the record `route-completion-to-domain`, and `scripts/check-board.sh --base` passes.
