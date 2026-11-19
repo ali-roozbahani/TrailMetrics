@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ main, 'feature/**' ]
   # Feature branches are tested by their pull request (the merge result). Only main, and the epic
-  # integration branches that subtask PRs merge into, are tested after a push.
+  # integration branches (pushed once, when the epic PR is opened), are tested after a push.
   push:
     branches: [ main, 'feature/epic/**' ]
 
