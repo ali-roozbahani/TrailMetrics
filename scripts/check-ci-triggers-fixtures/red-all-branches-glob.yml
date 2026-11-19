@@ -1,0 +1,9 @@
+name: CI
+on:
+  push:
+    branches: [ '**' ]
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

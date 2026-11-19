@@ -1,0 +1,13 @@
+name: CI
+# The workflow as it was before the epic push trigger was removed: an epic branch that is pushed and then gets a
+# pull request is tested twice for one head commit.
+on:
+  pull_request:
+    branches: [ main, 'feature/**' ]
+  push:
+    branches: [ main, 'feature/epic/**' ]
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

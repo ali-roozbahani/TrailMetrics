@@ -203,12 +203,13 @@ The plan file's format, and a worked example (personal records on History), are 
 
 **`feature/epic/<epic-slug>`**. Each part of the name is there for a reason:
 
-- **`feature/` prefix, so CI runs.** `ci.yml` triggers `push` for `main` only and `pull_request` for base
-  branches matching `main` or `feature/**`. The epic PR is against `main`, and its CI runs on the
-  pull-request event; a push trigger on the integration branch would start a second run for the same
-  commit, so there is none. The branch is pushed once, when the epic PR is opened, and not as a backup.
-- **`epic/` segment, so a rule or a CI trigger can target integration branches without catching
-  subtask branches.** The pattern `feature/epic/*` matches the integration branch. It doesn't match
+- **`feature/` prefix, the branch-type rule.** A branch is `feature/`, `bugfix/` or `chore/` (`tm-pr-workflow`,
+  "Branching"), and an integration branch is new functionality. The prefix does not decide whether CI runs: the
+  epic PR is against `main`, `pull_request` filters on the PR's base branch, and `ci.yml` has no push trigger for
+  an epic branch (it would start a second run for the same commit; `scripts/check-ci-triggers.sh` keeps it so).
+  The branch is pushed once, when the epic PR is opened, and not as a backup.
+- **`epic/` segment, so a rule (a ruleset, a pre-flight check, a pattern in a script) can target integration
+  branches without catching subtask branches.** The pattern `feature/epic/*` matches the integration branch. It doesn't match
   subtask branches named `<type>/<epic-slug>-<subtask>`.
 - Subtask branches can't live *under* the epic branch (`feature/epic/<slug>/s1`), because
   git can't have a ref and a directory with the same name. So they're siblings:

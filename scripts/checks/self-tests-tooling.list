@@ -19,6 +19,7 @@ tooling	reviewer workflow self-test	scripts/check-pr-review-workflow.sh
 tooling	skill rule-change self-test	scripts/check-skill-rule-changes.sh
 tooling	swiftlint pin self-test	scripts/swiftlint-pin.sh
 tooling	no println check self-test	scripts/check-no-println.sh
+tooling	ci triggers check self-test	scripts/check-ci-triggers.sh
 tooling	kover floors self-test	scripts/check-kover-floors.sh
 tooling	room schema self-test	scripts/check-room-schema.sh
 tooling	iOS scope self-test	scripts/check-ios-scope.sh

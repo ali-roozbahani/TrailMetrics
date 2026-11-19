@@ -1,0 +1,14 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+      - 'feature/epic/**'
+  pull_request:
+    branches:
+      - main
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

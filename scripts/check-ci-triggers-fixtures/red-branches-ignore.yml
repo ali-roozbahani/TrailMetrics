@@ -1,0 +1,9 @@
+name: CI
+on:
+  push:
+    branches-ignore: [ 'dependabot/**' ]
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
