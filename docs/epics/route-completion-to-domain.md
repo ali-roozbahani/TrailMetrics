@@ -402,7 +402,7 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
   in, runs the local `pr-reviewer` and the gate on the subtask branch, and merges it into `feature/epic/route-completion-to-domain` with a merge commit that names the subtask. A subtask whose
   review or gate does not pass within its budget stops the run with a report. Workers run in parallel only as far as the waves, the disjoint paths and the heavy-run lock allow.
 - **One push, one PR.** When every subtask is merged and the board commit is made, the integration branch gets a local review and a full gate as a whole (the whole epic against
-  `main`), is pushed once, and the one epic PR into `main` is opened. `ci.yml` runs on a push to `feature/epic/**`, so there is no push as a backup.
+  `main`), is pushed once, and the one epic PR into `main` is opened. `ci.yml` has no push trigger for an epic branch (it would start a second run for the same commit), so the PR's runs are the only runs.
 - **Board and `Status` travel in the epic PR.** The board commit (below) is the last commit of the integration branch.
 - **If the epic PR's CI is red or the CI reviewer finds something:** fixes are commits on the same branch, reviewed and gated locally, and pushed to the open PR, within the usual
   retry budgets.

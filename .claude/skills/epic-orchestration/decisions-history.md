@@ -35,7 +35,7 @@ Added on 2026-11-19, when the skill was read against the first epic's plan (`run
 - The ruleset for `feature/epic/*` is not used and may not be active: it requires a pull request and passing checks for every update of the branch, so a fix pushed to the open epic PR after a red CI would be refused. The owner
   deletes it himself; the pre-flight stops the run if one applies; the orchestrator never touches a ruleset. (The first version of the owner's ruleset had also been created with a check name that no job has.)
 - The state of a run is the integration branch (a merge commit per subtask, with its trailer) and a run record outside the repository (`~/agent-workspace/epics/<slug>/keep-run.log` and `keep-notes.md`), so the same sentence resumes a stopped run in a
-  new session on the same machine. The integration branch is local until the one push; `ci.yml` runs on a push to `feature/epic/**`, so it is not pushed as a backup, and a lost clone loses the unpushed work.
+  new session on the same machine. The integration branch is local until the one push, which is not made as a backup, and a lost clone loses the unpushed work.
 - The epic's board changes and the plan's `Status` are the last commit of the integration branch and travel in the epic PR; there is no final board PR and no extra human merge.
 - Open: the local review's base is the merge-base with `origin/main` (`scripts/local-review-prepare.sh`), which makes a subtask's review see the whole epic diff; the skill works around it with a review-scope line in the draft description
   (board record `epic-subtask-review-base`).
@@ -48,4 +48,9 @@ Added on 2026-11-19, after a review of the local-merge flow for stops that the f
 - **The review is told what the plan names.** The reviewer escalates deleted or weakened tests (item 5), a change of what Swift sees or of an `@Throws` (item 6) and a listed rule line (item 10) unless its `TASK` names the change. The subtask's draft description therefore has a "Named by the plan" part built from the plan's acceptance and contract,
   so a change the plan calls for does not stop the run. The rule-line check (`scripts/check-skill-rule-changes.sh feature/epic/<slug> HEAD`) is run first: the first epic's S4 edit of a `tm-android` sentence prints `none` (measured), because the lines it rewrites hold no rule word.
 - **`main` comes into an open epic PR only by a local merge that is reviewed and gated** (never GitHub's "update branch", whose merge commit no local check saw), and a resume on an open PR does only what is due.
+
+Added on 2026-11-19, from the check of whether an epic push and its PR start two CI runs:
+
+- `ci.yml` had `push` on `main` and `feature/epic/**` and `pull_request` on `main` and `feature/**`. An epic branch that is pushed and then has a PR opened, or is pushed again with a PR open, starts a push run and a pull-request run for the same head commit, and their
+  concurrency groups differ (`ci-CI-<sha>` against `ci-CI-<PR number>`), so nothing dedupes them. The push trigger for epic branches existed for subtask PRs that merged into an integration branch; with local merges it has no use. It is removed, so an epic PR has one set of required checks per push. The first run's Evidence counts the CI runs on the PR head.
 

@@ -3,13 +3,14 @@ name: CI
 on:
   pull_request:
     branches: [ main, 'feature/**' ]
-  # Feature branches are tested by their pull request (the merge result). Only main, and the epic
-  # integration branches (pushed once, when the epic PR is opened), are tested after a push.
+  # Feature branches, epic integration branches included, are tested by their pull request. A push
+  # trigger on a branch that has a pull request starts a second run for the same head commit (the
+  # concurrency groups below differ), so only main is tested after a push.
   push:
-    branches: [ main, 'feature/epic/**' ]
+    branches: [ main ]
 
 # A new push to a pull request supersedes the SHA under test. A push event has a unique SHA in its
-# group, so a run on main or on an epic branch is never cancelled or replaced while pending.
+# group, so a run on main is never cancelled or replaced while pending.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
