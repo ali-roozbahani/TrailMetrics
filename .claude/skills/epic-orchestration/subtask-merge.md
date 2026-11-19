@@ -18,6 +18,6 @@ Everything runs in the main clone, one subtask at a time (`running-an-epic.md`, 
 7. **Merge locally**: `git switch feature/epic/<slug>`, then
    `git merge --no-ff <branch> -m "<type>(<scope>): <summary> (subtask <id>)" -m "Epic-Subtask: <id>" -m "<the attribution trailer>"`.
    The merge commit names the subtask in the trailer `Epic-Subtask: <id>`: that trailer is how a resumed run knows what is merged (`running-an-epic.md`, step 3.1). `--no-ff` keeps the worker's commits and the red-test evidence in their messages. The title is a valid `type(scope): summary`.
-8. **Clean up**: `scripts/subagent/worktree.sh remove <name>` (already done before the review), delete the subtask branch (`git branch -d`), and log `merged` with the merge commit.
+8. **Clean up**: delete the subtask branch (`git branch -d`) and log `merged` with the merge commit. The worker's worktree was removed when its commits were taken (`spawning-subtasks.md`, "Workers", step 6).
 
 There is no push, no PR, no CI run and no Merge check for a subtask. The push hook is not involved until the one push of the whole branch.
