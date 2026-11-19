@@ -2,6 +2,8 @@
 
 > **Superseded 2026-11-15 (owner decision):** workflow files (`.github/workflows/`) are now pushed by the agent as a PR like any other; the owner still merges them. Where this plan says the human or Ali pushes them (Decision 1), `tm-agent-loop`, section 5 is the rule.
 
+> **Superseded 2026-11-19 (owner decision):** an epic's subtasks are not PRs. They are merged locally into the integration branch, and the one epic PR into `main` is the human's. Where this plan says an agent may merge a subtask PR into the epic branch, or that a subtask PR may touch a protected path its plan covers (Decisions 4 and 5), `epic-orchestration` (`running-an-epic.md`) is the rule.
+
 > **The trial (S6) is complete and auto-merge is in force**: the rule is `tm-agent-loop`, section 8.
 
 > **Amended 2026-10-03, approved by Ali Roozbahani.** S3 as built (workflow, check name,
