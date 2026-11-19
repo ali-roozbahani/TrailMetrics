@@ -44,9 +44,6 @@ cat "$(git rev-parse --path-format=absolute --git-path .review-verdict)"   # "<S
 git fetch origin
 # condition 6, PR against main:
 scripts/check-protected-paths.sh --base "$(git merge-base origin/main "$SHA")"
-# condition 6, subtask PR into an epic branch: every changed path must be in the subtask's allowed_paths
-git diff --name-only "$(git merge-base "origin/<epic branch>" "$SHA")" "$SHA"
-scripts/check-protected-paths.sh --base "$(git merge-base "origin/<epic branch>" "$SHA")"
 ```
 
 ## What the machine token can read

@@ -72,8 +72,7 @@ hold:
    merge-only update of a reviewed commit (GitHub's branch update, `scripts/queue/update-branch.sh`)
    counts when `scripts/queue/local-verdict-for-head.sh <N>` prints `APPROVE <reviewed sha>`; the
    dispositions are then those of the reviewed commit's report.
-6. The PR touches no protected path. For a subtask PR into an epic branch this condition is
-   replaced by: the plan's `allowed_paths` for that subtask cover every changed path.
+6. The PR touches no protected path.
 
 An older SHA's red `iOS — all stages` whose log shows `needs.*.result = cancelled` is a
 superseded run (the aggregator reports under `always()` when a newer push cancels the run), not
@@ -81,8 +80,7 @@ a failure; only the current head SHA's checks count.
 
 The commands that read each condition are in `ci-report.md`, "Checking the merge conditions".
 
-The base is the merge-base with the branch the PR targets: `origin/main` for a PR against
-`main`, the epic branch for a subtask PR. Run the protected-path check with the PR branch
+The base is the merge-base with `origin/main`. Run the protected-path check with the PR branch
 checked out at `$SHA`. If every condition holds, the merge command is:
 
 ```bash
@@ -95,7 +93,9 @@ human's squash merge does. Then post the "Merge check" comment with the result
 
 The epic PR into `main` is merged by the human, on their own explicit command, with
 `gh pr merge --match-head-commit <tested SHA>` ("Never"). If the epic touches a protected
-path, the human also approves the PR on GitHub (Decision 5).
+path, the human also approves the PR on GitHub (Decision 5). The subtasks of an epic are not PRs and
+have no Merge check: they are merged locally (`epic-orchestration`, `running-an-epic.md`); the epic PR gets
+the Merge check like any PR, and its condition 6 is "no" when the plan or another protected file is in it.
 
 
 ## Auto-merge

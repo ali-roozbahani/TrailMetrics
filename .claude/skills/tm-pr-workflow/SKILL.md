@@ -148,10 +148,8 @@ The user-visible behavior of a change is validated by automated tests, not by a 
   protected (their folders have ownerless lines in CODEOWNERS, so every file in them is open),
   so an agent may edit them in a task that calls for it; the reviewer judges that diff like any other, and the
   rule-change signal (`tm-pr-review` item 10) escalates any removed or rewritten rule line.
-- An agent never merges a PR that touches a protected path. The human merges those. The one
-  exception is a subtask PR into an epic branch whose plan `allowed_paths` cover the path
-  (`tm-agent-loop`, "Merge conditions", `merge.md`, condition 6); the epic PR into `main` is always the
-  human's.
+- An agent never merges a PR that touches a protected path. The human merges those. The epic PR into
+  `main` is always the human's; the subtasks of an epic are not PRs (`epic-orchestration`).
 - **Docs follow the code you changed.** Before the final gate run, sweep: search the repo
   (code, skills, docs, comments, CODEOWNERS, scripts, CI, `BOARD.md` records) for the names,
   paths, slugs, counts and behaviours this task touches or makes stale, and check each hit.
