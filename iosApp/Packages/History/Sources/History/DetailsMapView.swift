@@ -3,7 +3,6 @@
 //  History
 //
 
-import CoreLocation
 import DesignSystem
 import GoogleMaps
 import SharedKit

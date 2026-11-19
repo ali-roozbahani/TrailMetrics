@@ -1,6 +1,5 @@
 opt_in_rules:
   - force_unwrapping
-  - unused_import
   - explicit_init
   - closure_spacing
   - empty_count
@@ -14,6 +13,13 @@ opt_in_rules:
 
 disabled_rules:
   - todo
+
+# No analyzer rule is on: `swiftlint analyze` needs the compile log of a clean build (a full compile in the gate and in CI)
+# for 0 to 3 hits per rule. The unused imports and declarations it found were cleaned up once, on 2026-11-19
+# (tm-ios, "SwiftLint"). An `unused_import` in `opt_in_rules` is inert and prints a warning on every run.
+# The cleanup removed 5 of the 28 `unused_import` hits (`ActivityKit`, `WidgetKit`, 3 x `CoreLocation`). The other 23 are
+# `import SharedKit` in files that use its Kotlin types (SKIE): the analyzer does not see those uses, and the build fails
+# without the import in each of the 23 files (checked by removing them). They stay.
 
 # async_without_await (measured 2026-11-18 on 0.65.1, 13 hits, each one read): on. SwiftLint gives this rule no
 # per-path exclusion, so each of the 12 declarations whose `async` the protocol they implement declares carries a

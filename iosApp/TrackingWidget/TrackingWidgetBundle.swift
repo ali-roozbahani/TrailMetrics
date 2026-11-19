@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import WidgetKit
 
 @main
 struct TrackingWidgetBundle: WidgetBundle {

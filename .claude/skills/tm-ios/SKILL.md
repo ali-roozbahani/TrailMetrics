@@ -249,7 +249,7 @@ fails, so observe through a use case that turns the failure into a value on the 
 ## No dead code
 
 - Otherwise as `tm-android` ("No dead code", `kotlin-conventions.md`): no commented-out code, no unused declarations.
-- No unused imports (`unused_import` is enabled). Import `SharedKit`, not
+- No unused imports. Enforced: reviewer only (no SwiftLint rule runs; "SwiftLint" says why). Import `SharedKit`, not
   `TrailMetricsShared`.
 
 ## Known deviations in the current code

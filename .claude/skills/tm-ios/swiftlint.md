@@ -19,13 +19,19 @@ Gradle build: `gradlew`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gr
   `discarded_notification_center_observer`, `unhandled_throwing_task`, `unowned_variable_capture` and
   `implicitly_unwrapped_optional` and `async_without_await` are on (a declaration whose `async` a protocol requires
   carries the disable comment with that reason, as in `iosApp/.swiftlint.yml`). The analyzer rules (`swiftlint analyze`,
-  which needs a compile log) are not; the reason is in the board record `swiftlint-analyzer-rules`.
+  which needs a compile log) are not run, in the gate or in CI: the log of a clean build is a full compile on every run, for
+  0 to 3 hits per rule (measured 2026-11-18: `capture_variable` 0, `typesafe_array_init` 0, `unused_declaration` 3;
+  `explicit_self` is against the code style). The 28 unused imports and 3 unused declarations they found were cleaned up
+  once, on 2026-11-19: 5 imports were removed; the 23 `import SharedKit` it reported are needed (the build fails without
+  each, the analyzer does not see the use of SKIE types) and stay, and the 3 declarations stay with a comment saying why
+  (two are read by tests, one is an `AppIntent` requirement). `unused_import` is not listed in
+  `opt_in_rules`, where it would do nothing and warn on every run.
 - `--strict` promotes every warning to a failure. The `warning` thresholds are the real
   limits: line length 120, function body 60 lines, type body 300 lines, cyclomatic
   complexity 15.
 - `force_unwrapping`, `force_cast` and `force_try` are errors. Restructure with
   `guard let`/`if let`, `as?` with explicit `else` handling, or `do`/`catch`.
-- Opt-in rules on top of the defaults: `force_unwrapping`, `unused_import`, `explicit_init`,
+- Opt-in rules on top of the defaults: `force_unwrapping`, `explicit_init`,
   `closure_spacing`, `empty_count` (use `.isEmpty`), `fatal_error_message`.
 - Custom rule `optional_try` (error): a regex for `try?`, not matched inside comments and
   string literals (`excluded_match_kinds`); `try` and `try!` are not its business (`force_try`
