@@ -1,0 +1,12 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: true

@@ -3,7 +3,8 @@
 
 Run through scripts/check-ci-triggers.sh (the entry point). Standard library only, so it runs on the stock
 python3 of macOS and ubuntu-latest, which has no YAML parser: the `on:` block is read with a small reader of
-the shapes below, and a workflow it cannot read is a failure, never a pass.
+the shapes below (an event name, a flow list or a block list of event names, and a mapping of events whose `push` has
+`branches`, `branches-ignore` or `tags` as a flow list or a block list), and a workflow it cannot read is a failure, never a pass.
 
   check-ci-triggers.sh                    scan every .github/workflows/*.yml and *.yaml of the checkout
   check-ci-triggers.sh --file <path>...   scan these files (the fixtures use it)
@@ -136,10 +137,12 @@ def read_filters(sub):
             else:
                 items = []
                 j = i + 1
-                while j < len(sub) and indent_of(sub[j]) >= base:
+                while j < len(sub):
                     m = re.match(r"^\s*-\s+(.*?)\s*(#.*)?$", sub[j])
-                    if m and indent_of(sub[j]) >= base:
+                    if m:
                         items.append(strip_quotes(m.group(1)))
+                    elif indent_of(sub[j]) <= base:
+                        break  # the next key of the same mapping ends the list
                     j += 1
                 filters[name] = items
         i += 1
@@ -155,7 +158,22 @@ def check_text(path, text):
     kind, value = on
     problems = []
     if kind == "inline":
-        names = flow_list(value) or [strip_quotes(value)]
+        names = flow_list(value)
+        if names is None:
+            plain = strip_quotes(value)
+            if not re.match(r"^[A-Za-z_]+$", plain):
+                raise ValueError("an inline `on:` value that is neither an event name nor a flow list: %r" % value)
+            names = [plain]
+        if "push" in names:
+            problems.append("push is a trigger with no branch filter, so it runs on every branch")
+        return problems
+    if value and value[0].lstrip().startswith("-"):  # `on:` as a block list of event names
+        names = []
+        for line in value:
+            m = re.match(r"^\s*-\s+(.*?)\s*(#.*)?$", line)
+            if not m or indent_of(line) != indent_of(value[0]):
+                raise ValueError("an `on:` block list it cannot read: %r" % line)
+            names.append(strip_quotes(m.group(1)))
         if "push" in names:
             problems.append("push is a trigger with no branch filter, so it runs on every branch")
         return problems
@@ -207,6 +225,8 @@ def self_test():
         ("green-main-block-list.yml", 0),
         ("green-no-push.yml", 0),
         ("green-tags-only.yml", 0),
+        ("green-block-branches-then-tags.yml", 0),
+        ("green-event-list-block-no-push.yml", 0),
         ("red-epic-push.yml", 1),
         ("red-epic-push-block-list.yml", 1),
         ("red-feature-glob.yml", 1),
@@ -214,7 +234,9 @@ def self_test():
         ("red-push-no-filter.yml", 1),
         ("red-inline-push.yml", 1),
         ("red-branches-ignore.yml", 1),
+        ("red-event-list-block.yml", 1),
         ("unreadable-no-on.yml", 2),
+        ("unreadable-inline-flow-map.yml", 2),
     ]
     failed = 0
     for name, want in cases:
