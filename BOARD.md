@@ -57,15 +57,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Tasks
 
-### ios-launcher-depends-on-concrete-location-repository
-- Type: task
-- Area: data, domain
-- Order: 52
-- Source: PR for tm-robustness-cleanup
-- Problem: `IosTrackingServiceLauncher` takes the concrete `IosLocationRepositoryImpl`, not a `domain` interface, because `setBackgroundUpdatesEnabled` is not on `LocationRepository`; `tm-kmp-shared` ("Module boundaries") marks a class that takes the implementing class `blocking`. Adding a method to the interface or a new one changes domain, both platforms' fakes and the Koin module, so it needs a decision on the interface shape.
-- Done when: `IosTrackingServiceLauncher` receives a domain interface only, the Koin module passes that, and a test covers the launcher with a fake.
-- Refs: `data/src/iosMain/.../tracking/IosTrackingServiceLauncher.kt`; `data/src/iosMain/.../di/IosLocationModule.kt`; `data/src/iosMain/.../location/IosLocationRepositoryImpl.kt`; `tm-kmp-shared` ("Module boundaries").
-
 ### tracking-metrics-calories-to-domain
 - Type: task
 - Area: domain, iosApp/Tracking, androidApp/feature-tracking
