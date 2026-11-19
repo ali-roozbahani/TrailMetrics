@@ -19,3 +19,16 @@ Recorded so the first real epic can confirm or correct them:
   (verified 2026-09-29, see "Isolation", `spawning-subtasks.md`), with a default cap of two concurrent subtasks
   to limit build contention. An earlier version of this skill said the gate/hook
   probably broke in worktrees and made sequential the default; that was true before #40.
+
+Added on 2026-11-19, when the skill was read against the first epic's plan (`running-an-epic.md`):
+
+- The plan is on `main` (merged by the owner, which is the approval) before the epic branch exists; the epic branch's first commit sets the plan's `Status` to `running`
+  so the branch has a diff for the draft PR. Earlier text had the plan itself as the first commit on the epic branch.
+- A subtask worker is an `implementer` that the orchestrator integrates (take, review, gate, push, PR, merge). The earlier text had a subtask agent that opened its own PR, which
+  the push hook (a recorded local review of the commit), the depth lock on subagents and `tm-agent-loop`, "Never", do not allow.
+- The orchestrator merges the subtask PRs it may merge and waits for the human only when nothing else is ready; the earlier text had it wait for the human to merge every wave.
+- An epic run does not use the local PR queue, and the queue must be at `DONE` or only waiting for the owner when an epic starts.
+- The ruleset pre-flight compares the required check names with the names of the CI jobs; a wrong name had been in the owner's first ruleset.
+- The command "run the epic `<slug>`" starts or resumes a run; the state of a run is in GitHub and the plan.
+- Open: the local review's base is the merge-base with `origin/main` (`scripts/local-review-prepare.sh`), which makes a subtask's review see the whole epic diff; the skill works around it in the PR description.
+

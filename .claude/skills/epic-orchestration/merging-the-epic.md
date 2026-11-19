@@ -1,6 +1,6 @@
 # Merging the epic into main
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Merging the epic into main". The rules are unchanged; they are still cited as `epic-orchestration`, "Merging the epic into main".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the section "Merging the epic into main". The rules are unchanged; they are still cited as `epic-orchestration`, "Merging the epic into main". "The orchestrator's part" and "After the merge" below were added on 2026-11-19 with `running-an-epic.md`.
 
 ## Merging the epic into main
 
@@ -34,3 +34,17 @@ A merge commit keeps them in `main`'s history and keeps each one revertible. Squ
 collapse the epic into one commit and lose that. The repo allows all three methods. The
 epic PR title is still a valid `type(scope): summary`, because it appears in the merge
 commit.
+
+## The orchestrator's part
+
+Once every row of the status table is `merged` (`running-an-epic.md`, step 4), in this order, with no instruction from the owner:
+
+1. Open the final board PR, `chore/<slug>-board`, into the epic branch (`tm-pr-workflow`, "Board", rule 5): the epic's record deleted in its own commit, the `After:` line, the records for the drift and follow-ups the subtasks reported, and the plan's `Status` set to `done`. It is a board-only PR (the one exception of rule 4) and it edits a protected path (the plan), so the human merges it; the orchestrator waits as in `running-an-epic.md`, step 3.5.
+2. If `main` moved, sync through a PR (`SKILL.md`, "Lifecycle", step 4), merged by the agent only when every file `main` changed since the epic branch's base is unprotected.
+3. Fill in the epic PR's description (the headings of condition 4 above), set it with `scripts/set-pr-body.sh <epic PR> <draft>`, run `gh pr ready <n>`, and wait for every required check on its current head (`scripts/wait-for-checks.sh --until-complete <n>`). A red check is a stop: report it; the orchestrator does not re-run or cancel anything on the epic PR beyond what `tm-agent-loop`, section 6, allows.
+4. The report: the epic PR's link and head SHA, the exact merge command (`gh pr merge <n> --merge --match-head-commit <40-character SHA>`), the human checks of the plan's epic-level Tier 2 that the owner has to do (each with its steps), the subtask PRs the owner merged, and "Drift found".
+
+## After the merge
+
+GitHub deletes the remote epic and subtask branches. The next run of the orchestrator (`tm-pr-workflow`, "Before starting") prunes the merged local branches and reads `scripts/main-ui-run.sh --status`: a merge of an epic changes code, so the full UI run is due and runs with an empty queue. Work that the plan names as starting after the epic (a board record with `After: <slug>`) is then free to start.
+

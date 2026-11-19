@@ -1,6 +1,6 @@
 ---
 name: epic-orchestration
-description: Use when a TrailMetrics change is big enough to split across layers or platforms (e.g. a shared-layer change plus separate Android and iOS UI work) and should run as a multi-agent epic. Covers deciding epic vs. single task, writing the human-reviewed plan (subtasks, depends_on, allowed_paths, acceptance criteria), allowed_paths conventions for this repo's modules, integration branch naming, lifecycle and protection, spawning and scoping parallel subtask agents, subtask PRs against the epic branch, and the conditions for merging the epic into main. Not for per-PR mechanics (see tm-pr-workflow) or how to write the code (see tm-kmp-shared, tm-android, tm-ios, tm-testing).
+description: Use when a TrailMetrics change is big enough to split across layers or platforms (e.g. a shared-layer change plus separate Android and iOS UI work) and should run as a multi-agent epic, or an approved epic the owner starts with "run the epic <slug>". Covers deciding epic vs. single task, writing the human-reviewed plan (subtasks, depends_on, allowed_paths, acceptance criteria), allowed_paths conventions for this repo's modules, integration branch naming, lifecycle and protection, spawning and scoping parallel subtask agents, subtask PRs against the epic branch, and the conditions for merging the epic into main, and the whole run of an approved epic from one command (running-an-epic.md). Not for per-PR mechanics (see tm-pr-workflow) or how to write the code (see tm-kmp-shared, tm-android, tm-ios, tm-testing).
 ---
 
 # TrailMetrics multi-agent epics
@@ -16,7 +16,8 @@ those rules into concrete mechanics for this repo.
 
 **The pattern has never been run here.** No epic branch exists in history. Everything
 below comes from the retired workflow doc, `ci.yml`, the gate script, the push hook and `main`'s
-protection as of 2026-09-28. It has not been tested on a real epic. The first epic should
+protection as of 2026-09-28, and was read again against the first epic's plan on 2026-11-19
+(`running-an-epic.md` is the result). It has not been tested on a real epic. The first epic should
 check each assumption and report under "Drift found" where reality differs.
 
 Everything per-PR is in **`tm-pr-workflow`** and is not repeated here: branch prefixes,
@@ -36,30 +37,45 @@ this file or in the file named here. The detail files that already existed (`pla
 
 | File | Read it when |
 |---|---|
-| `spawning-subtasks.md` ("Spawning subtask agents", "Waves", "Isolation", "What a subtask agent is told") | the plan is approved and the first wave is about to start: which subtasks are ready, disjointness, worktrees, the task prompt |
-| `subtask-prs.md` ("Subtask PRs") | a subtask agent has finished and its PR against the epic branch is opened, reviewed or merged |
+| `running-an-epic.md` ("The command", the steps 1 to 4, "The queue and the epic", "What the owner does") | the owner says "run the epic `<slug>`", or a run of an epic resumes: the whole procedure from the checks to the epic PR that is ready |
+| `spawning-subtasks.md` ("Spawning subtask agents", "Waves", "Workers", "Isolation", "What a subtask worker is told") | the first wave is about to start: which subtasks are ready, disjointness, the worktrees, the task file |
+| `subtask-prs.md` ("Subtask PRs") | a worker has finished and its PR against the epic branch is opened, reviewed or merged |
 | `merging-the-epic.md` ("Merging the epic into main") | every subtask is merged into the epic branch and the epic PR into `main` is prepared |
 
 
+## The command
+
+The owner starts an approved epic with one sentence: "run the epic `<slug>`". The orchestrator then runs the whole epic
+by `running-an-epic.md` and asks for nothing else: it checks what has to be checked, creates the epic branch and its
+draft PR, runs the waves in the order the plan's `depends_on` gives, keeps the epic PR's status table current, merges
+the subtask PRs it may merge, stops only for what only the human can do, and ends with the epic PR ready and a report.
+The same sentence resumes a run that stopped. Without that command, an epic whose plan is approved stays as it is
+(`tm-agent-loop`, section 1).
+
 ## Roles
 
-- **Human**: approves the plan and every change to it, sets up branch protection, merges
-  the epic PR into `main` (only the human), merges every subtask PR into the epic branch
-  that an agent may not merge (`tm-agent-loop`, "Merge conditions", `merge.md`), and does the human
-  part of Tier 2: the epic's final smoke check and any human check a PR lists with its
-  reason (`tm-pr-workflow`, "Tier 2: what automated tests cannot show").
+- **Human**: approves the plan (by merging the PR that adds it to `main`) and every change to
+  it, sets up branch protection, says "run the epic `<slug>`", merges the epic PR into
+  `main` (only the human), merges every subtask PR into the epic branch that an agent may not
+  merge (`tm-agent-loop`, "Merge conditions", `merge.md`) and the epic's final board PR (it
+  edits the plan's `Status`, a protected path), and does the human part of Tier 2: the epic's
+  final smoke check and any human check a PR lists with its reason (`tm-pr-workflow`, "Tier 2:
+  what automated tests cannot show").
 - **Orchestrator**: the Claude Code session the human is talking to. It drafts the plan,
-  creates the epic branch and its draft PR after approval, spawns subtask agents wave by
-  wave, checks that each subtask PR stayed inside its `allowed_paths`, and keeps the epic
-  PR's status up to date. It writes no feature code itself.
-- **Subtask agent**: one per subtask. It follows `tm-pr-workflow` plus the code skills
-  for its paths, and opens one PR against the epic branch.
-
-Inside its own work, a subtask agent (or the orchestrator, for the contract) may use the `explorer` and
-`implementer` subagents like any run (`tm-agent-loop`, "Subagents"); they are tools of that agent, never
-a subtask: they open no PR, and only the agent that started them integrates their commits. A subtask
-agent started with `isolation: "worktree"` is a different thing from an implementer's worktree
-(`scripts/subagent/worktree.sh`), which is created and removed by the agent that uses it.
+  and on the command "run the epic `<slug>`" it creates the epic branch and its draft PR,
+  starts a worker for each subtask wave by wave, integrates every worker's commits (the
+  local review, the gate, the push, the PR, CI, the merge when it may merge), checks that
+  each subtask PR stayed inside its `allowed_paths`, and keeps the epic PR's status table
+  up to date. It writes no feature code itself.
+- **Subtask worker**: one `implementer` per subtask (`tm-agent-loop`, "Subagents"), in its own
+  worktree made by `scripts/subagent/worktree.sh`, with the subtask's `allowed_paths` as its
+  allowed paths. It writes code and commits to the worktree's branch, and nothing else: it
+  opens no PR, runs no gate and starts no subagent. Why the orchestrator integrates and no
+  worker opens its own PR: the push hook refuses a push without a recorded local review of
+  that commit, the reviewer is a subagent, and nothing below the orchestrator spawns
+  (`tm-agent-loop`, "Subagents", "Nesting"); `tm-agent-loop`, "Never", forbids a subagent
+  to push, open, review or merge a PR. An epic is still one PR per subtask, with one review
+  and one gate run, as any task.
 
 The epic PR into `main` is the human's only, on the human's explicit command
 (`docs/epics/agentic-dev-loop.md`, Decision 5). Subtask PRs into the epic branch follow
@@ -93,8 +109,9 @@ Use a single task (or a chain of ordinary PRs against `main`) when:
 
 What happens to the plan file depends on the answer above:
 
-- **Epic:** the plan is always committed, to `docs/epics/<epic-slug>.md`, as the first
-  commit on the integration branch. See "The plan" and Lifecycle step 1.
+- **Epic:** the plan is always committed, to `docs/epics/<epic-slug>.md`. It reaches `main`
+  first, through a PR the human merges (`/docs/epics/` is a protected path), and that merge is
+  the plan's approval; the epic branch is created after it. See "The plan" and Lifecycle step 1.
 - **Single task:** the plan is **not** committed by default. Most single-task plans are
   small and throwaway, and committing every one would fill `docs/epics/` with plans
   nobody reads again.
@@ -164,9 +181,11 @@ contract subtask. They never run alongside it with a stubbed API.
 
 ## The plan
 
-An epic's plan is a committed file, `docs/epics/<epic-slug>.md`. It is the first commit
-on the epic branch, so the epic branch differs from `main` and its draft PR can be opened. The
-plan is also the record in history of how the epic was split. (Assumption: `docs/epics/`
+An epic's plan is a committed file, `docs/epics/<epic-slug>.md`. It is on `main` before
+the epic branch exists (the PR that adds it is the human's to merge; its merge, with the
+"Approved by" line filled, is the approval). The epic branch's first commit then changes the
+plan's `Status` line to `running`, so the branch differs from `main` and its draft PR can be
+opened. The plan is also the record in history of how the epic was split. (Assumption: `docs/epics/`
 is a new directory this skill introduces. Whether it is protected is decided by
 `.github/CODEOWNERS`; check with `scripts/check-protected-paths.sh --files`.) The file
 records **decisions**. Live status (which PRs are open or
@@ -178,8 +197,9 @@ never conflict on it.
 1. The orchestrator drafts the plan in chat or a scratch file and shows it to the human.
    It doesn't create a branch or spawn anything yet.
 2. The human reviews and approves it (or edits it). **No subtask starts before this.**
-3. The orchestrator creates the epic branch, commits the plan, runs the gate and pushes
-   (see Lifecycle), then opens the draft epic PR.
+3. The plan is merged into `main` by the human. On the command "run the epic `<slug>`" the
+   orchestrator creates the epic branch, commits the `Status` line, runs the gate and pushes
+   (see Lifecycle), then opens the draft epic PR (`running-an-epic.md`).
 4. Any later change to `depends_on`, `allowed_paths` or acceptance criteria needs the
    human to approve it again, and gets its own `chore(epic)` commit to the plan file on
    the epic branch, through a PR like everything else.
@@ -226,24 +246,28 @@ The human sets this up **once**, before the first epic. The orchestrator must no
 it. Suggested ruleset (same four checks, integration id 15368 = GitHub Actions, as on
 `main`), and how to apply it: `epic-branch-protection.md`.
 
-**Pre-flight check for the orchestrator:** before creating the epic branch, run
-`gh api repos/ali-roozbahani/TrailMetrics/rulesets`. If no active ruleset covers
-`refs/heads/feature/epic/*`, stop and ask the human whether to set it up first or proceed
-unprotected. Don't create the ruleset yourself.
+**Pre-flight check for the orchestrator:** before creating the epic branch, run the check
+of `epic-branch-protection.md`, "Pre-flight check": the ruleset is active, covers
+`refs/heads/feature/epic/*`, has no bypass actor, and requires exactly the four checks, by the
+names of the CI jobs. A missing or wrong ruleset stops the run with a report; the orchestrator
+neither creates nor edits a ruleset and never goes on unprotected. A required check whose name
+no job has blocks every PR into the epic branch for good, which is why the names are compared.
 
 ### Lifecycle
 
-1. **Create** (orchestrator, after plan approval and pre-flight):
-   `git fetch origin && git switch -c feature/epic/<slug> origin/main`, commit the plan as
-   `chore(epic): add <slug> plan`, run `scripts/pre-push-check.sh`, then push. The plan
-   is the one commit pushed straight to the epic branch: the `pull_request` rule
-   doesn't apply to creating the branch. Every later change arrives through a PR.
+1. **Create** (orchestrator, after the checks of `running-an-epic.md`, step 1):
+   `git fetch origin && git switch -c feature/epic/<slug> origin/main`, commit the plan's
+   `Status` line as `running` (`chore(epic): start <slug>`), review it and run
+   `scripts/pre-push-check.sh`, then push. That commit is the one pushed straight to the epic
+   branch: the `pull_request` rule doesn't apply to creating the branch. Every later change
+   arrives through a PR.
 2. **Open the epic PR as a draft**, straight away:
    `gh pr create --draft --base main --head feature/epic/<slug>`, titled
    `feat(<scope>): <epic summary>`. The body contains the plan link, a status table (one
-   row per subtask: branch, PR #, state) and the four `tm-pr-workflow` headings, filled
-   in at the end. The orchestrator updates the status table as subtask PRs open and merge.
-3. **Waves**: see "Waves" (`spawning-subtasks.md`).
+   row per subtask: branch, wave, state, PR #, who merged it; the table of
+   `running-an-epic.md`) and the four `tm-pr-workflow` headings, filled in at the end. The
+   orchestrator updates the status table as subtask PRs open and merge.
+3. **Waves**: see "Waves" (`spawning-subtasks.md`) and the loop of `running-an-epic.md`, step 3.
 4. **Keeping up with `main`**: if `main` moves while the epic is open, the epic branch
    must include it before it can merge (`main` is strict). Sync through a PR, never a
    direct push: a `chore/<epic-slug>-sync-main` branch off the epic branch, then

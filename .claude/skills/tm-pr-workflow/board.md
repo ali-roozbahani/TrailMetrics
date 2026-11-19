@@ -12,7 +12,8 @@ step of the gate and of CI's `tooling` job.
 0. **Picking work.** An agent started without a named task takes the record that
    `scripts/check-board.sh --next` prints. If that record is an epic (or
    `figma-design-system`), it starts with the plan under `docs/epics/` for the human to
-   approve, not with code.
+   approve, not with code. An epic whose approved plan is on `main` is run only on the owner's
+   command "run the epic `<slug>`" (`epic-orchestration`, "The command").
 1. **Add.** Everything this PR leaves for later that the sweep ("Docs follow the code you
    changed") does not fix goes somewhere, in every run, whether or not the task came from the
    board. A same-subject item within the bound is fixed, never left. Of the rest:
@@ -54,12 +55,13 @@ step of the gate and of CI's `tooling` job.
    and that sentence; nothing else about such a PR is exempt. The owner removes a name from
    the line when its stage is done, and sets the line to `none` when the sweep ends.
    Open sweeps (the owner edits this line, in a protected PR): none.
-5. **Epics.** Parallel subtask agents never edit `BOARD.md`, because their edits would
+5. **Epics.** Parallel subtask workers never edit `BOARD.md`, because their edits would
    conflict (this overrides rule 1 for them). They list drift and follow-ups in their PR
    description. Once every subtask is merged into the epic branch, the orchestrator opens
    **one** final board PR into the epic branch. It is not a plan subtask (not in the plan,
    no `allowed_paths`). It adds the records the subtasks reported, deletes the epic's own
-   record if the epic started from one, and carries the `Board:` line. It reaches `main`
+   record if the epic started from one, sets the plan's `Status` to `done` (a protected
+   path: the human merges this PR), and carries the `Board:` line. It reaches `main`
    with the epic PR, whose own `Board:` line repeats those changes. An epic record points
    to its plan under `docs/epics/`.
 6. **Leave other records alone.** Don't delete or rewrite a record you aren't resolving.
