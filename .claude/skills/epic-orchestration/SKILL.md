@@ -203,9 +203,10 @@ The plan file's format, and a worked example (personal records on History), are 
 
 **`feature/epic/<epic-slug>`**. Each part of the name is there for a reason:
 
-- **`feature/` prefix, so CI runs.** `ci.yml` triggers `push` for `main` and `feature/epic/**`, and `pull_request`
-  for base branches matching `main` or `feature/**`. The epic PR is against `main`, and a push of the
-  integration branch also starts CI: it is pushed once, when the epic PR is opened, and never as a backup.
+- **`feature/` prefix, so CI runs.** `ci.yml` triggers `push` for `main` only and `pull_request` for base
+  branches matching `main` or `feature/**`. The epic PR is against `main`, and its CI runs on the
+  pull-request event; a push trigger on the integration branch would start a second run for the same
+  commit, so there is none. The branch is pushed once, when the epic PR is opened, and not as a backup.
 - **`epic/` segment, so a rule or a CI trigger can target integration branches without catching
   subtask branches.** The pattern `feature/epic/*` matches the integration branch. It doesn't match
   subtask branches named `<type>/<epic-slug>-<subtask>`.

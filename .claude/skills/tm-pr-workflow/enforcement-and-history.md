@@ -46,8 +46,8 @@ Read from `SKILL.md`, "Where enforcement and history differ from the rules". The
   `shared`'s since S3 of `protected-paths-review-2`. The `ios` job is the aggregator that carries the required
   check name: it runs no build step and is green only when `plan` and `ios-build` passed, or `ios-build` was
   skipped on a `light` decision.
-- **CI only runs on push for `main` and `feature/epic/**`.** `ci.yml`'s push trigger doesn't
-  include `bugfix/**` or `chore/**`, so those branches get CI only once the PR is open.
+- **CI only runs on push for `main`.** `ci.yml`'s push trigger doesn't include `bugfix/**`, `chore/**`
+  or `feature/**` (epic integration branches included), so those branches get CI only once the PR is open.
 - **Commit types have been used inconsistently.** The retired docs listed only
   `feat`/`fix`/`refactor`/`build`/`docs`/`test`. `chore` is the most-used type since #30,
   and the same kind of change has been typed differently (`chore(ci)` in #33,
