@@ -135,3 +135,8 @@ dead code: the Kotlin rules in `tm-android` (`kotlin-conventions.md`: "Naming (K
 ## Detekt
 
 CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android` ("Detekt", `kotlin-conventions.md`).
+
+## Known deviations in the current code
+
+Don't copy these as a pattern for new code.
+- None today.
