@@ -35,7 +35,7 @@ integrates its commits. For each subtask of a wave, from the main clone with a c
    to take the second worker's commits, `git switch` to its branch first). Read the diff of what came in against the plan's acceptance. The worker's
    test results are its claim; the gate reruns everything.
 5. On `BLOCKED` or `NEEDS_CONTRACT_CHANGE`: the orchestrator decides within the plan. A file outside `allowed_paths`, or a change of the contract the plan
-   fixes, is a plan defect: stop and report (`running-an-epic.md`, step 3.8). The orchestrator never widens a worker's allowed paths.
+   fixes, is a plan defect: stop and report (`running-an-epic.md`, step 3.5). The orchestrator never widens a worker's allowed paths.
 6. `scripts/subagent/worktree.sh remove <name>` once the commits are taken, then the integration steps: the branch brought up to the integration tip, the local review, the gate and the local merge (`subtask-merge.md`).
 
 A subtask that is small (a few files, a plan line) may be done by the orchestrator itself, as `tm-agent-loop`, "Subagents" says for any task; it
@@ -58,7 +58,7 @@ the question of the pass marker per worktree (it is verified, see `worktree-isol
   can raise it.
 - **Untracked local files don't come along.** `--ios` and `--android` of `worktree.sh create` put symbolic links to the iOS secrets config and `local.properties` in
   the worktree. Never read, print, copy or commit them. A gate in the main clone has the real files.
-- **Sequential is still fine** when a wave has one subtask or the machine cannot take two. The ordering, scoping and PR-per-subtask rules are the same either way.
+- **Sequential is still fine** when a wave has one subtask or the machine cannot take two. The ordering, scoping and local-merge rules (`subtask-merge.md`) are the same either way.
 - A worktree is removed after its commits are taken. The subtask's branch lives on until it is merged locally, then it is deleted.
 
 Never work around a hook (for example by touching the gate marker by hand, or pushing from a command the hook's pattern doesn't match). That's a gate bypass, not a fix.
