@@ -20,7 +20,7 @@
 
 ## 1. What the code does today
 
-Facts below are read from `main` at 3c93063c. PR #358 (the tracking control rules, open when this plan was written) changes
+Facts below are read from `main` at 3c93063c. PR #358 (the tracking control rules, merged after this plan was written) changes
 two lines the plan names: the finish card condition reads `state.canSave` instead of `state.trackingState is TrackingState.Finished`
 on Android, and iOS's `canFinish` is `canSave && !isDiscarding`. Where this plan says `Finished`, it holds either way.
 
@@ -200,7 +200,7 @@ Branches use the three allowed prefixes. Every PR runs the gate in full: each to
 
 ### PR 4 (only if Question 2 is answered yes): the finish card shows on `canSave`, not on `hasReachedDestination`
 
-- Branch: `chore/finish-card-follows-state`. Depends on: PR 3 and PR #358 (`TrackingControls.canSave`, once merged). Touches: `TrackingScreen.kt`, `TrackingView.swift`, and `RouteCompletionUpdate`/the state classes lose
+- Branch: `chore/finish-card-follows-state`. Depends on: PR 3 and PR #358 (`TrackingControls.canSave`, merged). Touches: `TrackingScreen.kt`, `TrackingView.swift`, and `RouteCompletionUpdate`/the state classes lose
   `hasReachedDestination`.
 - Proof: the existing screen and ViewModel tests are updated where they assert `hasReachedDestination`
   (three in `TrackingViewModelTest`, `TrackingScreenStateTest`) and a test that the card shows exactly when `canSave`.
