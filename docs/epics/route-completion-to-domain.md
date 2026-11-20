@@ -403,6 +403,12 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
    subtask mostly buys waiting; one CI run on the final PR is enough and necessary; the owner is asked to merge or review one PR, not several. The ruleset for
    `feature/epic/*` is not used (it would refuse a fix pushed to the open epic PR after a red CI); the owner deletes it himself, and `main`'s own protection guards the epic PR.
    The owner will change his mind if the first run gives evidence that he is wrong, which is why the run records evidence.
+8. **The Android foreground notification must not outlive the session (the owner's decision of 2026-11-20, found in the owner's Android tests of the epic PR):**
+   the manager now ends a session at the route's end and stops the service at once, and the notification for the last `Tracking` state was posted on a worker
+   thread after the service's `onDestroy` had cancelled it, so "Tracking...<distance>" stayed (3 of 3 owner runs; on the emulator 12 of 12 runs with the
+   screen on and 11 of 12 locked before the fix). The fix may touch `data/src/androidMain` tracking code (`TrackingService`, the service scope in
+   `AndroidCommonModule`) and its tests (`androidApp/app/src/test`), which no subtask owned: the service's scope runs on the main thread, and `onDestroy`
+   removes the foreground notification with `stopForeground`. It changes no domain, iOS or Swift-visible API.
 
 ## How this epic is run (the owner's decision of 2026-11-19)
 
