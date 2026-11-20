@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.RouteError
+import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
@@ -48,11 +49,23 @@ class TrackingSessionManager(
      */
     val sessionDetails: StateFlow<SessionDetails?> = _sessionDetails.asStateFlow()
 
+    private val _routeProgress = MutableStateFlow<RouteProgress?>(null)
+
+    /**
+     * Progress along the planned route after the latest fix of the session; null before the first fix and
+     * for a session without a plan. The manager ends the session by itself when the route's end is reached.
+     */
+    val routeProgress: StateFlow<RouteProgress?> = _routeProgress.asStateFlow()
+
     private val _locationIssues = MutableSharedFlow<RouteError>(extraBufferCapacity = 1)
     val locationIssues: SharedFlow<RouteError> = _locationIssues.asSharedFlow()
 
     private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
+
+    // One per session; touched only by the location collector, which observeLocation replaces one at a time.
+    private var routeCompletionTracker = RouteCompletionTracker(emptyList())
+    private var hasPlan = false
 
     // Serializes the store's writes, and guards [clearedState].
     private val storeMutex = Mutex()
@@ -79,6 +92,9 @@ class TrackingSessionManager(
         consecutiveUnavailableCount = 0
         _sessionDetails.value = SessionDetails(activityType, clock.nowMillis(), plannedRoute)
         speedCalculator.reset()
+        routeCompletionTracker = RouteCompletionTracker(plannedRoute)
+        hasPlan = plannedRoute.isNotEmpty()
+        _routeProgress.value = null
         dispatch(TrackingEvent.Start(startPoint, clock.elapsedRealtimeMillis()))
         observeLocation()
         trackingServiceLauncher.start()
@@ -99,7 +115,9 @@ class TrackingSessionManager(
         trackingServiceLauncher.start()
     }
 
+    /** Ends the session; does nothing when it is [TrackingState.Idle] or already [TrackingState.Finished]. */
     fun stop() {
+        if (_state.value is TrackingState.Idle || _state.value is TrackingState.Finished) return
         locationObservationJob?.cancel()
         dispatch(TrackingEvent.Stop(clock.elapsedRealtimeMillis()))
         trackingServiceLauncher.stop()
@@ -131,7 +149,16 @@ class TrackingSessionManager(
                 SessionDetails(stored.activityType, stored.startedAtEpochMillis, stored.plannedRoute)
             )
         }
-        return if (_state.compareAndSet(TrackingState.Idle, restored)) restored else _state.value
+        if (_state.compareAndSet(TrackingState.Idle, restored)) {
+            if (restored !is TrackingState.Idle) {
+                val plan = stored?.plannedRoute.orEmpty()
+                routeCompletionTracker = RouteCompletionTracker(plan)
+                hasPlan = plan.isNotEmpty()
+                _routeProgress.value = null
+            }
+            return restored
+        }
+        return _state.value
     }
 
     /**
@@ -221,6 +248,9 @@ class TrackingSessionManager(
                                 speedMetersPerSecond = speed
                             )
                         )
+                        val completion = routeCompletionTracker.update(update.coordinates, _state.value)
+                        if (hasPlan) _routeProgress.value = completion.progress
+                        if (completion.reachedNow) stop()
                     }
 
                     is LocationUpdate.Unavailable -> {

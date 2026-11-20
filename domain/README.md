@@ -21,7 +21,9 @@ Compose, or any platform framework.
   method — a thin passthrough to a single repository call is usually not
   worth a use case.
 - **Tracking orchestration** (`tracking/`): `TrackingSessionManager`, the
-  state machine driving Start/Pause/Resume/Stop, and `TrackingSessionStore`,
+  state machine driving Start/Pause/Resume/Stop (it ends a session on a planned route by itself at the
+  route's end and exposes `routeProgress`), `RouteCompletionTracker`, the rule it runs for that, and
+  `TrackingSessionStore`,
   the port that keeps the in-progress session across process death.
 - **Route planning** (`route/`): `RouteDraftStore`, the port that keeps the
   route being planned across process death; `RouteDraftSaver` (one per app:
