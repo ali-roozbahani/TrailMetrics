@@ -10,6 +10,9 @@ import SharedKit
 public class TrackingViewModel: ObservableObject {
     @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared
     @Published public private(set) var calories: Double?
+    /// How far along the planned route the session is, as the manager reports it (nil before the first fix
+    /// and without a plan). The route's end is the manager's rule: it ends the session itself.
+    @Published public private(set) var routeProgress: RouteProgress?
     /// Set when the user discards the session (Stop, Stop & Exit): the screen is on its way out.
     @Published public private(set) var isDiscarding = false
 
@@ -47,8 +50,8 @@ public class TrackingViewModel: ObservableObject {
 
     // Kotlin's `trackingScope` runs on `Dispatchers.Default`, so `for await` can resume off the main actor
     // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
-    private var stateObservationTask: Task<Void, Never>?
-    private var locationIssuesObservationTask: Task<Void, Never>?
+    // The state, route progress and location issues observations, cancelled together.
+    private var observationTasks: [Task<Void, Never>] = []
 
     private var liveActivityController: TrackingLiveActivityController?
     /// Set when the Live Activity of the session was ended (by Stop or by the observed Finished state), so it
@@ -160,6 +163,7 @@ public class TrackingViewModel: ObservableObject {
 
         loadUserProfile()
         observeTrackingState()
+        observeRouteProgress()
         observeLocationIssues()
 
         liveActivityController = TrackingLiveActivityController(client: liveActivityClient) { [weak self] in
@@ -200,7 +204,7 @@ public class TrackingViewModel: ObservableObject {
     }
 
     private func observeTrackingState() {
-        stateObservationTask = Task { [weak self] in
+        observationTasks.append(Task { [weak self] in
             guard let flow = self?.trackingSessionManager.currentState else { return }
             for await state in flow {
                 guard let self else { return }
@@ -223,11 +227,23 @@ public class TrackingViewModel: ObservableObject {
                     }
                 }
             }
-        }
+        })
+    }
+
+    private func observeRouteProgress() {
+        observationTasks.append(Task { [weak self] in
+            guard let flow = self?.trackingSessionManager.routeProgress else { return }
+            for await progress in flow {
+                guard let self else { return }
+                await MainActor.run {
+                    self.routeProgress = progress
+                }
+            }
+        })
     }
 
     private func observeLocationIssues() {
-        locationIssuesObservationTask = Task { [weak self] in
+        observationTasks.append(Task { [weak self] in
             guard let flow = self?.trackingSessionManager.locationIssues else { return }
             for await issue in flow {
                 guard let self else { return }
@@ -235,12 +251,11 @@ public class TrackingViewModel: ObservableObject {
                     self.emit(.showError(issue.toUiError()))
                 }
             }
-        }
+        })
     }
 
     deinit {
-        stateObservationTask?.cancel()
-        locationIssuesObservationTask?.cancel()
+        observationTasks.forEach { $0.cancel() }
     }
 
     private func recomputeCalories() {
@@ -256,7 +271,7 @@ public class TrackingViewModel: ObservableObject {
             activityType: activityType,
             plannedRoute: plannedRoutePoints
         )
-        liveActivityController?.start(activityType: liveActivityTypeKey)
+        liveActivityController?.start(activityType: activityType.liveActivityKey)
     }
 
     public func onPauseClicked() {
@@ -268,15 +283,13 @@ public class TrackingViewModel: ObservableObject {
         isLiveActivityEnded = false
         // A session restored after the app was terminated has no Live Activity, and none starts before
         // the user resumes. In a live session one exists and `start` does nothing.
-        liveActivityController?.start(activityType: liveActivityTypeKey)
+        liveActivityController?.start(activityType: activityType.liveActivityKey)
     }
 
     public func onStopClicked() {
         // Cancel the observations before `stop()`, so no emission lands mid-teardown.
-        stateObservationTask?.cancel()
-        locationIssuesObservationTask?.cancel()
-        stateObservationTask = nil
-        locationIssuesObservationTask = nil
+        observationTasks.forEach { $0.cancel() }
+        observationTasks = []
 
         trackingSessionManager.stop()
 
@@ -373,16 +386,6 @@ public class TrackingViewModel: ObservableObject {
     }
 
     // MARK: - Live Activity
-
-    // Not shown from here: the Live Activity attribute carries this English name as a stable key,
-    // and the widget extension localizes it with its own catalog (TrackingLiveActivity.swift).
-    private var liveActivityTypeKey: String {
-        switch activityType {
-        case .running: return "Running"
-        case .cycling: return "Cycling"
-        case .walking: return "Walking"
-        }
-    }
 
     // The Live Activity's Stop button (a best-effort Darwin notification, only heard while this process is
     // alive) behaves like the in-app Stop. The view's `dismiss` is out of reach here, so it emits
