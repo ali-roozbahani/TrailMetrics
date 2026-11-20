@@ -213,6 +213,7 @@ locally, and merges locally into `feature/epic/route-completion-to-domain`. Thes
     - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/tracking/TrackingSessionManagerRouteCompletionTest.kt
     - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/fakes/**
     - domain/README.md
+    - domain/src/commonTest/kotlin/dev/roozbahani/trailmetrics/domain/tracking/TrackingSessionManagerPersistenceTest.kt
     - config/kover-floors.properties
   acceptance:
     - RouteCompletionTracker is public in dev.roozbahani.trailmetrics.domain.tracking with update(location, state) returning
@@ -235,7 +236,7 @@ locally, and merges locally into `feature/epic/route-completion-to-domain`. Thes
     advances with each fix while nothing collects`, `a plan-less session never ends by itself`, `a paused session does not end until the first
     fix after resume`, `the session ends once, not at each later fix`, `a second session after discard ends again`, `a restored session
     starts progress from index 0`, `the completing fix is the last point of the path`, `stop is a no-op in idle and finished`. The existing
-    TrackingSessionManagerTest and TrackingSessionManagerPersistenceTest cases stay green unchanged.
+    TrackingSessionManagerTest and TrackingSessionManagerPersistenceTest cases stay green unchanged, except one (owner's decision of 2026-11-20): `start on a planned route keeps the plan in the details and saves it with every state` in TrackingSessionManagerPersistenceTest changes its fixture only, so that the fix it emits does not complete the session (farther than 25 m from the route's end); its three assertions stay exactly as they are. The same kind of change (a fixture fix that now completes the session, assertions unchanged) is allowed for any other existing test under domain/src/commonTest that is red for only that reason; every such change is listed in the epic PR's notes. Any other red test, any change to an assertion, or any test outside domain/src/commonTest is a stop. The test named `the completing fix is the last point of the path` proves that the path ends with the fix that completed the session, which is the first fix that satisfies the rule, not necessarily the last route point; the epic PR's notes say so.
 
 - id: S3
   title: iOS ends the Live Activity whenever the observed state turns Finished
