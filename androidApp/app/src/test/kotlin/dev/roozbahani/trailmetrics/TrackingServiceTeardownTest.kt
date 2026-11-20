@@ -13,8 +13,6 @@ import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeLogger
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
-import dev.roozbahani.trailmetrics.data.di.newTrackingServiceScope
-import dev.roozbahani.trailmetrics.data.di.trackingServiceScopeQualifier
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
@@ -25,7 +23,6 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Before
@@ -59,8 +56,7 @@ import kotlin.test.assertTrue
 class TrackingServiceTeardownTest {
 
     private val application: Application = Robolectric.buildActivity(MainActivity::class.java).get().application
-    // The scope the app gives the service (the real factory the Koin graph binds), not one the test chooses.
-    private val serviceScope = newTrackingServiceScope()
+    private lateinit var manager: TrackingSessionManager
 
     @Before
     fun setUp() {
@@ -78,7 +74,7 @@ class TrackingServiceTeardownTest {
                 IntentFilter(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
             )
         }
-        val manager = TrackingSessionManager(
+        manager = TrackingSessionManager(
             locationRepository = FakeLocationRepository(),
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
             trackingServiceLauncher = FakeTrackingServiceLauncher(),
@@ -94,7 +90,6 @@ class TrackingServiceTeardownTest {
                 module {
                     single { manager }
                     single<Logger> { FakeLogger() }
-                    factory<CoroutineScope>(trackingServiceScopeQualifier) { serviceScope }
                 }
             )
         }
@@ -103,7 +98,6 @@ class TrackingServiceTeardownTest {
     @After
     fun tearDown() {
         HoldsOffMainNotifyShadow.release()
-        serviceScope.cancel()
         stopKoin()
     }
 
@@ -111,8 +105,8 @@ class TrackingServiceTeardownTest {
     fun `a notification still being posted off the main thread when the service is destroyed does not outlive it`() {
         val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
         controller.get().onStartCommand(Intent(), 0, 1)
-        // Before the fix the scope runs on Dispatchers.Default and the service's notify is held on a worker thread;
-        // after it, the scope runs on the main thread and nothing is held (this wait then times out, which is fine).
+        // The service observes on lifecycleScope (the main thread), so no notify() is held on a worker thread and
+        // this wait times out; with a worker-thread scope it would return at once with a held notify().
         HoldsOffMainNotifyShadow.awaitHeld(timeoutMs = 2_000)
 
         controller.destroy()
@@ -142,6 +136,20 @@ class TrackingServiceTeardownTest {
             "notify() ran ${HoldsOffMainNotifyShadow.offMainNotifyCount} time(s) off the main thread"
         )
         controller.destroy()
+    }
+
+    @Test
+    fun `a state update after the service is destroyed posts nothing`() {
+        val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
+        controller.get().onStartCommand(Intent(), 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+        controller.destroy()
+
+        manager.pause()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val notificationManager = application.getSystemService(NotificationManager::class.java)
+        assertEquals(emptyList(), shadowOf(notificationManager).allNotifications.map { it.extras.getString(Notification.EXTRA_TEXT) })
     }
 
     @Test

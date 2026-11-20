@@ -70,6 +70,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
+            api(libs.androidx.lifecycle.service) // TrackingService extends LifecycleService: its supertype is part of the public API
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.play.services.location)
             implementation(libs.ktor.client.okhttp)
