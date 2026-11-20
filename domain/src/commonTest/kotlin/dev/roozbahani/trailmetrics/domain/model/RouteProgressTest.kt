@@ -94,4 +94,54 @@ class RouteProgressTest {
         val resultWithFix = calculateRouteProgress(loopRoute, currentLocation, previousIndex = 1, searchWindow = 1)
         assertTrue(resultWithFix.lastIndex <= 2)
     }
+
+    @Test
+    fun `previousIndex at the size does not throw`() {
+        val result = calculateRouteProgress(plannedRoute, point1, previousIndex = plannedRoute.size)
+        assertEquals(2, result.lastIndex)
+        assertEquals(plannedRoute, result.traveledSegment)
+        assertEquals(listOf(point3), result.remainingSegment)
+    }
+
+    @Test
+    fun `previousIndex past the size does not throw`() {
+        val result = calculateRouteProgress(plannedRoute, point1, previousIndex = 50)
+        assertEquals(2, result.lastIndex)
+        assertEquals(listOf(point3), result.remainingSegment)
+    }
+
+    @Test
+    fun `negative previousIndex does not throw`() {
+        val result = calculateRouteProgress(plannedRoute, point2, previousIndex = -4)
+        assertEquals(1, result.lastIndex)
+        assertEquals(listOf(point1, point2), result.traveledSegment)
+        assertEquals(listOf(point2, point3), result.remainingSegment)
+    }
+
+    @Test
+    fun `negative searchWindow counts as zero`() {
+        val result = calculateRouteProgress(plannedRoute, point3, previousIndex = 1, searchWindow = -7)
+        assertEquals(1, result.lastIndex)
+        assertEquals(listOf(point1, point2), result.traveledSegment)
+        assertEquals(listOf(point2, point3), result.remainingSegment)
+    }
+
+    @Test
+    fun `one-point route with a large previousIndex does not throw`() {
+        val result = calculateRouteProgress(listOf(point1), point1, previousIndex = 3)
+        assertEquals(0, result.lastIndex)
+        assertEquals(listOf(point1), result.traveledSegment)
+        assertEquals(listOf(point1), result.remainingSegment)
+    }
+
+    @Test
+    fun `valid input keeps its result`() {
+        val result = calculateRouteProgress(plannedRoute, point3, previousIndex = 1, searchWindow = 1)
+        assertEquals(2, result.lastIndex)
+        assertEquals(plannedRoute, result.traveledSegment)
+        assertEquals(listOf(point3), result.remainingSegment)
+
+        val narrow = calculateRouteProgress(plannedRoute, point3, previousIndex = 0, searchWindow = 0)
+        assertEquals(0, narrow.lastIndex)
+    }
 }
