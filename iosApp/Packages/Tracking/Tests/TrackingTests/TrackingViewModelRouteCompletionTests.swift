@@ -101,4 +101,18 @@ final class TrackingViewModelRouteCompletionTests: TrackingTestCase {
 
         XCTAssertFalse(viewModel.canFinish, "A discarded session shows no finish card")
     }
+
+    func test_aDiscardedSession_leavesNoRouteProgressForTheNextScreen() async {
+        let subject = makeSubject(updates: [TrackingFixtures.movingUpdates[0], Self.endUpdate])
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.trackingState is TrackingStateFinished }
+        XCTAssertNotNil(viewModel.routeProgress, "A finished session that is not cleared keeps its progress")
+
+        viewModel.onDiscardClicked()
+
+        await waitUntil { viewModel.routeProgress == nil }
+        XCTAssertNil(subject.trackingSessionManager.routeProgress.value, "No session, no progress")
+        XCTAssertTrue(viewModel.trackingState is TrackingStateIdle)
+    }
 }

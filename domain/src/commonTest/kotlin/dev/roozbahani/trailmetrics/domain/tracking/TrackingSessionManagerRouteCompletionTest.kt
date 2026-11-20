@@ -139,6 +139,50 @@ class TrackingSessionManagerRouteCompletionTest {
     }
 
     @Test
+    fun `a finished session that is not cleared keeps its progress`() = runTest(testScheduler) {
+        startPlanned()
+        ROUTE.drop(1).forEach { fix(it) }
+
+        assertIs<TrackingState.Finished>(manager.currentState.value)
+        assertNotNull(manager.routeProgress.value)
+    }
+
+    @Test
+    fun `there is no progress right after discard`() = runTest(testScheduler) {
+        startPlanned()
+        ROUTE.drop(1).forEach { fix(it) }
+        assertNotNull(manager.routeProgress.value)
+
+        manager.discard()
+
+        assertIs<TrackingState.Idle>(manager.currentState.value)
+        assertNull(manager.routeProgress.value)
+    }
+
+    @Test
+    fun `there is no progress right after clearSession of a finished session`() = runTest(testScheduler) {
+        startPlanned()
+        ROUTE.drop(1).forEach { fix(it) }
+        assertNotNull(manager.routeProgress.value)
+
+        manager.clearSession()
+
+        assertIs<TrackingState.Idle>(manager.currentState.value)
+        assertNull(manager.routeProgress.value)
+    }
+
+    @Test
+    fun `clearSession keeps the progress of a session that is still running`() = runTest(testScheduler) {
+        startPlanned()
+        fix(ROUTE[1])
+
+        manager.clearSession()
+
+        assertIs<TrackingState.Tracking>(manager.currentState.value)
+        assertNotNull(manager.routeProgress.value)
+    }
+
+    @Test
     fun `a restored session starts progress from index 0`() = runTest(testScheduler) {
         startPlanned()
         fix(ROUTE[1])

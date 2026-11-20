@@ -34,6 +34,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -71,17 +72,22 @@ class TrackingViewModelPlannedRouteTest {
             trackingSessionStore = store,
             scope = backgroundScope
         )
-        return TrackingViewModel(
-            trackingSessionManager = sessionManager,
-            userProfileRepository = FakeUserProfileRepository(UserProfile(weightKg = 70.0)),
-            trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
-            saveActivityUseCase = SaveActivityUseCase(FakeActivityHistoryRepository(), CalorieCalculator(), clock),
-            activityType = ActivityType.Cycling,
-            plannedRoutePoints = plannedRoutePoints,
-            clock = clock,
-            snapshotFileDeleter = FakeSnapshotFileDeleter()
-        ).also { testScheduler.runCurrent() }
+        return createViewModelOn(sessionManager, plannedRoutePoints)
     }
+
+    private fun TestScope.createViewModelOn(
+        manager: TrackingSessionManager,
+        plannedRoutePoints: List<Coordinates> = PLAN
+    ): TrackingViewModel = TrackingViewModel(
+        trackingSessionManager = manager,
+        userProfileRepository = FakeUserProfileRepository(UserProfile(weightKg = 70.0)),
+        trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
+        saveActivityUseCase = SaveActivityUseCase(FakeActivityHistoryRepository(), CalorieCalculator(), clock),
+        activityType = ActivityType.Cycling,
+        plannedRoutePoints = plannedRoutePoints,
+        clock = clock,
+        snapshotFileDeleter = FakeSnapshotFileDeleter()
+    ).also { testScheduler.runCurrent() }
 
     @Test
     fun `start keeps the planned route with the session and stores it`() = runTest(testScheduler) {
@@ -135,6 +141,30 @@ class TrackingViewModelPlannedRouteTest {
         assertIs<TrackingState.Finished>(state.trackingState)
         assertTrue(state.canSave)
         assertEquals(PLAN, assertNotNull(state.routeProgress).traveledSegment)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `a saved session leaves no route progress for the next tracking screen`() = runTest(testScheduler) {
+        val viewModel = createViewModel(PLAN)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        clock.elapsedRealtimeMillis = 5_000L + 60_000L
+        locationRepository.emit(LocationUpdate.Success(PLAN.last(), speedMetersPerSecond = null, accuracyMeters = null))
+        testScheduler.runCurrent()
+        assertNotNull(viewModel.state.value.routeProgress)
+
+        viewModel.onAction(TrackingAction.Finish(snapshotFilePath = null))
+        testScheduler.runCurrent()
+
+        assertIs<TrackingState.Idle>(viewModel.state.value.trackingState)
+        assertNull(viewModel.state.value.routeProgress)
+        // The next Tracking screen opens on the same manager: it starts with no traveled segment.
+        val nextScreen = createViewModelOn(sessionManager)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { nextScreen.state.collect {} }
+        testScheduler.runCurrent()
+        assertNull(nextScreen.state.value.routeProgress)
     }
 
     private companion object {
