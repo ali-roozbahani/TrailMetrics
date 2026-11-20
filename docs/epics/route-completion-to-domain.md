@@ -409,6 +409,10 @@ Stop and ask the owner (the plan is changed only with approval, as a `chore(epic
    screen on and 11 of 12 locked before the fix). The fix may touch `data/src/androidMain` tracking code (`TrackingService`, the service scope in
    `AndroidCommonModule`) and its tests (`androidApp/app/src/test`), which no subtask owned: the service's scope runs on the main thread, and `onDestroy`
    removes the foreground notification with `stopForeground`. It changes no domain, iOS or Swift-visible API.
+   **Refined the same day (the owner's decision of 2026-11-20):** the scope is not a Koin-provided one but `lifecycleScope` of a `LifecycleService`
+   (`androidx.lifecycle:lifecycle-service`, the version ref of `lifecycle-runtime-ktx`, in `data`'s `androidMain` dependencies). It is the same
+   main-immediate dispatcher, and the lifecycle itself cancels it in `super.onDestroy()`, so no `notify()` can run after `onDestroy`. The
+   hand-made `newTrackingServiceScope()`, `trackingServiceScopeQualifier` and the Koin binding are removed.
 
 ## How this epic is run (the owner's decision of 2026-11-19)
 
