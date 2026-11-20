@@ -10,6 +10,8 @@ import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
+import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
@@ -19,6 +21,7 @@ import dev.roozbahani.trailmetrics.domain.util.CalorieCalculator
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -29,6 +32,9 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * The plan a [TrackingViewModel] was opened with is kept with the session it starts, so a recreated Tracking
@@ -39,6 +45,7 @@ class TrackingViewModelPlannedRouteTest {
     private val testScheduler = TestCoroutineScheduler()
     private val clock = FakeClock(nowMillis = 1_000_000L, elapsedRealtimeMillis = 5_000L)
     private val store = FakeTrackingSessionStore()
+    private val locationRepository = FakeLocationRepository()
     private lateinit var sessionManager: TrackingSessionManager
 
     @OptIn(ExperimentalCoroutinesApi::class) // setMain/UnconfinedTestDispatcher have no stable replacement
@@ -55,7 +62,7 @@ class TrackingViewModelPlannedRouteTest {
 
     private fun TestScope.createViewModel(plannedRoutePoints: List<Coordinates>): TrackingViewModel {
         sessionManager = TrackingSessionManager(
-            locationRepository = FakeLocationRepository(),
+            locationRepository = locationRepository,
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
             trackingServiceLauncher = FakeTrackingServiceLauncher(),
             speedCalculator = SpeedCalculator(),
@@ -107,6 +114,27 @@ class TrackingViewModelPlannedRouteTest {
 
         assertEquals(emptyList(), sessionManager.sessionDetails.value?.plannedRoute)
         assertEquals(emptyList(), store.storedPlannedRoute)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `the session ends at the route's end while nobody collects the state`() = runTest(testScheduler) {
+        // No collector: the screen is locked. The manager keeps running and ends the session by itself.
+        val viewModel = createViewModel(PLAN)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+
+        clock.elapsedRealtimeMillis = 5_000L + 60_000L
+        locationRepository.emit(LocationUpdate.Success(PLAN.last(), speedMetersPerSecond = null, accuracyMeters = null))
+        testScheduler.runCurrent()
+
+        // The screen is shown again: collecting the state now gives the finished session.
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        testScheduler.runCurrent()
+        val state = viewModel.state.value
+        assertIs<TrackingState.Finished>(state.trackingState)
+        assertTrue(state.canSave)
+        assertEquals(PLAN, assertNotNull(state.routeProgress).traveledSegment)
     }
 
     private companion object {

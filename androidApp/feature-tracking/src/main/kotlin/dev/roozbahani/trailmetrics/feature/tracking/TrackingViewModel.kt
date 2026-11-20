@@ -68,8 +68,6 @@ class TrackingViewModel(
 
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
 
-    private val routeCompletionTracker = RouteCompletionTracker(plannedRoutePoints)
-
     private val _events = Channel<TrackingEvent>(Channel.BUFFERED)
 
     /** True until the stored session has been loaded (or the load failed): Start is not offered before. */
@@ -102,20 +100,22 @@ class TrackingViewModel(
 
     val state: StateFlow<TrackingScreenState> = combine(
         trackingSessionManager.currentState,
+        trackingSessionManager.routeProgress,
         _userProfile,
         retainedSnapshotPath,
         isRestoring
-    ) { trackingState, userProfile, retainedPath, restoring ->
+    ) { trackingState, routeProgress, userProfile, retainedPath, restoring ->
         val calories = trackingMetricsUseCase(trackingState, activityType, userProfile?.weightKg).calories
 
         TrackingScreenState(
             trackingState = trackingState,
             calories = calories,
             plannedRoutePoints = plannedRoutePoints,
+            routeProgress = routeProgress,
             retainedSnapshotPath = retainedPath,
             isRestoring = restoring
         )
-    }.map(::withRouteCompletion).stateIn(
+    }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = TrackingScreenState(plannedRoutePoints = plannedRoutePoints, isRestoring = true)
@@ -145,21 +145,6 @@ class TrackingViewModel(
         }
     }
 
-    /**
-     * Route progress and the auto-stop at the route's end. This runs inside the state pipeline,
-     * so, like the composable effect it replaces, it is evaluated only while the screen observes
-     * state (plus the WhileSubscribed grace period).
-     */
-    private fun withRouteCompletion(state: TrackingScreenState): TrackingScreenState {
-        if (routeCompletionTracker.onUpdate(state.currentPath.lastOrNull(), state.trackingState)) {
-            trackingSessionManager.stop()
-        }
-        return state.copy(
-            routeProgress = routeCompletionTracker.progress,
-            hasReachedDestination = routeCompletionTracker.hasReachedDestination
-        )
-    }
-
     private fun start(startCoordinates: Coordinates) {
         // A stored or unsaved session is never replaced: its first save would overwrite the stored one.
         if (!trackingSessionManager.currentState.value.availableControls(isRestoring.value).canStart) return
@@ -173,7 +158,7 @@ class TrackingViewModel(
     /**
      * The screen leaves right after Stop (the Stop button and the exit dialog), so the stopped session
      * is discarded: its stored copy is cleared. A session that stops by itself at the route's end is
-     * stopped by [withRouteCompletion] and stays stored until it is saved with Finish.
+     * ended by the session manager and stays stored until it is saved with Finish.
      */
     private fun stop() {
         viewModelScope.launch { trackingSessionManager.discard() }
@@ -270,7 +255,6 @@ data class TrackingScreenState(
     val calories: Double? = null,
     val plannedRoutePoints: List<Coordinates> = emptyList(),
     val routeProgress: RouteProgress? = null,
-    val hasReachedDestination: Boolean = false,
     /** Set after a Finish that did not save: the screen sends this file again instead of a new one. */
     val retainedSnapshotPath: String? = null,
     /** True until the stored session has been loaded; Start is not offered meanwhile. */
