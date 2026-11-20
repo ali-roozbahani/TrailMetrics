@@ -149,7 +149,10 @@ class TrackingServiceTeardownTest {
         shadowOf(Looper.getMainLooper()).idle()
 
         val notificationManager = application.getSystemService(NotificationManager::class.java)
-        assertEquals(emptyList(), shadowOf(notificationManager).allNotifications.map { it.extras.getString(Notification.EXTRA_TEXT) })
+        assertEquals(
+            emptyList(),
+            shadowOf(notificationManager).allNotifications.map { it.extras.getString(Notification.EXTRA_TEXT) }
+        )
     }
 
     @Test
