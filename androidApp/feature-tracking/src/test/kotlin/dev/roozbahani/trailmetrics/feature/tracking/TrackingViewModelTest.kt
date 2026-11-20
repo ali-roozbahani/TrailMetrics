@@ -717,7 +717,6 @@ class TrackingViewModelTest {
 
         assertEquals(PLANNED_ROUTE, viewModel.state.value.plannedRoutePoints)
         assertNull(viewModel.state.value.routeProgress)
-        assertFalse(viewModel.state.value.hasReachedDestination)
     }
 
     @Test
@@ -744,14 +743,13 @@ class TrackingViewModelTest {
         val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
-        assertEquals(0, assertNotNull(viewModel.state.value.routeProgress).lastIndex)
+        assertNull(viewModel.state.value.routeProgress)
 
         receiveLocation(NEXT, millisAfterStart = 60_000L)
 
         val progress = assertNotNull(viewModel.state.value.routeProgress)
         assertEquals(1, progress.lastIndex)
         assertEquals(listOf(START, NEXT), progress.traveledSegment)
-        assertFalse(viewModel.state.value.hasReachedDestination)
         assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
     }
 
@@ -766,7 +764,7 @@ class TrackingViewModelTest {
 
         val state = viewModel.state.value
         assertIs<TrackingState.Finished>(state.trackingState)
-        assertTrue(state.hasReachedDestination)
+        assertTrue(state.canSave)
         assertEquals(WALKED_ROUTE, assertNotNull(state.routeProgress).traveledSegment)
         assertEquals(1, trackingServiceLauncher.stopCalls)
     }
@@ -801,6 +799,20 @@ class TrackingViewModelTest {
 
         assertEquals(1, savedSignals)
         assertEquals(listOf(START, END), activityHistoryRepository.savedActivities.single().actualPath)
+    }
+
+    @Test
+    fun `the session ends at the route's end while nobody collects the state`() = runTest(testScheduler) {
+        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+
+        receiveLocation(END, millisAfterStart = 60_000L)
+
+        val state = viewModel.state.value
+        assertIs<TrackingState.Finished>(state.trackingState)
+        assertTrue(state.canSave)
+        assertEquals(WALKED_ROUTE, assertNotNull(state.routeProgress).traveledSegment)
     }
 
     // endregion

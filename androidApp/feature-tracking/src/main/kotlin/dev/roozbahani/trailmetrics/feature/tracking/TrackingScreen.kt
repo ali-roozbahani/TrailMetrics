@@ -357,7 +357,7 @@ fun TrackingScreen(
                 }
 
                 AnimatedContent(
-                    targetState = state.hasReachedDestination || state.canSave,
+                    targetState = state.canSave,
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
