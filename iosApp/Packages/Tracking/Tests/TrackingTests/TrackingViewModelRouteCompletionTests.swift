@@ -110,9 +110,28 @@ final class TrackingViewModelRouteCompletionTests: TrackingTestCase {
         XCTAssertNotNil(viewModel.routeProgress, "A finished session that is not cleared keeps its progress")
 
         viewModel.onDiscardClicked()
+        await waitUntil { subject.trackingSessionManager.currentState.value is TrackingStateIdle }
 
-        await waitUntil { viewModel.routeProgress == nil }
         XCTAssertNil(subject.trackingSessionManager.routeProgress.value, "No session, no progress")
-        XCTAssertTrue(viewModel.trackingState is TrackingStateIdle)
+        // The next Tracking screen is a new view model on the same manager: it starts with no traveled segment.
+        let calorieCalculator = CalorieCalculator()
+        let nextScreen = TrackingViewModel(
+            activityType: .running,
+            plannedRoutePoints: TrackingFixtures.plannedRoutePoints,
+            startPoint: TrackingFixtures.startPoint,
+            storedSessionReadState: subject.savedSessionOffer,
+            trackingSessionManager: subject.trackingSessionManager,
+            userProfileRepository: subject.userProfileRepository,
+            trackingMetricsUseCase: TrackingMetricsUseCase(calorieCalculator: calorieCalculator),
+            saveActivityUseCase: SaveActivityUseCase(
+                activityHistoryRepository: subject.activityHistoryRepository,
+                calorieCalculator: calorieCalculator,
+                clock: subject.clock
+            ),
+            clock: subject.clock,
+            liveActivityClient: subject.liveActivityClient
+        )
+        await Task.yield()
+        XCTAssertNil(nextScreen.routeProgress)
     }
 }

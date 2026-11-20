@@ -54,7 +54,8 @@ class TrackingSessionManager(
     /**
      * Progress along the planned route after the latest fix of the session; null before the first fix, for
      * a session without a plan and while there is no session (after [clearSession] or [discard]; a finished
-     * session that is not cleared keeps its progress). The manager ends the session by itself when the route's end is reached.
+     * session that is not cleared keeps its progress). The manager ends the session by itself when the
+     * route's end is reached.
      */
     val routeProgress: StateFlow<RouteProgress?> = _routeProgress.asStateFlow()
 
@@ -167,7 +168,8 @@ class TrackingSessionManager(
     /**
      * Removes the stored session once its data is safe elsewhere (saved as an activity) or the user
      * discarded it, and returns a [TrackingState.Finished] session to [TrackingState.Idle] (with no
-     * [sessionDetails] and no [routeProgress]) so the next session can start. A running or paused session keeps its state.
+     * [sessionDetails] and no [routeProgress]) so the next session can start. A running or paused session
+     * keeps its state.
      * The in-memory session is discarded even when the store fails: that failure is logged and not
      * thrown, and the next process's restore offers the stored row again, which loses nothing; this
      * manager's own [restore] no longer does.
