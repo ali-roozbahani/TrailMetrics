@@ -63,9 +63,10 @@ class TrackingSessionManager(
     private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
 
-    // One per session; touched only by the location collector, which observeLocation replaces one at a time.
-    private var routeCompletionTracker = RouteCompletionTracker(emptyList())
-    private var hasPlan = false
+    // The route-completion rule of the current session. start() and restore() replace it as a whole, and
+    // observeLocation() hands the value it reads to its collector, which never reads this field itself: a
+    // collector that is still winding down when a new session starts keeps its own session's tracker.
+    private var routeCompletion = SessionRouteCompletion(RouteCompletionTracker(emptyList()), hasPlan = false)
 
     // Serializes the store's writes, and guards [clearedState].
     private val storeMutex = Mutex()
@@ -92,8 +93,10 @@ class TrackingSessionManager(
         consecutiveUnavailableCount = 0
         _sessionDetails.value = SessionDetails(activityType, clock.nowMillis(), plannedRoute)
         speedCalculator.reset()
-        routeCompletionTracker = RouteCompletionTracker(plannedRoute)
-        hasPlan = plannedRoute.isNotEmpty()
+        routeCompletion = SessionRouteCompletion(
+            tracker = RouteCompletionTracker(plannedRoute),
+            hasPlan = plannedRoute.isNotEmpty()
+        )
         _routeProgress.value = null
         dispatch(TrackingEvent.Start(startPoint, clock.elapsedRealtimeMillis()))
         observeLocation()
@@ -152,8 +155,7 @@ class TrackingSessionManager(
         if (_state.compareAndSet(TrackingState.Idle, restored)) {
             if (restored !is TrackingState.Idle) {
                 val plan = stored?.plannedRoute.orEmpty()
-                routeCompletionTracker = RouteCompletionTracker(plan)
-                hasPlan = plan.isNotEmpty()
+                routeCompletion = SessionRouteCompletion(RouteCompletionTracker(plan), plan.isNotEmpty())
                 _routeProgress.value = null
             }
             return restored
@@ -230,6 +232,7 @@ class TrackingSessionManager(
 
     private fun observeLocation() {
         locationObservationJob?.cancel()
+        val sessionRouteCompletion = routeCompletion
         locationObservationJob = scope.launch {
             locationRepository.observeLocationUpdates().collect { update ->
                 when (update) {
@@ -248,8 +251,8 @@ class TrackingSessionManager(
                                 speedMetersPerSecond = speed
                             )
                         )
-                        val completion = routeCompletionTracker.update(update.coordinates, _state.value)
-                        if (hasPlan) _routeProgress.value = completion.progress
+                        val completion = sessionRouteCompletion.tracker.update(update.coordinates, _state.value)
+                        if (sessionRouteCompletion.hasPlan) _routeProgress.value = completion.progress
                         if (completion.reachedNow) stop()
                     }
 
@@ -268,6 +271,9 @@ class TrackingSessionManager(
     private fun dispatch(newEvent: TrackingEvent) {
         _state.update { updateTrackingStateUseCase(it, newEvent) }
     }
+
+    /** One session's [tracker] and whether it has a plan; immutable, so a collector can hold it safely. */
+    private class SessionRouteCompletion(val tracker: RouteCompletionTracker, val hasPlan: Boolean)
 
     private companion object {
         const val TAG = "TrackingSessionManager"
