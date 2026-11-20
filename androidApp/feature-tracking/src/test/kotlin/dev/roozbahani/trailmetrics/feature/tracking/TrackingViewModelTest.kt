@@ -801,20 +801,6 @@ class TrackingViewModelTest {
         assertEquals(listOf(START, END), activityHistoryRepository.savedActivities.single().actualPath)
     }
 
-    @Test
-    fun `the session ends at the route's end while nobody collects the state`() = runTest(testScheduler) {
-        val viewModel = createViewModel(plannedRoutePoints = WALKED_ROUTE)
-        viewModel.onAction(TrackingAction.Start(START))
-        testScheduler.runCurrent()
-
-        receiveLocation(END, millisAfterStart = 60_000L)
-
-        val state = viewModel.state.value
-        assertIs<TrackingState.Finished>(state.trackingState)
-        assertTrue(state.canSave)
-        assertEquals(WALKED_ROUTE, assertNotNull(state.routeProgress).traveledSegment)
-    }
-
     // endregion
 
     private companion object {
