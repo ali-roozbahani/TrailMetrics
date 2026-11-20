@@ -28,15 +28,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 
 ## Epics
 
-### route-completion-to-domain
-- Type: epic
-- Area: domain, iosApp/Tracking, androidApp/feature-tracking
-- Order: 60
-- Source: audit + chat 2026-10-01; plan approved by the owner 2026-11-19, to run as an epic by `epic-orchestration`, with the subtasks merged locally and one epic PR (owner decisions 2026-11-19)
-- Problem: Route-completion detection is written once per platform: on iOS inside `TrackingView` (`isRouteCompleted`, `routeCompletionIndexMargin`, `routeCompletionThresholdMeters`, its own `routeProgress`/`lastProgressIndex` state), on Android in `feature-tracking`'s `RouteCompletionTracker`, run from `TrackingViewModel.withRouteCompletion` only while the screen collects its state. Neither is in `domain`, so the platforms can diverge, and with the screen locked Android does not complete the route at all. `calculateRouteProgress` in domain has no guard for out-of-range input: a `previousIndex` past the last point gives an empty search range and `subList` throws, and a negative `previousIndex` indexes out of bounds.
-- Done when: the completion rule lives in `domain` as `RouteCompletionTracker` with `kotlin.test` coverage, `TrackingSessionManager` runs it so a session ends at the end of the route with no UI subscriber (the owner's decision: also with the phone locked, on both platforms), both ViewModels only show the result (`TrackingView` renders only, Android's `RouteCompletionTracker` and `hasReachedDestination` are gone, the finish card follows `canSave`), `calculateRouteProgress` handles out-of-range `previousIndex` (and `searchWindow`) without throwing, and the locked-screen human checks of the plan's epic-level Tier 2 are done on both platforms. The plan is approved and has the epic form (five subtasks, three waves, integration branch `feature/epic/route-completion-to-domain`): `docs/epics/route-completion-to-domain.md`. The epic's board commit (the last commit of the integration branch, part of the one epic PR) deletes this record. The notification for a session that ends by itself is the separate task `session-ended-by-itself-notification`, after this epic.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingView.swift` (`isRouteCompleted`, `updateRouteProgress`); `androidApp/feature-tracking` `RouteCompletionTracker`; `domain` `RouteProgress` / `calculateRouteProgress`; `domain` `TrackingSessionManager`; `docs/epics/route-completion-to-domain.md` (the plan); `epic-orchestration` skill.
-
 ### ios-release-readiness
 - Type: epic
 - Area: iosApp, shared, docs
@@ -79,7 +70,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: domain, androidApp, iosApp
 - Order: 62
-- After: route-completion-to-domain
 - Source: owner decision 2026-11-19 (answer to Question 5 of the plan `docs/epics/route-completion-to-domain.md`)
 - Problem: After the epic `route-completion-to-domain`, `TrackingSessionManager` ends a session by itself at the end of the planned route, also with the phone locked and the screen off. The user can then return to a finished session with no sign of when or why it ended: the Android foreground notification only disappears and the iOS Live Activity only ends. The owner decided (2026-11-19) that the user gets a notification when a session ends by itself at the route's end. Reason for a record: it needs a design the owner reviews, and it starts only after the epic is merged into `main`: a permission text on iOS (a notification permission with its purpose string), a channel on Android (the notification permission, which `tm-robustness` lists as asked on every entry today), what tapping the notification opens (the finished session's Finish card), the wording (the String Catalog on iOS, `strings.xml` on Android), and one domain event that both platforms use (the manager is the single place where the session ends by itself; `locationIssues` is the existing example of a one-shot flow from it, with the delivery caveat of `tm-kmp-shared`, "Events that must not be silently dropped").
 - Done when: the owner has approved a short design (the permission texts, the Android channel, the tap target, the event); `domain` emits one event when the manager ends a session by itself (and not on Stop, which discards), with `kotlin.test` coverage; each platform shows the notification from it, with an adapter test and a test that the notification is not shown when the user ended the session; the human check (a locked device on each platform, the notification appears and opens the finished session) is done; the permission text is in the iOS privacy and App Privacy answers of `ios-release-readiness`; and this record is deleted.
@@ -215,7 +205,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: domain, iosApp, androidApp
 - Order: 80
-- After: route-completion-to-domain
 - Source: PR #66 test
 - Problem: The in-app elapsed time shows `metrics.elapsedMillis` from the tracking state, which is only re-emitted on location events. There is no ticker, so a stationary device freezes the timer and the display can jump (observed by 2 s).
 - Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.

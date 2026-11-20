@@ -16,7 +16,7 @@
   given for this update). The owner decided on 2026-11-19 that this runs as an epic by `epic-orchestration`. The owner still merges the
   PR that adds this plan to `main` (`/docs/epics/` is a protected path), and the epic PR into `main`: the one PR of the run.
 
-- **Status:** plan, approved 2026-11-19. This file is on `main` before the integration branch exists. The orchestrator's last commit on the
+- **Status:** done. Was: plan, approved 2026-11-19. This file is on `main` before the integration branch exists. The orchestrator's last commit on the
   integration branch (the board commit) sets this line to `done`, so it reaches `main` with the epic PR and the owner has no extra merge for it.
   The live state of a run is on the integration branch and in the run record (section "How this epic is run"), never in this file.
 - **Source:** BOARD.md record `route-completion-to-domain` (Order 60).
