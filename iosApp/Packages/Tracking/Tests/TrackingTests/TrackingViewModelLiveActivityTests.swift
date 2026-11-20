@@ -41,4 +41,33 @@ final class TrackingViewModelLiveActivityTests: TrackingTestCase {
         await waitUntil { subject.liveActivityClient.updates.last?.state.pausedAt == nil }
         XCTAssertNotNil(subject.liveActivityClient.updates.last?.staleDate)
     }
+
+    func test_sessionFinishedByTheManager_endsTheLiveActivityOnce() async {
+        let subject = makeSubject(updates: TrackingFixtures.movingUpdates)
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count }
+
+        subject.trackingSessionManager.stop()
+
+        await waitUntil { viewModel.trackingState is TrackingStateFinished }
+        await waitUntil { !subject.liveActivityClient.endCalls.isEmpty }
+        let ends = subject.liveActivityClient.endCalls
+        XCTAssertEqual(ends.count, 1, "The Live Activity ends once")
+        XCTAssertNotNil(ends.first?.finalState, "It ends with the final totals")
+        XCTAssertGreaterThan(ends.first?.finalState?.distanceMeters ?? 0, 0)
+    }
+
+    func test_onStopClicked_endsTheLiveActivityOnce() async {
+        let subject = makeSubject(updates: TrackingFixtures.movingUpdates)
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count }
+
+        viewModel.onStopClicked()
+
+        await waitUntil { !subject.liveActivityClient.endCalls.isEmpty }
+        await Task.yield()
+        XCTAssertEqual(subject.liveActivityClient.endCalls.count, 1)
+    }
 }

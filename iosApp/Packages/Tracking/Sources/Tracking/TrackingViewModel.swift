@@ -51,6 +51,9 @@ public class TrackingViewModel: ObservableObject {
     private var locationIssuesObservationTask: Task<Void, Never>?
 
     private var liveActivityController: TrackingLiveActivityController?
+    /// Set when the Live Activity of the session was ended (by Stop or by the observed Finished state), so it
+    /// ends once; cleared when a session starts or resumes.
+    private var isLiveActivityEnded = false
 
     /// The controls the user may use now. The rules are `domain`'s (`availableControls`, the same ones
     /// Android asks); this only reads them.
@@ -213,6 +216,11 @@ public class TrackingViewModel: ObservableObject {
                             isPaused: self.isPaused
                         )
                     }
+                    // A session the manager finishes by itself (the route's end) ends the Live Activity
+                    // without the View calling `onStopClicked()`.
+                    if case .finished = onEnum(of: self.trackingState) {
+                        self.endLiveActivity()
+                    }
                 }
             }
         }
@@ -242,6 +250,7 @@ public class TrackingViewModel: ObservableObject {
     public func onStartClicked() {
         guard canStart else { return }
         isSessionSaved = false
+        isLiveActivityEnded = false
         trackingSessionManager.start(
             startPoint: startPoint,
             activityType: activityType,
@@ -256,6 +265,7 @@ public class TrackingViewModel: ObservableObject {
 
     public func onResumeClicked() {
         trackingSessionManager.resume()
+        isLiveActivityEnded = false
         // A session restored after the app was terminated has no Live Activity, and none starts before
         // the user resumes. In a live session one exists and `start` does nothing.
         liveActivityController?.start(activityType: liveActivityTypeKey)
@@ -276,8 +286,13 @@ public class TrackingViewModel: ObservableObject {
         trackingState = trackingSessionManager.currentState.value
         recomputeCalories()
 
-        // `trackingState` was just advanced to `.finished` above, so the Live Activity's last-shown content
-        // reflects the session's actual final distance/time.
+        endLiveActivity()
+    }
+
+    /// Ends the Live Activity with the final totals of the current (Finished) state, once per session.
+    private func endLiveActivity() {
+        guard !isLiveActivityEnded else { return }
+        isLiveActivityEnded = true
         let finalMetrics = currentMetrics
         liveActivityController?.end(
             distanceMeters: finalMetrics?.distanceMeters ?? 0,
