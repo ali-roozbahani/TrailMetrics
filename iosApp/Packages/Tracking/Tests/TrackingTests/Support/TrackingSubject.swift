@@ -12,6 +12,7 @@ import TestSupport
 @MainActor
 struct TrackingSubject {
     let viewModel: TrackingViewModel
+    /// The manager's source of fixes, unless `changingLocationRepository` replaced it.
     let locationRepository: FakeLocationRepository
     let serviceLauncher: FakeTrackingServiceLauncher
     let userProfileRepository: FakeUserProfileRepository
@@ -42,16 +43,19 @@ struct TrackingSubject {
         isProfileStorageFailing: Bool = false,
         sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
         userProfileRepository: FakeUserProfileRepository? = nil,
-        isRestoring: Bool = false
+        isRestoring: Bool = false,
+        plannedRoutePoints: [Coordinates] = TrackingFixtures.plannedRoutePoints,
+        changingLocationRepository: ChangingLocationRepository? = nil
     ) {
         let locationRepository = FakeLocationRepository(location: TrackingFixtures.startPoint, updates: updates)
+        let managerLocationRepository: any LocationRepository = changingLocationRepository ?? locationRepository
         let serviceLauncher = FakeTrackingServiceLauncher()
         let userProfileRepository = userProfileRepository
             ?? FakeUserProfileRepository(profile: profile, isFailing: isProfileStorageFailing)
         let clock = FakeClock(nowMillis: clockMillis)
         let calorieCalculator = CalorieCalculator()
         let trackingSessionManager = TrackingSessionManager(
-            locationRepository: locationRepository,
+            locationRepository: managerLocationRepository,
             updateTrackingStateUseCase: UpdateTrackingStateUseCase(),
             trackingServiceLauncher: serviceLauncher,
             // Swift can't see Kotlin default arguments; these repeat SpeedCalculator's defaults.
@@ -72,7 +76,7 @@ struct TrackingSubject {
         self.liveActivityClient = liveActivityClient
         self.viewModel = TrackingViewModel(
             activityType: .running,
-            plannedRoutePoints: TrackingFixtures.plannedRoutePoints,
+            plannedRoutePoints: plannedRoutePoints,
             startPoint: TrackingFixtures.startPoint,
             storedSessionReadState: savedSessionOffer,
             trackingSessionManager: trackingSessionManager,
