@@ -88,13 +88,14 @@ class TrackingService : Service(), KoinComponent {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopForeground(STOP_FOREGROUND_REMOVE)
         serviceScope.cancel()
 
         // Only the foreground notification: RESTORED_NOTIFICATION_ID outlives the service on purpose, it is
         // the one a restart leaves for the user to tap.
-        // Explicitly cancel the notification to guard against a race condition
-        // where a state update calls notify() right around service teardown,
-        // leaving a stale notification behind that the system doesn't auto-remove.
+        // The scope runs on this thread (newTrackingServiceScope), so no notify() is in flight here. The
+        // foreground notification is removed with stopForeground above, as the system expects of a service
+        // that ends; this cancel covers a notification a later update posted, which the system does not remove.
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(NOTIFICATION_ID)
     }

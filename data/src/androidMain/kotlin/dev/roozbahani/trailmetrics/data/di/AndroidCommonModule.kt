@@ -19,12 +19,20 @@ import org.koin.dsl.module
  */
 val trackingServiceScopeQualifier = named("trackingServiceScope")
 
+/**
+ * The scope the app gives one run of `TrackingService`; the qualifier above binds it. It runs on the main thread, the
+ * thread the service's `onDestroy` runs on, so a `notify()` is never in flight while the service is torn down. On a
+ * worker thread (`Dispatchers.Default`, as it was) the notification for the last state landed after `onDestroy` had
+ * cancelled it and stayed: the manager ends a session at the route's end and stops the service at once.
+ */
+fun newTrackingServiceScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
 val androidCommonModule = module {
     single<SharedPreferences> {
         androidContext().getSharedPreferences("trailmetrics_prefs", Context.MODE_PRIVATE)
     }
     single<KeyValueStorage> { KeyValueStorage(sharedPreferences = get<SharedPreferences>()) }
-    factory<CoroutineScope>(trackingServiceScopeQualifier) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    factory<CoroutineScope>(trackingServiceScopeQualifier) { newTrackingServiceScope() }
     single<SnapshotFileDeleter> {
         AndroidSnapshotFileDeleter(ioDispatcher = get<CoroutineDispatcher>(ioDispatcherQualifier))
     }
