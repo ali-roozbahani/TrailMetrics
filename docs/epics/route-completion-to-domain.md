@@ -226,7 +226,7 @@ locally, and merges locally into `feature/epic/route-completion-to-domain`. Thes
     - The session ends by itself with no collector of any flow: fixes along the plan end with currentState Finished, the launcher stopped
       once, the stored session kept (not cleared), and the session path ends with the fix that completed it.
     - The constructor of TrackingSessionManager and the Koin graph do not change (the KoinGraph tests of shared stay green unchanged).
-    - No file under androidApp/ or iosApp/ changes; every existing Android and iOS test stays green unchanged (the gate runs them).
+    - No file under androidApp/ or iosApp/ changes; every existing Android and iOS test stays green unchanged (the gate runs them), judged on the combination of S2 and S4: S2 and S4 are one integration unit (owner's decision of 2026-11-20), each reviewed on its own, gated once on the two together, and merged into the integration branch with its own `Epic-Subtask` trailer, S2 first. The only Android tests that change are the three S4 names (they change in S4, not in S2).
     - The domain Kover floor is raised by the ratchet rule, to the measured coverage minus 1 to 2 points, rounded down.
   tier2: domain commonTest, kotlin.test, on the Android host and the iOS simulator. RouteCompletionTrackerTest has the 19 cases of Android's
     RouteCompletionTrackerTest, same names, adapted to update/RouteCompletionUpdate (thresholds pinned, empty plan, no progress before a
@@ -272,21 +272,29 @@ locally, and merges locally into `feature/epic/route-completion-to-domain`. Thes
       hasReachedDestination are gone; the finish card follows canSave (decision 2).
     - When the manager ends the session while nobody collects the ViewModel's state (the locked screen), collecting the state afterwards
       gives Finished, canSave true and the progress at the end.
-    - Existing tests change only where they name hasReachedDestination (three assertions in TrackingViewModelTest and the construction in
-      TrackingScreenStateTest); every other existing case in feature-tracking stays green unchanged.
+    - Existing tests change in exactly three places (owner's decision of 2026-11-20), and no other assertion changes: (1) TrackingScreenTest
+      `taps on Finish before and after a slow save completes save one activity` and (2) TrackingScreenSnapshotTest `a snapshot without a bitmap
+      finishes once and does not block a later tap`: after a save the session is discarded, so under decision 2 (the card follows canSave) there is no
+      card and no second tap; each must still pin what it pinned (a Finish tap during a slow save saves once; a snapshot callback without a bitmap
+      releases the guard so a later Finish sends a new snapshot request, shown in a scenario where the card is still shown, for example when the first
+      save fails), and no assertion is deleted without equivalent coverage; (3) TrackingViewModelTest `route progress follows location updates`: the
+      assertion right after Start expects no progress until the first fix (S2's contract), its assertions after the first fix stay. The three
+      assertions of TrackingViewModelTest that name hasReachedDestination, and the TrackingScreenStateTest construction where it names it, change
+      only where they name it. Every other existing case in feature-tracking stays green unchanged. The three changes and their reasons go in the
+      epic PR's notes. Any other red test, a change of any other assertion or a change of S2's contract is a stop.
     - The feature-tracking Kover floor (92) still holds without lowering it; if it does not, stop and report (re-plan trigger).
     - The tm-android "Compose" bullet that names RouteCompletionTracker as Android's is updated to say the manager owns the rule.
   tier2: TrackingViewModelTest: `the session ends at the route's end while nobody collects the state` (new), the four existing completion cases
     adapted only where they name hasReachedDestination (`route progress follows location updates`, `reaching the end of the planned route
     stops tracking and keeps the progress`, `reaching the end again in a later session does not stop a second time`, `a session stopped at the
-    route end can be finished and saved`), TrackingScreenStateTest (the card follows canSave), TrackingScreenTest and the Compose tests unchanged.
+    route end can be finished and saved`), TrackingScreenStateTest (the card follows canSave), TrackingScreenTest and TrackingScreenSnapshotTest changed only in the one case each named above, the other Compose tests unchanged.
     The locked-screen human check is in the epic-level Tier 2.
 
 - id: S5
   title: iOS TrackingView renders only; TrackingViewModel publishes the manager's route progress
   branch: chore/route-completion-to-domain-ios
   skills: [tm-ios, tm-testing, tm-robustness]
-  depends_on: [S2, S3]
+  depends_on: [S2, S3, S4]
   allowed_paths:
     - iosApp/Packages/Tracking/**
   acceptance:
@@ -310,11 +318,11 @@ locally, and merges locally into `feature/epic/route-completion-to-domain`. Thes
 
 - Wave 1: S1 ∥ S3   (disjoint: the two domain files `RouteProgress.kt` and `RouteProgressTest.kt` vs `iosApp/Packages/Tracking/Sources/Tracking/TrackingViewModel.swift`,
   `TrackingLiveActivityController.swift` and `iosApp/Packages/Tracking/Tests/**`; checked on the globs and on the tracked files: no file matches both)
-- Wave 2: S2   (domain is one owner at a time: the tracker, `TrackingSessionManager`, its tests, the fakes, the README and the Kover floor)
-- Wave 3: S4 ∥ S5   (disjoint: `androidApp/feature-tracking/` and `.claude/skills/tm-android/SKILL.md` vs `iosApp/Packages/Tracking/`; no file matches both, and neither
-  touches `domain/`, `androidApp/app/`, `iosApp/TrailMetrics/`, the Xcode project or a build file)
+- Wave 2: the unit S2 then S4   (S2: the tracker, `TrackingSessionManager`, its tests, the fakes, the README and the Kover floor, one owner at a time; S4 starts from S2's
+  branch; each is reviewed on its own, the gate runs once on the combination, both are merged into the integration branch, S2 first; owner's decision of 2026-11-20)
+- Wave 3: S5   (starts after the unit is merged; `iosApp/Packages/Tracking/` only)
 
-The waves follow from `depends_on`: S1 and S3 have none; S2 needs S1; S4 needs S2; S5 needs S2 and S3. S3 and S5 both write under
+The waves follow from `depends_on`: S1 and S3 have none; S2 needs S1; S4 needs S2 and is gated together with it; S5 needs S2, S3 and S4 (the unit is merged first). S3 and S5 both write under
 `iosApp/Packages/Tracking/` but in different waves, and S5 starts only after S3 is merged locally into the integration branch. Gates are serialized by the
 heavy-run lock whatever the waves say.
 
