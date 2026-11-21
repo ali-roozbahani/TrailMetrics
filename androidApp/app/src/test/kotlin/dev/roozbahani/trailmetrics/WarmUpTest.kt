@@ -47,15 +47,16 @@ class WarmUpTest {
     }
 
     @Test
-    fun `a failing build is logged and does not end the scope`() = runTest {
+    fun `a failing build is logged and handed to the caller, and does not end the scope`() = runTest {
         val logger = FakeLogger()
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val job = warmUp(scope, StandardTestDispatcher(testScheduler), logger) { error("no database") }
         testScheduler.runCurrent()
-        job.join()
 
+        val failure = job.await()
         assertTrue(job.isCompleted && !job.isCancelled)
+        assertEquals("no database", failure?.message, "the failure was not handed to the caller")
         assertFalse(logger.messages.isEmpty(), "the failure was not logged")
     }
 }
