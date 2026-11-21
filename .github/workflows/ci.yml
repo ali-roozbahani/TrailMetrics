@@ -229,6 +229,22 @@ jobs:
       # times (runs of 2026-11-19 to 2026-11-21): Build KMP Shared Framework 84 to 272 s; Run iOS simulator tests 52 to 53 s;
       # Build iOS app 33 to 90 s; Build test-only framework variant 58 to 70 s; Run iOS package tests 130 to 629 s (a package
       # 116 to 287 s).
+      # The Kotlin/Native directory, keyed on the Kotlin version of the version catalog (a Kotlin bump starts a new cache). A run
+      # without it spends about 110 s of the framework link building the compiler's own caches and about 16 s unpacking its
+      # dependencies, on every run; with it the link takes about 9 s. Measured on this runner type (3 CPUs, 7.5 GB) on two attempts of
+      # the same commit: the iOS job 17 min 29 s on a miss and 12 min 35 s on a hit, the restore (375 MiB) 30 s, the save 20 s once
+      # (`docs/epics/route-completion-to-domain.md`, "Evidence of the first run", item 4; PR #372). Xcode's DerivedData is not
+      # cached: its measured extra saving is inside the run-to-run noise, and a stale build product is a risk the owner decides.
+      - name: Read the Kotlin version
+        id: kotlin
+        run: echo "version=$(sed -n 's/^kotlin = "\(.*\)"/\1/p' gradle/libs.versions.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Kotlin/Native directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ steps.kotlin.outputs.version }}
+
       - name: Build KMP Shared Framework
         timeout-minutes: 15
         run: scripts/build-kmp-framework.sh

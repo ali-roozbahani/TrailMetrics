@@ -48,9 +48,13 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
   XCFramework is 140 MB instead of 148 MB. A Swift test that needs a real `data` object takes it from a factory in
   `shared-uitest` (`SwiftTestRepositories`). Never export `:data` from a framework again: its Ktor, kotlinx, Koin and Room
   types are not API for Swift. Enforced: reviewer only. Violation: `important`.
-- CI's `ios-build` job does not cache `~/.konan`, so every run downloads the Kotlin/Native bundle.
-- A `~/.konan` cache was tried on 2026-11-17 (PR #330, closed): the restore took 22 to 24 s and the post-job step about
-  6 s, while the download it saves took about 8 s, and the framework step showed no gain.
+- CI's `ios-build` job caches `~/.konan`, keyed on the Kotlin version of the version catalog (a bump starts a new cache). Without it
+  every run spends about 110 s of the framework link building the compiler's caches and about 16 s unpacking its
+  dependencies; with it the link takes about 9 s and the iOS job about 5 minutes less (17 min 29 s on a miss, 12 min 35 s on a
+  hit, two attempts of one commit on the same runner type: 3 CPUs, 7.5 GB). Xcode's DerivedData is not cached.
+- The `~/.konan` cache of 2026-11-17 (PR #330, closed) was judged by the download it saves (about 8 s) against a restore of 22 to
+  24 s, and by step totals that vary by 144 s between runs of identical code; the saving is in the link, not the download, and
+  a comparison needs two attempts of the same commit (PR #372).
 - The Gradle daemon in CI runs on the runner's Temurin 21 (21.0.13 on 2026-11-17); only the launcher is JDK 17, the
   one `setup-java` installs.
 - A change to the build (targets, exports, caches, flags) is measured: run the real command twice before and
