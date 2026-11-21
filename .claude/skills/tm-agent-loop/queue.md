@@ -140,7 +140,8 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   scripts/main-ci-status.sh --recent 5
   ```
 
-  `unacknowledged-red=0`: merge. A run still `running` is not a reason to wait. An unacknowledged
+  `unacknowledged-red=0`: merge. A run still `running` is not a reason to wait, and a cancelled run (`unverified`,
+  exit 5) is reported with what verifies it and is not a stop (`tm-pr-workflow`, "Before starting"). An unacknowledged
   red run, or a read that fails (exit 4): stop everything (no push, no merge, no build) and report
   it as `tm-pr-workflow`, "Before starting" says; only the owner's "go on" acknowledges it.
 

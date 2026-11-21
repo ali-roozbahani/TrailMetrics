@@ -162,7 +162,7 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   otherwise); never end the turn while a wait runs.
 - Merge when the six conditions hold and the read of `main` right before it shows
   `unacknowledged-red=0` (one instant `scripts/main-ci-status.sh --recent 5`; a run still in
-  progress is not a reason to wait; an unacknowledged red run stops everything, as at the start of
+  progress is not a reason to wait, nor is a cancelled one (`unverified`, exit 5: reported, not a stop); an unacknowledged red run stops everything, as at the start of
   a task), else hand over with a fresh Merge check comment. A PR behind
   `main` from a merge outside the queue: `scripts/queue/update-branch.sh` (the fallback).
 - Only owner PRs left: wait at most 180 minutes, then report them in queue order with their exact
