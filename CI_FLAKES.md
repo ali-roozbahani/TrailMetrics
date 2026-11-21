@@ -385,6 +385,7 @@ run, and the jobs it hit are counted below.
   cancel source is unknown, not the agent's tooling (class infra or an external cancel, not shown). The stall itself is a silent
   `xcodebuild test`; the iOS steps now have step limits and each package its own (`ci.yml`), so a stall fails by itself with the
   step and package named.
+
 ## ios-ui-a11y-audit-details-screen-not-shown
 
 - Signature: job `local gate: iOS UI tests`, step `Run iOS UI tests`, test
