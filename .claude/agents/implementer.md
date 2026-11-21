@@ -24,7 +24,7 @@ same effect (another tool, a wrapper, a rewritten command, a script you write). 
 
 Your prompt is one line, `TASK_FILE: <absolute path>`. Read that file first and only then do anything
 else. It has these headings: `Goal`, `Worktree` (absolute path, branch), `Allowed paths`, `Contract`
-(interfaces and signatures the orchestrator fixed; you implement against them and do not change them),
+(interfaces and signatures the orchestrator fixed, and for a subtask that moves a responsibility the duties of the old owner that you cover and name in your hand-back; you implement against them and do not change them),
 `Read first` (the skills and files to read), `Tests to run`, `Commit trailer`. A missing file, or a
 missing heading, is `STATUS: BLOCKED`, with nothing written.
 

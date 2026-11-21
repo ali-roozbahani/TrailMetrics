@@ -921,3 +921,31 @@ agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `sc
   one is not in the text.
 - **One log of a failure, cleared.** The locked-screen emulator runs of the notification fix: 36 runs, one never ended its session; each run began with `logcat -c`,
   so the full device log of that one run was gone by the next. `scripts/epic/keep-device-log.sh` keeps the log, the notification and the service dump in the run record.
+
+## Moving a responsibility: two defects that passed every review and test of the first epic
+
+The first epic (`route-completion-to-domain`, #364) moved "the route is completed" from the UI to `TrackingSessionManager` in `domain`. The manager
+is a process-wide singleton and the UI's trackers were per screen, so the move changed who owned the state and what happened when the session ended.
+Every local review (six), the CI reviewer, the gate and all CI jobs passed; the owner found both defects by running the app. The rule that came out of
+it is `epic-orchestration`, `plan-format.md`, "Responsibilities moved", and `tm-pr-review`, item 16.
+
+- **State moved into a longer-lived owner, and nothing reset it** (question 1, lifetime). The Android and iOS trackers lived and died with a screen, so
+  a new session started from a clean tracker. The manager's `routeProgress` lived as long as the process: after a session was cleared (a saved Finish) or discarded
+  (Stop, notification Stop), the next screen showed the old progress. The owner saw it in his own device test on the epic PR (the fix, "no route progress while there is
+  no session", `8b57554c`, reviewed and gated again as `5c43a831`: the manager resets its progress on `clearSession` and `discard`, with a red test per exit
+  path). Events that end the holder's content: save, discard, Stop, notification Stop, restart, restore. The plan listed none of them next to `routeProgress`.
+- **A decision moved, and a delay that hid a race went with it** (questions 2 and 3, ordering and outside resources). Before, the UI noticed the route end and stopped
+  the session one state update later; the manager now ends it inside the location update and stops the foreground service at once. The one-update delay had hidden
+  the order between two things on different threads: the service posted a notification for the last Tracking state on a worker thread while `onDestroy` cancelled
+  the foreground notification on the main thread. With the delay gone the notification was posted after the cancel and stayed. The owner saw a notification left behind
+  on the locked-screen route end; no JVM test reproduced it. On an emulator (the baseline, 12 runs per path, runs of more than 10 s because Android defers a foreground
+  notification for 10 s): the route end left the notification in 12 of 12 screen-on runs and 11 of 12 locked runs, the other exit paths (in-app Stop, discard after the
+  end, clear after the end, stop and discard) 12, 12, 12 and 10 of 12, the notification's Stop tap 1 of 6. Fix (`df29ff96`, then `e610efcc` after the owner moved the service
+  to `LifecycleService`): the service observes on the main thread (`lifecycleScope`, so `onDestroy` and the last `notify` cannot interleave) and `onDestroy` removes the
+  foreground notification. After: the route end 12 of 12 clean, the locked runs 36 with none left (one run in which the session never ended, kept for the run record), the five other paths 60
+  of 60, the Stop tap 12 of 12, read from the system's notification list and location clients, not the app's own state. The plan's question 3 ("who releases the foreground
+  notification, in what order, on every exit path") and question 4 ("on which thread does the code that is now called run") would have named it.
+- **Tests that the plan had not named** stopped S2 and S4 twice: `TrackingSessionManagerPersistenceTest` (a fixture whose fix now completed the session) and, in S4's gate, two Compose
+  tests that asserted a finish card that outlived the save (the old card followed a sticky `hasReachedDestination`). They were found by what they assert (the card after a save), not by a changed symbol.
+  S2 and S4 were then one integration unit: S2 alone was red, because the two trackers co-existed until S4 removed the Android one. One plan name did not match the test that was written
+  (`the session ends once, not at each later fix`: a native test name cannot hold a comma).

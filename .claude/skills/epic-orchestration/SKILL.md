@@ -197,6 +197,13 @@ during a run except the orchestrator's board commit at the end, which sets its `
 The plan file's format, and a worked example (personal records on History), are in
 `plan-format.md`.
 
+A plan answers, before it is approved, three things beyond the subtasks (all in `plan-format.md`): for every responsibility a subtask
+moves from one component or layer to another (state, a decision, a side effect, a timer, an outside resource), who now does each duty
+the old owner did without anyone naming it (lifetime, ordering and timing, outside resources, threads and contexts, exit paths: one
+line each, with its proof or an open risk); which existing tests pin behavior the epic removes, found by what they assert; and which
+subtasks have an interim state that only works together and are therefore gated together from the start. A subtask's brief carries the
+duties of the old owner it must cover, and the local review asks whether the diff covers them (`tm-pr-review`, item 16).
+
 ## Integration branch
 
 ### Naming
