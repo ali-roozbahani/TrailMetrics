@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class) // the test dispatchers have no stable replacement
+
 package dev.roozbahani.trailmetrics.data.local.repository
 
+import dev.roozbahani.trailmetrics.data.local.dao.RouteDraftDao
 import dev.roozbahani.trailmetrics.data.local.database.TrailMetricsDatabase
 import dev.roozbahani.trailmetrics.data.local.entity.RouteDraftEntity
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -7,12 +10,19 @@ import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertNull
 
 /**
@@ -29,12 +39,33 @@ abstract class RouteDraftStoreImplTest {
     @BeforeTest
     fun setup() {
         database = createDatabase()
-        store = RouteDraftStoreImpl(database.routeDraftDao())
+        store = RouteDraftStoreImpl(database.routeDraftDao(), UnconfinedTestDispatcher())
     }
 
     @AfterTest
     fun teardown() {
         database.close()
+    }
+
+    @Test
+    fun `save, load and clear reach the storage on the injected dispatcher`() = runTest {
+        val queue = StandardTestDispatcher(testScheduler)
+        val seen = mutableListOf<Pair<String, ContinuationInterceptor?>>()
+        val queued = RouteDraftStoreImpl(RecordsInterceptor(database.routeDraftDao(), seen), queue)
+        val caller = UnconfinedTestDispatcher(testScheduler)
+
+        val saving = backgroundScope.async(caller) { queued.save(fullDraft) }
+        testScheduler.runCurrent()
+        saving.await()
+        val loading = backgroundScope.async(caller) { queued.load() }
+        testScheduler.runCurrent()
+        assertEquals(fullDraft, loading.await())
+        val clearing = backgroundScope.async(caller) { queued.clear() }
+        testScheduler.runCurrent()
+        clearing.await()
+
+        assertEquals(setOf("upsert", "get", "clear"), seen.map { it.first }.toSet())
+        seen.forEach { (call, interceptor) -> assertSame(queue, interceptor, "$call ran on another dispatcher") }
     }
 
     @Test
@@ -157,5 +188,26 @@ abstract class RouteDraftStoreImplTest {
         val A = Coordinates(51.337, 12.389)
         val B = Coordinates(51.338, 12.390)
         val C = Coordinates(51.339, 12.391)
+    }
+
+    // Records the dispatcher each call of the DAO arrives on, before Room's own switch.
+    private class RecordsInterceptor(
+        private val delegate: RouteDraftDao,
+        private val seen: MutableList<Pair<String, ContinuationInterceptor?>>
+    ) : RouteDraftDao by delegate {
+        override suspend fun upsert(draft: RouteDraftEntity) {
+            seen += "upsert" to currentCoroutineContext()[ContinuationInterceptor]
+            delegate.upsert(draft)
+        }
+
+        override suspend fun get(): RouteDraftEntity? {
+            seen += "get" to currentCoroutineContext()[ContinuationInterceptor]
+            return delegate.get()
+        }
+
+        override suspend fun clear() {
+            seen += "clear" to currentCoroutineContext()[ContinuationInterceptor]
+            delegate.clear()
+        }
     }
 }

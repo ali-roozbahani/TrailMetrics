@@ -6,6 +6,7 @@ import dev.roozbahani.trailmetrics.domain.route.RouteDraftKeeper
 import dev.roozbahani.trailmetrics.domain.route.RouteDraftSaver
 import dev.roozbahani.trailmetrics.domain.route.RouteDraftStore
 import dev.roozbahani.trailmetrics.domain.util.Logger
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,7 +21,12 @@ val routeDraftModule = module {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 
-    single<RouteDraftStore> { RouteDraftStoreImpl(routeDraftDao = get<RouteDraftDao>()) }
+    single<RouteDraftStore> {
+        RouteDraftStoreImpl(
+            routeDraftDao = get<RouteDraftDao>(),
+            ioDispatcher = get<CoroutineDispatcher>(ioDispatcherQualifier)
+        )
+    }
 
     single {
         RouteDraftSaver(

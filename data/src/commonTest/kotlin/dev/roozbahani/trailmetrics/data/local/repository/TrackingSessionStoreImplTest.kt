@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class) // the test dispatchers have no stable replacement
+
 package dev.roozbahani.trailmetrics.data.local.repository
 
 import androidx.room3.useReaderConnection
@@ -13,12 +15,19 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
+import kotlin.test.assertSame
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -50,7 +59,8 @@ abstract class TrackingSessionStoreImplTest {
             database.trackingSessionDao(),
             database.trackingSessionPlanDao(),
             RoomWriteTransaction(database),
-            clock
+            clock,
+            UnconfinedTestDispatcher()
         )
     }
 
@@ -288,7 +298,8 @@ abstract class TrackingSessionStoreImplTest {
             database.trackingSessionDao(),
             database.trackingSessionPlanDao(),
             RoomWriteTransaction(database),
-            clock
+            clock,
+            UnconfinedTestDispatcher()
         )
 
         restartedStore.save(plannedSession(TrackingState.Tracking(metrics(a, b)), *plan.toTypedArray()))
@@ -326,7 +337,8 @@ abstract class TrackingSessionStoreImplTest {
             database.trackingSessionDao(),
             FailingPlanInsert(database.trackingSessionPlanDao()),
             RoomWriteTransaction(database),
-            clock
+            clock,
+            UnconfinedTestDispatcher()
         )
 
         assertFails { failing.save(secondSession(listOf(d, c))) }
@@ -342,7 +354,8 @@ abstract class TrackingSessionStoreImplTest {
             FailingSessionSave(database.trackingSessionDao()),
             database.trackingSessionPlanDao(),
             RoomWriteTransaction(database),
-            clock
+            clock,
+            UnconfinedTestDispatcher()
         )
 
         assertFails { failing.save(secondSession(listOf(d))) }
@@ -409,6 +422,39 @@ abstract class TrackingSessionStoreImplTest {
         currentSpeedMetersPerSecond = 2.5f
     )
 
+    @Test
+    fun `save, load and clear reach the storage on the injected dispatcher`() = runTest {
+        val queue = StandardTestDispatcher(testScheduler)
+        val seen = mutableListOf<Pair<String, ContinuationInterceptor?>>()
+        var phase = ""
+        val queued = TrackingSessionStoreImpl(
+            RecordsInterceptor(database.trackingSessionDao(), seen) { phase },
+            database.trackingSessionPlanDao(),
+            RoomWriteTransaction(database),
+            clock,
+            queue
+        )
+        val session = StoredTrackingSession(TrackingState.Tracking(metrics(a, b)), ActivityType.Running, STARTED_AT)
+        val caller = UnconfinedTestDispatcher(testScheduler)
+
+        phase = "save"
+        val saving = backgroundScope.async(caller) { queued.save(session) }
+        testScheduler.runCurrent()
+        saving.await()
+        phase = "load"
+        val loading = backgroundScope.async(caller) { queued.load() }
+        testScheduler.runCurrent()
+        assertNotNull(loading.await())
+        phase = "clear"
+        val clearing = backgroundScope.async(caller) { queued.clear() }
+        testScheduler.runCurrent()
+        clearing.await()
+
+        // A save reads the stored plan before its transaction, and the transaction runs on Room's own context.
+        assertEquals(setOf("save", "load", "clear"), seen.map { it.first }.toSet())
+        seen.forEach { (call, interceptor) -> assertSame(queue, interceptor, "$call ran on another dispatcher") }
+    }
+
     // The rowids of the stored points in sequence order: a rewritten point gets a new rowid.
     private suspend fun pointRowIds(): List<Long> =
         database.useReaderConnection { connection ->
@@ -430,6 +476,24 @@ abstract class TrackingSessionStoreImplTest {
     private class FailingSessionSave(private val delegate: TrackingSessionDao) : TrackingSessionDao by delegate {
         override suspend fun save(session: TrackingSessionEntity, path: List<Coordinates>) {
             error("the session save failed")
+        }
+    }
+
+    // Records the dispatcher that a read or clear of the session DAO arrives on, before Room's own switch (a
+    // save's write goes through Room's transaction, which runs on its own context, so it is not recorded).
+    private class RecordsInterceptor(
+        private val delegate: TrackingSessionDao,
+        private val seen: MutableList<Pair<String, ContinuationInterceptor?>>,
+        private val phase: () -> String
+    ) : TrackingSessionDao by delegate {
+        override suspend fun getSession(): TrackingSessionEntity? {
+            seen += phase() to currentCoroutineContext()[ContinuationInterceptor]
+            return delegate.getSession()
+        }
+
+        override suspend fun clear() {
+            seen += phase() to currentCoroutineContext()[ContinuationInterceptor]
+            delegate.clear()
         }
     }
 
