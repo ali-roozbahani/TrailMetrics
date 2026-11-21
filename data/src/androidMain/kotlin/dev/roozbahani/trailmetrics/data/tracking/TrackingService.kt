@@ -21,7 +21,8 @@ import org.koin.core.component.inject
 
 class TrackingService : LifecycleService(), KoinComponent {
 
-    private val trackingSessionManager by inject<TrackingSessionManager>()
+    // Not the manager itself: the first one to ask for it in a new process builds the database, off the main thread.
+    private val lazyTrackingSessionManager by inject<OffMainLazy<TrackingSessionManager>>()
 
     private val logger by inject<Logger>()
 
@@ -50,7 +51,7 @@ class TrackingService : LifecycleService(), KoinComponent {
     private fun restoreAfterRestart() {
         trackingStateObservationJob?.cancel()
         trackingStateObservationJob = lifecycleScope.launch {
-            handleRestart(trackingSessionManager::restore, logger, restartEffects)
+            handleRestart({ lazyTrackingSessionManager.get().restore() }, logger, restartEffects)
         }
     }
 
@@ -76,7 +77,7 @@ class TrackingService : LifecycleService(), KoinComponent {
     }
 
     private suspend fun collectTrackingState() {
-        trackingSessionManager.currentState.collect { state ->
+        lazyTrackingSessionManager.get().currentState.collect { state ->
             val notification = buildNotification(state)
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.notify(NOTIFICATION_ID, notification)

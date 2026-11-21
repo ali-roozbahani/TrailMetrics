@@ -7,16 +7,19 @@ import dev.roozbahani.trailmetrics.domain.model.Route
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.route.RouteDraftStore
 import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 
-// Room's suspend DAO functions run their queries on the database's query context.
+// Every storage access switches to [ioDispatcher] itself, so a caller never depends on Room's query context.
 class RouteDraftStoreImpl(
-    private val routeDraftDao: RouteDraftDao
+    private val routeDraftDao: RouteDraftDao,
+    private val ioDispatcher: CoroutineDispatcher
 ) : RouteDraftStore {
 
-    override suspend fun save(draft: StoredRouteDraft) {
+    override suspend fun save(draft: StoredRouteDraft) = withContext(ioDispatcher) {
         if (draft.isEmpty) {
             routeDraftDao.clear()
-            return
+            return@withContext
         }
         routeDraftDao.upsert(
             RouteDraftEntity(
@@ -30,8 +33,8 @@ class RouteDraftStoreImpl(
         )
     }
 
-    override suspend fun load(): StoredRouteDraft? {
-        val row = routeDraftDao.get() ?: return null
+    override suspend fun load(): StoredRouteDraft? = withContext(ioDispatcher) {
+        val row = routeDraftDao.get() ?: return@withContext null
         val startPoint = if (row.startLatitude != null && row.startLongitude != null) {
             Coordinates(row.startLatitude, row.startLongitude)
         } else {
@@ -44,7 +47,7 @@ class RouteDraftStoreImpl(
         } else {
             null
         }
-        return StoredRouteDraft(
+        StoredRouteDraft(
             startPoint = startPoint,
             waypoints = row.waypoints.toRoutePoints(),
             generatedRoute = generatedRoute,
@@ -52,7 +55,7 @@ class RouteDraftStoreImpl(
         )
     }
 
-    override suspend fun clear() {
+    override suspend fun clear() = withContext(ioDispatcher) {
         routeDraftDao.clear()
     }
 }

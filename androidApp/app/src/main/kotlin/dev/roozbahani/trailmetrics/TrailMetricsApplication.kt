@@ -12,9 +12,10 @@ class TrailMetricsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         installDebugStrictMode(applicationInfo)
-        initKoin {
+        val koin = initKoin {
             androidContext(this@TrailMetricsApplication)
             modules(appModule, routeModule, trackingUiModule, historyUiModule)
-        }
+        }.koin
+        warmUpFirstScreens(koin)
     }
 }

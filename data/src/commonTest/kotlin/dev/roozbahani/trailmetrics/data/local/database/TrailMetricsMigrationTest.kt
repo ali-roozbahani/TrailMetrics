@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class) // the test dispatchers have no stable replacement
+
 package dev.roozbahani.trailmetrics.data.local.database
 
 import androidx.sqlite.SQLiteDriver
@@ -16,6 +18,8 @@ import dev.roozbahani.trailmetrics.domain.route.StoredRouteDraft
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -103,7 +107,8 @@ abstract class TrailMetricsMigrationTest {
                 dao,
                 database.trackingSessionPlanDao(),
                 RoomWriteTransaction(database),
-                FixedClock
+                FixedClock,
+                UnconfinedTestDispatcher()
             )
             val session = StoredTrackingSession(state, ActivityType.Running, 1_700_299_000_000)
             store.save(session)
@@ -146,7 +151,8 @@ abstract class TrailMetricsMigrationTest {
                 dao,
                 database.trackingSessionPlanDao(),
                 RoomWriteTransaction(database),
-                FixedClock
+                FixedClock,
+                UnconfinedTestDispatcher()
             )
             val loaded = store.load()
             assertEquals(null, loaded?.activityType)
@@ -187,7 +193,7 @@ abstract class TrailMetricsMigrationTest {
 
                 val draftDao = database.routeDraftDao()
                 assertNull(draftDao.get())
-                val store = RouteDraftStoreImpl(draftDao)
+                val store = RouteDraftStoreImpl(draftDao, UnconfinedTestDispatcher())
                 val draft = StoredRouteDraft(
                     startPoint = Coordinates(47.3769, 8.5417),
                     waypoints = listOf(RoutePoint(Coordinates(47.38, 8.55), 0)),
@@ -250,7 +256,8 @@ abstract class TrailMetricsMigrationTest {
                     sessionDao,
                     database.trackingSessionPlanDao(),
                     RoomWriteTransaction(database),
-                    FixedClock
+                    FixedClock,
+                    UnconfinedTestDispatcher()
                 )
                 val stored = checkNotNull(store.load())
                 assertEquals(emptyList(), stored.plannedRoute)
