@@ -16,13 +16,18 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.StoredTrackingSession
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.util.Clock
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 
-// Room's suspend DAO functions run their queries on the database's query context.
+// Every storage access switches to [ioDispatcher] itself, so a caller never depends on the context Room runs its
+// queries on. The extra switch is free where the caller is already on that dispatcher (the database's query
+// context is the same dispatcher, so Room's own switch becomes a no-op) and cheap from `Dispatchers.Default`.
 class TrackingSessionStoreImpl(
     private val trackingSessionDao: TrackingSessionDao,
     private val trackingSessionPlanDao: TrackingSessionPlanDao,
     private val writeTransaction: WriteTransaction,
-    private val clock: Clock
+    private val clock: Clock,
+    private val ioDispatcher: CoroutineDispatcher
 ) : TrackingSessionStore {
 
     // What the plan table holds, once known: save runs on every location fix, and its answer is the same until
@@ -31,9 +36,9 @@ class TrackingSessionStoreImpl(
 
     private var storedPlan: StoredPlan? = null
 
-    override suspend fun save(session: StoredTrackingSession) {
+    override suspend fun save(session: StoredTrackingSession) = withContext(ioDispatcher) {
         val (kind, metrics) = when (val state = session.state) {
-            TrackingState.Idle -> return
+            TrackingState.Idle -> return@withContext
             is TrackingState.Tracking -> STATE_TRACKING to state.metrics
             is TrackingState.Paused -> STATE_PAUSED to state.metrics
             is TrackingState.Finished -> STATE_FINISHED to state.metrics
@@ -77,8 +82,8 @@ class TrackingSessionStoreImpl(
         return StoredPlan(session.startedAtEpochMillis, trackingSessionPlanDao.count())
     }
 
-    override suspend fun load(): StoredTrackingSession? {
-        val session = trackingSessionDao.getSession() ?: return null
+    override suspend fun load(): StoredTrackingSession? = withContext(ioDispatcher) {
+        val session = trackingSessionDao.getSession() ?: return@withContext null
         val metrics = TrackingMetrics(
             elapsedMillis = session.elapsedMillis,
             lastUpdateElapsedRealtimeMillis = session.lastUpdateElapsedRealtimeMillis,
@@ -97,10 +102,10 @@ class TrackingSessionStoreImpl(
         val activityType = ActivityType.entries.firstOrNull { it.name == session.activityType }
         val plannedRoute = trackingSessionPlanDao.getAll().map { Coordinates(it.latitude, it.longitude) }
         storedPlan = StoredPlan(session.startedAtEpochMillis, plannedRoute.size)
-        return StoredTrackingSession(state, activityType, session.startedAtEpochMillis, plannedRoute)
+        StoredTrackingSession(state, activityType, session.startedAtEpochMillis, plannedRoute)
     }
 
-    override suspend fun clear() {
+    override suspend fun clear() = withContext(ioDispatcher) {
         storedPlan = null
         trackingSessionDao.clear()
     }

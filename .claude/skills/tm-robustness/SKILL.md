@@ -27,7 +27,7 @@ file when the task or the diff reaches its topic, not before; a reviewer reads i
 
 | File | Rules | Read it when |
 |---|---|---|
-| `SKILL.md` (this file) | C1 to C6, E1 to E4, D1 to D7 | every Kotlin or Swift change |
+| `SKILL.md` (this file) | C1 to C6, E1 to E4, D1 to D9 | every Kotlin or Swift change |
 | `lifecycle-and-permissions.md` | S1, S2, R1, R2, R3, R5, R7 | a change touches an exported component or an `Intent`, a runtime permission, saved or restored state, a service or a Live Activity, a scene phase, or how a flow is collected |
 | `memory-and-leaks.md` | M1, M2, M3, M5, M6, M7, M8, M9 | a change adds a non-UI class that creates or keeps a `CoroutineScope` or launches from `init`, or registers a listener, observer, receiver, timer or callback, keeps a `Context`, a closure or a coroutine in a long-lived object, holds an image or a cache, or adds a leak check |
 | `performance.md` | P1 to P6, P8, P9 | a change touches a lazy list, composition or `body` work, a per-update or per-tick path, a Room query, location priority or interval, or `@Stable`/`@Immutable` |
@@ -130,6 +130,23 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   with the shape of ours (tools-version 5.9, language mode 5, `.iOS("26.5")`) accepted it. Example: #219 called `discardSnapshotFile` (`FileManager.removeItem`) in the
   cancel branch of `TrackingMapView`'s snapshot `Task`, on the main actor, until `Task.detached`.
   Enforced: reviewer only. Severity: blocking when it blocks the main actor, else important.
+
+- **D8** A class that reads or writes storage (a database access object, a key-value store, a file) switches
+  to its injected I/O dispatcher itself, in every method that touches the storage; the dispatcher is a
+  constructor parameter. Why: a caller then never depends on the context the storage library happens to run
+  its queries on, which a configuration or a library version can change. Example:
+  `ActivityHistoryRepositoryImpl`, `TrackingSessionStoreImpl`, `RouteDraftStoreImpl` (a test per class that
+  fails when its `withContext` is removed). Enforced: reviewer only; no tool knows which classes touch
+  storage (a candidate: a script that fails when a file with a `Dao` or key-value-store constructor parameter has no
+  `withContext(`; not built, the owner decides). Severity: important.
+- **D9** Code that runs in a scope the framework owns (the scope of a service, a screen or a ViewModel) runs on
+  the main thread: anything blocking or heavy in it goes through an injected dispatcher, and a heavy singleton
+  (one whose construction reads the disk or opens a database) is not first built there; its owner takes it
+  through a holder that builds it off the main thread and returns at once when it exists. Why: the first
+  caller in a new process pays the whole construction, and a cold restart is a new process. Example:
+  `TrackingService` takes `TrackingSessionManager` through `OffMainLazy`. Enforced: the debug StrictMode
+  policy logs a disk read on the main thread (M8); otherwise reviewer only. Severity: blocking when the
+  reviewer verifies a blocking call in the chain (C1), else important.
 
 
 R4, R6, M4, P7 are merged into M2, M1, R3, M5.
