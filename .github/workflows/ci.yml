@@ -204,7 +204,7 @@ jobs:
 
       # EXPERIMENT 2: a cache of the Kotlin/Native dir alone (attempt 1 of this experiment had DerivedData too), keyed on the commit, so a re-run of the same
       # commit restores what the first attempt saved: the two attempts differ only in the cache.
-      - name: Experiment - caches (konan, DerivedData)
+      - name: Experiment - cache (konan)
         id: expcache
         uses: actions/cache@v4
         with:
