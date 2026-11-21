@@ -223,7 +223,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Step limits of the steps that can hang (xcodebuild, Gradle, the simulator): sized from the measured normal times on this
+      # runner, about 3 times the slowest, so a stall fails the step by itself with GitHub's message naming it ("The action
+      # 'Run iOS package tests' has timed out after 20 minutes") instead of waiting for a human or the job's 30 minutes. Normal
+      # times (runs of 2026-11-19 to 2026-11-21): Build KMP Shared Framework 84 to 272 s; Run iOS simulator tests 52 to 53 s;
+      # Build iOS app 33 to 90 s; Build test-only framework variant 58 to 70 s; Run iOS package tests 130 to 629 s (a package
+      # 116 to 287 s).
       - name: Build KMP Shared Framework
+        timeout-minutes: 15
         run: scripts/build-kmp-framework.sh
 
       # No test-only Kotlin (the Swift test support of :shared-uitest) in the production framework.
@@ -236,6 +243,7 @@ jobs:
       # shared-uitest, the test-only framework variant, has only iOS tests: those of its UI-test fakes
       # and of the Swift test support (SwiftTestSupportTest), which only a Mac can run.
       - name: Run iOS simulator tests
+        timeout-minutes: 8
         run: ./gradlew :domain:iosSimulatorArm64Test :data:iosSimulatorArm64Test :shared:iosSimulatorArm64Test :shared-uitest:iosSimulatorArm64Test
 
       - name: Generate Secrets.xcconfig
@@ -246,6 +254,7 @@ jobs:
           EOF
 
       - name: Build iOS app
+        timeout-minutes: 10
         run: |
           cd iosApp
           xcodebuild build \
@@ -261,11 +270,16 @@ jobs:
       # The package tests use the Kotlin test support (SwiftTestFlow and the rest), which only the
       # test-only variant of the framework holds. Built after "Build iOS app", which links production.
       - name: Build test-only framework variant
+        timeout-minutes: 8
         run: scripts/build-kmp-framework.sh --variant uitest
 
       # Every iosApp/Packages/<Name>/ with a Tests/ directory; others are skipped.
       # `xcodebuild test` needs a concrete simulator, not generic/platform=iOS Simulator.
+      # One package at a time, each under scripts/run-limited.sh (600 s, about twice the slowest package): a package whose
+      # `xcodebuild test` goes silent (the History package did, for 4 min 56 s after its build, in run 44888237639) is killed
+      # and named, and the next package runs; the step limit is the net under the loop.
       - name: Run iOS package tests
+        timeout-minutes: 20
         run: |
           SIM_ID="$(xcrun simctl list devices available iPhone \
             | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | tail -1)"
@@ -281,11 +295,18 @@ jobs:
               continue
             fi
             echo "--- $name: xcodebuild test"
-            (cd "$pkg" && xcodebuild test \
+            # `|| rc=$?`: the step runs under `bash -e`, so a bare failing command would end the step here, before the
+            # message and before the next package.
+            rc=0
+            (cd "$pkg" && "$GITHUB_WORKSPACE/scripts/run-limited.sh" 600 xcodebuild test \
               -scheme "$name" \
               -destination "platform=iOS Simulator,id=$SIM_ID" \
               -skipMacroValidation \
-              CODE_SIGNING_ALLOWED=NO) || status=1
+              CODE_SIGNING_ALLOWED=NO) || rc=$?
+            if [ "$rc" = 124 ]; then
+              echo "::error title=iOS package tests::package $name stalled: xcodebuild test was killed after 600 s (a package takes 2 to 5 minutes)"
+            fi
+            [ "$rc" = 0 ] || status=1
           done
           exit $status
 
