@@ -7,12 +7,16 @@ name: PR review
 # review. That is acceptable only because /.github/ is protected: the human merges such PRs.
 on:
   pull_request:
-    types: [ opened, synchronize, reopened, ready_for_review ]
+    # edited: a change of the description (or of the title or the base) re-runs the review on the current head,
+    # and the run reads the new text from its event. Without it a corrected description is read by nobody until
+    # the next push.
+    types: [ opened, synchronize, reopened, ready_for_review, edited ]
 
 permissions:
   contents: read
 
-# A new push to the PR supersedes the SHA under review; nothing else is ever cancelled.
+# A new push to the PR supersedes the SHA under review, and so does an edit of the description (the new run
+# reads the new text); nothing else is ever cancelled.
 concurrency:
   group: pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
