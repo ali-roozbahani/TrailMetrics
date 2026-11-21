@@ -69,13 +69,15 @@ class WarmUpFirstScreensTest {
     }
 
     @Test
-    fun `the manager, the directions repository and the profile repository are built on the injected dispatcher`() = runTest {
+    fun `the first screens' singletons are built on the injected dispatcher`() = runTest {
         val built = mutableListOf<String>()
         val queue = StandardTestDispatcher(testScheduler)
         val koin = koinApplication {
             modules(
                 module {
-                    single<CoroutineScope>(APPLICATION_SCOPE) { CoroutineScope(UnconfinedTestDispatcher(testScheduler)) }
+                    single<CoroutineScope>(APPLICATION_SCOPE) {
+                        CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+                    }
                     single<CoroutineDispatcher>(ioDispatcherQualifier) { queue }
                     single<Logger> { FakeLogger() }
                     single<TrackingSessionManager> {
