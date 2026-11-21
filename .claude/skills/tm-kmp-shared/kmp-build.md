@@ -48,10 +48,12 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
   XCFramework is 140 MB instead of 148 MB. A Swift test that needs a real `data` object takes it from a factory in
   `shared-uitest` (`SwiftTestRepositories`). Never export `:data` from a framework again: its Ktor, kotlinx, Koin and Room
   types are not API for Swift. Enforced: reviewer only. Violation: `important`.
-- CI's `ios-build` job caches `~/.konan`, keyed on the Kotlin version of the version catalog (a bump starts a new cache). Without it
-  every run spends about 110 s of the framework link building the compiler's caches and about 16 s unpacking its
-  dependencies; with it the link takes about 9 s and the iOS job about 5 minutes less (17 min 29 s on a miss, 12 min 35 s on a
-  hit, two attempts of one commit on the same runner type: 3 CPUs, 7.5 GB). Xcode's DerivedData is not cached.
+- CI's `ios-build` job caches `~/.konan`, keyed on the Kotlin version of the version catalog (a bump starts a new cache). On a miss the
+  dependencies are downloaded and unpacked (their cost was not measured) and the framework link took about 116 s; with the cache the
+  link takes about 9 s, and the iOS job was 4 min 54 s to 8 min 26 s shorter across three miss/hit pairs (hits 10 min 38 s to
+  12 min 35 s, misses 16 min 51 s to 19 min 4 s; runner type: 3 CPUs, 7 GiB). The Kotlin/Native steps are about 2.3 to 3.4 minutes of that;
+  the rest (the Swift package tests were 114 to 252 s shorter) is not isolated. Xcode's DerivedData is not cached (not isolated; not adopted for the
+  risk of a stale build product).
 - The `~/.konan` cache of 2026-11-17 (PR #330, closed) was judged by the download it saves (about 8 s) against a restore of 22 to
   24 s, and by step totals that vary by 144 s between runs of identical code; the saving is in the link, not the download, and
   a comparison needs two attempts of the same commit (PR #372).
