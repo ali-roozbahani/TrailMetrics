@@ -223,12 +223,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Step limits of the steps that can hang (xcodebuild, Gradle, the simulator): sized from the measured normal times on this
-      # runner, about 3 times the slowest, so a stall fails the step by itself with GitHub's message naming it ("The action
-      # 'Run iOS package tests' has timed out after 20 minutes") instead of waiting for a human or the job's 30 minutes. Normal
-      # times (runs of 2026-11-19 to 2026-11-21): Build KMP Shared Framework 84 to 272 s; Run iOS simulator tests 52 to 53 s;
-      # Build iOS app 33 to 90 s; Build test-only framework variant 58 to 70 s; Run iOS package tests 130 to 629 s (a package
-      # 116 to 287 s).
       # The Kotlin/Native directory, keyed on the Kotlin version of the version catalog (a Kotlin bump starts a new cache). A run
       # without it spends about 110 s of the framework link building the compiler's own caches and about 16 s unpacking its
       # dependencies, on every run; with it the link takes about 9 s. Measured on this runner type (3 CPUs, 7.5 GB) on two attempts of
@@ -237,7 +231,13 @@ jobs:
       # cached: its measured extra saving is inside the run-to-run noise, and a stale build product is a risk the owner decides.
       - name: Read the Kotlin version
         id: kotlin
-        run: echo "version=$(sed -n 's/^kotlin = "\(.*\)"/\1/p' gradle/libs.versions.toml)" >> "$GITHUB_OUTPUT"
+        run: |
+          version="$(sed -n 's/^kotlin = "\(.*\)"/\1/p' gradle/libs.versions.toml)"
+          if [ -z "$version" ]; then
+            echo "::error file=gradle/libs.versions.toml::no Kotlin version found: the line kotlin = \"...\" is missing from gradle/libs.versions.toml, so the Kotlin/Native cache key would never change on a Kotlin bump"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache the Kotlin/Native directory
         uses: actions/cache@v4
@@ -245,6 +245,12 @@ jobs:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ runner.arch }}-${{ steps.kotlin.outputs.version }}
 
+      # Step limits of the steps that can hang (xcodebuild, Gradle, the simulator): sized from the measured normal times on this
+      # runner, about 3 times the slowest, so a stall fails the step by itself with GitHub's message naming it ("The action
+      # 'Run iOS package tests' has timed out after 20 minutes") instead of waiting for a human or the job's 30 minutes. Normal
+      # times (runs of 2026-11-19 to 2026-11-21): Build KMP Shared Framework 84 to 272 s; Run iOS simulator tests 52 to 53 s;
+      # Build iOS app 33 to 90 s; Build test-only framework variant 58 to 70 s; Run iOS package tests 130 to 629 s (a package
+      # 116 to 287 s).
       - name: Build KMP Shared Framework
         timeout-minutes: 15
         run: scripts/build-kmp-framework.sh
