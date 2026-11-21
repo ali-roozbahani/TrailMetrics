@@ -57,6 +57,15 @@ if [ "${1:-}" = --self-test ]; then
     exit $?
 fi
 
+# The commit this run gates. The last line of the output is `GATE_EXIT <n> HEAD <sha>` (below): the gate's own result,
+# the one to read. The exit code of a wrapper around the gate (a `( ... ; echo ... )` group, a background task) is not
+# the gate's, and a wrapper's own line has no HEAD field: scripts/gate-result.sh reads only this one. On a pass the
+# commit is also appended to `.gate-passed-heads` in the git dir (the commits that passed, newest last), which
+# scripts/epic/merge-subtask.sh reads; a run during which HEAD moved records nothing.
+GATE_HEAD="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+# Printed on every way out, the early refusals included, with the exit code the process really has.
+trap 'rc=$?; echo "GATE_EXIT $rc HEAD $GATE_HEAD"' EXIT
+
 # One heavy run (Gradle, xcodebuild, this gate) at a time on this machine: start again under
 # scripts/heavy-run.sh, which waits while another heavy run is going. Inside it TM_HEAVY_RUN_HELD
 # names the live holder and the gate goes on; the Gradle and xcodebuild steps below are covered by it.
@@ -608,6 +617,14 @@ if [ ${#FAILURES[@]} -eq 0 ]; then
     MARKER="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .pre-push-check-passed)" \
         && touch "$MARKER" \
         || { echo "!!  could not write the pass marker; the push hook will block. Re-run once fixed."; exit 1; }
+    if [ "$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null)" = "$GATE_HEAD" ]; then
+        PASSED="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-path .gate-passed-heads)" \
+            && echo "$GATE_HEAD" >> "$PASSED" \
+            || { echo "!!  could not record the gated commit; the epic merge step will refuse it."; exit 1; }
+    else
+        echo "!!  HEAD moved during the run: the pass is for $GATE_HEAD, which is no longer HEAD; run the gate again."
+        exit 1
+    fi
     exit 0
 else
     echo "FAILED checks:"

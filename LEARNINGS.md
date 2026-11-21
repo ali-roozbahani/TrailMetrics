@@ -900,3 +900,24 @@ android source set (`domain:detektAndroidMain` was `NO-SOURCE`) and none exists 
 modules, so `build.gradle.kts` adds `detektTypedCommonMain` / `detektTypedCommonTest` and `detektTypedDebug*`
 (`config/detekt/detekt.yml` has the rules and their reasons; the board record `detekt-typed-rules-after-kotlin-2-4-support` waits for a
 detekt release that reads Kotlin 2.4).
+
+## The first epic run: a gate result read from a wrapper, a review that could not judge, a log that was cleared
+
+The first epic (`route-completion-to-domain`, PR #364, run of 2026-11-20) found four places where the epic workflow relied on the
+agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `scripts/gate-result.sh`), with the sentence kept as the reason.
+
+- **A wrapper's exit code taken for the gate's.** Subtask S2's gate ran in the background as `( scripts/pre-push-check.sh > log; echo "GATE_EXIT $?" >> log )`.
+  The harness reported the group's exit code, 0 (the `echo`'s), while the log's own line said `GATE_EXIT 1` (two Compose tests red).
+  The merge into the integration branch went ahead on the 0, the agent saw the missing pass line in the same turn, undid the unpushed merge
+  and logged a correction. Now the gate prints `GATE_EXIT <n> HEAD <sha>` itself, on every way out, and records the commit it passed in the git
+  directory (`.gate-passed-heads`); `scripts/gate-result.sh` reads only that line (a wrapper's own `GATE_EXIT` has no HEAD field and is ignored),
+  and `scripts/epic/merge-subtask.sh` refuses to merge a subtask whose head has no recorded pass (an integration unit passes `--gated-at`).
+- **A subtask review that saw the whole epic.** `local-review-prepare.sh` took `origin/main` as the base. S5's reviewer got S1 to S4 in its diff, could not
+  judge files S5 had not written, and answered "cannot judge" in a note (a board record of the review-base question, now removed). The script takes
+  `--base feature/epic/<slug>`: the reviewer's `BASE` is the integration tip and `commits` and `diff` hold the subtask only.
+- **Protected files the report did not name.** The last fix of the run (the owner's decision to move the service to `LifecycleService`) added a dependency in
+  `gradle/libs.versions.toml` and `data/build.gradle.kts` and changed `tm-robustness/memory-and-leaks.md`; the epic PR's description named the plan and the
+  CI-trigger script (which came in with `main`) but none of these. `scripts/epic/check-report.sh` lists the protected files of `main...HEAD` and fails when
+  one is not in the text.
+- **One log of a failure, cleared.** The locked-screen emulator runs of the notification fix: 36 runs, one never ended its session; each run began with `logcat -c`,
+  so the full device log of that one run was gone by the next. `scripts/epic/keep-device-log.sh` keeps the log, the notification and the service dump in the run record.

@@ -111,6 +111,8 @@ CLAUDE.local.md                             @ali-roozbahani
 /scripts/dev/                               @ali-roozbahani
 /scripts/queue/                             @ali-roozbahani
 /scripts/subagent/                           @ali-roozbahani
+/scripts/epic/                               @ali-roozbahani
+/scripts/gate-result.sh                      @ali-roozbahani
 
 # Build and dependency files
 /settings.gradle.kts                        @ali-roozbahani

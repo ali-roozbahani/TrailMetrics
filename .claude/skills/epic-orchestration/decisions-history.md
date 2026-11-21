@@ -37,8 +37,7 @@ Added on 2026-11-19, when the skill was read against the first epic's plan (`run
 - The state of a run is the integration branch (a merge commit per subtask, with its trailer) and a run record outside the repository (`~/agent-workspace/epics/<slug>/keep-run.log` and `keep-notes.md`), so the same sentence resumes a stopped run in a
   new session on the same machine. The integration branch is local until the one push, which is not made as a backup, and a lost clone loses the unpushed work.
 - The epic's board changes and the plan's `Status` are the last commit of the integration branch and travel in the epic PR; there is no final board PR and no extra human merge.
-- Open: the local review's base is the merge-base with `origin/main` (`scripts/local-review-prepare.sh`), which makes a subtask's review see the whole epic diff; the skill works around it with a review-scope line in the draft description
-  (board record `epic-subtask-review-base`).
+- The local review's base was the merge-base with `origin/main`, which made a subtask's review see the whole epic diff so far (resolved on 2026-11-21 after the first run: `scripts/local-review-prepare.sh --base feature/epic/<slug>`, `subtask-merge.md`, "Review base").
 
 Added on 2026-11-19, after a review of the local-merge flow for stops that the first run could predict:
 

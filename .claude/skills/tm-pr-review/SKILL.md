@@ -24,7 +24,7 @@ equal the prompt's.
   CI's reviewer gets: a fixed header, the description between its markers, and each board
   record the description's `Board:` line removes, as it is on `origin/main`. The draft is
   `~/agent-workspace/pr-body-<slug>.md`, written before the review without `Reviewer findings`.
-  An epic subtask's draft description (its local review is not a PR) carries its `allowed_paths` and the review scope (`epic-orchestration`, `subtask-merge.md`). Task text that is not in the
+  An epic subtask's draft description (its local review is not a PR) carries its `allowed_paths` and lists the subtasks already merged into its base (`epic-orchestration`, `subtask-merge.md`, "Review base"). Task text that is not in the
   description is not in `TASK`.
 
 `INPUT_DIR` holds plain git output (commands under "Orchestrator's part"): `head`, `base`,
@@ -329,6 +329,9 @@ as part of that HEAD, not one by one.
    ```bash
    scripts/local-review-prepare.sh ~/agent-workspace/pr-body-<slug>.md
    ```
+
+   For an epic's subtask branch, which is merged locally into an integration branch and is not a PR, the base is that branch, not `main`:
+   `scripts/local-review-prepare.sh --base feature/epic/<slug> ~/agent-workspace/pr-body-<slug>.md` (`epic-orchestration`, `subtask-merge.md`, "Review base").
 
    It fills the input directory from git alone (`head`, `base`, `branch`, `status`, `commits`,
    `diff`, `protected`, and `rule-changes` computed with the base's copy of

@@ -130,6 +130,11 @@ How it is enforced (the full text, with the exact shapes of the push and PR comm
   changes the script. A new module's first floor is a new entry plus the same read in its
   `build.gradle.kts`.
 - A task is not done until Tier 1 has been run **and** its result reported in the PR.
+- **A result is read from the check, not from what started it.** The result of a gate run is the line the gate itself prints
+  last, and the record it writes for exactly the commit it checked. The exit code of a wrapper, a background task or a pipe
+  around it is not the result, and a line a wrapper wrote is not the gate's. A step that acts on a green result (a merge, a push)
+  names the commit it acts on and refuses without the record for exactly that commit. Why: a wrapper reports its own last
+  command, so a red gate can look green. Example and mechanism: `LEARNINGS.md`, "The first epic run: a gate result read from a wrapper".
 
 ## Tier 2: what automated tests cannot show
 
