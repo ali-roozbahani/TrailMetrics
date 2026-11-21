@@ -9,7 +9,8 @@
 # the command's; 124 when the limit was hit; 130, 143 or 129 after Ctrl-C (INT), TERM or HUP, which reach only
 # the caller's own group, so the wrapper catches them and kills the command's group the same way (signals are
 # blocked until the child's pid is known); 127 when the command could not be started; 2 for a usage error.
-# The gate (scripts/pre-push-check.sh) and scripts/main-ui-run.sh run their UI-test steps through it.
+# The gate (scripts/pre-push-check.sh) and scripts/main-ui-run.sh run their UI-test steps through it, and CI's iOS job runs
+# each package's `xcodebuild test` through it (.github/workflows/ci.yml, "Run iOS package tests"), so a silent package is killed and named.
 set -uo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
