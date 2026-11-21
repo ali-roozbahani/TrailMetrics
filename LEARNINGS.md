@@ -923,7 +923,6 @@ agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `sc
   one is not in the text.
 - **One log of a failure, cleared.** The locked-screen emulator runs of the notification fix: 36 runs, one never ended its session; each run began with `logcat -c`,
   so the full device log of that one run was gone by the next. `scripts/epic/keep-device-log.sh` keeps the log, the notification and the service dump in the run record.
-<<<<<<< HEAD
 
 ## Moving a responsibility: two defects that passed every review and test of the first epic
 
@@ -952,5 +951,3 @@ it is `epic-orchestration`, `plan-format.md`, "Responsibilities moved", and `tm-
   tests that asserted a finish card that outlived the save (the old card followed a sticky `hasReachedDestination`). They were found by what they assert (the card after a save), not by a changed symbol.
   S2 and S4 were then one integration unit: S2 alone was red, because the two trackers co-existed until S4 removed the Android one. One plan name did not match the test that was written
   (`the session ends once, not at each later fix`: a native test name cannot hold a comma).
-=======
->>>>>>> origin/main
