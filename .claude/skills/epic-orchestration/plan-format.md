@@ -19,6 +19,9 @@ Read from `SKILL.md`, "The plan". The rules are there; this file holds the plan 
   branch: <feature|bugfix|chore>/<epic-slug>-<subtask-slug>
   skills: [tm-kmp-shared, tm-testing]
   depends_on: []
+  gate_with: []   # the ids of subtasks whose interim state only works together with this one (see below); [] when none
+  duties:         # the duties of the old owner that this subtask must cover (see "Responsibilities moved"); [] when it moves none
+    - <duty>
   allowed_paths:
     - <glob>
   acceptance:
@@ -31,6 +34,43 @@ Read from `SKILL.md`, "The plan". The rules are there; this file holds the plan 
 
 - Wave 1: S1
 - Wave 2: S2 ∥ S3   (disjoint: <one line on why>)
+
+## Responsibilities moved (required; "none" when no subtask moves one)
+
+For each responsibility a subtask moves (state, a decision, a side effect, a timer, an outside resource) from one component or
+layer to another: one block of the five questions below. Each answer is one line, `duty -> new owner -> proof`.
+
+- **Responsibility:** <what moves> (old owner <A>, new owner <B>, subtask <id>)
+- **1. Lifetime.** Does B live longer than A? If so, every event that ends or restarts what B holds (save, discard, restart, abandon,
+  process death and restore) and who clears it in each: <event -> who clears it -> proof>
+- **2. Ordering and timing.** What ordering, delay or batching did A provide as a side effect, and does anything depend on it? <duty -> B -> proof>
+- **3. External resources.** What outside the code is alive because of this (a notification, a service, a listener, a location or
+  sensor subscription, a file, a timer), and who releases it, in what order, on every exit path (normal, error, cancel, ended by the
+  system)? <resource -> releaser and order -> proof>
+- **4. Threads and contexts.** On which thread or dispatcher does the code that is now called run, and did the move change it? <call -> context before and after -> proof>
+- **5. Exit paths.** Do all of them end in the same clean state? <path -> state -> proof>
+
+A proof is a test by name, or, for behavior that only shows on a device or emulator (questions 2 to 4), repeated runs of the real
+scenario that read the system's own state (the platform's notification list, its service list, its location clients: not only the
+app's), with the number of runs and the count of failures reported (for example "36 runs, 0 failures"). An answer that
+is not known is written as `open risk: <what is unknown>`, never left out. The subtask's `duties` list is these lines' duties: the
+worker's brief carries it, and the local review asks whether the diff covers each (`tm-pr-review`, item 16).
+
+## Existing tests that pin behavior the epic removes (required; "none found" says how it was searched)
+
+The plan lists the existing tests that assert behavior the epic changes or removes, found by what they assert, not only by tests that
+name a changed symbol: search the tests for the behavior (the state a screen shows after an action, the sequence a fake records, the
+count of calls), in every module and platform the epic touches. Each entry: the test's full name, what it asserts, and what happens to
+it (kept, changed in a named way, deleted with the reason). A red test that the plan did not name is a stop of the subtask
+(`running-an-epic.md`, "3. The wave loop", step 4), so a test the plan does not name costs a stop. The first epic's example is in `LEARNINGS.md`. A test name the plan writes is the
+name the test will have, or the plan marks it `(provisional)`; a native Kotlin test name, for one, cannot contain a comma.
+
+## Subtasks with an interim state
+
+A subtask whose result only works together with another's (one half of a contract that is wrong until the other half lands) is listed in the other's `gate_with` and the other in its own: the plan gates them together
+from the start, as one integration unit (the gate runs once on the combination, each is reviewed on its own and merged on the combination's gate result, the
+earlier one first: `subtask-merge.md`, step 7). The first epic's example is in `LEARNINGS.md`. A plan that leaves the pair separate and finds out at the first
+gate has paid a stop for it.
 
 ## Acceptance coverage (optional)
 

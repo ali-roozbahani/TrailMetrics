@@ -25,6 +25,9 @@ STATUS: NEEDS_CONTRACT_CHANGE with the file and why. The plan changes only with 
 
 ## Contract
 <the interfaces and signatures the plan fixes (the epic's design section), which the worker implements against and does not change>
+Duties of the old owner, for a subtask that moves a responsibility (the plan's `duties` for this subtask, with each one's proof line):
+<duty -> new owner -> proof, one per line; "none" when the subtask moves nothing>. Cover each in your commits and say in your hand-back where each is
+covered; a duty you cannot cover inside the allowed paths is `NEEDS_CONTRACT_CHANGE`, and one you find that the list lacks is reported, not skipped.
 
 ## Read first
 - Skills: tm-pr-workflow (commits), <the code skills of the plan's `skills`>
