@@ -58,9 +58,14 @@ scripts/main-ui-run.sh --status        # the last full UI run of main, and wheth
   last session ended is not forgotten. It never fails the start of a task.
 - `scripts/main-ci-status.sh --recent 5` prints, newest first, one line per run (run id, merge SHA,
   PR number or `-`, conclusion or `running`, failed job names) and `RECENT green=<n> red=<n>
-  running=<n> unacknowledged-red=<n>`; its exit code is that of the newest run (0 green, 1 red,
-  3 running, 4 unknown). It covers merges the agent did not make. Put the output first in the report.
+  running=<n> unverified=<n> unacknowledged-red=<n>`; its exit code is that of the newest run (0 green, 1 red,
+  3 running, 5 unverified, 4 unknown). It covers merges the agent did not make. Put the output first in the report.
   - `running`: skip it, say so in the report, go on. The next task looks again.
+  - `unverified` (a line `cancelled unverified`, exit 5): the commit's push run was cancelled, so it is neither green nor red and
+    nothing re-runs `main`. Report it with what verifies the commit instead: a green full UI run on that very commit
+    (`scripts/main-ui-run.sh --status` prints the last one and its SHA) or the next push run of `main`, which tests a tree that holds
+    it (a line `cancelled verified-by <run id>` says a later green run exists). It is not a stop, and nothing is re-run on `main`;
+    the owner decides whether to re-run it. Who cancelled it is not known from the run: do not assume a tool of this session did.
   - All `success`: say nothing but the summary line.
   - An unacknowledged `failure`: STOP before any edit. Report the PR and merge SHA, the failed jobs,
     your classification from reading the log as data (`defect`, a flake already in `CI_FLAKES.md`,

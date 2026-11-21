@@ -63,7 +63,20 @@ cmd_record() {
     verdict="${BASH_REMATCH[1]}"
     [[ "$l2" =~ ^REVIEWED_SHA:\ ([0-9a-f]{40}|[0-9a-f]{64})$ ]] || die "record: line 2 is not 'REVIEWED_SHA: <full sha>'"
     reviewed="${BASH_REMATCH[1]}"
-    [ "$reviewed" = "$run_on" ] || die "record: REVIEWED_SHA ${reviewed:0:12} differs from the sha the reviewer was run on ${run_on:0:12}"
+    if [ "$reviewed" != "$run_on" ]; then
+        # Say where they differ: a model copying 40 hex characters can get one wrong (a slip in the report, or in the
+        # prompt's SHA line), which is not a different commit; the same 12-character prefix then looked like no reason.
+        pos=""; n=0
+        if [ "${#reviewed}" = "${#run_on}" ]; then
+            for ((i = 0; i < ${#run_on}; i++)); do
+                [ "${reviewed:i:1}" = "${run_on:i:1}" ] || { n=$((n + 1)); pos="$pos $((i + 1))"; }
+            done
+        fi
+        if [ "$n" -gt 0 ] && [ "$n" -le 2 ]; then
+            die "record: REVIEWED_SHA $reviewed differs from the sha the reviewer was run on $run_on at character${pos} only: a transcription slip, not another commit. Start the reviewer again with the prompt exactly as scripts/local-review-prepare.sh printed it (copy it, do not retype the SHA)."
+        fi
+        die "record: REVIEWED_SHA ${reviewed:0:12} differs from the sha the reviewer was run on ${run_on:0:12}"
+    fi
     git cat-file -e "$run_on^{commit}" 2>/dev/null || die "record: $run_on is not a commit of this repository"
     dir="$REVIEWS_DIR/$run_on"
     mkdir -p "$dir"
@@ -231,6 +244,12 @@ self_test() {
     reset; run "report with no VERDICT line leaves nothing to check" 1 chk "$sha"
     reset; rec approve "$parent" "$parent" >/dev/null; run "review of the parent commit does not allow HEAD" 1 chk "$sha"
     reset; run "forged REVIEWED_SHA (not the run-on sha) is not recorded" 1 rec approve "$unrelated" "$sha"
+    # A one-character slip is refused too, and the message says it is a slip and where.
+    last="${sha:39:1}"; other=1; [ "$last" = 1 ] && other=2
+    slip="${sha:0:39}$other"
+    reset; msg="$(rec approve "$slip" "$sha" 2>&1 >/dev/null)" && rc=0 || rc=$?
+    if [ "$rc" = 1 ] && printf '%s' "$msg" | grep -qF "at character 40 only: a transcription slip"; then echo "ok   a one-character slip is refused and named"
+    else echo "FAIL a one-character slip: exit $rc: $msg" >&2; fails=$((fails + 1)); fi
     reset; run "run-on sha that is no commit is not recorded" 1 rec approve "$unrelated" "$unrelated"
     # A hand-placed file keyed by the sha but whose REVIEWED_SHA is another commit.
     reset; mkdir -p "$LOCAL_REVIEWS_DIR/$sha"; fixture approve "$parent" >"$LOCAL_REVIEWS_DIR/$sha/report"
