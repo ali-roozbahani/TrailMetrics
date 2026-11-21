@@ -423,7 +423,7 @@ abstract class TrackingSessionStoreImplTest {
     )
 
     @Test
-    fun `save, load and clear reach the storage on the injected dispatcher`() = runTest {
+    fun `every storage call reaches the storage on the injected dispatcher`() = runTest {
         val queue = StandardTestDispatcher(testScheduler)
         val seen = mutableListOf<Pair<String, ContinuationInterceptor?>>()
         var phase = ""
