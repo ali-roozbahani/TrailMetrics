@@ -12,6 +12,7 @@ import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
 import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,7 +33,8 @@ val commonTrackingModule = module {
             trackingSessionDao = get<TrackingSessionDao>(),
             trackingSessionPlanDao = get<TrackingSessionPlanDao>(),
             writeTransaction = get<WriteTransaction>(),
-            clock = get<Clock>()
+            clock = get<Clock>(),
+            ioDispatcher = get<CoroutineDispatcher>(ioDispatcherQualifier)
         )
     }
 

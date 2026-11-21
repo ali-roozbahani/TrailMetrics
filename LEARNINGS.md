@@ -913,6 +913,8 @@ agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `sc
   directory (`.gate-passed-heads`); `scripts/gate-result.sh` reads only that line (a wrapper's own `GATE_EXIT` has no HEAD field and is ignored),
   and `scripts/epic/merge-subtask.sh` refuses to merge a subtask whose head has no recorded pass (an integration unit passes `--gated-at`).
 - **A subtask review that saw the whole epic.** `local-review-prepare.sh` took `origin/main` as the base. S5's reviewer got S1 to S4 in its diff, could not
+  judge files S5 had not written, and answered "cannot judge" in a note (a board record of the review-base question, now removed). The script takes
+
   judge files S5 had not written, and answered "cannot judge" in a note (board record `epic-subtask-review-base`, now removed). The script takes
   `--base feature/epic/<slug>`: the reviewer's `BASE` is the integration tip and `commits` and `diff` hold the subtask only.
 - **Protected files the report did not name.** The last fix of the run (the owner's decision to move the service to `LifecycleService`) added a dependency in
@@ -921,6 +923,7 @@ agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `sc
   one is not in the text.
 - **One log of a failure, cleared.** The locked-screen emulator runs of the notification fix: 36 runs, one never ended its session; each run began with `logcat -c`,
   so the full device log of that one run was gone by the next. `scripts/epic/keep-device-log.sh` keeps the log, the notification and the service dump in the run record.
+<<<<<<< HEAD
 
 ## Moving a responsibility: two defects that passed every review and test of the first epic
 
@@ -949,3 +952,5 @@ it is `epic-orchestration`, `plan-format.md`, "Responsibilities moved", and `tm-
   tests that asserted a finish card that outlived the save (the old card followed a sticky `hasReachedDestination`). They were found by what they assert (the card after a save), not by a changed symbol.
   S2 and S4 were then one integration unit: S2 alone was red, because the two trackers co-existed until S4 removed the Android one. One plan name did not match the test that was written
   (`the session ends once, not at each later fix`: a native test name cannot hold a comma).
+=======
+>>>>>>> origin/main

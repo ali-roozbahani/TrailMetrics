@@ -13,6 +13,7 @@ import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.data.tracking.StopTrackingAuthorization
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
+import dev.roozbahani.trailmetrics.data.tracking.OffMainLazy
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
@@ -81,6 +82,7 @@ class TrackingServiceNotificationTest {
             modules(
                 module {
                     single { manager }
+                    single { OffMainLazy(lazyOf(manager), UnconfinedTestDispatcher()) }
                     single<Logger> { FakeLogger() }
                 }
             )
