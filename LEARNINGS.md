@@ -914,8 +914,6 @@ agent remembering a sentence. Each now refuses by a script (`scripts/epic/`, `sc
   and `scripts/epic/merge-subtask.sh` refuses to merge a subtask whose head has no recorded pass (an integration unit passes `--gated-at`).
 - **A subtask review that saw the whole epic.** `local-review-prepare.sh` took `origin/main` as the base. S5's reviewer got S1 to S4 in its diff, could not
   judge files S5 had not written, and answered "cannot judge" in a note (a board record of the review-base question, now removed). The script takes
-
-  judge files S5 had not written, and answered "cannot judge" in a note (board record `epic-subtask-review-base`, now removed). The script takes
   `--base feature/epic/<slug>`: the reviewer's `BASE` is the integration tip and `commits` and `diff` hold the subtask only.
 - **Protected files the report did not name.** The last fix of the run (the owner's decision to move the service to `LifecycleService`) added a dependency in
   `gradle/libs.versions.toml` and `data/build.gradle.kts` and changed `tm-robustness/memory-and-leaks.md`; the epic PR's description named the plan and the
