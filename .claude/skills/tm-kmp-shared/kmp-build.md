@@ -52,7 +52,7 @@ Measured on 2026-11-17 (Apple M4, 16 GB, Kotlin 2.4.10, warm `~/.konan` and Grad
   dependencies are downloaded and unpacked (their cost was not measured) and the framework link took about 116 s; with the cache the
   link takes about 9 s, and the iOS job was 4 min 54 s to 8 min 26 s shorter across three miss/hit pairs (hits 10 min 38 s to
   12 min 35 s, misses 16 min 51 s to 19 min 4 s; runner type: 3 CPUs, 7 GiB). The Kotlin/Native steps are about 2.3 to 3.4 minutes of that;
-  the rest, mostly the Swift package tests, is not isolated. Xcode's DerivedData is not cached (not isolated; not adopted for the
+  the rest (the Swift package tests were 114 to 252 s shorter) is not isolated. Xcode's DerivedData is not cached (not isolated; not adopted for the
   risk of a stale build product).
 - The `~/.konan` cache of 2026-11-17 (PR #330, closed) was judged by the download it saves (about 8 s) against a restore of 22 to
   24 s, and by step totals that vary by 144 s between runs of identical code; the saving is in the link, not the download, and
