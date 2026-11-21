@@ -360,3 +360,28 @@ run, and the jobs it hit are counted below.
     head passed. The owner acknowledged the run
 - Notes: class infra (network from the runner to the artifact repository), not the diff. Nothing is changed for it now (owner decision
   of 2026-11-16: no caching or retry fix at count 1); a recurrence is handled by the normal flake rules.
+
+## ios-package-tests-history-silent-stall
+
+- Signature: job `iOS build — lint, app build, package tests`, step `Run iOS package tests`, package `History`, an
+  `xcodebuild test` that prints nothing after its build until the run is cancelled; first (and only) error line "The
+  operation was canceled."
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-21, run 44888237639 (push to `main`, merge of #364, head 51a006ff, created 09:09:36Z, cancelled 09:23:15Z after
+    13 min 51 s), re-run: no (a cancelled run is not re-run; see `scripts/main-ci-status.sh`, `MAIN_UNVERIFIED`)
+- Notes: the History package printed nothing for 4 min 56 s after its build; the same step took 2 min 10 s in total on
+  `cecc7ab9` (run 44606256468) and a package takes 116 to 287 s in the slowest run measured (run 44759530381). The cancel is
+  stamped 09:23:15Z (10:23:15 Berlin). Who cancelled it is not known: the owner did not cancel it in the GitHub UI; he stopped
+  two background shells of the previous agent session when he restarted Claude Code at that time. The harness's own list of
+  background shells is not in the transcript, so which two were stopped is inferred: the only background command of that
+  hour was a full UI run on `main` (`scripts/main-ui-run.sh --auto`, started 09:10:55Z, finished 09:16:59Z, before the cancel)
+  and the only command that waited was a `grep`/`sleep` loop on its log; the session's other commands in that hour were
+  read-only (`gh run view`, `gh api` GET, `main-ci-status.sh`). Nothing in them, in the scripts they start (`main-ui-run.sh`, `android-ui-tests.sh`,
+  `ios-ui-tests.sh`, `ui-flake.sh`, `run-limited.sh`, `heavy-run.sh`) or in the repository's scripts that cancel a run
+  (`scripts/cancel-head-ci.sh`, which only an agent session runs against an open PR's head) calls `gh run cancel` or the cancel
+  endpoint, and `ci.yml` has `cancel-in-progress` only for pull requests: a push run of `main` is never superseded. So the
+  cancel source is unknown, not the agent's tooling (class infra or an external cancel, not shown). The stall itself is a silent
+  `xcodebuild test`; the iOS steps now have step limits and each package its own (`ci.yml`), so a stall fails by itself with the
+  step and package named.

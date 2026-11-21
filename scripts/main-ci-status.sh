@@ -20,18 +20,26 @@
 #   MAIN_RUNNING <sha>                     the commit's run is queued or in progress, or no
 #                                          run exists yet (a push run appears a few seconds
 #                                          after the merge); an older result is printed above  exit 3
+#   MAIN_UNVERIFIED <sha> <what verifies it>
+#                                          the commit's only push run was cancelled: it is
+#                                          neither green nor red, and nothing re-runs main.
+#                                          The line names what verifies the commit instead: a
+#                                          green local full UI run on that commit (`scripts/
+#                                          main-ui-run.sh --status`), or the next push run of
+#                                          main (a later green run tests a tree that holds it)  exit 5
 #   MAIN_UNKNOWN <reason>                  a failed `gh` call, unreadable data, a conclusion
-#                                          that is neither green nor red (cancelled, ...)      exit 4
+#                                          that is none of the above (skipped, neutral, ...)   exit 4
 # The commit is origin/main's head. A usage error exits 2.
 #
 # --recent <n> prints one line per run, newest first, then a summary line:
 #   <run id> <merge SHA> <#PR|-> <conclusion|running> [failed: <job names>]
-#   RECENT green=<n> red=<n> running=<n> unacknowledged-red=<n>
+#   RECENT green=<n> red=<n> running=<n> unverified=<n> unacknowledged-red=<n>
 # The PR number is the `(#N)` that ends the commit subject (first line of the head commit message; the run title is cut short), `-` when there is none. A red run is
 # failure, timed_out or startup_failure (its failed jobs are read); a run that is not completed is
-# `running`; another conclusion (cancelled, ...) is printed and counted nowhere. The exit code is
-# that of the newest run (0 green, 1 red, 3 running, 4 for another conclusion, no run, or any
-# failed or unreadable `gh` read). A red run is unacknowledged when its id is above the stored
+# `running`; a cancelled run is `unverified` until a newer run of main is green (the line says `cancelled
+# unverified`, or `cancelled verified-by <run id>` once one is); another conclusion (skipped, ...) is printed and counted
+# nowhere. The exit code is that of the newest run (0 green, 1 red, 3 running, 5 unverified, 4 for another conclusion,
+# no run, or any failed or unreadable `gh` read). A red run is unacknowledged when its id is above the stored
 # acknowledged id.
 #
 # --ack <run id> stores the run id in ~/agent-workspace/main-ci-ack (outside the repo, created when
@@ -157,13 +165,22 @@ if [ -n "$RECENT" ]; then
            (if .status != "completed" then "running" else (.conclusion // "-") end)] | @tsv' "$D/runs.json")" \
         || unknown "the run list is not readable"
     [ -n "$ROWS" ] || unknown "no push run of ci.yml on main"
-    GREEN=0 RED=0 RUNNING=0 UNACK=0 FIRST=""
+    GREEN=0 RED=0 RUNNING=0 UNVER=0 UNACK=0 FIRST="" NEWER_GREEN=""
     while IFS=$'\t' read -r RID RSHA RPR RCONC; do
         [[ "$RID" =~ ^[0-9]+$ && "$RSHA" =~ ^[0-9a-f]{40}$ ]] || unknown "a run of the list is not readable"
         [ -n "$FIRST" ] || FIRST="$RCONC"
         PRTXT="-"; [ "$RPR" = "-" ] || PRTXT="#$RPR"
         case "$RCONC" in
-            success) GREEN=$((GREEN + 1)); echo "$RID $RSHA $PRTXT success" ;;
+            success) GREEN=$((GREEN + 1)); [ -n "$NEWER_GREEN" ] || NEWER_GREEN="$RID"; echo "$RID $RSHA $PRTXT success" ;;
+            cancelled)
+                # The rows are newest first: NEWER_GREEN is the newest green run above this one, if any.
+                if [ -n "$NEWER_GREEN" ]; then
+                    echo "$RID $RSHA $PRTXT cancelled verified-by $NEWER_GREEN"
+                else
+                    UNVER=$((UNVER + 1))
+                    echo "$RID $RSHA $PRTXT cancelled unverified"
+                fi
+                ;;
             running) RUNNING=$((RUNNING + 1)); echo "$RID $RSHA $PRTXT running" ;;
             failure | timed_out | startup_failure)
                 gh api "repos/{owner}/{repo}/actions/runs/$RID/jobs?per_page=100" > "$D/jobs.json" 2>/dev/null \
@@ -177,11 +194,12 @@ if [ -n "$RECENT" ]; then
             *) echo "$RID $RSHA $PRTXT $RCONC" ;;
         esac
     done <<< "$ROWS"
-    echo "RECENT green=$GREEN red=$RED running=$RUNNING unacknowledged-red=$UNACK"
+    echo "RECENT green=$GREEN red=$RED running=$RUNNING unverified=$UNVER unacknowledged-red=$UNACK"
     case "$FIRST" in
         success) exit 0 ;;
         running) exit 3 ;;
         failure | timed_out | startup_failure) exit 1 ;;
+        cancelled) [ "$UNVER" -gt 0 ] && exit 5; exit 4 ;;
         *) exit 4 ;;
     esac
 fi
@@ -215,6 +233,10 @@ case "$CONCLUSION" in
         echo "failed jobs: ${NAMES:-(none listed)}"
         echo "MAIN_RED $WANT ${NAMES:-(none listed)}"
         exit 1
+        ;;
+    cancelled)
+        echo "MAIN_UNVERIFIED $WANT cancelled: nothing verified this commit; a green local full UI run on it (scripts/main-ui-run.sh --status) or the next push run of main does"
+        exit 5
         ;;
     *)
         unknown "run $ID concluded '$CONCLUSION'"

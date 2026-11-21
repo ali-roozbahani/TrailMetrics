@@ -54,6 +54,8 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/local-review-prepare.sh`: fills the review input directory and writes the reviewer's whole message to a file in it.
 - `scripts/local-review-record-verdict.sh`: writes `.review-verdict` from the reviewer's recorded report after checking its format.
 - `scripts/skill-changes-digest.sh`: what changed in the skills and `CLAUDE.md` files on `main` since a date.
+- `scripts/check-pr-description.sh`: checks a description draft against the rules CI's reviewer reads it by (headings, `Board:`, an ending on every follow-up bullet; `--final`: no placeholder, the attribution line); the local review preparation runs it.
+- `scripts/post-pr-comment.sh`: posts a PR comment (the Merge check) with `gh pr comment`, verifies it exists through the REST API, falls back to REST, and fails when neither left it.
 - `scripts/set-pr-body.sh`: sets a PR's description from a file through the REST API.
 - `scripts/review-input-check.sh`: a mechanical copy of the reviewer's input checks; its self-test runs them on a clone, a worktree and the tree CI builds.
 

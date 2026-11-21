@@ -34,8 +34,12 @@ USAGE="usage: scripts/local-review-prepare.sh [--base <ref>] <body file> | --sel
 refuse() { echo "local-review-prepare: refused: $*" >&2; exit 1; }
 
 prepare() {
-    local body="$1" against="${2:-origin/main}" sha base in rc_on_base rc status
+    local body="$1" against="${2:-origin/main}" sha base in rc_on_base rc status problems
     [ -f "$body" ] || refuse "the PR description draft '$body' does not exist"
+    # CI's reviewer reads the description when its run starts, so it is final before the first push: its structure is
+    # checked here, before the local review and long before the push (scripts/check-pr-description.sh).
+    problems="$("$SCRIPT_DIR/check-pr-description.sh" "$body" 2>&1)" || refuse "the PR description draft is not in the form CI's reviewer reads it by:
+$problems"
     git rev-parse --git-dir >/dev/null 2>&1 || refuse "not inside a git work tree"
     status="$(git status --porcelain)"
     [ -z "$status" ] || refuse "the working tree is not clean (git status --porcelain is not empty); commit first"
@@ -105,7 +109,7 @@ self_test() {
     git -C "$repo" config user.email t@example.com
     git -C "$repo" config user.name t
     mkdir -p "$repo/scripts" "$repo/.github"
-    for f in local-review-prepare.sh review-task.sh set-pr-body.sh check-protected-paths.sh check-protected-paths.py; do
+    for f in local-review-prepare.sh review-task.sh set-pr-body.sh check-protected-paths.sh check-protected-paths.py check-pr-description.sh; do
         cp "$SCRIPT_DIR/$f" "$repo/scripts/$f"
     done
     printf '/scripts/ @owner\n' > "$repo/.github/CODEOWNERS"
@@ -117,7 +121,7 @@ self_test() {
     git -C "$repo" switch -q -c chore/x
     echo hello > "$repo/a.txt"
     git -C "$repo" add -A && git -C "$repo" commit -q -m "chore: add a"
-    printf 'What changed\n\nBoard: -gone-task\n' > "$tmp/body.md"
+    printf '## What changed\nx\n\n## Skills/docs followed\ny\n\n## Tier 1\nz\n\n## Tier 2\nn\n\nBoard: -gone-task\n' > "$tmp/body.md"
     local sha
     sha="$(git -C "$repo" rev-parse HEAD)"
     run() { (cd "$repo" && bash scripts/local-review-prepare.sh "$@"); }
@@ -130,6 +134,8 @@ self_test() {
     check "message file starts with SHA" "SHA: $sha" 0 cat "$in/message"
     check "message file carries the description" "Board: -gone-task" 0 cat "$in/message"
     check "message file carries the board record" "### gone-task" 0 cat "$in/message"
+    printf 'What changed only\n\nBoard: no changes\n' > "$tmp/bad.md"
+    check "a description that CI's reviewer would fault is refused" "missing heading: skills/docs followed" 1 run "$tmp/bad.md"
     check "a missing draft is refused" "refused: the PR description draft" 1 run "$tmp/none.md"
     echo dirty > "$repo/b.txt"
     check "a dirty tree is refused" "working tree is not clean" 1 run "$tmp/body.md"

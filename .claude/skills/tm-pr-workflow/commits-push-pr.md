@@ -79,4 +79,12 @@ Add these when they apply (the full text of each, with the rule that each Follow
 
 End the description with the attribution line the session specifies.
 
+**Re-triggering the CI reviewer: one rule.** The reviewer reads the description from the event of its run, so the PR is created with the final
+text (`scripts/check-pr-description.sh --final <draft>` passes: the four headings, the `Board:` line, an ending on every Follow-ups and Drift
+bullet, no placeholder, the attribution line). If the description must change after the push, edit it with `scripts/set-pr-body.sh`:
+once `pr-review.yml` has the `edited` trigger, that edit re-runs the reviewer on the current head by itself, with the new text, and the
+agent reads the head's checks again. Until it has, the reviewer's verdict for that head stands on the text it read, and the correction is for
+the human; a correction the reviewer must see waits for the next push. Closing and reopening a PR, and re-running the reviewer's run (a
+re-run replays the old event text), are never used for this, and need no owner's word because they are not done.
+
 The description of an open PR (the `Reviewer findings` added after the reviews, any later change) is set from the draft with `scripts/set-pr-body.sh <PR number> <draft>`: `gh pr edit` needs the `read:org` scope, which the machine token lacks.

@@ -121,7 +121,9 @@ section 7's reason rule) before the push. A new commit needs a new review. A blo
 
 ## 5. Gate, push, PR
 
-Run `scripts/pre-push-check.sh` until green within the retry budget, then push and open the
+Run `scripts/pre-push-check.sh` until green within the retry budget (its result is its own last line, `GATE_EXIT <n> HEAD <sha>`), write the
+gate result into the description and run `scripts/check-pr-description.sh --final <draft>`: CI's reviewer reads the description when its
+run starts, so the PR is created with its final text. Then push and open the
 PR with `gh pr create --base main --title "<PR title>" --body-file <file>` (`tm-pr-workflow`,
 "Tier 1", "Push and PR", "PR description"). A new commit needs a fresh review and a fresh gate run.
 
@@ -179,8 +181,8 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   `scripts/cancel-head-ci.sh`, once a fix is decided) or reading a credential.
   A run cancelled because a newer push superseded its SHA is not that case: the checks of the
   CURRENT head SHA count, and an older SHA's cancelled run is expected. Closing and reopening a
-  PR (to re-trigger the reviewer) starts a new CI run for the same SHA and cancels one still in
-  progress: read the current head SHA's checks after it, not the earlier run.
+  PR is never a way to re-trigger the reviewer (`tm-pr-workflow`, `commits-push-pr.md`, "PR description": the rule is stated
+  there once); after any description edit read the current head SHA's checks again.
 - The read of `main` right before a merge shows an unacknowledged red run (section 9), or fails.
 - A merge condition that is "no" is not a stop: the PR is handed over and the queue goes on.
 

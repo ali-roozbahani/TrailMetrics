@@ -102,7 +102,7 @@ the Merge check like any PR, and its condition 6 is "no" when the plan or anothe
 
 Once the conditions of section 8 are checked and, when all six are "yes", the merge command
 has run, post one PR comment on every PR, including PRs that touch a protected path
-(for a PR against `main`, condition 6 is then "no"), with `gh pr comment <N> --body-file <file>`:
+(for a PR against `main`, condition 6 is then "no"), with `scripts/post-pr-comment.sh <N> <file>`:
 
 ```
 Merge check
@@ -116,6 +116,10 @@ Merge check
 
 Merged: yes|no (<reason when no>)
 ```
+
+`scripts/post-pr-comment.sh` posts it with `gh pr comment`, reads the PR's comments through the REST API to see that a comment with exactly that
+text exists, posts it through the REST API when it does not, and fails (exit 1) when neither left it: a post is never taken on trust (in one run
+`gh pr comment` printed nothing and posted nothing). Its exit code 1 is a stop for that PR, not a comment that exists.
 
 The reason after "no" is the condition that is "no", or the first line of the merge
 command's refusal. The agent runs the merge command in section 8 only when all six are "yes".
