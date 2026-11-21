@@ -4,30 +4,26 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import dev.roozbahani.trailmetrics.data.R
-import dev.roozbahani.trailmetrics.data.di.trackingServiceScopeQualifier
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.util.Logger
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-class TrackingService : Service(), KoinComponent {
+class TrackingService : LifecycleService(), KoinComponent {
 
     private val trackingSessionManager by inject<TrackingSessionManager>()
 
     private val logger by inject<Logger>()
-
-    private val serviceScope by inject<CoroutineScope>(trackingServiceScopeQualifier)
 
     private var trackingStateObservationJob: Job? = null
 
@@ -37,6 +33,7 @@ class TrackingService : Service(), KoinComponent {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
         startForeground(NOTIFICATION_ID, buildNotification(TrackingState.Idle))
         if (intent == null) {
             // The system restarted the service after the process died: there is nothing to observe until
@@ -52,7 +49,7 @@ class TrackingService : Service(), KoinComponent {
 
     private fun restoreAfterRestart() {
         trackingStateObservationJob?.cancel()
-        trackingStateObservationJob = serviceScope.launch {
+        trackingStateObservationJob = lifecycleScope.launch {
             handleRestart(trackingSessionManager::restore, logger, restartEffects)
         }
     }
@@ -75,7 +72,7 @@ class TrackingService : Service(), KoinComponent {
 
     private fun observeTrackingState() {
         trackingStateObservationJob?.cancel()
-        trackingStateObservationJob = serviceScope.launch { collectTrackingState() }
+        trackingStateObservationJob = lifecycleScope.launch { collectTrackingState() }
     }
 
     private suspend fun collectTrackingState() {
@@ -87,19 +84,22 @@ class TrackingService : Service(), KoinComponent {
     }
 
     override fun onDestroy() {
+        // The lifecycle cancels lifecycleScope here, and the scope runs on the main thread, the thread of this
+        // callback: no notify() is in flight afterwards, so nothing below can be undone by a late one.
         super.onDestroy()
-        serviceScope.cancel()
+        stopForeground(STOP_FOREGROUND_REMOVE)
 
         // Only the foreground notification: RESTORED_NOTIFICATION_ID outlives the service on purpose, it is
-        // the one a restart leaves for the user to tap.
-        // Explicitly cancel the notification to guard against a race condition
-        // where a state update calls notify() right around service teardown,
-        // leaving a stale notification behind that the system doesn't auto-remove.
+        // the one a restart leaves for the user to tap. stopForeground removes the foreground notification, as the
+        // system expects of a service that ends; this cancel covers one that a state update posted on its own.
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(NOTIFICATION_ID)
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent): IBinder? {
+        super.onBind(intent)
+        return null
+    }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(

@@ -13,7 +13,7 @@ the shapes below (an event name, a flow list or a block list of event names, and
 Why: a `push` run and a `pull_request` run for the same head commit are two runs, and their concurrency groups
 differ (ci.yml: `ci-<workflow>-<sha>` against `ci-<workflow>-<PR number>`), so nothing dedupes them. A branch that
 gets a push trigger and also a pull request is tested twice, and the macOS iOS job makes the second run costly. An
-epic integration branch was the case that found it (docs/epics/route-completion-to-domain.md; decisions-history.md
+epic integration branch was the case that found it (the route-completion epic's plan under docs/epics/; decisions-history.md
 of the epic-orchestration skill).
 
 The rule: the branches of a `push` trigger are only branches that are never the head of a pull request. Today that

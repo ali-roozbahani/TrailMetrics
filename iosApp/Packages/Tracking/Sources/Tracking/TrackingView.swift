@@ -21,12 +21,6 @@ public struct TrackingView: View {
     @State private var snapshotRequestID: UUID?
     @State private var errorMessage: String?
     @State private var showExitConfirmation = false
-    @State private var routeProgress: RouteProgress?
-    @State private var lastProgressIndex: Int32 = 0
-    @State private var hasReachedDestination = false
-
-    private static let routeCompletionIndexMargin: Int32 = 3
-    private static let routeCompletionThresholdMeters = 25.0
 
     public init(
         activityType: ActivityType,
@@ -48,7 +42,7 @@ public struct TrackingView: View {
             TrackingMapView(
                 startPoint: viewModel.startPoint,
                 plannedRoutePoints: viewModel.plannedRoutePoints,
-                traveledSegment: routeProgress?.traveledSegment ?? [],
+                traveledSegment: viewModel.routeProgress?.traveledSegment ?? [],
                 recordedPath: viewModel.recordedPath,
                 currentLocation: viewModel.recordedPath.last,
                 snapshotRequestID: $snapshotRequestID,
@@ -63,7 +57,7 @@ public struct TrackingView: View {
                         MetricsDisplay(metrics: metrics, calories: viewModel.calories)
                     }
 
-                    if hasReachedDestination || viewModel.canFinish {
+                    if viewModel.canFinish {
                         finishCard
                     } else {
                         controlsRow
@@ -109,15 +103,6 @@ public struct TrackingView: View {
         } message: { message in
             Text(message)
         }
-        .onChange(of: viewModel.currentPath) { _, _ in
-            updateRouteProgress()
-        }
-        .onChange(of: isRouteCompleted) { _, completed in
-            if completed && !hasReachedDestination {
-                hasReachedDestination = true
-                viewModel.onStopClicked()
-            }
-        }
         .task {
             for await event in viewModel.makeEventsStream() {
                 handle(event)
@@ -132,30 +117,6 @@ public struct TrackingView: View {
         case .dismissed:
             dismiss()
         }
-    }
-
-    private var isRouteCompleted: Bool {
-        guard let currentLocation = viewModel.currentPath.last,
-              !viewModel.plannedRoutePoints.isEmpty,
-              case .tracking = onEnum(of: viewModel.trackingState),
-              let progress = routeProgress,
-              let lastPlannedPoint = viewModel.plannedRoutePoints.last
-        else { return false }
-
-        return progress.lastIndex >= Int32(viewModel.plannedRoutePoints.count) - Self.routeCompletionIndexMargin
-            && currentLocation.distanceTo(to: lastPlannedPoint) <= Self.routeCompletionThresholdMeters
-    }
-
-    private func updateRouteProgress() {
-        guard let currentLocation = viewModel.currentPath.last else { return }
-        let result = calculateRouteProgress(
-            plannedRoute: viewModel.plannedRoutePoints,
-            currentLocation: currentLocation,
-            previousIndex: lastProgressIndex,
-            searchWindow: 10
-        )
-        lastProgressIndex = result.lastIndex
-        routeProgress = result
     }
 
     private var controlsRow: some View {

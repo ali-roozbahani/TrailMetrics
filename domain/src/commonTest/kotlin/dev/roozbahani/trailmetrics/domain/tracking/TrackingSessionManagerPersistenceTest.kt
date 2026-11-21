@@ -151,10 +151,12 @@ class TrackingSessionManagerPersistenceTest {
             locationRepository.setUpdatesFlow(updates)
             clock.setWallClockValues(STARTED_AT)
             val plan = listOf(point1, point2)
+            // Halfway along the plan, about 500 m from its end, so the fix does not complete the session.
+            val midway = Coordinates(51.3315, 12.391)
 
             manager.start(point1, ActivityType.Walking, plan)
             testScheduler.runCurrent()
-            emitFix(point2)
+            emitFix(midway)
             manager.pause()
             testScheduler.runCurrent()
 

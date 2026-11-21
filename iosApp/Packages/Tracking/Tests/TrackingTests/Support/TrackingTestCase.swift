@@ -32,7 +32,9 @@ class TrackingTestCase: XCTestCase {
         isProfileStorageFailing: Bool = false,
         sessionStore: FakeTrackingSessionStore = FakeTrackingSessionStore(),
         userProfileRepository: FakeUserProfileRepository? = nil,
-        isRestoring: Bool = false
+        isRestoring: Bool = false,
+        plannedRoutePoints: [Coordinates] = TrackingFixtures.plannedRoutePoints,
+        changingLocationRepository: ChangingLocationRepository? = nil
     ) -> TrackingSubject {
         let scope = SwiftTestScope()
         scopes.append(scope)
@@ -45,7 +47,9 @@ class TrackingTestCase: XCTestCase {
             isProfileStorageFailing: isProfileStorageFailing,
             sessionStore: sessionStore,
             userProfileRepository: userProfileRepository,
-            isRestoring: isRestoring
+            isRestoring: isRestoring,
+            plannedRoutePoints: plannedRoutePoints,
+            changingLocationRepository: changingLocationRepository
         )
     }
 

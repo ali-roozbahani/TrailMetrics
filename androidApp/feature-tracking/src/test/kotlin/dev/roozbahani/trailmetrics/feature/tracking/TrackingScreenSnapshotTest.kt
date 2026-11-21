@@ -279,20 +279,24 @@ class TrackingScreenSnapshotTest {
 
     @Test
     fun `a snapshot without a bitmap finishes once and does not block a later tap`() {
+        // The first save fails, so the session is kept and the card stays for a later tap.
+        fixture.activityHistoryRepository.saveActivityFailure = IllegalStateException("disk full")
         showReachedDestination().clickFinish().waitForIdle()
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(null) }
         robot.waitForIdle()
 
-        assertNull(fixture.activityHistoryRepository.savedActivities.single().snapshotFilePath)
-        assertEquals(1, navigateBackCalls)
+        assertEquals(0, fixture.activityHistoryRepository.savedActivities.size)
+        assertEquals(0, navigateBackCalls)
         assertEquals(emptyList(), snapshotFiles())
 
-        robot.clickFinish().waitForIdle()
+        fixture.activityHistoryRepository.saveActivityFailure = null
+        robot.assertCompletedCard().clickFinish().waitForIdle()
         assertEquals(2, fakeMap.snapshotRequests, "the callback without a bitmap released the guard")
         composeRule.runOnUiThread { fakeMap.deliverSnapshot(null) }
         robot.waitForIdle()
-        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size, "the session is saved once")
+        assertNull(fixture.activityHistoryRepository.savedActivities.single().snapshotFilePath)
         assertEquals(1, navigateBackCalls)
+        assertEquals(emptyList(), snapshotFiles())
     }
 
     private fun snapshotFiles(): List<File> = filesDir().listFiles { file -> file.isFile }.orEmpty().toList()

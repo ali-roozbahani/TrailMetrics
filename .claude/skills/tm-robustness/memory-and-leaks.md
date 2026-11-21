@@ -23,7 +23,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   Severity: blocking.
 - **M3** A coroutine runs in a scope that ends with its owner (`viewModelScope`, a scope the DI
   container or the service closes), never `GlobalScope`. Why: otherwise it runs after the owner is
-  gone. Example: `TrackingService` cancels `serviceScope` in `onDestroy`. Enforced: detekt
+  gone. Example: `TrackingService` observes on `lifecycleScope` (it is a `LifecycleService`), which `super.onDestroy()` cancels. Enforced: detekt
   `ForbiddenImport` for `GlobalScope`; the rest reviewer only. Severity: blocking.
 - **M5** An image, bitmap, snapshot or large buffer is released or downsampled before it is held or
   saved. Why: bitmaps are the usual out-of-memory crash, and memory and storage grow with pixels.

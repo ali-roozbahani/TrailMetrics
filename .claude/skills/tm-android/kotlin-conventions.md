@@ -12,7 +12,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   (`ActivityHistoryRepository`, not `IActivityHistoryRepository`). Functions/properties
   `camelCase`. `@Composable` functions are `PascalCase` (Detekt's `FunctionNaming` ignores
   `@Composable`).
-- Booleans read as questions: `isLoading`, `canStart`, `hasReachedDestination`,
+- Booleans read as questions: `isLoading`, `canStart`, `canSave`,
   `showProfileSheet` for visibility flags. Never a bare noun. (Detekt's
   `BooleanPropertyNaming` is off, so this one is review-enforced.)
 - Per-feature types: see the MVI naming in `SKILL.md` ("Presentation layer — MVI (target shape)"). Koin modules: `<feature>Module` /

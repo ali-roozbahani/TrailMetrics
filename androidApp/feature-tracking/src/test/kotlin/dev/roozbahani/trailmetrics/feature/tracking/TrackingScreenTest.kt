@@ -499,7 +499,8 @@ class TrackingScreenTest {
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(1, navigateBackCalls)
 
-        robot.clickFinish().waitForIdle()
+        // The saved session is discarded: no card is left, so no later tap can save again.
+        robot.assertCompletedCardNotShown()
         assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
         assertEquals(1, navigateBackCalls)
     }

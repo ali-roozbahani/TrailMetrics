@@ -11,7 +11,6 @@ import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeLogger
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingServiceLauncher
 import dev.roozbahani.trailmetrics.core.testing.FakeTrackingSessionStore
-import dev.roozbahani.trailmetrics.data.di.trackingServiceScopeQualifier
 import dev.roozbahani.trailmetrics.data.tracking.StopTrackingAuthorization
 import dev.roozbahani.trailmetrics.data.tracking.TrackingService
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -23,9 +22,6 @@ import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.job
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
@@ -53,10 +49,7 @@ class TrackingServiceNotificationTest {
 
     private val application: Application = Robolectric.buildActivity(MainActivity::class.java).get().application
 
-    // The scope the service gets from Koin (`trackingServiceScopeQualifier`): on a test dispatcher, so the service's
-    // work runs on the test thread, inside the test, and not on a Default thread that outlives it.
     private val scheduler = TestCoroutineScheduler()
-    private var serviceScope: CoroutineScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(scheduler))
 
     @Before
     fun setUp() {
@@ -89,13 +82,12 @@ class TrackingServiceNotificationTest {
                 module {
                     single { manager }
                     single<Logger> { FakeLogger() }
-                    factory<CoroutineScope>(trackingServiceScopeQualifier) { serviceScope }
                 }
             )
         }
     }
 
-    // The services a test started: destroyed before Koin stops, which cancels the scope they got from it.
+    // The services a test started: destroyed before Koin stops.
     private val startedServices = mutableListOf<ServiceController<TrackingService>>()
 
     @After
@@ -109,24 +101,6 @@ class TrackingServiceNotificationTest {
         startedServices += controller
         controller.get().onStartCommand(Intent(), 0, 1)
         return assertNotNull(shadowOf(controller.get()).lastForegroundNotification)
-    }
-
-    @Test
-    fun `the service observes the session on the scope Koin gives it and cancels that scope when destroyed`() {
-        serviceScope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(scheduler))
-        val controller = Robolectric.buildService(TrackingService::class.java, Intent()).create()
-        startedServices += controller
-
-        controller.get().onStartCommand(Intent(), 0, 1)
-
-        // Launched on the injected dispatcher and not yet run: the dispatcher is the test's, not Default.
-        assertEquals(1, serviceScope.coroutineContext.job.children.count())
-        scheduler.runCurrent()
-        assertTrue(serviceScope.isActive)
-
-        controller.destroy()
-
-        assertFalse(serviceScope.isActive)
     }
 
     @Test

@@ -1,17 +1,13 @@
-package dev.roozbahani.trailmetrics.feature.tracking
+package dev.roozbahani.trailmetrics.domain.tracking
 
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
-import dev.roozbahani.trailmetrics.feature.tracking.RouteCompletionTracker.Companion.ROUTE_COMPLETION_INDEX_MARGIN
-import dev.roozbahani.trailmetrics.feature.tracking.RouteCompletionTracker.Companion.ROUTE_COMPLETION_THRESHOLD_METERS
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -26,13 +22,17 @@ class RouteCompletionTrackerTest {
         path = listOf(location)
     )
 
-    private fun RouteCompletionTracker.trackingAt(location: Coordinates): Boolean =
-        onUpdate(location, TrackingState.Tracking(metricsAt(location)))
+    private fun RouteCompletionTracker.trackingAt(location: Coordinates): RouteCompletionUpdate =
+        update(location, TrackingState.Tracking(metricsAt(location)))
 
     @Test
     fun `the rule keeps its current thresholds`() {
-        assertEquals(25.0, ROUTE_COMPLETION_THRESHOLD_METERS)
-        assertEquals(3, ROUTE_COMPLETION_INDEX_MARGIN)
+        // 25 m: stops at exactly 25.0 m and not beyond; 3 points: index size - 3 counts, size - 4 does not.
+        val equatorTracker = RouteCompletionTracker(EQUATOR_ROUTE)
+        assertEquals(25.0, AT_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()))
+        assertTrue(equatorTracker.trackingAt(AT_THRESHOLD).reachedNow)
+        assertTrue(tracker.trackingAt(ROUTE[ROUTE.size - 3]).reachedNow)
+        assertFalse(RouteCompletionTracker(ROUTE).trackingAt(ROUTE[ROUTE.size - 4]).reachedNow)
     }
 
     // region no planned route (a restored session)
@@ -41,11 +41,10 @@ class RouteCompletionTrackerTest {
     fun `with an empty planned route a tracking fix neither completes nor crashes`() {
         val emptyTracker = RouteCompletionTracker(emptyList())
 
-        val stop = emptyTracker.onUpdate(ROUTE[0], TrackingState.Tracking(metricsAt(ROUTE[0])))
+        val result = emptyTracker.update(ROUTE[0], TrackingState.Tracking(metricsAt(ROUTE[0])))
 
-        assertFalse(stop)
-        assertFalse(emptyTracker.hasReachedDestination)
-        assertEquals(RouteProgress(emptyList(), emptyList(), 0), emptyTracker.progress)
+        assertFalse(result.reachedNow)
+        assertEquals(RouteProgress(emptyList(), emptyList(), 0), result.progress)
     }
 
     @Test
@@ -53,9 +52,8 @@ class RouteCompletionTrackerTest {
         val emptyTracker = RouteCompletionTracker(emptyList())
 
         listOf(TrackingState.Finished(metricsAt(ROUTE[1])), TrackingState.Paused(metricsAt(ROUTE[1]))).forEach {
-            assertFalse(emptyTracker.onUpdate(ROUTE[1], it))
+            assertFalse(emptyTracker.update(ROUTE[1], it).reachedNow)
         }
-        assertFalse(emptyTracker.hasReachedDestination)
     }
 
     // endregion
@@ -63,18 +61,16 @@ class RouteCompletionTrackerTest {
     // region progress
 
     @Test
-    fun `there is no progress and no stop before the first location`() {
-        assertFalse(tracker.onUpdate(null, TrackingState.Idle))
-
-        assertNull(tracker.progress)
-        assertFalse(tracker.hasReachedDestination)
+    fun `there is no stop while idle before the first location`() {
+        assertFalse(tracker.update(ROUTE[0], TrackingState.Idle).reachedNow)
     }
 
     @Test
     fun `progress follows the current location along the planned route`() {
-        assertFalse(tracker.trackingAt(ROUTE[2]))
+        val result = tracker.trackingAt(ROUTE[2])
 
-        val progress = assertNotNull(tracker.progress)
+        assertFalse(result.reachedNow)
+        val progress = result.progress
         assertEquals(2, progress.lastIndex)
         assertEquals(ROUTE.subList(0, 3), progress.traveledSegment)
         assertEquals(ROUTE.subList(2, ROUTE.size), progress.remainingSegment)
@@ -84,29 +80,26 @@ class RouteCompletionTrackerTest {
     fun `progress never moves backwards along the route`() {
         tracker.trackingAt(ROUTE[3])
 
-        tracker.trackingAt(ROUTE[0])
+        val result = tracker.trackingAt(ROUTE[0])
 
-        assertEquals(3, assertNotNull(tracker.progress).lastIndex)
+        assertEquals(3, result.progress.lastIndex)
     }
 
     @Test
     fun `progress is kept when the location goes away`() {
-        tracker.trackingAt(ROUTE[2])
-        val progress = tracker.progress
+        val progress = tracker.trackingAt(ROUTE[2]).progress
 
-        assertFalse(tracker.onUpdate(null, TrackingState.Finished(metricsAt(ROUTE[2]))))
+        val result = tracker.update(ROUTE[2], TrackingState.Finished(metricsAt(ROUTE[2])))
 
-        assertEquals(progress, tracker.progress)
+        assertFalse(result.reachedNow)
+        assertEquals(progress, result.progress)
     }
 
     @Test
     fun `the same location twice does not recalculate progress`() {
-        tracker.trackingAt(ROUTE[2])
-        val progress = tracker.progress
+        val progress = tracker.trackingAt(ROUTE[2]).progress
 
-        tracker.trackingAt(ROUTE[2])
-
-        assertSame(progress, tracker.progress)
+        assertSame(progress, tracker.trackingAt(ROUTE[2]).progress)
     }
 
     // endregion
@@ -115,89 +108,87 @@ class RouteCompletionTrackerTest {
 
     @Test
     fun `reaching the end of the route while tracking stops exactly once`() {
-        assertTrue(tracker.trackingAt(ROUTE.last()))
-        assertTrue(tracker.hasReachedDestination)
+        assertTrue(tracker.trackingAt(ROUTE.last()).reachedNow)
 
-        assertFalse(tracker.trackingAt(ROUTE.last()))
-        assertFalse(tracker.trackingAt(BEYOND_END_WITHIN_THRESHOLD))
-        assertTrue(tracker.hasReachedDestination)
+        assertFalse(tracker.trackingAt(ROUTE.last()).reachedNow)
+        assertFalse(tracker.trackingAt(BEYOND_END_WITHIN_THRESHOLD).reachedNow)
     }
 
     @Test
     fun `the third-to-last point counts as the end when it is within the threshold`() {
-        assertTrue(ROUTE[ROUTE.size - 3].distanceTo(ROUTE.last()) <= ROUTE_COMPLETION_THRESHOLD_METERS)
+        assertTrue(ROUTE[ROUTE.size - 3].distanceTo(ROUTE.last()) <= 25.0)
 
-        assertTrue(tracker.trackingAt(ROUTE[ROUTE.size - 3]))
+        assertTrue(tracker.trackingAt(ROUTE[ROUTE.size - 3]).reachedNow)
     }
 
     @Test
     fun `a point before the last three does not count as the end even within the threshold`() {
-        assertTrue(ROUTE[ROUTE.size - 4].distanceTo(ROUTE.last()) <= ROUTE_COMPLETION_THRESHOLD_METERS)
+        assertTrue(ROUTE[ROUTE.size - 4].distanceTo(ROUTE.last()) <= 25.0)
 
-        assertFalse(tracker.trackingAt(ROUTE[ROUTE.size - 4]))
-        assertFalse(tracker.hasReachedDestination)
+        assertFalse(tracker.trackingAt(ROUTE[ROUTE.size - 4]).reachedNow)
     }
 
     @Test
     fun `a location past the end within the threshold stops`() {
-        assertTrue(tracker.trackingAt(BEYOND_END_WITHIN_THRESHOLD))
+        assertTrue(tracker.trackingAt(BEYOND_END_WITHIN_THRESHOLD).reachedNow)
     }
 
     @Test
     fun `a location past the end outside the threshold does not stop`() {
-        assertFalse(tracker.trackingAt(BEYOND_END_OUTSIDE_THRESHOLD))
+        val result = tracker.trackingAt(BEYOND_END_OUTSIDE_THRESHOLD)
 
-        assertEquals(ROUTE.lastIndex, assertNotNull(tracker.progress).lastIndex)
-        assertFalse(tracker.hasReachedDestination)
+        assertFalse(result.reachedNow)
+        assertEquals(ROUTE.lastIndex, result.progress.lastIndex)
     }
 
     @Test
     fun `the start of a closed loop does not count as its end`() {
         val loopTracker = RouteCompletionTracker(LOOP)
 
-        assertFalse(loopTracker.trackingAt(LOOP.first()))
-        assertEquals(0, assertNotNull(loopTracker.progress).lastIndex)
+        val result = loopTracker.trackingAt(LOOP.first())
+
+        assertFalse(result.reachedNow)
+        assertEquals(0, result.progress.lastIndex)
     }
 
     @Test
     fun `being paused at the end does not stop until tracking resumes`() {
-        assertFalse(tracker.onUpdate(ROUTE.last(), TrackingState.Paused(metricsAt(ROUTE.last()))))
-        assertFalse(tracker.hasReachedDestination)
+        assertFalse(tracker.update(ROUTE.last(), TrackingState.Paused(metricsAt(ROUTE.last()))).reachedNow)
 
-        assertTrue(tracker.trackingAt(ROUTE.last()))
+        assertTrue(tracker.trackingAt(ROUTE.last()).reachedNow)
     }
 
     @Test
     fun `being at the end while idle or finished does not stop`() {
-        assertFalse(tracker.onUpdate(ROUTE.last(), TrackingState.Idle))
-        assertFalse(tracker.onUpdate(BEYOND_END_WITHIN_THRESHOLD, TrackingState.Finished(metricsAt(ROUTE.last()))))
-
-        assertFalse(tracker.hasReachedDestination)
+        assertFalse(tracker.update(ROUTE.last(), TrackingState.Idle).reachedNow)
+        val finished = TrackingState.Finished(metricsAt(ROUTE.last()))
+        assertFalse(tracker.update(BEYOND_END_WITHIN_THRESHOLD, finished).reachedNow)
     }
 
     @Test
     fun `a location exactly at the threshold distance from the end stops`() {
         val equatorTracker = RouteCompletionTracker(EQUATOR_ROUTE)
-        assertEquals(ROUTE_COMPLETION_THRESHOLD_METERS, AT_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()))
+        assertEquals(25.0, AT_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()))
 
-        assertTrue(equatorTracker.trackingAt(AT_THRESHOLD))
+        assertTrue(equatorTracker.trackingAt(AT_THRESHOLD).reachedNow)
     }
 
     @Test
     fun `a location just beyond the threshold distance from the end does not stop`() {
         val equatorTracker = RouteCompletionTracker(EQUATOR_ROUTE)
-        assertTrue(JUST_BEYOND_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()) > ROUTE_COMPLETION_THRESHOLD_METERS)
+        assertTrue(JUST_BEYOND_THRESHOLD.distanceTo(EQUATOR_ROUTE.last()) > 25.0)
 
-        assertFalse(equatorTracker.trackingAt(JUST_BEYOND_THRESHOLD))
-        assertEquals(EQUATOR_ROUTE.lastIndex, assertNotNull(equatorTracker.progress).lastIndex)
+        val result = equatorTracker.trackingAt(JUST_BEYOND_THRESHOLD)
+
+        assertFalse(result.reachedNow)
+        assertEquals(EQUATOR_ROUTE.lastIndex, result.progress.lastIndex)
     }
 
     @Test
     fun `an empty planned route never completes`() {
         val emptyRouteTracker = RouteCompletionTracker(emptyList())
 
-        assertFalse(emptyRouteTracker.trackingAt(ROUTE.last()))
-        assertFalse(emptyRouteTracker.hasReachedDestination)
+        assertFalse(emptyRouteTracker.trackingAt(ROUTE.last()).reachedNow)
     }
 
     // endregion
@@ -216,7 +207,7 @@ class RouteCompletionTrackerTest {
 
         /**
          * Ends at (0, 0). Near zero a latitude step is far finer than a metre's rounding, so a point
-         * exactly [ROUTE_COMPLETION_THRESHOLD_METERS] from the end exists; at 52° N none does.
+         * exactly 25 m from the end exists; at 52° N none does.
          */
         val EQUATOR_ROUTE = listOf(-0.002, -0.001, 0.0).map { Coordinates(latitude = it, longitude = 0.0) }
 
