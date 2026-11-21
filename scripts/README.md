@@ -49,6 +49,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## Review and PR description
 
 - `scripts/review-task.sh`: prints the local `pr-reviewer`'s message, as CI's reviewer gets it.
+- `scripts/gate-result.sh`: the result of a gate run, read from the gate's own `GATE_EXIT <n> HEAD <sha>` line, never from the exit code of what started it.
 - `scripts/local-review-gate.sh`: records the local reviewer's report per commit and decides whether a push is allowed.
 - `scripts/local-review-prepare.sh`: fills the review input directory and writes the reviewer's whole message to a file in it.
 - `scripts/local-review-record-verdict.sh`: writes `.review-verdict` from the reviewer's recorded report after checking its format.
@@ -64,6 +65,12 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/rerun-failed-once.sh`: re-runs a finished run's failed jobs, once.
 - `scripts/cancel-head-ci.sh`: cancels the unfinished runs of an open PR's current head when a reviewer finding is going to be fixed.
 - `scripts/main-ci-status.sh`: the last push runs on `main`; `--ack` records an acknowledged red run.
+
+## Epics
+
+- `scripts/epic/merge-subtask.sh`: the local merge of a subtask into the integration branch; refuses without a gate pass recorded for exactly that commit, an allowed local review, and the integration tip in the subtask branch.
+- `scripts/epic/check-report.sh`: fails when a protected-path file that the run changed is not named in the report or the epic PR's description.
+- `scripts/epic/keep-device-log.sh`: keeps the device log of a verification run that did not end as expected in the run record, before the next run clears it.
 
 ## The PR queue (local, serial)
 

@@ -52,3 +52,7 @@ tooling	local review verdict recorder self-test	scripts/local-review-record-verd
 tooling	cancel head CI self-test	scripts/cancel-head-ci.sh
 tooling	reviewer input check self-test	scripts/review-input-check.sh
 tooling	gate log prune self-test	scripts/pre-push-check.sh
+tooling	gate result self-test	scripts/gate-result.sh
+tooling	epic merge-subtask self-test	scripts/epic/merge-subtask.sh
+tooling	epic report check self-test	scripts/epic/check-report.sh
+tooling	epic device log self-test	scripts/epic/keep-device-log.sh

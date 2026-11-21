@@ -330,6 +330,9 @@ as part of that HEAD, not one by one.
    scripts/local-review-prepare.sh ~/agent-workspace/pr-body-<slug>.md
    ```
 
+   For an epic's subtask branch, which is merged locally into an integration branch and is not a PR, the base is that branch, not `main`:
+   `scripts/local-review-prepare.sh --base feature/epic/<slug> ~/agent-workspace/pr-body-<slug>.md` (`epic-orchestration`, `subtask-merge.md`, "Review base").
+
    It fills the input directory from git alone (`head`, `base`, `branch`, `status`, `commits`,
    `diff`, `protected`, and `rule-changes` computed with the base's copy of
    `scripts/check-skill-rule-changes.sh`, never the working tree's), writes the reviewer's whole

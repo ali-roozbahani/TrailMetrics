@@ -474,3 +474,52 @@ The epic is done when all of these hold on `main`:
 - The owner's human checks of the epic-level Tier 2 are done.
 - `scripts/main-ui-run.sh --auto` is green after the merge.
 - `BOARD.md` no longer has the record `route-completion-to-domain`, and `scripts/check-board.sh --base` passes.
+
+## Evidence of the first run (compiled on 2026-11-21 from the run record, `~/agent-workspace/epics/route-completion-to-domain/`)
+
+The owner's hypothesis (the "How this epic is run" section): merging the subtasks locally after a local review and a local gate, then one CI run on the final PR, is enough.
+Times are wall clock from `keep-run.log` (UTC) and from `gh run list` for the CI runs; the epic PR is #364.
+
+### Per subtask: the local review, the local gate
+
+| Subtask | Local review | Local gate | Gate result | Notes |
+|---|---|---|---|---|
+| S1 | 19 s, APPROVE | 13 min 20 s | green | worker 1 min 18 s |
+| S3 | 25 s, APPROVE (1 note) | 11 min 38 s | green | worker 15 min 18 s |
+| S2 | 29 s, ESCALATE (notes only) | 14 min 45 s | **red** (two Compose tests), first read as green from the wrapper's exit code | stopped twice (below) |
+| S4 + S2 (one unit, the gate once on the combination) | S4: 32 s, then 27 s after the fix | 12 min 16 s, **red** (detekt `LargeClass`), then 12 min 01 s green | one gate fix attempt | merged S2 first, then S4 |
+| S5 | 35 s, ESCALATE (notes only, one "cannot judge" about S1 to S4 files) | 12 min 36 s | green | |
+| whole branch | 47 s (one blocking: a stale skill example), then 40 s | 11 min 45 s | green | |
+
+The local gates of the subtasks and of the whole branch: 7 completed gate runs of 11 min 38 s to 14 min 45 s (about 12 minutes each); the reviews took 19 to 47 seconds each.
+
+### The CI runs of the epic PR
+
+| Head | CI | CI reviewer | What it ended as |
+|---|---|---|---|
+| `6e5c234c` | cancelled by the agent after 2 min 32 s | 1 blocking (the description's follow-up bullets lacked the `(queue: ...)`/`(board: ...)` ending), 1 important (a plain field written by `start()` and `restore()` and read by the collector) | fixed in `61e213e8` |
+| `61e213e8` | 17 min 33 s, green | notes only | pushed again for the owner's finding |
+| `5c43a831` | first run cancelled after 1 min 39 s (the description was edited after the push); the re-run, after closing and reopening the PR, 20 min 14 s, green (iOS job 19 min 27 s, Android 7 min 37 s, tooling 2 min 32 s) | the first read the old description: blocking; after the reopen: notes only | the fix of "progress cleared on clear/discard" |
+| `df29ff96` | 19 min 08 s, green (iOS 18 min 51 s, Android 7 min 17 s) | notes only | the fix of the stale Android notification |
+| `8d42ef09` | 17 min 05 s, green | 1 important (the restart path builds on the main thread: the owner's decision, already a follow-up) | the head that merged as #364 |
+
+So the "one CI run" was five heads and six CI runs, four of them completed and green (74 min 00 s of CI wall time in total), two cancelled. Every CI check run of every completed run was green on its first completion; no CI job failed.
+
+### What each layer found
+
+- **The three stops of the run** (S2's existing test the plan had not named, the S2 gate red on two Compose tests outside `domain`, and the diagnosis that the tests stay red with S4): all three came from the local gate and the worker, more than an hour before the epic PR existed. CI found none of them and would not have found them earlier.
+- **CI (builds, lint, detekt, unit tests, coverage, Room export):** found nothing the local gates had not already passed: no red job in any run. The local gate also runs both UI suites, which CI does not.
+- **The CI reviewer found two things that the six local reviews had missed:** the description format (a rule of the CI check that the local description draft did not satisfy) and the threading risk of the plain fields. It also repeated a known follow-up as an important finding at the last head. It is not redundant with the local reviewer.
+- **Neither the local reviews, the CI reviewer nor any automated test found the two defects that cost the most:** the stale `routeProgress` after a session is cleared or discarded (the owner's device test, after the PR was green) and the stale Android notification after the route end (the owner's device test; reproduced on an emulator in 36 locked-screen runs, one of which never ended its session). Both came from moving a responsibility to a longer-lived owner (the manager); both needed a fix commit, a gate (11 to 14 min) and a CI run (17 to 20 min) after the PR was open.
+- **Flakes:** none in the PR's CI. On the emulator, one system-wide Play services death (infrastructure, not counted). After the epic merged, the push run of `main` was cancelled during the iOS package tests (diagnosed in the follow-up that logs it).
+- **Stops and their causes:** 3 (a test the plan did not name; a gate whose result was misread, then red for a reason outside the subtask's paths; a diagnosis that two tests assert a card that outlives the save). **Process errors of the orchestrator:** a wrapper's exit code taken for the gate's (S2); the description edited after the push, so the CI reviewer read the old text and the PR was closed and reopened (about 20 min); an empty-file PATCH that blanked the PR body for a moment.
+
+### Does the evidence support the hypothesis?
+
+- **Where it holds.** For what the checks can see, the local gates and reviews found everything CI found: every build, lint, test and coverage failure was caught locally, no CI job failed in six runs, and the three stops all happened before any CI. Not running CI per subtask saved five CI waits of about 17 to 20 minutes each (about 90 minutes), against about 12 minutes of local gate per subtask.
+- **Where it does not hold.**
+  1. "One CI run" did not happen: five heads and six runs. The cause was not the checks but the owner's device tests, which found two defects after the PR was green; each fix paid one local gate (11 to 14 min) and one CI run (17 to 20 min) again.
+  2. The CI reviewer found two issues that the local reviews did not (one a format rule that a local check could enforce, one a real threading risk): the local review is not a full substitute for the CI reviewer, so CI cannot be dropped for the subtasks' sake alone.
+  3. The defects that mattered most (a responsibility moved to a longer-lived owner, an ordering that a removed delay had hidden) were invisible to every automated check and every reviewer. The local-merge flow neither helped nor hurt them; what finds them is a device run of the real scenario, and that came from the owner, late. The plan did not ask for it.
+  4. The CI iOS job took 17 to 19 minutes against about 2 minutes for the same steps in the local gate (a cold runner against a warm local build), so the one CI run is the slowest step of the loop.
+- **Conclusion.** The numbers support merging subtasks locally on a local review and gate (CI would have found nothing more, and cost five more waits), and they do not support "one CI run is enough" as a promise: expect a CI run per pushed head, and the final PR's CI as the first place the CI reviewer reads the change. They support adding, before the push, a device run of each moved responsibility (the rule of the `responsibility-handoff-rule` follow-up).

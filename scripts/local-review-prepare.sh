@@ -3,9 +3,17 @@
 # command: fills the review input directory from git and writes the reviewer's whole message to a
 # file in it, so the session pastes neither the input block nor the ~7 KB message by hand.
 #
-#   scripts/local-review-prepare.sh <body file>     <body file> = the draft PR description,
+#   scripts/local-review-prepare.sh [--base <ref>] <body file>     <body file> = the draft PR description,
 #                                                   ~/agent-workspace/pr-body-<slug>.md
 #   scripts/local-review-prepare.sh --self-test
+#
+# BASE is the merge-base of HEAD and origin/main, or, with `--base <ref>`, the merge-base of HEAD and <ref>. The
+# option is for the review of an epic's subtask branch (epic-orchestration, subtask-merge.md): its reviewer must see
+# the subtask's own commits and diff, so <ref> is the integration branch (`feature/epic/<slug>`) that the subtask will
+# be merged into, and BASE is that branch's tip once the subtask branch holds it. Without the option a subtask's
+# review got the whole epic so far (the earlier subtasks' files included) and answered "cannot judge" for them. The
+# protected-path classification and the rule-change script are computed against the same BASE. The review of the
+# whole integration branch before the one push (and of any ordinary branch) uses no option: its base is origin/main.
 #
 # Run it from the repository after the last commit (the working tree must be clean). It writes, in
 # the review input directory (`git rev-parse --git-path review-input`): head, base, branch, status,
@@ -21,18 +29,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
-USAGE="usage: scripts/local-review-prepare.sh <body file> | --self-test"
+USAGE="usage: scripts/local-review-prepare.sh [--base <ref>] <body file> | --self-test"
 
 refuse() { echo "local-review-prepare: refused: $*" >&2; exit 1; }
 
 prepare() {
-    local body="$1" sha base in rc_on_base rc status
+    local body="$1" against="${2:-origin/main}" sha base in rc_on_base rc status
     [ -f "$body" ] || refuse "the PR description draft '$body' does not exist"
     git rev-parse --git-dir >/dev/null 2>&1 || refuse "not inside a git work tree"
     status="$(git status --porcelain)"
     [ -z "$status" ] || refuse "the working tree is not clean (git status --porcelain is not empty); commit first"
     sha="$(git rev-parse HEAD)"
-    base="$(git merge-base HEAD origin/main)" || refuse "no merge-base with origin/main (git fetch origin first)"
+    base="$(git merge-base HEAD "$against")" || refuse "no merge-base with $against (git fetch origin first, or name an existing branch)"
+    [ "$base" != "$sha" ] || refuse "HEAD is already in $against: there is nothing to review against it"
     in="$(git rev-parse --path-format=absolute --git-path review-input)"
     mkdir -p "$in"
     rm -f -- "${in:?}/head" "${in:?}/base" "${in:?}/branch" "${in:?}/status" "${in:?}/commits" \
@@ -125,6 +134,19 @@ self_test() {
     echo dirty > "$repo/b.txt"
     check "a dirty tree is refused" "working tree is not clean" 1 run "$tmp/body.md"
     check "usage error exits 2" "usage:" 2 bash "$SELF"
+    # --base: a second commit on an integration branch that the subtask branch holds; only the subtask's own commit is reviewed.
+    rm "$repo/b.txt"
+    git -C "$repo" switch -q -c feature/epic/e
+    echo two > "$repo/two.txt"; git -C "$repo" add -A; git -C "$repo" commit -q -m "feat: earlier subtask"
+    git -C "$repo" switch -q -c chore/e-s2
+    echo three > "$repo/three.txt"; git -C "$repo" add -A; git -C "$repo" commit -q -m "chore: this subtask"
+    check "--base reviews only the subtask's own commits" "prepared the review of $(git -C "$repo" rev-parse HEAD) (base $(git -C "$repo" rev-parse feature/epic/e))" 0 run --base feature/epic/e "$tmp/body.md"
+    in="$repo/.git/review-input"
+    check "--base diff holds the subtask's file" "+three" 0 cat "$in/diff"
+    check "--base starts the review after the earlier subtask" "0" 0 bash -c "grep -c two.txt '$in/diff' || true"
+    check "without --base the diff is against origin/main" "two.txt" 0 bash -c "cd '$repo' && bash scripts/local-review-prepare.sh '$tmp/body.md' >/dev/null && grep two.txt '$in/diff'"
+    check "--base with a branch that does not exist is refused" "no merge-base with feature/epic/none" 1 run --base feature/epic/none "$tmp/body.md"
+    check "--base without a body is a usage error" "usage:" 2 run --base feature/epic/e
     if [ "$fails" = 0 ]; then echo "local-review-prepare.sh self-test: all passed"; else echo "local-review-prepare.sh self-test: $fails failed" >&2; fi
     [ "$fails" = 0 ]
     exit $?
@@ -132,6 +154,7 @@ self_test() {
 
 case "${1:-}" in
     --self-test) [ "$#" = 1 ] || { echo "$USAGE" >&2; exit 2; }; self_test ;;
+    --base) [ "$#" = 3 ] || { echo "$USAGE" >&2; exit 2; }; prepare "$3" "$2" ;;
     "" | -*) echo "$USAGE" >&2; exit 2 ;;
     *) [ "$#" = 1 ] || { echo "$USAGE" >&2; exit 2; }; prepare "$1" ;;
 esac
