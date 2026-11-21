@@ -137,7 +137,8 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   its queries on, which a configuration or a library version can change. Example:
   `ActivityHistoryRepositoryImpl`, `TrackingSessionStoreImpl`, `RouteDraftStoreImpl` (a test per class that
   fails when its `withContext` is removed). Enforced: reviewer only; no tool knows which classes touch
-  storage (the cheapest rule to add is in the PR that introduced this one). Severity: important.
+  storage (a candidate: a script that fails when a file with a `Dao` or key-value-store constructor parameter has no
+  `withContext(`; not built, the owner decides). Severity: important.
 - **D9** Code that runs in a scope the framework owns (the scope of a service, a screen or a ViewModel) runs on
   the main thread: anything blocking or heavy in it goes through an injected dispatcher, and a heavy singleton
   (one whose construction reads the disk or opens a database) is not first built there; its owner takes it
