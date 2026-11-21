@@ -144,7 +144,7 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   (one whose construction reads the disk or opens a database) is not first built there; its owner takes it
   through a holder that builds it off the main thread and returns at once when it exists. Why: the first
   caller in a new process pays the whole construction, and a cold restart is a new process. Example:
-  `TrackingService` takes `TrackingSessionManager` through `OffMainLazy`. Enforced: the debug StrictMode
+  `TrackingService` takes `TrackingSessionManager` through `OffMainLazy`; `TrailMetricsApplication` builds the first screens' singletons with `warmUp`. Enforced: the debug StrictMode
   policy logs a disk read on the main thread (M8); otherwise reviewer only. Severity: blocking when the
   reviewer verifies a blocking call in the chain (C1), else important.
 
