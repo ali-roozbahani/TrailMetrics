@@ -10,7 +10,7 @@
 # and a later edit was read late. Problems, one per line on stdout, exit 1; none: `OK`, exit 0; usage error: exit 2.
 # Structure: the four headings (What changed, Skills/docs followed, Tier 1, Tier 2); a `Board:` line; each bullet under a
 # "Follow-ups" or "Drift found" heading ends with `(#<n>)`, `(queue: <slug>)` or `(board: <slug>)` (a bullet "None" is
-# exempt); the draft is not the CI reviewer's `Reviewer findings`-less first form only: nothing else is checked.
+# exempt). Nothing else is checked: the content is the reviewers' business.
 # --final adds: no `Pending` placeholder (the gate's result is written in Tier 1), and the attribution line the session specifies
 # (`Generated with [Claude Code]`) ends the description.
 # Bash 3.2 compatible; python3 (standard library) does the reading.

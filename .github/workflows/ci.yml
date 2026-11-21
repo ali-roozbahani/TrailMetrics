@@ -295,12 +295,14 @@ jobs:
               continue
             fi
             echo "--- $name: xcodebuild test"
+            # `|| rc=$?`: the step runs under `bash -e`, so a bare failing command would end the step here, before the
+            # message and before the next package.
+            rc=0
             (cd "$pkg" && "$GITHUB_WORKSPACE/scripts/run-limited.sh" 600 xcodebuild test \
               -scheme "$name" \
               -destination "platform=iOS Simulator,id=$SIM_ID" \
               -skipMacroValidation \
-              CODE_SIGNING_ALLOWED=NO)
-            rc=$?
+              CODE_SIGNING_ALLOWED=NO) || rc=$?
             if [ "$rc" = 124 ]; then
               echo "::error title=iOS package tests::package $name stalled: xcodebuild test was killed after 600 s (a package takes 2 to 5 minutes)"
             fi
