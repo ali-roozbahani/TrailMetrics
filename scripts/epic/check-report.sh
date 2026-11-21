@@ -17,6 +17,19 @@ SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 CLASSIFIER="${TM_PROTECTED_CLASSIFIER:-$SCRIPT_DIR/../check-protected-paths.sh}"
 USAGE="usage: scripts/epic/check-report.sh <report file> [--base <ref>] | --self-test"
 
+# names_path <path> <report file>: the path appears in the report as a whole path, not as a part of a longer one: not
+# after a path character (`docs/BOARD.md` does not name `BOARD.md`), and not before one that continues it
+# (`SKILL.md.bak`, `SKILL.md/x`, `SKILL.mdx`); a sentence's period or comma after the path is not a continuation.
+names_path() {
+    python3 -I - "$1" "$2" <<'PY'
+import re, sys
+path, report = sys.argv[1], sys.argv[2]
+text = open(report, encoding="utf-8", errors="replace").read()
+pattern = r"(?<![A-Za-z0-9_./-])" + re.escape(path) + r"(?![A-Za-z0-9_/-])(?!\.[A-Za-z0-9_])"
+sys.exit(0 if re.search(pattern, text) else 1)
+PY
+}
+
 check() {
     local report="$1" base="$2" out files f missing=0 n
     [ -r "$report" ] || { echo "check-report: cannot read $report" >&2; return 2; }
@@ -26,7 +39,7 @@ check() {
     echo "PROTECTED_CHANGED $n"
     [ -n "$files" ] || return 0
     while IFS= read -r f; do
-        if grep -qF -- "$f" "$report"; then echo "  listed   $f"; else echo "  MISSING  $f"; missing=$((missing + 1)); fi
+        if names_path "$f" "$report"; then echo "  listed   $f"; else echo "  MISSING  $f"; missing=$((missing + 1)); fi
     done <<EOF2
 $files
 EOF2
@@ -49,6 +62,9 @@ self_test() {
     t "every protected file named passes" "PROTECTED_CHANGED 2" 0 "$tmp/classify" "changed .claude/skills/x/SKILL.md and BOARD.md"
     t "a file left out fails" "MISSING  BOARD.md" 1 "$tmp/classify" "changed .claude/skills/x/SKILL.md only"
     t "the failure says how many" "1 protected file(s) changed by the run are not named" 1 "$tmp/classify" ".claude/skills/x/SKILL.md"
+    t "a path inside a longer one does not name it" "MISSING  BOARD.md" 1 "$tmp/classify" ".claude/skills/x/SKILL.md and docs/BOARD.md"
+    t "a longer path that continues it does not name it" "MISSING  .claude/skills/x/SKILL.md" 1 "$tmp/classify" ".claude/skills/x/SKILL.md.bak and BOARD.md"
+    t "a path before a sentence's period or in backticks is named" "PROTECTED_CHANGED 2" 0 "$tmp/classify" "changed \`.claude/skills/x/SKILL.md\`, and BOARD.md."
     t "no protected file passes" "PROTECTED_CHANGED 0" 0 "$tmp/none" "nothing"
     t "a classifier that fails is an error" "the classifier failed" 2 "$tmp/missing-classifier" "x"
     out="$(bash "$SELF" 2>&1)"; rc=$?
