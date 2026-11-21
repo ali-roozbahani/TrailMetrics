@@ -1,6 +1,6 @@
 ---
 name: tm-pr-review
-description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the fifteen checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
+description: The TrailMetrics pre-push review checklist, used by the read-only `pr-reviewer` subagent (`.claude/agents/pr-reviewer.md`) and by the session that starts it. Covers the review inputs, the sixteen checklist items, verdict rules (APPROVE, CHANGES, ESCALATE_TO_HUMAN), the fixed report format, and how the session starts the reviewer and records the verdict for the gate. Not for writing code or running the gate (see tm-pr-workflow).
 ---
 
 # TrailMetrics pre-push review
@@ -255,6 +255,19 @@ from memory.
     the diff relies on it or makes it worse; that is the one case where a `[note]` is allowed, and
     it only names the board record.
     Swallowed exceptions are item 13, not repeated here.
+16. **A moved responsibility**, for a diff that moves state, a decision, a side effect, a timer or an outside resource from one
+    component or layer to another (it removes a call, a collector, a reset, a release or a delay in one place and the behavior
+    now lives in another). The question, for each: which implicit duty of the previous owner does this diff remove or shift, and
+    where is it covered? Ask the five questions of the plan (`epic-orchestration`, `plan-format.md`, "Responsibilities moved"):
+    lifetime (does the new owner outlive the old one, and who clears what it holds on every event that ends or restarts it);
+    ordering and timing (what delay, batching or order did the old owner provide, and does anything depend on it); outside
+    resources (who releases each one, in what order, on every exit path); threads and contexts (does the code now called run
+    on another thread than before); exit paths (do they all end in the same clean state). `[blocking]` when you can quote the
+    uncovered duty from the files (an event that ends the holder's content and nothing that resets it; a release that can
+    run before the call that creates the thing it releases); `[important]` when it is a suspicion the files cannot prove, or when the
+    description answers none of the questions for a responsibility the diff visibly moves. When `TASK` has a "Responsibilities
+    moved" section, check the diff against each of its lines. A moved duty that only shows on a device (ordering, outside
+    resources, threads) whose proof is a unit test and not repeated runs of the real scenario with the counts is `[important]`.
 
 ## Verdict rules
 

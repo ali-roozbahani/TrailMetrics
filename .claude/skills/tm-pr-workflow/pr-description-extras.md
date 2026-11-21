@@ -8,6 +8,7 @@ Add these when they apply. Recent PRs use them consistently:
   or a `[blocking]` one that was fixed. One line per `[important]` finding, with its disposition:
   `fixed in <sha>` | `board record <slug>` | `queued <slug>` | `rejected: <reason a human can
   check>` (`tm-pr-review`, "Orchestrator's part", step 5); a fixed `[blocking]` finding is listed with its fix commit.
+- **Responsibilities moved**: present when the change moves state, a decision, a side effect, a timer or an outside resource from one component or layer to another: the five questions and their one-line answers (`duty -> new owner -> proof`) of `epic-orchestration`, `plan-format.md`, "Responsibilities moved"; `tm-pr-review`, item 16, checks the diff against them.
 - **Assumptions**: every place the docs were ambiguous and the call you made (see
   Boundaries).
 - **Follow-ups (out of scope, not changed)**: problems found but deliberately left out of this
