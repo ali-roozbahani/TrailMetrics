@@ -12,7 +12,7 @@
 # "Follow-ups" or "Drift found" heading ends with `(#<n>)`, `(queue: <slug>)` or `(board: <slug>)` (a bullet "None" is
 # exempt). Nothing else is checked: the content is the reviewers' business.
 # --final adds: no `Pending` placeholder (the gate's result is written in Tier 1), and the attribution line the session specifies
-# (`Generated with [Claude Code]`) ends the description.
+# (`Generated with [Claude Code]`) among the last three non-blank lines of the description (a harness may follow it with a link).
 # Bash 3.2 compatible; python3 (standard library) does the reading.
 set -u
 USAGE="usage: scripts/check-pr-description.sh [--final] <draft> | --self-test"
@@ -60,8 +60,9 @@ if final:
         if re.search(r"\bPending\b.*\bgate\b", l) or re.search(r"\bTODO\b", l):
             problems.append("a placeholder is left (Tier 1 holds the gate's result before the push): %s" % l.strip()[:80])
     nonblank = [l for l in lines if l.strip()]
-    if not nonblank or "Generated with [Claude Code]" not in nonblank[-1]:
-        problems.append("the description does not end with the attribution line (Generated with [Claude Code])")
+    # Among the last three non-blank lines: a harness may add a line after it (a session link, say).
+    if not any("Generated with [Claude Code]" in l for l in nonblank[-3:]):
+        problems.append("the description has no attribution line (Generated with [Claude Code]) among its last three non-blank lines")
 print("\n".join(problems) if problems else "OK")
 sys.exit(1 if problems else 0)
 PY
@@ -86,7 +87,10 @@ self_test() {
     t "a Title line is ignored" "OK" 0 "Title: fix(x): y\n\n$good"
     t "a placeholder fails with --final" "a placeholder is left" 1 "${good/Gate: exit 0./Pending the gate on the pushed HEAD.}" --final
     t "a placeholder passes without --final" "OK" 0 "${good/Gate: exit 0./Pending the gate on the pushed HEAD.}"
-    t "no attribution fails with --final" "does not end with the attribution line" 1 "$(printf '%s' "$good" | sed 's/Generated with.*$//')" --final
+    t "no attribution fails with --final" "has no attribution line" 1 "$(printf '%s' "$good" | sed 's/Generated with.*$//')" --final
+    t "an attribution line followed by a link passes with --final" "OK" 0 "$good\nhttps://claude.ai/code/session_x\n" --final
+    t "an attribution line followed by a link and a blank line passes" "OK" 0 "$good\n\nhttps://claude.ai/code/session_x\n\n" --final
+    t "an attribution line four lines from the end is not accepted" "has no attribution line" 1 "$good\none\ntwo\nthree\n" --final
     out="$(bash "$0" 2>&1)"; rc=$?
     if [ "$rc" = 2 ]; then echo "ok   usage error exits 2"; else echo "FAIL usage error: exit $rc" >&2; fails=$((fails + 1)); fi
     if [ "$fails" = 0 ]; then echo "check-pr-description.sh self-test: all passed"; else echo "check-pr-description.sh self-test: $fails failed" >&2; fi

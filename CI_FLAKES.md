@@ -385,3 +385,18 @@ run, and the jobs it hit are counted below.
   cancel source is unknown, not the agent's tooling (class infra or an external cancel, not shown). The stall itself is a silent
   `xcodebuild test`; the iOS steps now have step limits and each package its own (`ci.yml`), so a stall fails by itself with the
   step and package named.
+
+## ios-ui-a11y-audit-details-screen-not-shown
+
+- Signature: job `local gate: iOS UI tests`, step `Run iOS UI tests`, test
+  `AccessibilityAuditUITests.test_historyAndDetailsScreens_passTheAccessibilityAudit`, first error line
+  "XCTAssertTrue failed - Details screen not shown" (`AccessibilityAuditUITests.swift`, the failure took 20.6 s)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-21, local gate on commit 7cd104a8 (13:40:11Z; the next gate run on the same commit passed at 13:52:08Z), re-run: no (a new gate run; the failure is
+    `scripts/ui-flake.sh` id `20261121-135208-ios`)
+- Notes: the diff of that commit changed no app code (scripts, CI and skills: UI scope `none` for the app, the gate ran the full suites because
+  `scripts/pre-push-check.sh` is a heavy script). The other 11 tests of the suite passed in the same run. The screen the test opens after the
+  History list is Details; it was not on screen when the test looked. Not shown: whether the History row was not tapped or the navigation was
+  slow, and no cause line is in the log.
