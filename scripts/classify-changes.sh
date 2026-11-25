@@ -88,6 +88,8 @@ ALLOWLIST=(
 #   check-variant-api.sh     run by build-kmp-framework.sh --variant uitest (its fixtures are read only by its
 #                            --self-test, a `tooling` self-test: light)
 #   check-production-framework.sh   a step of CI's iOS job; its self-test runs only there (group macos)
+#   check-no-analytics-linked.sh    a step of CI's Android and iOS jobs and of the gate's full and iOS steps
+#                            (self-test: tooling)
 #   check-room-schema.*      `--check-export-fresh` is a step after the Android build, in CI and the gate
 #   check-localized-strings.*, check-optional-try.*   SwiftLint rules; their self-tests run only in
 #                            CI's iOS job (group ios-swiftlint)
@@ -108,6 +110,7 @@ HEAVY_SCRIPTS=(
     'scripts/build-kmp-framework.sh'
     'scripts/check-variant-api.sh'
     'scripts/check-production-framework.sh'
+    'scripts/check-no-analytics-linked.sh'
     'scripts/check-room-schema.sh'
     'scripts/check-room-schema.py'
     'scripts/check-localized-strings.sh'

@@ -180,5 +180,5 @@ case "${1:-}" in
     --ios) check_ios "${2:-}"; exit $? ;;
     --ios-text) [ $# -eq 3 ] || { echo "usage: --ios-text <symbols> <links>"; exit 2; }; check_ios_text "$2" "$3"; exit $? ;;
     --self-test) self_test ;;
-    *) sed -n '2,24p' "$0"; exit 2 ;;
+    *) sed -n '2,27p' "$0"; exit 2 ;;
 esac
