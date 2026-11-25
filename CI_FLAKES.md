@@ -400,3 +400,16 @@ run, and the jobs it hit are counted below.
   `scripts/pre-push-check.sh` is a heavy script). The other 11 tests of the suite passed in the same run. The screen the test opens after the
   History list is Details; it was not on screen when the test looked. Not shown: whether the History row was not tapped or the navigation was
   slow, and no cause line is in the log.
+
+## ios-framework-gradle-wrapper-unknown-host
+
+- Signature: job `iOS build — lint, app build, package tests`, step `Build KMP Shared Framework`, first error line
+  "Exception in thread "main" java.net.UnknownHostException: services.gradle.org" (the Gradle wrapper's download)
+- Count: 1
+- Status: open
+- Occurrences:
+  - 2026-11-25, run 45637384576, #379, re-run: yes (attempt 2 green)
+- Notes: infra, no code involved: the same job's cache restores timed out first ("Request timeout:
+  /twirp/github.actions.results.api.v1.CacheService/GetCacheEntryDownloadURL", five attempts, and "Failed to restore
+  gradle-home-v1"), so the wrapper had no cached distribution and the runner could not resolve the host. The Android job of
+  the same run passed.

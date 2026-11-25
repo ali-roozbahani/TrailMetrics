@@ -227,12 +227,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # The Kotlin/Native directory, keyed on the Kotlin version of the version catalog (a Kotlin bump starts a new cache). A run
-      # without it spends about 110 s of the framework link building the compiler's own caches and about 16 s unpacking its
-      # dependencies, on every run; with it the link takes about 9 s. Measured on this runner type (3 CPUs, 7.5 GB) on two attempts of
-      # the same commit: the iOS job 17 min 29 s on a miss and 12 min 35 s on a hit, the restore (375 MiB) 30 s, the save 20 s once
-      # (`docs/epics/route-completion-to-domain.md`, "Evidence of the first run", item 4; PR #372). Xcode's DerivedData is not
-      # cached: its measured extra saving is inside the run-to-run noise, and a stale build product is a risk the owner decides.
+      # The Kotlin/Native directory, keyed on the Kotlin version of the version catalog (a Kotlin bump starts a new cache). On a
+      # miss the compiler builds its own caches for the standard and platform libraries in the first link: the framework link took
+      # about 116 s, against about 9 s with the directory restored; the download and unpacking of its dependencies were not timed
+      # (the log stamps them within one second). Measured on this runner type (3 CPUs, 7.5 GB) on attempts of one commit, with
+      # this directory alone (pairs B and C; pair A also cached DerivedData): the iOS job 4 min 54 s to 8 min 26 s shorter on a hit
+      # (10:38 to 12:35 against 17:29 to 19:04 on a miss), the restore (375 MiB) 18 to 30 s, the save 20 to 30 s once
+      # (`docs/epics/route-completion-to-domain.md`, "Evidence of the first run", item 4; PRs #372 and #373). Xcode's DerivedData is
+      # not cached: its measured extra saving is inside the run-to-run noise, and a stale build product is a risk the owner decides.
       - name: Read the Kotlin version
         id: kotlin
         run: |
@@ -248,6 +250,17 @@ jobs:
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ runner.arch }}-${{ steps.kotlin.outputs.version }}
+
+      # SwiftPM's shared cache: the git repositories and binary artifacts that xcodebuild's package resolution downloads (Firebase
+      # and its dependencies since #377, the Maps SDK). Downloads only, no build product, so nothing stale can be linked; the working
+      # copies and DerivedData are still made fresh. Keyed on every Package.resolved, so a version change starts a new entry.
+      - name: Cache the Swift package downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm/repositories
+            ~/Library/Caches/org.swift.swiftpm/artifacts
+          key: swiftpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('iosApp/**/Package.resolved') }}
 
       # Step limits of the steps that can hang (xcodebuild, Gradle, the simulator): sized from the measured normal times on this
       # runner, about 3 times the slowest, so a stall fails the step by itself with GitHub's message naming it ("The action
