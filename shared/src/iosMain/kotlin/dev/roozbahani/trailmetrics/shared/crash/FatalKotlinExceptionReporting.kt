@@ -31,7 +31,8 @@ class ReportedKotlinException(
  * terminates the process as before ([terminateWithUnhandledException]), so the crash itself is still a crash.
  * Without this the report is an abort in the Kotlin runtime with no Kotlin frame of the throw site.
  *
- * Called once, by the app's composition root, and only when crash reporting is configured.
+ * Called once, by the Swift adapter's `CrashReporting.startIfConfigured()` from `TrailMetricsApp.init`, and only
+ * when crash reporting is configured.
  */
 @OptIn(ExperimentalNativeApi::class) // the hook API is experimental; no stable alternative exists
 fun installFatalKotlinExceptionReporter(reporter: FatalKotlinExceptionReporter) {

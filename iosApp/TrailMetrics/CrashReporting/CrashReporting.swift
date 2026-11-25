@@ -1,6 +1,7 @@
 import FirebaseCore
 import FirebaseCrashlytics
 import Foundation
+import OSLog
 import SharedKit
 
 /// Crash reporting with Firebase Crashlytics: the only place in the app that names a Firebase type.
@@ -11,9 +12,17 @@ import SharedKit
 /// Kotlin exception reaches it through the Kotlin hook (`installFatalKotlinExceptionReporter`), which records the
 /// Kotlin stack before the process ends.
 enum CrashReporting {
+    private static let logger = Logger(subsystem: "dev.roozbahani.TrailMetrics", category: "CrashReporting")
+
     static func startIfConfigured(bundle: Bundle = .main) {
-        guard let path = bundle.path(forResource: "GoogleService-Info", ofType: "plist"),
-              let options = FirebaseOptions(contentsOfFile: path) else {
+        // No config file: reporting is off by design (the gate, CI, a fresh clone).
+        guard let path = bundle.path(forResource: "GoogleService-Info", ofType: "plist") else {
+            return
+        }
+        // A config file that is there but unreadable is a broken setup, not "off": say so, and stop a debug build.
+        guard let options = FirebaseOptions(contentsOfFile: path) else {
+            logger.error("GoogleService-Info.plist is in the app but could not be read: crash reporting is off")
+            assertionFailure("GoogleService-Info.plist is in the app but could not be read")
             return
         }
         FirebaseApp.configure(options: options)
@@ -39,6 +48,10 @@ nonisolated final class CrashlyticsFatalKotlinExceptionReporter: NSObject, Fatal
         model.stackTrace = exception.stackAddresses.map { address in
             StackFrame(address: UInt(truncatingIfNeeded: address.int64Value))
         }
+        // The process aborts right after this returns, so the event must be on disk by then. In firebase-ios-sdk
+        // 13.2.0, record(exceptionModel:) -> FIRCLSExceptionRecordModel -> FIRCLSExceptionRecord, which for a
+        // custom exception writes the report file on the calling thread (FIRCLSUserLoggingWriteAndCheckABFiles,
+        // Crashlytics/Crashlytics/Handlers/FIRCLSException.mm), not on a queue; it is sent on the next launch.
         crashlytics.record(exceptionModel: model)
     }
 }
