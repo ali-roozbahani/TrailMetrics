@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -9,17 +10,17 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 
 /**
- * The deliberate crash and ANR of a debug build, to check by hand that crash reporting delivers them (the owner's
- * check with a device and the Firebase console; nothing else can show it):
+ * The deliberate crash of a debug build, to check by hand that crash reporting delivers it (the owner's check with
+ * a device and the Firebase console; nothing else can show it):
  *
  * ```
  * adb shell am broadcast -a dev.roozbahani.trailmetrics.CRASH_REPORTING_CHECK --es kind crash
- * adb shell am broadcast --receiver-foreground -a dev.roozbahani.trailmetrics.CRASH_REPORTING_CHECK --es kind anr
  * ```
  *
- * The receiver is registered at runtime, exported (the shell sends the broadcast), and only when the build is
- * debuggable, like the StrictMode policies (`installDebugStrictMode`): a release build registers nothing, so no
- * other app can reach it there.
+ * The receiver is registered at runtime and only when the build is debuggable, like the StrictMode policies
+ * (`installDebugStrictMode`): a release build registers nothing. It is exported, because the shell sends the
+ * broadcast, and the sender must hold [SENDER_PERMISSION] (`DUMP`), which the shell has and a third-party app
+ * cannot be granted, so no other app on the device can trigger it (`tm-robustness` S1).
  */
 internal fun installCrashReportingCheck(context: Context) {
     if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
@@ -27,24 +28,22 @@ internal fun installCrashReportingCheck(context: Context) {
         context,
         CrashReportingCheckReceiver(),
         IntentFilter(CrashReportingCheckReceiver.ACTION),
+        SENDER_PERMISSION,
+        null,
         ContextCompat.RECEIVER_EXPORTED,
     )
 }
 
-/**
- * `crash` throws [CrashReportingCheckException] from `onReceive`, on the main thread, so it is uncaught;
- * `anr` blocks the main thread for [ANR_BLOCK_MILLIS], longer than the 10 s limit of a foreground broadcast,
- * which the system reports as an ANR. Both are the point of the check (`tm-robustness` C1 and C5 on purpose).
- */
-internal class CrashReportingCheckReceiver(
-    private val blockMainThread: (Long) -> Unit = Thread::sleep,
-) : BroadcastReceiver() {
+/** The permission a sender of the check broadcast must hold: the shell has it, third-party apps cannot. */
+internal const val SENDER_PERMISSION = Manifest.permission.DUMP
+
+/** `crash` throws [CrashReportingCheckException] from `onReceive`, on the main thread, so it is uncaught. */
+internal class CrashReportingCheckReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (val kind = intent.getStringExtra(EXTRA_KIND)) {
             KIND_CRASH -> throw CrashReportingCheckException()
-            KIND_ANR -> blockMainThread(ANR_BLOCK_MILLIS)
-            else -> Log.w(TAG, "Unknown kind '$kind': expected '$KIND_CRASH' or '$KIND_ANR'")
+            else -> Log.w(TAG, "Unknown kind '$kind': expected '$KIND_CRASH'")
         }
     }
 
@@ -52,8 +51,6 @@ internal class CrashReportingCheckReceiver(
         const val ACTION = "dev.roozbahani.trailmetrics.CRASH_REPORTING_CHECK"
         const val EXTRA_KIND = "kind"
         const val KIND_CRASH = "crash"
-        const val KIND_ANR = "anr"
-        const val ANR_BLOCK_MILLIS = 30_000L
         private const val TAG = "CrashReportingCheck"
     }
 }
