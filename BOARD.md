@@ -734,6 +734,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: a release step exists and its first action is `scripts/main-ui-run.sh --release`; the step stops when that exits non-zero, and a test or self-test of the step shows it.
 - Refs: `scripts/main-ui-run.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (section 9).
 
+### ios-ui-tests-shard-step
+- Type: task
+- Area: scripts, iosApp
+- Order: 920
+- Source: local review of #383 (note)
+- Problem: Needs the owner's decision and design. `tm-testing` (`xcuitest-rules.md`, "Shards"; `xcuitest.md`, "Shards and CI timing") says to plan a shard step in `scripts/ios-ui-tests.sh` once the iOS UI tests exceed about 10 tests (cap 3). They are 13 with #383 and were over 10 before it; the script runs them in one `xcodebuild` run with no shard step. CI no longer runs the UI tests: the gate and the full run on `main` run them one heavy run at a time on one pinned simulator (`scripts/heavy-run.sh`, 16 GB Mac), and a full run took about 250 s. What a shard step should achieve here (parallel simulators, split runs that time a launch on their own, or none), and whether the rule still holds, is a design decision. The script is protected.
+- Done when: the owner decides. Either `scripts/ios-ui-tests.sh` runs the suite in at most 3 shards with the gate green, or the "Shards" lines of `tm-testing` are changed to the decision.
+- Refs: `scripts/ios-ui-tests.sh`; `.claude/skills/tm-testing/xcuitest-rules.md`, `xcuitest.md`; `iosApp/TrailMetricsUITests/`.
+
 ## Drift
 
 ### data-kover-comment-stale-figure
