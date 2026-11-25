@@ -13,7 +13,11 @@ does not publish that target yet).
   session), `RouteDraftStoreImpl` (Room: the route being planned).
 - **Room persistence** (`local/`): `TrailMetricsDatabase`, DAOs, entities,
   converters. Fully shared in `commonMain` — Room 3.x provides a
-  context-free, Kotlin/Native-compatible builder.
+  context-free, Kotlin/Native-compatible builder. On iOS the database file,
+  its journal and its directory have the Data Protection class
+  `completeUntilFirstUserAuthentication`, set each time Room opens it
+  (`DatabaseFileProtection.kt`): tracking saves the session with the device
+  locked.
 - **Networking** (`directions/`, `common/PlatformHttpClient`): Ktor client,
   with OkHttp (Android) / Darwin (iOS) engines via expect/actual.
 - **Koin modules** (`di/`): one `val xModule = module { ... }` per concern
