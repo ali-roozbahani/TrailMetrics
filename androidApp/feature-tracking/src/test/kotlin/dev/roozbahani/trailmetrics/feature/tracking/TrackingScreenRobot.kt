@@ -3,6 +3,8 @@ package dev.roozbahani.trailmetrics.feature.tracking
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasAnyAncestor
@@ -31,25 +33,30 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         plannedRoutePoints: List<Coordinates>,
         onNavigateBack: () -> Unit,
         inspectionMode: Boolean = true,
-        viaNavHostEntry: Boolean = false
+        viaNavHostEntry: Boolean = false,
+        isRootShown: State<Boolean> = mutableStateOf(true)
     ) = apply {
         rule.setContent {
             TrailMetricsTheme {
                 CompositionLocalProvider(LocalInspectionMode provides inspectionMode) {
-                    if (viaNavHostEntry) {
-                        TrackingScreen(
-                            initialStartPoint = startPoint,
-                            plannedRoutePoints = plannedRoutePoints,
-                            activityType = ActivityType.Running,
-                            onNavigateBack = onNavigateBack
-                        )
-                    } else {
-                        TrackingRoot(
-                            initialStartPoint = startPoint,
-                            plannedRoutePoints = plannedRoutePoints,
-                            activityType = ActivityType.Running,
-                            onNavigateBack = onNavigateBack
-                        )
+                    // When not shown, the Root is out of composition: its effects are cancelled, the Activity's
+                    // ViewModel stays (as across a recreated Activity).
+                    if (isRootShown.value) {
+                        if (viaNavHostEntry) {
+                            TrackingScreen(
+                                initialStartPoint = startPoint,
+                                plannedRoutePoints = plannedRoutePoints,
+                                activityType = ActivityType.Running,
+                                onNavigateBack = onNavigateBack
+                            )
+                        } else {
+                            TrackingRoot(
+                                initialStartPoint = startPoint,
+                                plannedRoutePoints = plannedRoutePoints,
+                                activityType = ActivityType.Running,
+                                onNavigateBack = onNavigateBack
+                            )
+                        }
                     }
                 }
             }

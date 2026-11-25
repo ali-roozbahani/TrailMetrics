@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import android.Manifest
+import androidx.compose.runtime.mutableStateOf
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -417,6 +418,28 @@ class TrackingScreenTest {
         robot.waitForLongSnackbarToHide()
 
         assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a Root that left before the save warning had run its course shows it again when it comes back`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        val isRootShown = mutableStateOf(true)
+        shadowOf(composeRule.activity.application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        grantLocationPermission()
+        robot.setContent(
+            startPoint = START,
+            plannedRoutePoints = WALKED_ROUTE,
+            onNavigateBack = { navigateBackCalls++ },
+            isRootShown = isRootShown
+        ).clickStart().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // As a recreated Activity: the Root leaves composition while its snackbar shows, a new one comes.
+        isRootShown.value = false
+        robot.waitForIdle().assertMessageNotShown(R.string.msg_session_not_saved)
+        isRootShown.value = true
+
+        robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        assertTrue(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test

@@ -23,7 +23,8 @@ Package `dev.roozbahani.trailmetrics.uitest`, in `src/iosMain`:
   `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`, `RestoredPausedSession`, `HeldSessionRead`,
   `NoConnectionThenRoute`, `FailedSessionSave`).
 - **`UiTestControls.kt`**: the counters a UI test reads (directions
-  requests and completions, saves, deletes) and `releaseHeldCalls()`.
+  requests and completions, saves, deletes), whether the unsaved-session
+  warning is raised (`isSessionWarningRaised`) and `releaseHeldCalls()`.
 - **`UiTestFakes.kt`**, **`UiTestFixtures.kt`**, **`UiTestModule.kt`**
   (`internal`): in-memory fakes of `LocationRepository`,
   `TrackingServiceLauncher`, `DirectionsRepository`,

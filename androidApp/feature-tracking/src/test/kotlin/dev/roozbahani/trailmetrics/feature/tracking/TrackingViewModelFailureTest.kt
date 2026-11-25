@@ -297,6 +297,23 @@ class TrackingViewModelFailureTest {
     }
 
     @Test
+    fun `a new collector of the same ViewModel gets the warning again while it is not shown`() =
+        runTest(testScheduler) {
+            sessionStore.saveFailure = IllegalStateException("disk full")
+            val viewModel = createViewModel()
+            val first = collectEvents(viewModel)
+            viewModel.onAction(TrackingAction.Start(START))
+            testScheduler.runCurrent()
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), first)
+
+            // A recreated Activity: a new Root collects the events of the same ViewModel.
+            val second = collectEvents(viewModel)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), second)
+        }
+
+    @Test
     fun `a warning queued by a ViewModel whose screen never showed it is shown by the next ViewModel`() =
         runTest(testScheduler) {
             sessionStore.saveFailure = IllegalStateException("disk full")
