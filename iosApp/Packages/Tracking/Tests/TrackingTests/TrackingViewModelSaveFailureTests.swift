@@ -31,8 +31,31 @@ final class TrackingViewModelSaveFailureTests: TrackingTestCase {
 
         XCTAssertEqual(recorder.events.filter(\.isSessionNotSaved).count, 1, "got \(recorder.events)")
         let warning = subject.trackingSessionManager.unsavedSessionWarning
-        XCTAssertFalse(warning.isRaised.value.boolValue, "shown, so cleared")
+        XCTAssertTrue(warning.isRaised.value.boolValue, "queued, not yet shown: still raised")
         XCTAssertNil(store.storedSession)
+
+        viewModel.onSessionNotSavedShown()
+
+        XCTAssertFalse(warning.isRaised.value.boolValue, "shown, so cleared")
+    }
+
+    /// Like TrackingView's `.task` cancelled before it showed the message (or the event evicted from the pending
+    /// list): while the warning is raised, the next stream gets it again.
+    func test_sessionNotSavedNotShown_isOfferedAgainToTheNextStream() async {
+        let store = FakeTrackingSessionStore()
+        store.setSaveFailing(true)
+        let subject = makeSubject(updates: TrackingFixtures.movingUpdates, sessionStore: store)
+        let viewModel = subject.viewModel
+        let firstRecorder = EventRecorder(viewModel.makeEventsStream())
+        viewModel.onStartClicked()
+        await waitUntil { firstRecorder.events.contains(where: \.isSessionNotSaved) }
+        firstRecorder.stop()
+
+        let secondRecorder = EventRecorder(viewModel.makeEventsStream())
+        defer { secondRecorder.stop() }
+
+        await waitUntil { secondRecorder.events.contains(where: \.isSessionNotSaved) }
+        XCTAssertEqual(secondRecorder.events.filter(\.isSessionNotSaved).count, 1, "got \(secondRecorder.events)")
     }
 
     func test_succeedingSaves_emitNoSessionNotSaved() async {

@@ -116,6 +116,7 @@ public struct TrackingView: View {
             errorMessage = error.message
         case .sessionNotSaved:
             errorMessage = String(localized: "session_not_saved_message", bundle: .module)
+            viewModel.onSessionNotSavedShown()
         case .dismissed:
             dismiss()
         }
