@@ -438,6 +438,9 @@ if [ "$DECISION" = full ]; then
     run_step "coverage verify" ./gradlew koverVerify --console=plain
 
     run_step "assembleDebug" ./gradlew assembleDebug --console=plain
+    # Crashlytics without Analytics or the advertising ID (owner decision 2026-11-25): reads the merged manifest
+    # that assembleDebug just wrote.
+    run_step "no analytics (android)" scripts/check-no-analytics-linked.sh --android
 
     # Schema export freshness: the build must leave data/schemas/ as committed. Room's KSP step
     # rewrites the current version's schema file when an entity changed without a version bump,
@@ -510,6 +513,8 @@ if [ "$RUN_IOS_STEPS" = true ]; then
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO 2>&1 | "$filter"
     '
+    # The app the step above built: no analytics or advertising-ID code linked (owner decision 2026-11-25).
+    run_step "no analytics (ios)" scripts/check-no-analytics-linked.sh --ios
 
     # The Swift package tests use the Kotlin test support (SwiftTestFlow and the rest), which only
     # the test-only variant of the framework holds (:shared-uitest, ADR-002 "Amendment"). So the
