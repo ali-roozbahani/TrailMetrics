@@ -79,10 +79,10 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: data, iosApp
 - Order: 67
-- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: The stored tracking session (the file or database that holds the session, with its plan) has no chosen iOS file protection class. It must be readable and writable while the device is locked, because tracking runs with the screen off, so a class that locks the file after the first unlock window or at lock would lose saves. Reason for a record: a decision on the class, with a device check (a locked device), which no test shows.
-- Done when: The class of the session store is decided and set, written in the code's comment or docs, and a device check with the device locked, steps in the PR, shows saves work while locked and after a restart.
-- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/`; `data/src/iosMain`; `tm-kmp-shared` ('Changing the database schema (Room)' for the protected paths).
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up); narrowed 2026-11-25
+- Problem: The class of the session store is decided and set: the iOS database file, its journal and its directory get `completeUntilFirstUserAuthentication` each time Room opens it (`DatabaseFileProtection.kt`, owner decision of 2026-11-25). What is left is the device check that saves work with the device locked and after a restart. Reason for a record: the simulator has no Data Protection and no test can lock a device, so only the owner can do the check, on a real iPhone.
+- Done when: The owner has done the locked-device check whose steps are in the PR that set the class (its Tier 2), and saves worked while locked and after a restart.
+- Refs: `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/DatabaseFileProtection.kt`; `DatabaseFileProtectionIosTest`.
 
 ### data-networking-timeouts-retry-offline
 - Type: task
