@@ -49,7 +49,13 @@ class DatabaseFileProtectionIosTest {
     fun setup() {
         directory = NSTemporaryDirectory().trimEnd('/') + "/trailmetrics-protection-" + NSUUID().UUIDString
         path = "$directory/$DATABASE_FILE_NAME"
-        check(fileManager.createDirectoryAtPath(directory, withIntermediateDirectories = true, attributes = null, error = null))
+        val isCreated = fileManager.createDirectoryAtPath(
+            path = directory,
+            withIntermediateDirectories = true,
+            attributes = null,
+            error = null
+        )
+        check(isCreated) { "could not create $directory" }
     }
 
     @AfterTest
