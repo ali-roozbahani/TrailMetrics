@@ -30,7 +30,8 @@ final class TrackingViewModelSaveFailureTests: TrackingTestCase {
         await waitUntil { viewModel.canResume }
 
         XCTAssertEqual(recorder.events.filter(\.isSessionNotSaved).count, 1, "got \(recorder.events)")
-        XCTAssertFalse(subject.trackingSessionManager.unsavedSessionWarning.value.boolValue, "shown, so cleared")
+        let warning = subject.trackingSessionManager.unsavedSessionWarning
+        XCTAssertFalse(warning.isRaised.value.boolValue, "shown, so cleared")
         XCTAssertNil(store.storedSession)
     }
 

@@ -92,9 +92,9 @@ class TrackingViewModel(
         // Raised by the manager at most once per session; it waits as state while no ViewModel exists, and is
         // marked shown once it is in the event channel, which keeps it until the screen collects.
         viewModelScope.launch {
-            trackingSessionManager.unsavedSessionWarning.filter { it }.collect {
+            trackingSessionManager.unsavedSessionWarning.isRaised.filter { it }.collect {
                 _events.send(TrackingEvent.ShowSessionNotSaved)
-                trackingSessionManager.onUnsavedSessionWarningShown()
+                trackingSessionManager.unsavedSessionWarning.markShown()
             }
         }
     }

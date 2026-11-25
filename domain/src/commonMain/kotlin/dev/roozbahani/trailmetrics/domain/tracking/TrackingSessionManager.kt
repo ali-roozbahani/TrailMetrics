@@ -62,18 +62,11 @@ class TrackingSessionManager(
     private val _locationIssues = MutableSharedFlow<RouteError>(extraBufferCapacity = 1)
     val locationIssues: SharedFlow<RouteError> = _locationIssues.asSharedFlow()
 
-    private val _unsavedSessionWarning = MutableStateFlow(false)
-
     /**
-     * True from the first failed save of the current session until a screen has shown it and called
-     * [onUnsavedSessionWarningShown]: the recording may be lost if the process dies (owner decision of
-     * 2026-11-25). State and not a one-shot event, so it waits while no screen collects (tracking with the
-     * screen off). Raised at most once per session, not on every failed write; [start] clears it.
+     * Raised by the first failed save of the current session, at most once per session; [start] clears it
+     * (owner decision of 2026-11-25).
      */
-    val unsavedSessionWarning: StateFlow<Boolean> = _unsavedSessionWarning.asStateFlow()
-
-    // Whether this session already raised [unsavedSessionWarning]; reset by [start].
-    private val hasWarnedOfUnsavedSession = MutableStateFlow(false)
+    val unsavedSessionWarning = UnsavedSessionWarning()
 
     private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
@@ -106,8 +99,7 @@ class TrackingSessionManager(
     /** As [start], for a session on [plannedRoute]; the plan is in [sessionDetails] and stored with the session. */
     fun start(startPoint: Coordinates, activityType: ActivityType, plannedRoute: List<Coordinates>) {
         consecutiveUnavailableCount = 0
-        hasWarnedOfUnsavedSession.value = false
-        _unsavedSessionWarning.value = false
+        unsavedSessionWarning.startSession()
         _sessionDetails.value = SessionDetails(activityType, clock.nowMillis(), plannedRoute)
         speedCalculator.reset()
         routeCompletion = SessionRouteCompletion(
@@ -247,15 +239,8 @@ class TrackingSessionManager(
             // Tracking goes on and the next state is saved again; the user is told once per session that the
             // recording may not be saved ([unsavedSessionWarning]).
             logger.debug(TAG, "Saving the session failed: $expected")
-            if (hasWarnedOfUnsavedSession.compareAndSet(expect = false, update = true)) {
-                _unsavedSessionWarning.value = true
-            }
+            unsavedSessionWarning.onSaveFailed()
         }
-    }
-
-    /** A screen has shown [unsavedSessionWarning]: it is not raised again for this session. */
-    fun onUnsavedSessionWarningShown() {
-        _unsavedSessionWarning.value = false
     }
 
     private fun observeLocation() {

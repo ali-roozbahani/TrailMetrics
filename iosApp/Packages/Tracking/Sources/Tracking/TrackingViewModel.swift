@@ -165,7 +165,8 @@ public class TrackingViewModel: ObservableObject {
         observeTrackingState()
         observeRouteProgress()
         observeLocationIssues()
-        observeUnsavedSessionWarning()
+        let showSaveWarning: @MainActor () -> Void = { [weak self] in self?.emit(.sessionNotSaved) }
+        observationTasks.append(observeUnsavedSessionWarning(of: trackingSessionManager, onRaised: showSaveWarning))
 
         liveActivityController = TrackingLiveActivityController(client: liveActivityClient) { [weak self] in
             self?.handleStopNotification()
@@ -250,21 +251,6 @@ public class TrackingViewModel: ObservableObject {
                 guard let self else { return }
                 await MainActor.run {
                     self.emit(.showError(issue.toUiError()))
-                }
-            }
-        })
-    }
-
-    /// The manager raises the warning at most once per session and keeps it as state until it is shown, so a
-    /// failure while no screen observed it is shown by the next one; `emit` keeps it while the screen is covered.
-    private func observeUnsavedSessionWarning() {
-        observationTasks.append(Task { [weak self] in
-            guard let flow = self?.trackingSessionManager.unsavedSessionWarning else { return }
-            for await isRaised in flow where isRaised.boolValue {
-                guard let self else { return }
-                await MainActor.run {
-                    self.emit(.sessionNotSaved)
-                    self.trackingSessionManager.onUnsavedSessionWarningShown()
                 }
             }
         })

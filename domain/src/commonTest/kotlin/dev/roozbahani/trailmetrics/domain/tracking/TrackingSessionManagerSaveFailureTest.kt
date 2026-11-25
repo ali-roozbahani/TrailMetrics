@@ -57,7 +57,7 @@ class TrackingSessionManagerSaveFailureTest {
         manager.stop()
         testScheduler.runCurrent()
 
-        assertFalse(manager.unsavedSessionWarning.value)
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test
@@ -68,7 +68,7 @@ class TrackingSessionManagerSaveFailureTest {
         manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
 
-        assertTrue(manager.unsavedSessionWarning.value)
+        assertTrue(manager.unsavedSessionWarning.isRaised.value)
         emitFix(point2)
         assertEquals(listOf(point1, point2), assertIs<TrackingState.Tracking>(manager.currentState.value).metrics.path)
     }
@@ -81,13 +81,13 @@ class TrackingSessionManagerSaveFailureTest {
             manager.start(point1, ActivityType.Running)
             testScheduler.runCurrent()
 
-            manager.onUnsavedSessionWarningShown()
+            manager.unsavedSessionWarning.markShown()
             emitFix(point2)
             emitFix(point3)
             manager.pause()
             testScheduler.runCurrent()
 
-            assertFalse(manager.unsavedSessionWarning.value)
+            assertFalse(manager.unsavedSessionWarning.isRaised.value)
         }
 
     @Test
@@ -96,7 +96,7 @@ class TrackingSessionManagerSaveFailureTest {
         store.saveFailure = IllegalStateException("disk full")
         manager.start(point1, ActivityType.Running)
         testScheduler.runCurrent()
-        manager.onUnsavedSessionWarningShown()
+        manager.unsavedSessionWarning.markShown()
         manager.stop()
         testScheduler.runCurrent()
         store.saveFailure = null
@@ -107,7 +107,7 @@ class TrackingSessionManagerSaveFailureTest {
         manager.start(point2, ActivityType.Cycling)
         testScheduler.runCurrent()
 
-        assertTrue(manager.unsavedSessionWarning.value)
+        assertTrue(manager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test
@@ -125,7 +125,7 @@ class TrackingSessionManagerSaveFailureTest {
         manager.start(point2, ActivityType.Running)
         testScheduler.runCurrent()
 
-        assertFalse(manager.unsavedSessionWarning.value)
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
     }
 
     private suspend fun emitFix(coordinates: Coordinates) {

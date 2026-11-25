@@ -288,7 +288,7 @@ class TrackingViewModelFailureTest {
 
         assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
         assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
-        assertEquals(false, sessionManager.unsavedSessionWarning.value)
+        assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test
@@ -299,14 +299,14 @@ class TrackingViewModelFailureTest {
         sessionManager.start(START, ActivityType.Cycling)
         testScheduler.runCurrent()
         receiveLocation(NEXT, millisAfterStart = 1_000L)
-        assertEquals(true, sessionManager.unsavedSessionWarning.value)
+        assertEquals(true, sessionManager.unsavedSessionWarning.isRaised.value)
 
         val viewModel = newViewModel()
         val events = collectEvents(viewModel)
         testScheduler.runCurrent()
 
         assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
-        assertEquals(false, sessionManager.unsavedSessionWarning.value)
+        assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     private companion object {
