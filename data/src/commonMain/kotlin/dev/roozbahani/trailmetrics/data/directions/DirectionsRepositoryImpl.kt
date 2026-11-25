@@ -51,6 +51,7 @@ class DirectionsRepositoryImpl(
             },
             onFailure = { failure ->
                 // The client already retried a transport failure (installNetworkPolicy): what is left is offline.
+                // safeApiCall rethrows every cancellation, so only a plain timeout or connection failure gets here.
                 val error = if (failure.isTransportFailure()) {
                     RouteError.NoConnection(failure)
                 } else {

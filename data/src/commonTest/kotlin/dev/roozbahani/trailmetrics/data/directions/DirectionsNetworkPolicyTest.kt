@@ -7,10 +7,13 @@ import dev.roozbahani.trailmetrics.data.common.respondJson
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.RouteError
 import io.ktor.client.engine.mock.MockRequestHandler
+import io.ktor.client.engine.mock.respond
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.client.plugins.HttpTimeoutConfig
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -38,7 +41,7 @@ class DirectionsNetworkPolicyTest {
     private val retryDelays = mutableListOf<Long>()
 
     @Test
-    fun `every attempt carries the decided connect, socket and request timeouts`() = runTest {
+    fun `every attempt carries the decided connect and socket and request timeouts`() = runTest {
         var timeouts: HttpTimeoutConfig? = null
         val repository = repository { request ->
             timeouts = request.getCapabilityOrNull(HttpTimeoutCapability)
@@ -62,6 +65,26 @@ class DirectionsNetworkPolicyTest {
         val apiError = assertIs<RouteError.DirectionsApiError>(error)
         assertEquals(503, assertIs<HttpStatusException>(apiError.apiException).statusCode)
         assertEquals(2, retryDelays.size)
+        assertTrue(retryDelays[0] in 500L..750L, "first backoff ${retryDelays[0]} ms")
+        assertTrue(retryDelays[1] in 1_000L..1_250L, "second backoff ${retryDelays[1]} ms")
+    }
+
+    @Test
+    fun `a server's Retry-After does not lengthen the short backoff`() = runTest {
+        val repository = repository {
+            respond(
+                content = "{}",
+                status = HttpStatusCode.ServiceUnavailable,
+                headers = headersOf(
+                    HttpHeaders.ContentType to listOf("application/json"),
+                    HttpHeaders.RetryAfter to listOf("120")
+                )
+            )
+        }
+
+        repository.getClosedRoute(start, waypoints)
+
+        assertEquals(3, requests)
         assertTrue(retryDelays[0] in 500L..750L, "first backoff ${retryDelays[0]} ms")
         assertTrue(retryDelays[1] in 1_000L..1_250L, "second backoff ${retryDelays[1]} ms")
     }

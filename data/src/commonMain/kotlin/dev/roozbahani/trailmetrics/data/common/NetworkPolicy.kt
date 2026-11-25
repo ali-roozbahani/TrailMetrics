@@ -9,17 +9,6 @@ import io.ktor.client.plugins.HttpTimeout
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
-/**
- * The timeouts of the Directions call (owner decision of 2026-11-25). Each applies to one attempt: with
- * [MAX_RETRIES] retries a call can take up to three request timeouts plus the backoff. The Darwin engine (iOS)
- * has a single per-request interval, which Ktor sets from [socketMillis]; it has no separate connect timeout.
- */
-data class NetworkTimeouts(
-    val connectMillis: Long = 10_000L,
-    val socketMillis: Long = 15_000L,
-    val requestMillis: Long = 30_000L
-)
-
 /** Retries after the first attempt, at most (owner decision of 2026-11-25). */
 const val MAX_RETRIES = 2
 
@@ -43,10 +32,13 @@ fun HttpClientConfig<*>.installNetworkPolicy(
         maxRetries = MAX_RETRIES
         retryIf { _, response -> isServerError(response.status.value) }
         retryOnExceptionIf { _, cause -> cause.isRetryable() }
+        // A server's Retry-After is not honoured: Ktor would wait the larger of it and the backoff, uncapped,
+        // and the decision is a short backoff.
         exponentialDelay(
             baseDelayMs = RETRY_BASE_DELAY_MILLIS,
             maxDelayMs = RETRY_MAX_DELAY_MILLIS,
-            randomizationMs = RETRY_JITTER_MILLIS
+            randomizationMs = RETRY_JITTER_MILLIS,
+            respectRetryAfterHeader = false
         )
         delay(retryDelay)
     }

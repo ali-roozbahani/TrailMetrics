@@ -8,7 +8,8 @@ import dev.roozbahani.trailmetrics.domain.model.RouteError
  *
  * Every scenario has a saved user profile ([UiTestFixtures.profile]), returns
  * [UiTestFixtures.start] as the current location and the fixed closed [UiTestFixtures.route]
- * for any directions request (except the first one of [NoConnectionThenRoute]). A held call waits until [UiTestControls.releaseHeldCalls].
+ * for any directions request (except the first one of [NoConnectionThenRoute]). A held call waits
+ * until [UiTestControls.releaseHeldCalls].
  */
 enum class UiTestScenario(
     internal val seedsHistory: Boolean,
