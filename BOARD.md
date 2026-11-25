@@ -84,15 +84,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: The class of the session store is decided and set, written in the code's comment or docs, and a device check with the device locked, steps in the PR, shows saves work while locked and after a restart.
 - Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/`; `data/src/iosMain`; `tm-kmp-shared` ('Changing the database schema (Room)' for the protected paths).
 
-### data-networking-timeouts-retry-offline
-- Type: task
-- Area: data
-- Order: 68
-- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: The Directions call in `data` has no recorded decision on timeouts, retries and what the user sees offline. Reason for a record: the values and the offline behavior are a product and design decision.
-- Done when: The Ktor client's request, connect and socket timeouts, the retry policy (which failures, how many) and the offline behavior are decided, set in `data`, tested with `MockEngine`, and mapped to `RouteError` cases shown on both platforms.
-- Refs: `data/src/commonMain` (`networkModule`, `DirectionsRepositoryImpl`); `RouteError`/`RouteUiError` in `core`; `tm-kmp-shared`.
-
 ### ios-privacy-manifest-first-upload-check
 - Type: task
 - Area: iosApp
