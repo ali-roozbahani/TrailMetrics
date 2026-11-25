@@ -8,7 +8,8 @@
 #   scripts/check-no-analytics-linked.sh --android [<merged manifest>]
 #       default: the debug merged manifest that `./gradlew assembleDebug` writes
 #   scripts/check-no-analytics-linked.sh --ios [<TrailMetrics.app>]
-#       default: the newest Debug-iphonesimulator TrailMetrics.app under Xcode's DerivedData
+#       default: the Debug-iphonesimulator TrailMetrics.app of THIS checkout's DerivedData folder (the one whose
+#       info.plist WorkspacePath is this checkout's iosApp/TrailMetrics.xcodeproj; another clone's never counts)
 #   scripts/check-no-analytics-linked.sh --ios-text <symbols file> <links file>
 #       the iOS rules on saved `nm` and `otool -L` output (the self-test uses it)
 #   scripts/check-no-analytics-linked.sh --self-test
@@ -19,7 +20,9 @@
 # iOS fails on: a GoogleAppMeasurement, APMMeasurement, FIRAnalytics (the class, not FirebaseCore's
 # FIRAnalyticsInterop protocols or FIRAnalyticsConfiguration), ASIdentifierManager or on-device conversion
 # (ODC) symbol, or a link to AdSupport or AppTrackingTransparency. It also fails when the binary has no
-# doInitKoinIos symbol (the Kotlin framework is linked into every app build), for the same reason.
+# doInitKoinIos symbol (the Kotlin framework is linked into every app build), for the same reason, and when
+# nm or otool fails on a binary that is there (exit 2: an unread binary is not a clean one).
+# NM, OTOOL and DERIVED_DATA override the tools and the DerivedData directory (the self-test uses them).
 # Where: the gate after assembleDebug and after the iOS build; CI's android-build and ios-build jobs.
 # Exit: 0 clean, 1 a finding (each on its own line), 2 usage error or nothing to read. Bash 3.2 compatible.
 set -u
@@ -70,21 +73,40 @@ check_ios_text() {
     return "$status"
 }
 
+# The DerivedData folder Xcode uses for this checkout: its info.plist names this checkout's project.
+this_checkout_app() {
+    local project="$ROOT/iosApp/TrailMetrics.xcodeproj" dir path
+    for dir in "${DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData}"/TrailMetrics-*; do
+        [ -f "$dir/info.plist" ] || continue
+        path="$(sed -n '/<key>WorkspacePath<\/key>/{n;s/.*<string>\(.*\)<\/string>.*/\1/p;}' "$dir/info.plist")"
+        if [ "$path" = "$project" ]; then
+            echo "$dir/Build/Products/Debug-iphonesimulator/TrailMetrics.app"
+            return 0
+        fi
+    done
+    return 1
+}
+
 check_ios() {
     local app="${1:-}"
     if [ -z "$app" ]; then
-        app="$(ls -dt "$HOME"/Library/Developer/Xcode/DerivedData/TrailMetrics-*/Build/Products/Debug-iphonesimulator/TrailMetrics.app 2>/dev/null | head -1)"
+        app="$(this_checkout_app)" || { echo "no DerivedData folder of this checkout ($ROOT/iosApp/TrailMetrics.xcodeproj)"; return 2; }
     fi
-    [ -n "$app" ] && [ -d "$app" ] || { echo "no built TrailMetrics.app (run the iOS build first)"; return 2; }
-    local tmp bin
+    [ -n "$app" ] && [ -d "$app" ] || { echo "no built TrailMetrics.app at $app (run the iOS build first)"; return 2; }
+    local tmp bin read=0
     tmp="$(mktemp -d)" || return 2
     : > "$tmp/symbols"; : > "$tmp/links"
     # A Debug build puts the code in TrailMetrics.debug.dylib; a Release build in the executable.
     for bin in "$app/TrailMetrics" "$app/TrailMetrics.debug.dylib"; do
         [ -f "$bin" ] || continue
-        nm "$bin" >> "$tmp/symbols" 2>/dev/null
-        otool -L "$bin" >> "$tmp/links" 2>/dev/null
+        if ! "${NM:-nm}" "$bin" >> "$tmp/symbols" 2>/dev/null || ! "${OTOOL:-otool}" -L "$bin" >> "$tmp/links" 2>/dev/null; then
+            echo "could not read $bin with nm and otool -L"
+            rm -rf "$tmp"
+            return 2
+        fi
+        read=$((read + 1))
     done
+    [ "$read" -gt 0 ] || { rm -rf "$tmp"; echo "no binary in $app"; return 2; }
     check_ios_text "$tmp/symbols" "$tmp/links"
     local status=$?
     rm -rf "$tmp"
@@ -127,6 +149,26 @@ self_test() {
     t "ios: the FIRAnalytics class fails" 1 check_ios_text "$dir/firanalytics.sym" "$dir/clean.links"
     t "ios: an AdSupport link fails" 1 check_ios_text "$dir/clean.sym" "$dir/adsupport.links"
     t "ios: a binary without the Kotlin framework is not read as clean" 2 check_ios_text "$dir/notapp.sym" "$dir/clean.links"
+
+    # The app of this checkout, among DerivedData folders of other clones, with fake nm and otool.
+    local dd="$dir/DerivedData" other mine
+    other="$dd/TrailMetrics-other"; mine="$dd/TrailMetrics-mine"
+    mkdir -p "$other/Build/Products/Debug-iphonesimulator/TrailMetrics.app" "$mine/Build/Products/Debug-iphonesimulator/TrailMetrics.app"
+    plist() { printf '<?xml version="1.0"?>\n<plist version="1.0">\n<dict>\n\t<key>WorkspacePath</key>\n\t<string>%s</string>\n</dict>\n</plist>\n' "$1"; }
+    plist "/elsewhere/TrailMetrics/iosApp/TrailMetrics.xcodeproj" > "$other/info.plist"
+    plist "$ROOT/iosApp/TrailMetrics.xcodeproj" > "$mine/info.plist"
+    echo mine > "$mine/Build/Products/Debug-iphonesimulator/TrailMetrics.app/TrailMetrics.debug.dylib"
+    echo other > "$other/Build/Products/Debug-iphonesimulator/TrailMetrics.app/TrailMetrics.debug.dylib"
+    # fake nm: the clean symbols for this checkout's binary, an analytics symbol for the other clone's.
+    printf '#!/bin/sh\nif grep -q mine "$1"; then cat %s; else cat %s; fi\n' "$dir/clean.sym" "$dir/apm.sym" > "$dir/nm"
+    printf '#!/bin/sh\ncat %s\n' "$dir/clean.links" > "$dir/otool"
+    printf '#!/bin/sh\nexit 1\n' > "$dir/failing"
+    chmod +x "$dir/nm" "$dir/otool" "$dir/failing"
+    t "ios: reads this checkout's app, not another clone's newer one" 0 env DERIVED_DATA="$dd" NM="$dir/nm" OTOOL="$dir/otool" "$0" --ios
+    t "ios: a failing nm is not read as clean" 2 env DERIVED_DATA="$dd" NM="$dir/failing" OTOOL="$dir/otool" "$0" --ios
+    t "ios: a failing otool is not read as clean" 2 env DERIVED_DATA="$dd" NM="$dir/nm" OTOOL="$dir/failing" "$0" --ios
+    rm -rf "$mine"
+    t "ios: no DerivedData folder of this checkout is not read as clean" 2 env DERIVED_DATA="$dd" NM="$dir/nm" OTOOL="$dir/otool" "$0" --ios
     rm -rf "$dir"
     [ "$fails" -eq 0 ] && { echo "check-no-analytics-linked self-test: all passed"; exit 0; }
     echo "check-no-analytics-linked self-test: $fails failed"
