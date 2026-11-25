@@ -116,7 +116,7 @@ The goal is that anyone reading this repository — human or automated — can t
 | Persistence | Room 3.x (KMP, shared between Android and iOS), SharedPreferences / NSUserDefaults for user profile |
 | Image loading | Coil (Android) |
 | Concurrency | Kotlin Coroutines & Flow |
-| Crash reporting | Firebase Crashlytics (crashes, ANRs, non-fatals; no Analytics), on only when the git-ignored Firebase config file is present |
+| Crash reporting | Firebase Crashlytics (crashes, ANRs, non-fatals; no Analytics), from release builds only and only when the git-ignored Firebase config file is present |
 | Live tracking UI | Android foreground service notification, iOS ActivityKit Live Activity (Lock Screen + Dynamic Island) |
 | Testing | `kotlin.test` + hand-written fakes + Ktor `MockEngine` (shared), JUnit4 + `kotlin.test` + `kotlinx-coroutines-test` + hand-written fakes + Robolectric (Android-only: the tests that need the Android framework; each module's `build.gradle.kts` says which modules use it) |
 | Static analysis | Detekt (`config/detekt/detekt.yml`), SwiftLint (`iosApp/.swiftlint.yml`), Android Lint |
@@ -141,7 +141,7 @@ The goal is that anyone reading this repository — human or automated — can t
    > Note: `ANDROID_CERT_SHA1` must be provided **without colons** — the Directions API otherwise returns `REQUEST_DENIED`.
    >
    > `DIRECTIONS_API_KEY` is shared by both platforms — the Directions API call lives in the KMP `data` module, so this single key is baked into the `shared` XCFramework when it's built and used by iOS too. It only needs to be set here, not in iOS's own config.
-3. Optional, crash reporting: put the Firebase project's `google-services.json` in `androidApp/app/` (git-ignored). Without it the build only warns and Crashlytics stays off.
+3. Optional, crash reporting: put the Firebase project's `google-services.json` in `androidApp/app/` (git-ignored). Without it the build only warns and Crashlytics stays off. With it only the release build reports; a debug build reports only with `-Ptrailmetrics.crashReportingInDebug=true` (for a manual check, never committed).
 4. Open the project in Android Studio and let Gradle sync.
 5. Run the `androidApp:app` configuration on a device or emulator with Google Play services (min SDK 26).
 
@@ -156,7 +156,7 @@ The goal is that anyone reading this repository — human or automated — can t
    GMS_API_KEY = YOUR_IOS_MAPS_API_KEY
    INFOPLIST_KEY_GMSApiKey = $(GMS_API_KEY)
    ```
-3. Optional, crash reporting: put the Firebase project's `GoogleService-Info.plist` in `iosApp/TrailMetrics/` (git-ignored). Without it Firebase is not configured and nothing is reported; with it a Release build also uploads its dSYM.
+3. Optional, crash reporting: put the Firebase project's `GoogleService-Info.plist` in `iosApp/TrailMetrics/` (git-ignored). Without it Firebase is not configured and nothing is reported; with it a Release build reports and uploads its dSYM, and a Debug build reports only with the launch argument `-crashReportingInDebug` (for a manual check, never committed).
 4. Build the shared Kotlin framework once before first open (this is also where `DIRECTIONS_API_KEY` from Android's `local.properties` gets picked up, since the shared module is compiled once for both platforms):
    ```bash
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
