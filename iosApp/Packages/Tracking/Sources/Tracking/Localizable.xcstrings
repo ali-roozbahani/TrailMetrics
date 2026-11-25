@@ -200,6 +200,16 @@
           }
         }
       }
+    },
+    "session_not_saved_message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your recording may not be saved. Finish and save it before you close the app."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

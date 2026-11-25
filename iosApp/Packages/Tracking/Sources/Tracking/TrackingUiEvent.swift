@@ -13,6 +13,9 @@ import SharedKit
 public enum TrackingUiEvent {
     case showError(any RouteUiError)
 
+    /// Saving the in-progress session failed: the recording may not be saved. Once per session.
+    case sessionNotSaved
+
     // Emitted only when a stop is triggered from outside the View itself —
     // currently just the Live Activity's Stop button, relayed through
     // TrackingViewModel.handleStopNotification(). The in-app Stop button
