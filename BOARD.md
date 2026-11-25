@@ -454,15 +454,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
 - Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
-### tracking-session-store-failures-not-surfaced
-- Type: task
-- Area: domain, data
-- Order: 300
-- Source: sweep tm-robustness
-- Problem: `tm-robustness` E4 (blocking). A failed write or restore of the in-progress tracking session is only logged. `TrackingSessionManager.persist` catches the store's exception and calls `logger.debug` ("Saving the session failed"), and tracking goes on; if every write fails, process death loses the recorded path and the user was never told. `handleRestart` (`RestartAction.kt`) turns a `restore()` that throws after a `START_STICKY` restart into `StopSilently`: the service stops, recording ends, no notice. Count 2. Both code comments state the choice ("No user action can fix a failed write"; "A restore that throws is logged and ends like an empty one"), so whether to surface these failures (an event like `locationIssues`, a notice) is the owner's decision; recorded, not fixed.
-- Done when: the owner decides. If surfaced: a failing `TrackingSessionStore.save` reaches the UI as an event or state, and a throwing restore in `handleRestart` leaves a notice, each asserted in `TrackingSessionManagerTest` and `RestartActionTest`. If not: `tm-robustness` E4 names these two paths as accepted exceptions.
-- Refs: `domain/src/commonMain/.../tracking/TrackingSessionManager.kt` (`persist`); `data/src/androidMain/.../tracking/RestartAction.kt` (`handleRestart`); `domain/src/commonTest/.../tracking/TrackingSessionManagerTest.kt`; `data/src/androidHostTest/.../tracking/RestartActionTest.kt`; `tm-robustness` E4.
-
 ### finished-session-discard-control
 - Type: task
 - Area: domain, androidApp/feature-tracking, iosApp/Tracking
