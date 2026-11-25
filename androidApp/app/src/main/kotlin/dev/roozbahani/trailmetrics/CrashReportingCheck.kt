@@ -17,6 +17,9 @@ import androidx.core.content.ContextCompat
  * adb shell am broadcast -a dev.roozbahani.trailmetrics.CRASH_REPORTING_CHECK --es kind crash
  * ```
  *
+ * A debug build reports only when built with `-Ptrailmetrics.crashReportingInDebug=true`
+ * (androidApp/app/build.gradle.kts); otherwise the crash happens and nothing is sent.
+ *
  * The receiver is registered at runtime and only when the build is debuggable, like the StrictMode policies
  * (`installDebugStrictMode`): a release build registers nothing. It is exported, because the shell sends the
  * broadcast, and the sender must hold [CrashReportingCheckReceiver.SENDER_PERMISSION] (`DUMP`), which the shell
