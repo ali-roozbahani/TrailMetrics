@@ -166,6 +166,7 @@ fun TrackingRoot(
                 }
 
                 is TrackingEvent.ShowSessionNotSaved -> {
+                    viewModel.onAction(TrackingAction.SessionNotSavedShown)
                     launch {
                         snackBarHostState.showSnackbar(
                             message = context.getString(R.string.msg_session_not_saved),

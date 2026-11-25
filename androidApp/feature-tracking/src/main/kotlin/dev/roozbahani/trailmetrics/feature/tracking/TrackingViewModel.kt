@@ -89,12 +89,12 @@ class TrackingViewModel(
     }
 
     init {
-        // Raised by the manager at most once per session; it waits as state while no ViewModel exists, and is
-        // marked shown once it is in the event channel, which keeps it until the screen collects.
+        // Raised by the manager at most once per session. It stays raised until the screen shows it
+        // (TrackingAction.SessionNotSavedShown), so a ViewModel cleared before its screen collected the event leaves it
+        // for the next one; a StateFlow repeats no value, so this ViewModel queues it once.
         viewModelScope.launch {
             trackingSessionManager.unsavedSessionWarning.isRaised.filter { it }.collect {
                 _events.send(TrackingEvent.ShowSessionNotSaved)
-                trackingSessionManager.unsavedSessionWarning.markShown()
             }
         }
     }
@@ -154,6 +154,7 @@ class TrackingViewModel(
             TrackingAction.Resume -> trackingSessionManager.resume()
             TrackingAction.Stop -> stop()
             is TrackingAction.Finish -> finish(action.snapshotFilePath)
+            TrackingAction.SessionNotSavedShown -> trackingSessionManager.unsavedSessionWarning.markShown()
         }
     }
 
@@ -334,6 +335,9 @@ sealed interface TrackingAction {
     data object Resume : TrackingAction
     data object Stop : TrackingAction
     data class Finish(val snapshotFilePath: String?) : TrackingAction
+
+    /** The screen showed [TrackingEvent.ShowSessionNotSaved]: the warning is not shown again for this session. */
+    data object SessionNotSavedShown : TrackingAction
 }
 
 sealed interface TrackingEvent {
