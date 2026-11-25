@@ -122,7 +122,7 @@ dependencies {
 }
 
 // Coverage regression gate (`koverVerify`, run by scripts/pre-push-check.sh and CI): a floor a
-// little below this module's measured line coverage from its own tests (60.1% on 2026-11-18). This module is
+// little below this module's measured line coverage from its own tests (63.6% on 2026-11-25). This module is
 // the app shell (Application, Koin start, `MainActivity` with the nav host, bottom bar and nav types).
 // The number is this module's entry in config/kover-floors.properties (key: the directory name),
 // which scripts/check-kover-floors.sh lets only go up; no file, no entry or no integer fails the build.
