@@ -1,6 +1,6 @@
 # Commits, push and PR, the PR description
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Commits", "Push and PR" and "PR description". The rules are unchanged; they are still cited as `tm-pr-workflow`, "Commits", "Push and PR" and "PR description".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Commits", "Push and PR" and "PR description". Rules have been added to them since the move; the sections are still cited as `tm-pr-workflow`, "Commits", "Push and PR" and "PR description".
 
 ## Commits
 
@@ -34,6 +34,11 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
 - Push the branch you created (`git push -u origin <branch>`), then open the PR against
   `main` with `gh pr create --base main --title "<PR title>" --body-file <file>`. `gh` must be logged in as an account with write
   access to `ali-roozbahani/TrailMetrics`; check `gh auth status` if `gh` fails.
+- A failed PR create is retried only after a lookup. GitHub can answer the create with a server error (a 502, #380)
+  after it has created the PR. Before every retry, run `gh pr list --head <branch> --base main --state open --json number,url`;
+  when it lists a PR, that PR is the task's PR: record its number and go on, with no second create. An answer
+  `a pull request for branch "<branch>" into branch "main" already exists: <url>` is the same case, never a failure to retry.
+  A retry with the lookup empty is allowed at most twice, a minute apart; then stop and report.
 - Never push to `main`, and never enable GitHub's auto-merge setting. An agent merges only
   under the conditions in `tm-agent-loop`; the human merges everything else, after CI is
   green and Tier 2 has passed (every human check the PR lists is done). A human check
