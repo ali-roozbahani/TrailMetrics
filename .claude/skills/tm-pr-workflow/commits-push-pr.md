@@ -1,6 +1,6 @@
 # Commits, push and PR, the PR description
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Commits", "Push and PR" and "PR description". Rules added since the move name their PR or incident in their own text; the sections are still cited as `tm-pr-workflow`, "Commits", "Push and PR" and "PR description".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "Commits", "Push and PR" and "PR description". Rules have been added to them since the move; the sections are still cited as `tm-pr-workflow`, "Commits", "Push and PR" and "PR description".
 
 ## Commits
 
