@@ -19,8 +19,8 @@ import androidx.core.content.ContextCompat
  *
  * The receiver is registered at runtime and only when the build is debuggable, like the StrictMode policies
  * (`installDebugStrictMode`): a release build registers nothing. It is exported, because the shell sends the
- * broadcast, and the sender must hold [SENDER_PERMISSION] (`DUMP`), which the shell has and a third-party app
- * cannot be granted, so no other app on the device can trigger it (`tm-robustness` S1).
+ * broadcast, and the sender must hold [CrashReportingCheckReceiver.SENDER_PERMISSION] (`DUMP`), which the shell
+ * has and a third-party app cannot be granted, so no other app on the device can trigger it (`tm-robustness` S1).
  */
 internal fun installCrashReportingCheck(context: Context) {
     if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
@@ -28,14 +28,11 @@ internal fun installCrashReportingCheck(context: Context) {
         context,
         CrashReportingCheckReceiver(),
         IntentFilter(CrashReportingCheckReceiver.ACTION),
-        SENDER_PERMISSION,
+        CrashReportingCheckReceiver.SENDER_PERMISSION,
         null,
         ContextCompat.RECEIVER_EXPORTED,
     )
 }
-
-/** The permission a sender of the check broadcast must hold: the shell has it, third-party apps cannot. */
-internal const val SENDER_PERMISSION = Manifest.permission.DUMP
 
 /** `crash` throws [CrashReportingCheckException] from `onReceive`, on the main thread, so it is uncaught. */
 internal class CrashReportingCheckReceiver : BroadcastReceiver() {
@@ -51,6 +48,9 @@ internal class CrashReportingCheckReceiver : BroadcastReceiver() {
         const val ACTION = "dev.roozbahani.trailmetrics.CRASH_REPORTING_CHECK"
         const val EXTRA_KIND = "kind"
         const val KIND_CRASH = "crash"
+
+        /** The permission a sender of the check broadcast must hold: the shell has it, third-party apps cannot. */
+        const val SENDER_PERMISSION = Manifest.permission.DUMP
         private const val TAG = "CrashReportingCheck"
     }
 }

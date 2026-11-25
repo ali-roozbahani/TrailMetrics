@@ -37,7 +37,7 @@ class CrashReportingCheckTest {
         val receiver = registeredCheckReceivers().single()
         assertTrue(receiver.intentFilter.hasAction(CrashReportingCheckReceiver.ACTION))
         assertEquals(Manifest.permission.DUMP, receiver.broadcastPermission)
-        assertEquals(Manifest.permission.DUMP, SENDER_PERMISSION)
+        assertEquals(Manifest.permission.DUMP, CrashReportingCheckReceiver.SENDER_PERMISSION)
     }
 
     @Test
