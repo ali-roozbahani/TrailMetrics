@@ -256,6 +256,21 @@ class RouteScreenTest {
         assertEquals(2, directionsRepository.requests.size)
     }
 
+    @Test
+    fun `a directions call with no connection shows the no-connection message and Retry generates the route`() {
+        directionsRepository.closedRouteResult =
+            Result.failure(RouteError.NoConnection(IllegalStateException("offline")))
+
+        showRouteGenerating(WP_A, WP_B, WP_C, gate = null)
+            .assertMessageShown(RouteUiError.NoConnection.stringRes)
+            .assertPanelNotShown()
+
+        directionsRepository.closedRouteResult = Result.success(GENERATED_ROUTE)
+        robot.clickRetry()
+            .assertPanelShown()
+        assertEquals(2, directionsRepository.requests.size)
+    }
+
     // endregion
 
     // region Start Tracking and the profile sheet

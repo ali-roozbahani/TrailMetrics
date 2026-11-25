@@ -5,6 +5,7 @@ import dev.roozbahani.trailmetrics.core.testing.FakeLocationRepository
 import dev.roozbahani.trailmetrics.core.testing.FakeUserProfileRepository
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
+import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.usecase.GenerateClosedRouteUseCase
@@ -132,6 +133,38 @@ class RouteViewModelFailureTest {
 
             assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
         }
+
+    @Test
+    fun `a directions call with no connection emits ShowNoConnection and stops loading`() = runTest(testScheduler) {
+        directionsRepository.closedRouteResult =
+            Result.failure(RouteError.NoConnection(IllegalStateException("offline")))
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowNoConnection), events)
+        assertEquals(false, viewModel.state.value.isLoading)
+        assertEquals(null, viewModel.state.value.generatedRoute)
+    }
+
+    @Test
+    fun `a directions call the API refused emits a general ShowError and no retry`() = runTest(testScheduler) {
+        directionsRepository.closedRouteResult =
+            Result.failure(RouteError.DirectionsApiError(IllegalStateException("REQUEST_DENIED")))
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+        viewModel.tapWaypoints(WP_A, WP_B, WP_C)
+
+        viewModel.onAction(RouteAction.GenerateRouteClicked)
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<RouteEvent>(RouteEvent.ShowError(RouteUiError.General)), events)
+    }
 
     private companion object {
         val START = Coordinates(latitude = 52.52, longitude = 13.405)

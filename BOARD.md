@@ -79,19 +79,10 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Type: task
 - Area: data, iosApp
 - Order: 67
-- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: The stored tracking session (the file or database that holds the session, with its plan) has no chosen iOS file protection class. It must be readable and writable while the device is locked, because tracking runs with the screen off, so a class that locks the file after the first unlock window or at lock would lose saves. Reason for a record: a decision on the class, with a device check (a locked device), which no test shows.
-- Done when: The class of the session store is decided and set, written in the code's comment or docs, and a device check with the device locked, steps in the PR, shows saves work while locked and after a restart.
-- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/`; `data/src/iosMain`; `tm-kmp-shared` ('Changing the database schema (Room)' for the protected paths).
-
-### data-networking-timeouts-retry-offline
-- Type: task
-- Area: data
-- Order: 68
-- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: The Directions call in `data` has no recorded decision on timeouts, retries and what the user sees offline. Reason for a record: the values and the offline behavior are a product and design decision.
-- Done when: The Ktor client's request, connect and socket timeouts, the retry policy (which failures, how many) and the offline behavior are decided, set in `data`, tested with `MockEngine`, and mapped to `RouteError` cases shown on both platforms.
-- Refs: `data/src/commonMain` (`networkModule`, `DirectionsRepositoryImpl`); `RouteError`/`RouteUiError` in `core`; `tm-kmp-shared`.
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up); narrowed 2026-11-25
+- Problem: The class of the session store is decided and set: the iOS database file, its journal and its directory get `completeUntilFirstUserAuthentication` each time Room opens it (`DatabaseFileProtection.kt`, owner decision of 2026-11-25). What is left is the device check that saves work with the device locked and after a restart. Reason for a record: the simulator has no Data Protection and no test can lock a device, so only the owner can do the check, on a real iPhone.
+- Done when: The owner has done the locked-device check whose steps are in the PR that set the class (its Tier 2), and saves worked while locked and after a restart.
+- Refs: `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/DatabaseFileProtection.kt`; `DatabaseFileProtectionIosTest`.
 
 ### ios-privacy-manifest-first-upload-check
 - Type: task
@@ -733,6 +724,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Needs the owner's decision and design: nothing in this repository releases yet (no tag, signing or store-build step; see `android-first-minified-release-build` and `release-build-links-debug-xcframework`), so nothing calls `scripts/main-ui-run.sh --release`, which exits 0 only when the full UI run of the current `main` is green (it runs that run first when it is due). Low priority.
 - Done when: a release step exists and its first action is `scripts/main-ui-run.sh --release`; the step stops when that exits non-zero, and a test or self-test of the step shows it.
 - Refs: `scripts/main-ui-run.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (section 9).
+
+### ios-ui-tests-shard-step
+- Type: task
+- Area: scripts, iosApp
+- Order: 920
+- Source: local review of #383 (note)
+- Problem: Needs the owner's decision and design. `tm-testing` (`xcuitest-rules.md`, "Shards"; `xcuitest.md`, "Shards and CI timing") says to plan a shard step in `scripts/ios-ui-tests.sh` once the iOS UI tests exceed about 10 tests (cap 3). They are 13 with #383 and were over 10 before it; the script runs them in one `xcodebuild` run with no shard step. CI no longer runs the UI tests: the gate and the full run on `main` run them one heavy run at a time on one pinned simulator (`scripts/heavy-run.sh`, 16 GB Mac), and a full run took about 250 s. What a shard step should achieve here (parallel simulators, split runs that time a launch on their own, or none), and whether the rule still holds, is a design decision. The script is protected.
+- Done when: the owner decides. Either `scripts/ios-ui-tests.sh` runs the suite in at most 3 shards with the gate green, or the "Shards" lines of `tm-testing` are changed to the decision.
+- Refs: `scripts/ios-ui-tests.sh`; `.claude/skills/tm-testing/xcuitest-rules.md`, `xcuitest.md`; `iosApp/TrailMetricsUITests/`.
 
 ## Drift
 

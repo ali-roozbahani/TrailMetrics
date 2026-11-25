@@ -201,6 +201,16 @@
         }
       }
     },
+    "no_connection_message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No internet connection. Check your connection and try again."
+          }
+        }
+      }
+    },
     "session_not_saved_message" : {
       "localizations" : {
         "en" : {

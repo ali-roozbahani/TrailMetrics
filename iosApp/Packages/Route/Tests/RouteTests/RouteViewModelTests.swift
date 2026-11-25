@@ -158,6 +158,25 @@ final class RouteViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.generatedRoute)
     }
 
+    func test_onGenerateRouteClicked_noConnection_stopsLoadingAndEmitsShowNoConnection() async {
+        let failure = RouteError.NoConnection(networkException: KotlinThrowable(message: "offline"))
+        let viewModel = makeViewModel(directionsRepository: FakeDirectionsRepository(failure: failure))
+        let recorder = EventRecorder(viewModel.makeEventsStream())
+        defer { recorder.stop() }
+        await waitUntil { viewModel.startPoint != nil }
+        tapWaypoints(3, on: viewModel)
+
+        viewModel.onGenerateRouteClicked()
+
+        await waitUntil { !recorder.events.isEmpty }
+        XCTAssertEqual(recorder.events.count, 1)
+        guard case .showNoConnection = recorder.events.first else {
+            return XCTFail("expected showNoConnection, got \(recorder.events)")
+        }
+        XCTAssertFalse(viewModel.isLoading)
+        XCTAssertNil(viewModel.generatedRoute)
+    }
+
     // MARK: - Start tracking
 
     func test_onStartTrackingClicked_withoutProfile_emitsRequestUserProfile() async {

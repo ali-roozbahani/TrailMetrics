@@ -39,7 +39,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +74,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import dev.roozbahani.trailmetrics.core.designsystem.component.ErrorSnackbarHost
 import dev.roozbahani.trailmetrics.core.designsystem.theme.TrailMetricsTheme
+import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.core.map.RoutePolyline
 import dev.roozbahani.trailmetrics.core.map.StartFinishMarker
@@ -136,6 +139,19 @@ fun RouteRoot(
                     // A child of this effect, so the next event is not held until the snackbar is
                     // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
                     launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
+                }
+
+                RouteEvent.ShowNoConnection -> {
+                    launch {
+                        val result = snackBarHostState.showSnackbar(
+                            message = context.getString(RouteUiError.NoConnection.stringRes),
+                            actionLabel = context.getString(R.string.btn_retry),
+                            duration = SnackbarDuration.Long
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.onAction(RouteAction.GenerateRouteClicked)
+                        }
+                    }
                 }
 
                 is RouteEvent.RequestLocationPermission -> {
