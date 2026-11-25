@@ -165,6 +165,8 @@ public class TrackingViewModel: ObservableObject {
         observeTrackingState()
         observeRouteProgress()
         observeLocationIssues()
+        let showSaveWarning: @MainActor () -> Void = { [weak self] in self?.emit(.sessionNotSaved) }
+        observationTasks.append(observeUnsavedSessionWarning(of: trackingSessionManager, onRaised: showSaveWarning))
 
         liveActivityController = TrackingLiveActivityController(client: liveActivityClient) { [weak self] in
             self?.handleStopNotification()

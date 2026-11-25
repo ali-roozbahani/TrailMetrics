@@ -62,6 +62,12 @@ class TrackingSessionManager(
     private val _locationIssues = MutableSharedFlow<RouteError>(extraBufferCapacity = 1)
     val locationIssues: SharedFlow<RouteError> = _locationIssues.asSharedFlow()
 
+    /**
+     * Raised by the first failed save of the current session, at most once per session; [start] clears it
+     * (owner decision of 2026-11-25).
+     */
+    val unsavedSessionWarning = UnsavedSessionWarning()
+
     private var consecutiveUnavailableCount = 0
     private var locationObservationJob: Job? = null
 
@@ -93,6 +99,7 @@ class TrackingSessionManager(
     /** As [start], for a session on [plannedRoute]; the plan is in [sessionDetails] and stored with the session. */
     fun start(startPoint: Coordinates, activityType: ActivityType, plannedRoute: List<Coordinates>) {
         consecutiveUnavailableCount = 0
+        unsavedSessionWarning.startSession()
         _sessionDetails.value = SessionDetails(activityType, clock.nowMillis(), plannedRoute)
         speedCalculator.reset()
         routeCompletion = SessionRouteCompletion(
@@ -229,9 +236,10 @@ class TrackingSessionManager(
         } catch (e: CancellationException) {
             throw e
         } catch (expected: Exception) {
-            // No user action can fix a failed write, so it is not a locationIssues-style event; the
-            // next state is saved again and tracking goes on.
+            // Tracking goes on and the next state is saved again; the user is told once per session that the
+            // recording may not be saved ([unsavedSessionWarning]).
             logger.debug(TAG, "Saving the session failed: $expected")
+            unsavedSessionWarning.onSaveFailed()
         }
     }
 

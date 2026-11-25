@@ -54,6 +54,7 @@ class TrackingViewModelFailureTest {
     private val clock = FakeClock(nowMillis = STARTED_AT, elapsedRealtimeMillis = START_ELAPSED_REALTIME)
     private val userProfileRepository = FakeUserProfileRepository()
     private val activityHistoryRepository = FakeActivityHistoryRepository()
+    private val sessionStore = FakeTrackingSessionStore()
 
     @OptIn(ExperimentalCoroutinesApi::class) // setMain/UnconfinedTestDispatcher have no stable replacement
     @Before
@@ -70,6 +71,11 @@ class TrackingViewModelFailureTest {
     /** A real TrackingSessionManager built from fakes, with a state subscriber kept for the whole test. */
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private fun TestScope.createViewModel(): TrackingViewModel {
+        createManager()
+        return newViewModel()
+    }
+
+    private fun TestScope.createManager() {
         sessionManager = TrackingSessionManager(
             locationRepository = locationRepository,
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
@@ -77,9 +83,14 @@ class TrackingViewModelFailureTest {
             speedCalculator = SpeedCalculator(),
             clock = clock,
             logger = FakeLogger(),
-            trackingSessionStore = FakeTrackingSessionStore(),
+            trackingSessionStore = sessionStore,
             scope = backgroundScope
         )
+    }
+
+    /** A TrackingViewModel over the existing [sessionManager], as a screen opened later builds it. */
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    private fun TestScope.newViewModel(): TrackingViewModel {
         val viewModel = TrackingViewModel(
             trackingSessionManager = sessionManager,
             userProfileRepository = userProfileRepository,
@@ -263,6 +274,40 @@ class TrackingViewModelFailureTest {
             assertEquals(1, activityHistoryRepository.savedActivities.size)
             assertEquals(2, userProfileRepository.getUserProfileCalls)
         }
+
+    @Test
+    fun `a failing session save shows ShowSessionNotSaved once and tracking goes on`() = runTest(testScheduler) {
+        val viewModel = createViewModel()
+        val events = collectEvents(viewModel)
+        sessionStore.saveFailure = IllegalStateException("disk full")
+
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        receiveLocation(NEXT, millisAfterStart = 1_000L)
+        receiveLocation(START, millisAfterStart = 2_000L)
+
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
+        assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+        assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a save that failed while no screen was open is shown by the next ViewModel`() = runTest(testScheduler) {
+        // No screen is open: the service records with the manager alone.
+        createManager()
+        sessionStore.saveFailure = IllegalStateException("disk full")
+        sessionManager.start(START, ActivityType.Cycling)
+        testScheduler.runCurrent()
+        receiveLocation(NEXT, millisAfterStart = 1_000L)
+        assertEquals(true, sessionManager.unsavedSessionWarning.isRaised.value)
+
+        val viewModel = newViewModel()
+        val events = collectEvents(viewModel)
+        testScheduler.runCurrent()
+
+        assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
+        assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
+    }
 
     private companion object {
         const val STARTED_AT = 1_000_000L

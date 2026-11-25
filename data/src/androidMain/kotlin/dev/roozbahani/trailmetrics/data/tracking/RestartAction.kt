@@ -25,6 +25,12 @@ internal fun restartActionFor(restored: TrackingState): RestartAction = when (re
     is TrackingState.Finished -> RestartAction.ShowNotice("Finished - not saved, tap to save")
 }
 
+/**
+ * The notice of a restore that threw (owner decision of 2026-11-25: surfaced, not stopped silently). The stored
+ * session may still be there: opening the app restores it again, and the app says so if that fails too.
+ */
+internal const val RESTORE_FAILED_NOTICE = "Could not restore your saved session, tap to open"
+
 /** What [TrackingService] does for each [RestartAction]; the service implements it, a test fakes it. */
 internal interface RestartEffects {
     /** Removes the foreground notification and stops the service. */
@@ -39,8 +45,8 @@ internal interface RestartEffects {
 
 /**
  * Restores the stored session after the system restarted the service with no intent, and does what
- * [restartActionFor] decides. A restore that throws is logged and ends like an empty one: the service
- * must not stay in the foreground with nothing to track.
+ * [restartActionFor] decides. A restore that throws is logged and leaves [RESTORE_FAILED_NOTICE]: the service
+ * does not stay in the foreground with nothing to track, and the user learns that recording stopped.
  */
 internal suspend fun handleRestart(restore: suspend () -> TrackingState, logger: Logger, effects: RestartEffects) {
     val action = try {
@@ -49,7 +55,7 @@ internal suspend fun handleRestart(restore: suspend () -> TrackingState, logger:
         throw e
     } catch (expected: Exception) {
         logger.debug(TAG, "Restoring the session after a restart failed: $expected")
-        RestartAction.StopSilently
+        RestartAction.ShowNotice(RESTORE_FAILED_NOTICE)
     }
     when (action) {
         RestartAction.StopSilently -> effects.stopService()

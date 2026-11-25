@@ -103,13 +103,13 @@ class RestartActionTest {
     }
 
     @Test
-    fun `a restore that throws is logged and stops the service`() = runTest {
+    fun `a restore that throws is logged and leaves the restore-failed notice`() = runTest {
         val effects = RecordingEffects()
         val logger = RecordingLogger()
 
         handleRestart({ error("unreadable") }, logger, effects)
 
-        assertEquals(listOf("stop"), effects.calls)
+        assertEquals(listOf("notice: Could not restore your saved session, tap to open"), effects.calls)
         assertTrue(logger.messages.any { "unreadable" in it })
     }
 

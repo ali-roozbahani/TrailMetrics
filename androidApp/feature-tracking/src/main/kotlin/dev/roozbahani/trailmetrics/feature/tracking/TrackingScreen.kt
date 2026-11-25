@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -162,6 +163,15 @@ fun TrackingRoot(
                     // A child of this effect, so the next event is not held until the snackbar is
                     // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
                     launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
+                }
+
+                is TrackingEvent.ShowSessionNotSaved -> {
+                    launch {
+                        snackBarHostState.showSnackbar(
+                            message = context.getString(R.string.msg_session_not_saved),
+                            duration = SnackbarDuration.Long
+                        )
+                    }
                 }
 
                 is TrackingEvent.RequestLocationPermission -> {

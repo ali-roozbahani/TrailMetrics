@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -84,6 +85,17 @@ class TrackingViewModel(
                 _events.send(TrackingEvent.ShowError(RouteUiError.General))
             }
             isRestoring.value = false
+        }
+    }
+
+    init {
+        // Raised by the manager at most once per session; it waits as state while no ViewModel exists, and is
+        // marked shown once it is in the event channel, which keeps it until the screen collects.
+        viewModelScope.launch {
+            trackingSessionManager.unsavedSessionWarning.isRaised.filter { it }.collect {
+                _events.send(TrackingEvent.ShowSessionNotSaved)
+                trackingSessionManager.unsavedSessionWarning.markShown()
+            }
         }
     }
 
@@ -327,5 +339,8 @@ sealed interface TrackingAction {
 sealed interface TrackingEvent {
     data object RequestLocationPermission : TrackingEvent
     data class ShowError(val error: RouteUiError) : TrackingEvent
+
+    /** Saving the in-progress session failed: the recording may not be saved. Once per session. */
+    data object ShowSessionNotSaved : TrackingEvent
     data object Saved : TrackingEvent
 }

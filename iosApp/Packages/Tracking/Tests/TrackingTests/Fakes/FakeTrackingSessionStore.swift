@@ -16,6 +16,7 @@ final class FakeTrackingSessionStore: NSObject, TrackingSessionStore {
     private var stored: StoredTrackingSession?
     private var isLoadFailing = false
     private var isClearFailing = false
+    private var isSaveFailing = false
     private var recordedLoadCount = 0
     private var recordedClearCount = 0
     private var isLoadHeld = false
@@ -47,10 +48,16 @@ final class FakeTrackingSessionStore: NSObject, TrackingSessionStore {
     var heldLoadCount: Int { lock.withLock { heldLoads.count } }
 
     func setClearFailing(_ failing: Bool) { lock.withLock { isClearFailing = failing } }
+    /// While set, every save throws `StoreFailure` and stores nothing.
+    func setSaveFailing(_ failing: Bool) { lock.withLock { isSaveFailing = failing } }
 
     // swiftlint:disable:next identifier_name async_without_await - SKIE: `suspend fun save`
     func __save(session: StoredTrackingSession) async throws {
-        lock.withLock { stored = session }
+        let isFailing = lock.withLock { () -> Bool in
+            if !isSaveFailing { stored = session }
+            return isSaveFailing
+        }
+        if isFailing { throw StoreFailure() }
     }
 
     // swiftlint:disable:next identifier_name - SKIE-mandated name for Kotlin `suspend fun load`
