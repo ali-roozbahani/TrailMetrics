@@ -21,7 +21,7 @@ internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestCont
     single<TrackingServiceLauncher> { UiTestTrackingServiceLauncher() }
     single<TrackingSessionStore> { UiTestTrackingSessionStore(controls, scenario.storedSession()) }
     single<RouteDraftStore> { UiTestRouteDraftStore() }
-    single<DirectionsRepository> { UiTestDirectionsRepository(controls) }
+    single<DirectionsRepository> { UiTestDirectionsRepository(scenario, controls) }
     single<ActivityHistoryRepository> { UiTestActivityHistoryRepository(scenario, controls) }
     single<UserProfileRepository> { UiTestUserProfileRepository() }
 }

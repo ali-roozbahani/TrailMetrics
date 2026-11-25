@@ -123,6 +123,7 @@ private extension RouteUiEvent {
     var kind: String {
         switch self {
         case .showError: "showError"
+        case .showNoConnection: "showNoConnection"
         case .requestUserProfile: "requestUserProfile"
         case .navigateToTracking: "navigateToTracking"
         }

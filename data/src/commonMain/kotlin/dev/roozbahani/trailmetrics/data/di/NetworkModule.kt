@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics.data.di
 
 import dev.roozbahani.trailmetrics.data.common.failOnNonSuccessStatus
 import dev.roozbahani.trailmetrics.data.common.httpClientEngine
+import dev.roozbahani.trailmetrics.data.common.installNetworkPolicy
 import dev.roozbahani.trailmetrics.data.common.platformDefaultHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -24,6 +25,7 @@ val networkModule = module {
             }
 
             failOnNonSuccessStatus()
+            installNetworkPolicy()
 
             defaultRequest {
                 platformDefaultHeaders().forEach { (key, value) -> header(key, value) }

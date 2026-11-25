@@ -123,6 +123,17 @@ public class RouteViewModel: ObservableObject {
         emit(.showError(error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared))
     }
 
+    /// As `emitError`, except that no connection gets its own event, which the View shows with a Retry.
+    private func emitGenerationError(_ error: Error) {
+        let uiError = error.underlyingRouteError?.toUiError() ?? RouteUiErrorGeneral.shared
+        switch onEnum(of: uiError) {
+        case .noConnection:
+            emit(.showNoConnection)
+        case .general, .locationUnavailable, .missingLocationPermission:
+            emit(.showError(uiError))
+        }
+    }
+
     private func loadCurrentLocation() {
         Task {
             do {
@@ -170,7 +181,7 @@ public class RouteViewModel: ObservableObject {
                 generationTask = nil
                 isLoading = false
                 if !(error is CancellationError) {
-                    emitError(error)
+                    emitGenerationError(error)
                 }
                 return
             }

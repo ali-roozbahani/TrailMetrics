@@ -1,6 +1,7 @@
 package dev.roozbahani.trailmetrics.uitest
 
 import dev.roozbahani.trailmetrics.domain.model.RouteDraft
+import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RoutePoint
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
@@ -18,6 +19,7 @@ import org.koin.mp.KoinPlatform
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
@@ -41,13 +43,14 @@ class UiTestEntryTest {
             assertIs<UiTestUserProfileRepository>(helper.userProfileRepository(), "$scenario: profile")
             assertEquals(UiTestFixtures.profile, helper.userProfileRepository().getUserProfile(), "$scenario")
             assertEquals(UiTestFixtures.start, helper.getCurrentLocationUseCase().invoke(), "$scenario: location")
+            val offlineCalls = useUpOfflineDirectionsCall(scenario)
             assertEquals(
                 UiTestFixtures.route,
                 helper.generateClosedRouteUseCase().invoke(threeWaypointDraft()),
                 "$scenario",
             )
-            assertEquals(1, controls.directionsRequestCount, "$scenario: directions requests")
-            assertEquals(1, controls.directionsCompletedCount, "$scenario: directions completed")
+            assertEquals(1 + offlineCalls, controls.directionsRequestCount, "$scenario: directions requests")
+            assertEquals(1 + offlineCalls, controls.directionsCompletedCount, "$scenario: directions completed")
 
             val koin = KoinPlatform.getKoin()
             assertIs<UiTestLocationRepository>(koin.get<LocationRepository>(), "$scenario: location binding")
@@ -101,6 +104,7 @@ class UiTestEntryTest {
             first.releaseHeldCalls()
             val firstHistory = KoinHelper().getActivityHistoryRepository()
             firstHistory.saveActivity(newActivity)
+            useUpOfflineDirectionsCall(scenario)
             KoinHelper().generateClosedRouteUseCase().invoke(threeWaypointDraft())
             stopKoin()
 
@@ -120,6 +124,18 @@ class UiTestEntryTest {
             }
             stopKoin()
         }
+    }
+
+    /**
+     * Makes the failing first directions call of a scenario that has one ([UiTestScenario.NoConnectionThenRoute]),
+     * so that the next call returns the route; returns how many calls it made.
+     */
+    private suspend fun useUpOfflineDirectionsCall(scenario: UiTestScenario): Int {
+        if (!scenario.firstDirectionsHasNoConnection) return 0
+        assertFailsWith<RouteError.NoConnection>("$scenario: first directions call") {
+            KoinHelper().generateClosedRouteUseCase().invoke(threeWaypointDraft())
+        }
+        return 1
     }
 
     private fun threeWaypointDraft() = RouteDraft(

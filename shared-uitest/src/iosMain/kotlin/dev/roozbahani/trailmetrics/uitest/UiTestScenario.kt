@@ -1,19 +1,22 @@
 package dev.roozbahani.trailmetrics.uitest
 
+import dev.roozbahani.trailmetrics.domain.model.RouteError
+
 /**
  * The scripted situations the iOS UI tests launch the app in. Swift matches the launch
  * argument's value against an entry's `name`.
  *
  * Every scenario has a saved user profile ([UiTestFixtures.profile]), returns
  * [UiTestFixtures.start] as the current location and the fixed closed [UiTestFixtures.route]
- * for any directions request. A held call waits until [UiTestControls.releaseHeldCalls].
+ * for any directions request (except the first one of [NoConnectionThenRoute]). A held call waits until [UiTestControls.releaseHeldCalls].
  */
 enum class UiTestScenario(
     internal val seedsHistory: Boolean,
     internal val heldCall: UiTestHeldCall?,
     internal val failsDelete: Boolean,
     internal val walksRoute: Boolean,
-    internal val storesPausedSession: Boolean = false
+    internal val storesPausedSession: Boolean = false,
+    internal val firstDirectionsHasNoConnection: Boolean = false
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -59,6 +62,18 @@ enum class UiTestScenario(
         heldCall = UiTestHeldCall.Load,
         failsDelete = false,
         walksRoute = false
+    ),
+
+    /**
+     * Empty history, nothing held. The first `getClosedRoute` fails with [RouteError.NoConnection], as a call
+     * made offline; every later one returns the route, as a retry once connected.
+     */
+    NoConnectionThenRoute(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        firstDirectionsHasNoConnection = true
     )
 }
 

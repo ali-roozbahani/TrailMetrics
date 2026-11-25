@@ -62,6 +62,11 @@ class RouteScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentActi
         rule.onNodeWithText(string(R.string.btn_generate_route)).performClick()
     }
 
+    /** The Retry action of the no-connection snackbar. */
+    fun clickRetry() = apply {
+        rule.onNodeWithText(string(R.string.btn_retry)).performClick()
+    }
+
     fun doubleTapGenerate() = apply {
         doubleTap(R.string.btn_generate_route)
     }

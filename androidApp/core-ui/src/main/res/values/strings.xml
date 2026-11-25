@@ -4,6 +4,7 @@
     <string name="msg_location_unavailable">Unable to retrieve your current location</string>
     <string name="msg_missing_location_permission">Location permission is missing</string>
     <string name="msg_general_error">Something went wrong. Please try again.</string>
+    <string name="msg_no_connection">No internet connection. Check your connection and try again.</string>
     <string name="activity_type_running">Running</string>
     <string name="activity_type_cycling">Cycling</string>
     <string name="activity_type_walking">Walking</string>

@@ -67,9 +67,16 @@ HTTP-level repository tests do: `DirectionsRepositoryImplTest` builds the
 real repository on a Ktor `MockEngine` (`ktor-client-mock`, test-only) that
 serves a canned Directions JSON response, so it runs on both targets.
 
-`DirectionsRepositoryImpl` returns `RouteError.DirectionsApiError` for every
-directions failure: network, HTTP, response parsing or non-`OK` status (via
-`safeApiCall`), no routes, and a malformed overview polyline
+The client (`networkModule`) has the Directions call's timeouts (connect 10 s,
+socket 15 s, request 30 s) and retries a failed attempt at most twice, with a
+short backoff, only after a timeout, a connection failure or an HTTP 5xx
+(`NetworkPolicy.kt`, tested in `DirectionsNetworkPolicyTest`).
+
+`DirectionsRepositoryImpl` returns `RouteError.NoConnection` when the call got
+no response after those retries (a timeout or a connection failure), and
+`RouteError.DirectionsApiError` for every other directions failure: HTTP,
+response parsing or non-`OK` status (via `safeApiCall`), no routes, and a
+malformed overview polyline
 (`decodePolyline` throws `IllegalArgumentException` for truncated input,
 which the repository maps). An empty polyline is not an error: it yields a
 route with no points.

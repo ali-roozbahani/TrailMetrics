@@ -4,14 +4,26 @@ import io.ktor.client.HttpClientConfig
 import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.http.isSuccess
 
-// Fails every call through the client on a non-2xx response, before the body is read. The message
-// names the status only: Ktor's own expectSuccess message embeds the request URL, which carries
-// the API key.
+/**
+ * A response with a non-2xx [statusCode]. The message names the status only: Ktor's own expectSuccess message
+ * embeds the request URL, which carries the API key and the route's coordinates.
+ */
+class HttpStatusException(val statusCode: Int, description: String) :
+    IllegalStateException("HTTP $statusCode $description") {
+    val isServerError: Boolean
+        get() = statusCode in SERVER_ERRORS
+
+    private companion object {
+        val SERVER_ERRORS = 500..599
+    }
+}
+
+// Fails every call through the client on a non-2xx response, before the body is read.
 fun HttpClientConfig<*>.failOnNonSuccessStatus() {
     HttpResponseValidator {
         validateResponse { response ->
             if (!response.status.isSuccess()) {
-                error("HTTP ${response.status.value} ${response.status.description}")
+                throw HttpStatusException(response.status.value, response.status.description)
             }
         }
     }
