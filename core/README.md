@@ -21,7 +21,7 @@ broke iOS builds even with zero `@Composable` usage on that target. See
   Swift enum) with `NavigationStack`.
 - **`error/RouteUiError.kt`**: a platform-agnostic classification of a
   `domain.RouteError` for UI purposes (`LocationUnavailable`,
-  `MissingLocationPermission`, `General`) plus the `RouteError?.toUiError()`
+  `MissingLocationPermission`, `General`, `NoConnection`) plus the `RouteError?.toUiError()`
   mapping function. This is the *classification*, not the *presentation* —
   no string resources, no `NSLocalizedString`, no UI framework type.
 

@@ -1,12 +1,16 @@
 package dev.roozbahani.trailmetrics.data.common
 
+import io.ktor.client.network.sockets.ConnectTimeoutException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class SafeApiCallTest {
 
@@ -47,6 +51,33 @@ class SafeApiCallTest {
         }
 
         assertSame(cancellation, rethrown)
+    }
+
+    @Test
+    fun `a cancellation that wraps a timeout while the caller is active is returned as the failure`() = runTest {
+        val timeout = ConnectTimeoutException("connect timeout")
+
+        val result = safeApiCall<FakeResponse> { throw CancellationException("timed out", timeout) }
+
+        assertTrue(assertIs<CancellationException>(result.exceptionOrNull()).isTransportFailure())
+    }
+
+    @Test
+    fun `a cancellation that wraps a timeout is rethrown when the caller itself is cancelled`() = runTest {
+        var thrown: Throwable? = null
+        val job = launch {
+            try {
+                cancel()
+                safeApiCall<FakeResponse> { throw CancellationException("timed out", ConnectTimeoutException("t")) }
+            } catch (e: CancellationException) {
+                thrown = e
+                throw e
+            }
+        }
+        job.join()
+
+        assertIs<CancellationException>(thrown)
+        assertTrue(job.isCancelled)
     }
 
     @Test

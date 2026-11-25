@@ -59,7 +59,8 @@ class DirectionsNetworkPolicyTest {
         val error = repository.getClosedRoute(start, waypoints).exceptionOrNull()
 
         assertEquals(3, requests)
-        assertEquals(503, assertIs<HttpStatusException>(assertIs<RouteError.DirectionsApiError>(error).apiException).statusCode)
+        val apiError = assertIs<RouteError.DirectionsApiError>(error)
+        assertEquals(503, assertIs<HttpStatusException>(apiError.apiException).statusCode)
         assertEquals(2, retryDelays.size)
         assertTrue(retryDelays[0] in 500L..750L, "first backoff ${retryDelays[0]} ms")
         assertTrue(retryDelays[1] in 1_000L..1_250L, "second backoff ${retryDelays[1]} ms")
@@ -89,7 +90,8 @@ class DirectionsNetworkPolicyTest {
 
     @Test
     fun `an API status error is not retried`() = runTest {
-        val repository = repository { respondJson(DirectionsResponseFixtures.response(status = "REQUEST_DENIED", routes = emptyList())) }
+        val denied = DirectionsResponseFixtures.response(status = "REQUEST_DENIED", routes = emptyList())
+        val repository = repository { respondJson(denied) }
 
         val error = repository.getClosedRoute(start, waypoints).exceptionOrNull()
 
@@ -145,6 +147,18 @@ class DirectionsNetworkPolicyTest {
         val repository = repository(NetworkTimeouts(requestMillis = 50L)) {
             delay(10_000L)
             respondJson(okBody)
+        }
+
+        val error = repository.getClosedRoute(start, waypoints).exceptionOrNull()
+
+        assertIs<RouteError.NoConnection>(error)
+        assertEquals(3, requests)
+    }
+
+    @Test
+    fun `a timeout that Ktor wraps in a cancellation is retried twice and then returns NoConnection`() = runTest {
+        val repository = repository {
+            throw CancellationException("timed out", ConnectTimeoutException("connect timeout"))
         }
 
         val error = repository.getClosedRoute(start, waypoints).exceptionOrNull()

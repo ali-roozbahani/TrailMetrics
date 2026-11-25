@@ -11,12 +11,11 @@ import io.ktor.http.isSuccess
 class HttpStatusException(val statusCode: Int, description: String) :
     IllegalStateException("HTTP $statusCode $description") {
     val isServerError: Boolean
-        get() = statusCode in SERVER_ERRORS
-
-    private companion object {
-        val SERVER_ERRORS = 500..599
-    }
+        get() = isServerError(statusCode)
 }
+
+/** An HTTP 5xx status: the one definition of a server error, which the retry policy uses too. */
+internal fun isServerError(statusCode: Int): Boolean = statusCode in 500..599
 
 // Fails every call through the client on a non-2xx response, before the body is read.
 fun HttpClientConfig<*>.failOnNonSuccessStatus() {

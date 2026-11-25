@@ -41,7 +41,7 @@ fun HttpClientConfig<*>.installNetworkPolicy(
     // Before HttpTimeout: Ktor passes a timeout to the retry only in this order.
     install(HttpRequestRetry) {
         maxRetries = MAX_RETRIES
-        retryIf { _, response -> response.status.value in SERVER_ERRORS }
+        retryIf { _, response -> isServerError(response.status.value) }
         retryOnExceptionIf { _, cause -> cause.isRetryable() }
         exponentialDelay(
             baseDelayMs = RETRY_BASE_DELAY_MILLIS,
@@ -56,8 +56,6 @@ fun HttpClientConfig<*>.installNetworkPolicy(
         requestTimeoutMillis = timeouts.requestMillis
     }
 }
-
-private val SERVER_ERRORS = 500..599
 
 private fun Throwable.isRetryable(): Boolean = when (this) {
     is HttpStatusException -> isServerError
