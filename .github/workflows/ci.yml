@@ -230,11 +230,11 @@ jobs:
       # The Kotlin/Native directory, keyed on the Kotlin version of the version catalog (a Kotlin bump starts a new cache). On a
       # miss the compiler builds its own caches for the standard and platform libraries in the first link: the framework link took
       # about 116 s, against about 9 s with the directory restored; the download and unpacking of its dependencies were not timed
-      # (the log stamps them within one second). Measured on this runner type (3 CPUs, 7.5 GB) as three miss/hit pairs, each on
-      # attempts of one commit: the iOS job 4 min 54 s to 8 min 26 s shorter on a hit (10:38 to 12:35 against 16:51 to 19:04 on a
-      # miss), the restore (375 MiB) 18 to 30 s, the save 20 to 30 s once (`docs/epics/route-completion-to-domain.md`, "Evidence of
-      # the first run", item 4; PRs #372 and #373). Xcode's DerivedData is not cached: its measured extra saving is inside the
-      # run-to-run noise, and a stale build product is a risk the owner decides.
+      # (the log stamps them within one second). Measured on this runner type (3 CPUs, 7.5 GB) on attempts of one commit, with
+      # this directory alone (pairs B and C; pair A also cached DerivedData): the iOS job 4 min 54 s to 8 min 26 s shorter on a hit
+      # (10:38 to 12:35 against 17:29 to 19:04 on a miss), the restore (375 MiB) 18 to 30 s, the save 20 to 30 s once
+      # (`docs/epics/route-completion-to-domain.md`, "Evidence of the first run", item 4; PRs #372 and #373). Xcode's DerivedData is
+      # not cached: its measured extra saving is inside the run-to-run noise, and a stale build product is a risk the owner decides.
       - name: Read the Kotlin version
         id: kotlin
         run: |
