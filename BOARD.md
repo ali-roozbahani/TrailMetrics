@@ -75,6 +75,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: Two restricted keys exist, one per platform, the app of each platform reads its own, and no key value is in the repository.
 - Refs: `ios-release-readiness`; `config/`; `iosApp/` and `androidApp/` secrets configuration (git-ignored, never read or written by the agent).
 
+### ios-session-store-file-protection-class
+- Type: task
+- Area: data, iosApp
+- Order: 67
+- Source: owner decision 2026-11-16 (iOS skills spike follow-up); narrowed 2026-11-25
+- Problem: The class of the session store is decided and set: the iOS database file, its journal and its directory get `completeUntilFirstUserAuthentication` each time Room opens it (`DatabaseFileProtection.kt`, owner decision of 2026-11-25). What is left is the device check that saves work with the device locked and after a restart. Reason for a record: the simulator has no Data Protection and no test can lock a device, so only the owner can do the check, on a real iPhone.
+- Done when: The owner has done the locked-device check whose steps are in the PR that set the class (its Tier 2), and saves worked while locked and after a restart.
+- Refs: `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/local/database/DatabaseFileProtection.kt`; `DatabaseFileProtectionIosTest`.
+
 ### data-networking-timeouts-retry-offline
 - Type: task
 - Area: data
