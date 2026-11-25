@@ -32,6 +32,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowActivity
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -410,6 +411,12 @@ class TrackingScreenTest {
         showStartedSession()
 
         robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        // Shown but not yet gone: the warning counts as shown only once the snackbar has been on screen.
+        assertTrue(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+
+        robot.waitForLongSnackbarToHide()
+
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test

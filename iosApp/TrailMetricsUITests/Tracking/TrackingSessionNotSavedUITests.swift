@@ -33,8 +33,11 @@ final class TrackingSessionNotSavedUITests: XCTestCase {
         XCTAssertTrue(alert.staticTexts[message].exists, "The alert does not say that the recording may not be saved")
         alert.buttons["OK"].tap()
 
-        // Positive signal: the alert is gone and the session runs (Pause is offered); the warning is not shown again.
+        // Positive signal: the alert is gone and the session runs (Pause is offered).
         XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 10), "Pause not shown: the session is not running")
-        XCTAssertFalse(app.alerts.firstMatch.exists, "The warning was shown a second time")
+
+        // OK marked the warning shown, so no later screen offers it again.
+        let counters = try UITestProbe(app: app).refreshedCounters()
+        XCTAssertEqual(counters.warning, 0, "The warning is still raised after OK: the next screen would show it again")
     }
 }

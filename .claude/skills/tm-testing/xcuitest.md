@@ -27,9 +27,9 @@ composition root, an unknown name stops it.
 ## Probe
 
 In a scenario launch the app shows a top-centre overlay: text `uitest.probe` (`refreshes=<n>
-directions=<n> directionsDone=<n> saves=<n> deletes=<n> waypoints=<n>`: the refresh generation, the
-fakes' counters and the Route map's waypoint count, read by reflection from the map's delegate in
-`UITestWaypointCount`, -1 if not found), and three buttons:
+directions=<n> directionsDone=<n> saves=<n> deletes=<n> waypoints=<n> warning=<0|1>`: the refresh generation,
+the fakes' counters, the Route map's waypoint count, read by reflection from the map's delegate in
+`UITestWaypointCount`, -1 if not found, and whether the unsaved-session warning is raised), and three buttons:
 
 - `uitest.probe.refresh`: re-reads the counters and increments the generation.
 - `uitest.probe.release`: completes every held call, leaves the text alone.

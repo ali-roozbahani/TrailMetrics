@@ -20,6 +20,9 @@ public struct TrackingView: View {
     // snapshot itself, and reports the result back via `handleSnapshotReady`.
     @State private var snapshotRequestID: UUID?
     @State private var errorMessage: String?
+    /// The unsaved-session warning has its own alert: a `.showError` cannot replace it before the user saw it, and
+    /// a second `.sessionNotSaved` only sets the same flag. Its OK marks the warning shown.
+    @State private var showSessionNotSaved = false
     @State private var showExitConfirmation = false
 
     public init(
@@ -103,6 +106,11 @@ public struct TrackingView: View {
         } message: { message in
             Text(message)
         }
+        .alert(Text("Error", bundle: .module), isPresented: $showSessionNotSaved) {
+            Button { viewModel.onSessionNotSavedShown() } label: { Text("OK", bundle: .module) }
+        } message: {
+            Text("session_not_saved_message", bundle: .module)
+        }
         .task {
             for await event in viewModel.makeEventsStream() {
                 handle(event)
@@ -115,8 +123,7 @@ public struct TrackingView: View {
         case .showError(let error):
             errorMessage = error.message
         case .sessionNotSaved:
-            errorMessage = String(localized: "session_not_saved_message", bundle: .module)
-            viewModel.onSessionNotSavedShown()
+            showSessionNotSaved = true
         case .dismissed:
             dismiss()
         }

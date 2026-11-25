@@ -328,6 +328,8 @@ class TrackingViewModelFailureTest {
         testScheduler.runCurrent()
 
         assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
+        // Queued, not shown: raised until the screen sends SessionNotSavedShown.
+        assertEquals(true, sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     private companion object {

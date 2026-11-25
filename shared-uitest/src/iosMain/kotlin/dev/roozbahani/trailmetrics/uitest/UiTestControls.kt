@@ -1,8 +1,10 @@
 package dev.roozbahani.trailmetrics.uitest
 
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.koin.mp.KoinPlatform
 
 /**
  * What a UI test reads and drives in one launch started by [doInitKoinIosForUiTest].
@@ -29,6 +31,10 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
 
     /** `deleteActivity` calls that completed without failing. */
     val deleteCount: Int get() = deletes.value
+
+    /** Whether the session manager's unsaved-session warning is raised (not yet shown by a screen). */
+    val isSessionWarningRaised: Boolean
+        get() = KoinPlatform.getKoin().get<TrackingSessionManager>().unsavedSessionWarning.isRaised.value
 
     /** Completes every held call. Calls made after this are not held. */
     fun releaseHeldCalls() {

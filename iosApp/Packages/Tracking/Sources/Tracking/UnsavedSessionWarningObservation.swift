@@ -14,7 +14,10 @@ func observeUnsavedSessionWarning(
 ) -> Task<Void, Never> {
     Task {
         for await isRaised in manager.unsavedSessionWarning.isRaised where isRaised.boolValue {
-            await MainActor.run { onRaised() }
+            await MainActor.run {
+                // A value delivered late, after the View already marked the warning shown, is not offered again.
+                if manager.unsavedSessionWarning.isRaised.value.boolValue { onRaised() }
+            }
         }
     }
 }

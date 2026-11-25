@@ -40,7 +40,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   reference, run the pending work (`await` the tasks it started), then `XCTAssertNil` the weak
   reference; do it for each type that stores a closure or a `Task` over `self`.
 - **M7** Caches are bounded (a maximum size or count, as `maxPendingEvents` is in the iOS view
-  models). Why: an unbounded cache is a slow leak. Example: `TrackingViewModel.maxPendingEvents`.
+  models). Why: an unbounded cache is a slow leak. Example: `TrackingEventChannel.maxPending`.
   Enforced: reviewer only. Severity: important.
 - **M8** Android: a debug build runs a leak check: LeakCanary or the `StrictMode` VM policy
   (`detectLeakedClosableObjects`, `detectActivityLeaks`). Why: leaks are found by running, not

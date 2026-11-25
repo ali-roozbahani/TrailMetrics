@@ -166,12 +166,14 @@ fun TrackingRoot(
                 }
 
                 is TrackingEvent.ShowSessionNotSaved -> {
-                    viewModel.onAction(TrackingAction.SessionNotSavedShown)
                     launch {
                         snackBarHostState.showSnackbar(
                             message = context.getString(R.string.msg_session_not_saved),
                             duration = SnackbarDuration.Long
                         )
+                        // Only once it was on screen: a snackbar still queued, or cut off because the Root left
+                        // composition, leaves the warning raised for the next screen.
+                        viewModel.onAction(TrackingAction.SessionNotSavedShown)
                     }
                 }
 
