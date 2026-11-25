@@ -61,9 +61,12 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
  */
 internal class UiTestTrackingSessionStore(
     private val controls: UiTestControls,
-    private val stored: StoredTrackingSession? = null
+    private val stored: StoredTrackingSession? = null,
+    private val failsSave: Boolean = false
 ) : TrackingSessionStore {
-    override suspend fun save(session: StoredTrackingSession) = Unit
+    override suspend fun save(session: StoredTrackingSession) {
+        if (failsSave) throw IllegalStateException("UI test: the session store cannot write")
+    }
 
     override suspend fun load(): StoredTrackingSession? {
         controls.awaitReleaseIfHeld(UiTestHeldCall.Load)

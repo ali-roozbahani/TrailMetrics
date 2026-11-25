@@ -221,6 +221,21 @@ class UiTestFakesTest {
     }
 
     @Test
+    fun `FailedSessionSave throws on every session save and other scenarios save silently`() = runTest {
+        UiTestScenario.entries.forEach { scenario ->
+            launchUiTest(scenario)
+            val store = KoinPlatform.getKoin().get<TrackingSessionStore>()
+            val session = UiTestFixtures.pausedSession
+            if (scenario.failsSessionSave) {
+                assertFailsWith<IllegalStateException>("$scenario") { store.save(session) }
+            } else {
+                store.save(session)
+            }
+            stopKoin()
+        }
+    }
+
+    @Test
     fun `FinishTwice walks the route point by point to its second-to-last point and stays open`() = runTest {
         val launch = launchUiTest(UiTestScenario.FinishTwice)
         val points = UiTestFixtures.route.points

@@ -17,7 +17,8 @@ enum class UiTestScenario(
     internal val failsDelete: Boolean,
     internal val walksRoute: Boolean,
     internal val storesPausedSession: Boolean = false,
-    internal val firstDirectionsHasNoConnection: Boolean = false
+    internal val firstDirectionsHasNoConnection: Boolean = false,
+    internal val failsSessionSave: Boolean = false
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -75,6 +76,15 @@ enum class UiTestScenario(
         failsDelete = false,
         walksRoute = false,
         firstDirectionsHasNoConnection = true
+    ),
+
+    /** Empty history, nothing held. Every save of the in-progress session throws, as a store that cannot write. */
+    FailedSessionSave(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        failsSessionSave = true
     )
 }
 

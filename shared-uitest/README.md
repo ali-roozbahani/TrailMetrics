@@ -21,7 +21,7 @@ Package `dev.roozbahani.trailmetrics.uitest`, in `src/iosMain`:
   replace again.
 - **`UiTestScenario.kt`**: the scripted situations (`FailedDelete`,
   `DeleteTwice`, `GenerateTwice`, `GenerateThenReset`, `FinishTwice`, `RestoredPausedSession`, `HeldSessionRead`,
-  `NoConnectionThenRoute`).
+  `NoConnectionThenRoute`, `FailedSessionSave`).
 - **`UiTestControls.kt`**: the counters a UI test reads (directions
   requests and completions, saves, deletes) and `releaseHeldCalls()`.
 - **`UiTestFakes.kt`**, **`UiTestFixtures.kt`**, **`UiTestModule.kt`**
