@@ -75,15 +75,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: Two restricted keys exist, one per platform, the app of each platform reads its own, and no key value is in the repository.
 - Refs: `ios-release-readiness`; `config/`; `iosApp/` and `androidApp/` secrets configuration (git-ignored, never read or written by the agent).
 
-### ios-session-store-file-protection-class
-- Type: task
-- Area: data, iosApp
-- Order: 67
-- Source: owner decision 2026-11-16 (iOS skills spike follow-up)
-- Problem: The stored tracking session (the file or database that holds the session, with its plan) has no chosen iOS file protection class. It must be readable and writable while the device is locked, because tracking runs with the screen off, so a class that locks the file after the first unlock window or at lock would lose saves. Reason for a record: a decision on the class, with a device check (a locked device), which no test shows.
-- Done when: The class of the session store is decided and set, written in the code's comment or docs, and a device check with the device locked, steps in the PR, shows saves work while locked and after a restart.
-- Refs: `data/src/commonMain/kotlin/dev/roozbahani/trailmetrics/data/local/`; `data/src/iosMain`; `tm-kmp-shared` ('Changing the database schema (Room)' for the protected paths).
-
 ### data-networking-timeouts-retry-offline
 - Type: task
 - Area: data
