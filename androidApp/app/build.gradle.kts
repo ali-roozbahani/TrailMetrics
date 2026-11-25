@@ -1,3 +1,4 @@
+import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 import java.util.Properties
 
 plugins {
@@ -5,6 +6,15 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.kover)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+}
+
+// Crash reporting (Firebase Crashlytics) is on only when the owner's google-services.json is in this module's
+// directory (git-ignored). Without it the build warns instead of failing, no Firebase app is initialised and
+// nothing is reported: the gate and CI build without it.
+googleServices {
+    missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
 }
 
 val localProperties = Properties().apply {
@@ -80,6 +90,10 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // Crash, ANR and non-fatal reports (Firebase Crashlytics, no Analytics)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
