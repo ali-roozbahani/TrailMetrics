@@ -17,6 +17,9 @@ struct TrailMetricsApp: App {
     #endif
 
     init() {
+        // First, so an uncaught Kotlin exception during the Koin start is reported too (off without the config file).
+        CrashReporting.startIfConfigured()
+
         #if UITEST_SEAM
         // Debug-UITest only (the test-only framework variant): a UI test's scenario replaces the
         // production bindings with in-memory fakes; without the argument the app starts as usual.

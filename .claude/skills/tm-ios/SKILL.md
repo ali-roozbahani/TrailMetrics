@@ -51,11 +51,15 @@ named here.
   exception, as `RouteViewModel`'s `underlyingRouteError` does, is the one exception). Enforced:
   reviewer only. Violation: `important`.
 - Crashes, ANR, exceptions, actors, scene phase, leaks and performance: `tm-robustness`.
-- The only third-party dependency is `ios-maps-sdk` (GoogleMaps) in feature packages that
-  render maps.
+- The third-party dependencies are `ios-maps-sdk` (GoogleMaps) in the feature packages that
+  render maps, and `firebase-ios-sdk` (the `FirebaseCrashlytics` product) on the app target, imported in
+  `iosApp/TrailMetrics/CrashReporting/CrashReporting.swift` alone: the rest of the app and `shared` know the
+  Kotlin interface `FatalKotlinExceptionReporter`, not Firebase. Crash reporting starts when the owner's
+  `GoogleService-Info.plist` (git-ignored) is in `iosApp/TrailMetrics/`; the gate and CI build without it.
 - Privacy manifests: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy` (app, also covering the Kotlin
-  framework linked into it) and `iosApp/TrackingWidget/PrivacyInfo.xcprivacy` (the widget, which links no
-  required-reason API). The Google Maps SDK ships its own. New code that uses a required-reason API
+  framework linked into it; crash data and other diagnostic data for Crashlytics, as Crashlytics' own manifest
+  declares them) and `iosApp/TrackingWidget/PrivacyInfo.xcprivacy` (the widget, which links no
+  required-reason API). The Google Maps SDK and each Firebase library ship their own. New code that uses a required-reason API
   (user defaults, file timestamps, boot time, disk space, active keyboards) adds its entry in the same
   change; fetch Apple's current list of categories and reason codes then, it is not stored here.
 - `iosApp/TrackingWidget/` is the Live Activity widget extension. It is a separate target,
