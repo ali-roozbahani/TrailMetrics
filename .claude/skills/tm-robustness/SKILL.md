@@ -27,7 +27,7 @@ file when the task or the diff reaches its topic, not before; a reviewer reads i
 
 | File | Rules | Read it when |
 |---|---|---|
-| `SKILL.md` (this file) | C1 to C6, E1 to E4, D1 to D9 | every Kotlin or Swift change |
+| `SKILL.md` (this file) | C1 to C6, E1 to E5, D1 to D9 | every Kotlin or Swift change |
 | `lifecycle-and-permissions.md` | S1, S2, R1, R2, R3, R5, R7 | a change touches an exported component or an `Intent`, a runtime permission, saved or restored state, a service or a Live Activity, a scene phase, or how a flow is collected |
 | `memory-and-leaks.md` | M1, M2, M3, M5, M6, M7, M8, M9 | a change adds a non-UI class that creates or keeps a `CoroutineScope` or launches from `init`, or registers a listener, observer, receiver, timer or callback, keeps a `Context`, a closure or a coroutine in a long-lived object, holds an image or a cache, or adds a leak check |
 | `performance.md` | P1 to P6, P8, P9 | a change touches a lazy list, composition or `body` work, a per-update or per-tick path, a Room query, location priority or interval, or `@Stable`/`@Immutable` |
@@ -95,6 +95,15 @@ worker only; a wait of a frame or two. Leave out what the chain does not prove.
   Example: `ObserveActivitiesUseCase` emits `Failed`. Enforced: SwiftLint `unhandled_throwing_task` (on, for a `Task` whose error nothing reads); otherwise reviewer only. Severity: blocking.
   Accepted exception (owner, PR #250): the route draft. `RouteDraftSaver` logs a failed save or read,
   planning goes on, no notice; the plan is cheap to make again, not data the user recorded.
+- **E5** Nothing the crash reporting vendor receives carries location or route data: no coordinates,
+  path, polyline, waypoint, address or place name in an exception's message (or a cause's message), a
+  custom key or a crash log, on either platform. A library exception whose message can hold them (a Ktor
+  request URL, a serialization error's JSON input) stays wrapped where it is caught (`RouteError`, which
+  has no message and keeps it as a property, not as its `cause`), never rethrown as it is. Why: Crashlytics
+  sends the class, message and causes of every uncaught exception, and every key and log, to Firebase, and
+  the owner's decision of 2026-11-25 keeps location and route data out of it. Example:
+  `failOnNonSuccessStatus` (names the HTTP status, not the request URL). Enforced: reviewer only.
+  Severity: blocking.
 
 ## Dispatchers and threads
 
