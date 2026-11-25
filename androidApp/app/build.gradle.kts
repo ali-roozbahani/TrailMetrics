@@ -13,6 +13,13 @@ plugins {
 // Crash reporting (Firebase Crashlytics) is on only when the owner's google-services.json is in this module's
 // directory (git-ignored). Without it the build warns instead of failing, no Firebase app is initialised and
 // nothing is reported: the gate and CI build without it.
+// With the file, only the release build reports: the debug build switches Crashlytics' and Firebase Sessions'
+// collection off in its manifest (`crashReportingEnabled` below), so a developer's own crashes never reach the
+// Firebase project. The owner's manual checks switch it on in a debug build with the Gradle property
+// `trailmetrics.crashReportingInDebug=true`, given on the command line (-P...) or in the user's own
+// ~/.gradle/gradle.properties, never in a file of the repository.
+val crashReportingInDebug = providers.gradleProperty("trailmetrics.crashReportingInDebug").orNull == "true"
+
 googleServices {
     missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN
 }
@@ -45,7 +52,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["crashReportingEnabled"] = crashReportingInDebug.toString()
+        }
         release {
+            manifestPlaceholders["crashReportingEnabled"] = "true"
             optimization {
                 enable = false
             }

@@ -54,8 +54,10 @@ named here.
 - The third-party dependencies are `ios-maps-sdk` (GoogleMaps) in the feature packages that
   render maps, and `firebase-ios-sdk` (the `FirebaseCrashlytics` product) on the app target, imported in
   `iosApp/TrailMetrics/CrashReporting/CrashReporting.swift` alone: the rest of the app and `shared` know the
-  Kotlin interface `FatalKotlinExceptionReporter`, not Firebase. Crash reporting starts when the owner's
-  `GoogleService-Info.plist` (git-ignored) is in `iosApp/TrailMetrics/`; the gate and CI build without it.
+  Kotlin interface `FatalKotlinExceptionReporter`, not Firebase. A Release build starts crash reporting when
+  the owner's `GoogleService-Info.plist` (git-ignored) is in `iosApp/TrailMetrics/`; a Debug or Debug-UITest
+  build also needs the launch argument `CrashReporting.debugOptInArgument` (`-crashReportingInDebug`, a local
+  scheme change for a manual check); the gate and CI build without the plist.
 - Privacy manifests: `iosApp/TrailMetrics/PrivacyInfo.xcprivacy` (app, also covering the Kotlin
   framework linked into it; crash data and other diagnostic data for Crashlytics, as Crashlytics' own manifest
   declares them) and `iosApp/TrackingWidget/PrivacyInfo.xcprivacy` (the widget, which links no

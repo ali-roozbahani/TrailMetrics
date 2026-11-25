@@ -6,7 +6,8 @@ import SharedKit
 
 /// Crash reporting with Firebase Crashlytics: the only place in the app that names a Firebase type.
 ///
-/// It starts only when the owner's `GoogleService-Info.plist` (git-ignored, dropped into `iosApp/TrailMetrics/`)
+/// It starts only in a Release build (a Debug build needs `debugOptInArgument`), and only when the owner's
+/// `GoogleService-Info.plist` (git-ignored, dropped into `iosApp/TrailMetrics/`)
 /// is in the app bundle; without it nothing is configured and nothing is reported, which is how the gate, CI
 /// and a fresh clone build. Crashlytics then reports signals and Objective-C exceptions itself; an uncaught
 /// Kotlin exception reaches it through the Kotlin hook (`installFatalKotlinExceptionReporter`), which records the
@@ -14,7 +15,18 @@ import SharedKit
 enum CrashReporting {
     private static let logger = Logger(subsystem: "dev.roozbahani.TrailMetrics", category: "CrashReporting")
 
-    static func startIfConfigured(bundle: Bundle = .main) {
+    /// The launch argument that switches crash reporting on in a Debug or Debug-UITest build, for the owner's
+    /// manual check only: set it locally in the scheme's Run arguments and never commit that scheme change.
+    static let debugOptInArgument = "-crashReportingInDebug"
+
+    static func startIfConfigured(bundle: Bundle = .main, arguments: [String] = ProcessInfo.processInfo.arguments) {
+        // Only a Release build reports: a developer's own crashes in a Debug build never reach the Firebase
+        // project, even with the config file in place, unless the opt-in argument is given.
+        #if DEBUG
+        guard arguments.contains(debugOptInArgument) else {
+            return
+        }
+        #endif
         // No config file: reporting is off by design (the gate, CI, a fresh clone).
         guard let path = bundle.path(forResource: "GoogleService-Info", ofType: "plist") else {
             return
