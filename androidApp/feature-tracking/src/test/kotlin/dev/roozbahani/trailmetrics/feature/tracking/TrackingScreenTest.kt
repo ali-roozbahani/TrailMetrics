@@ -404,6 +404,15 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `a session whose save fails shows that the recording may not be saved`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+
+        showStartedSession()
+
+        robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+    }
+
+    @Test
     fun `a profile that fails to load shows the general error`() {
         fixture.userProfileRepository.getUserProfileFailure = IllegalStateException("db closed")
 
