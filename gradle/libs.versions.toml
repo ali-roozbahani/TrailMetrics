@@ -29,6 +29,9 @@ detekt = "1.23.8"
 androidxSqlite = "2.6.1"
 skie = "0.10.14"
 kover = "0.9.11"
+firebaseBom = "35.2.0"
+googleServices = "4.6.0"
+firebaseCrashlyticsPlugin = "3.0.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -90,6 +93,10 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
+# Firebase Crashlytics (crash, ANR and non-fatal reports; no Analytics). The BoM sets the version.
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
 # Navigation Compose
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
@@ -107,3 +114,5 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 room = { id = "androidx.room3", version.ref = "room" }
 skie = { id = "co.touchlab.skie", version.ref = "skie" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
