@@ -19,16 +19,22 @@ val networkJson = Json {
     isLenient = true
 }
 
-// Mirrors networkModule's HttpClient: ContentNegotiation with networkJson and failOnNonSuccessStatus
-// (the same function networkModule calls), so a non-2xx response fails the call. Its defaultRequest
-// platform headers are left out: the Android actual resolves a Context through Koin, and no
-// repository logic depends on them.
-fun mockHttpClient(handler: MockRequestHandler): HttpClient =
+// Mirrors networkModule's HttpClient: ContentNegotiation with networkJson, failOnNonSuccessStatus and
+// installNetworkPolicy (the same functions networkModule calls), so a non-2xx response fails the call and
+// a failed attempt is retried as in the app. Its defaultRequest platform headers are left out: the Android
+// actual resolves a Context through Koin, and no repository logic depends on them. The backoff is recorded
+// in [retryDelays] instead of waited; [timeouts] are the app's unless a test shortens them.
+fun mockHttpClient(
+    timeouts: NetworkTimeouts = NetworkTimeouts(),
+    retryDelays: MutableList<Long> = mutableListOf(),
+    handler: MockRequestHandler
+): HttpClient =
     HttpClient(MockEngine(handler)) {
         install(ContentNegotiation) {
             json(networkJson)
         }
         failOnNonSuccessStatus()
+        installNetworkPolicy(timeouts = timeouts, retryDelay = { retryDelays += it })
     }
 
 fun MockRequestHandleScope.respondJson(body: String, status: HttpStatusCode = HttpStatusCode.OK): HttpResponseData =

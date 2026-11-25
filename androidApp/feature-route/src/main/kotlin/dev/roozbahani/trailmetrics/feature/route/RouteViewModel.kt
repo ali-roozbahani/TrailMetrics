@@ -136,7 +136,14 @@ class RouteViewModel(
                 routeDraftKeeper.save(_state.value.toStoredDraft())
             } catch (error: RouteError) {
                 _state.update { it.copy(isLoading = false) }
-                _events.send(RouteEvent.ShowError(error.toUiError()))
+                val event = when (error) {
+                    is RouteError.NoConnection -> RouteEvent.ShowNoConnection
+                    is RouteError.InsufficientWaypoints,
+                    is RouteError.DirectionsApiError,
+                    is RouteError.LocationUnavailable,
+                    is RouteError.MissingLocationPermission -> RouteEvent.ShowError(error.toUiError())
+                }
+                _events.send(event)
             }
         }
     }
@@ -279,6 +286,9 @@ sealed interface RouteAction {
 sealed interface RouteEvent {
     data object RequestLocationPermission : RouteEvent
     data class ShowError(val error: RouteUiError) : RouteEvent
+
+    /** The directions call got no response ([RouteUiError.NoConnection]): shown with a Retry that generates again. */
+    data object ShowNoConnection : RouteEvent
     data object RequestUserProfile : RouteEvent
     data class NavigateToTracking(
         val startPoint: Coordinates,

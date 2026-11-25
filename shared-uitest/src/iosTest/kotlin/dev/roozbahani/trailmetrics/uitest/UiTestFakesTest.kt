@@ -3,6 +3,7 @@ package dev.roozbahani.trailmetrics.uitest
 import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.calculateRouteProgress
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
@@ -92,6 +93,31 @@ class UiTestFakesTest {
             }
             stopKoin()
         }
+    }
+
+    @Test
+    fun `NoConnectionThenRoute fails the first directions call with NoConnection and returns the route after`() =
+        runTest {
+            val launch = launchUiTest(UiTestScenario.NoConnectionThenRoute)
+
+            val first = launch.directions.getClosedRoute(UiTestFixtures.start, emptyList())
+            val second = launch.directions.getClosedRoute(UiTestFixtures.start, emptyList())
+
+            assertIs<RouteError.NoConnection>(first.exceptionOrNull())
+            assertEquals(UiTestFixtures.route, second.getOrNull())
+            assertEquals(2, launch.controls.directionsRequestCount)
+        }
+
+    @Test
+    fun `other scenarios return the route for the first directions call`() = runTest {
+        UiTestScenario.entries
+            .filterNot { it.firstDirectionsHasNoConnection || it.heldCall == UiTestHeldCall.Directions }
+            .forEach { scenario ->
+                val launch = launchUiTest(scenario)
+                val first = launch.directions.getClosedRoute(UiTestFixtures.start, emptyList())
+                assertEquals(UiTestFixtures.route, first.getOrNull(), "$scenario: first directions call")
+                stopKoin()
+            }
     }
 
     @Test

@@ -9,4 +9,5 @@ val RouteUiError.stringRes: Int
         RouteUiError.LocationUnavailable -> R.string.msg_location_unavailable
         RouteUiError.MissingLocationPermission -> R.string.msg_missing_location_permission
         RouteUiError.General -> R.string.msg_general_error
+        RouteUiError.NoConnection -> R.string.msg_no_connection
     }

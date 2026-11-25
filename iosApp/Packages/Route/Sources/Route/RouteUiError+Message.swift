@@ -15,6 +15,8 @@ extension RouteUiError {
             return String(localized: "Unable to determine your current location.", bundle: .module)
         case .missingLocationPermission:
             return String(localized: "Location permission is required to plan a route.", bundle: .module)
+        case .noConnection:
+            return String(localized: "no_connection_message", bundle: .module)
         }
     }
 }

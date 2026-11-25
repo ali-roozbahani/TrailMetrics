@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.ActivityRecord
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
 import dev.roozbahani.trailmetrics.domain.model.Route
+import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.repository.ActivityHistoryRepository
 import dev.roozbahani.trailmetrics.domain.repository.DirectionsRepository
@@ -81,12 +82,21 @@ internal class UiTestRouteDraftStore : RouteDraftStore {
     override suspend fun clear() = Unit
 }
 
-/** Ignores the waypoints and returns [UiTestFixtures.route], counting requests and completions. */
-internal class UiTestDirectionsRepository(private val controls: UiTestControls) : DirectionsRepository {
+/**
+ * Ignores the waypoints and returns [UiTestFixtures.route], counting requests and completions; the first request
+ * of a scenario with [UiTestScenario.firstDirectionsHasNoConnection] fails with [RouteError.NoConnection].
+ */
+internal class UiTestDirectionsRepository(
+    private val scenario: UiTestScenario,
+    private val controls: UiTestControls
+) : DirectionsRepository {
     override suspend fun getClosedRoute(startPoint: Coordinates, waypoints: List<Coordinates>): Result<Route> {
         controls.countDirectionsRequest()
         controls.awaitReleaseIfHeld(UiTestHeldCall.Directions)
         controls.countDirectionsCompleted()
+        if (scenario.firstDirectionsHasNoConnection && controls.directionsRequestCount == 1) {
+            return Result.failure(RouteError.NoConnection(IllegalStateException("UI test: offline")))
+        }
         return Result.success(UiTestFixtures.route)
     }
 }

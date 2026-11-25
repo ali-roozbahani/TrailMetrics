@@ -12,6 +12,7 @@ public struct RouteView: View {
     @StateObject private var viewModel = RouteViewModel()
     @State private var showProfileSheet = false
     @State private var errorMessage: String?
+    @State private var showNoConnection = false
     @State private var mapView: GMSMapView?
     /// The zoom buttons' icon box grows with the user's text size.
     @ScaledMetric private var zoomIconSize: CGFloat = 20
@@ -79,6 +80,12 @@ public struct RouteView: View {
         } message: { message in
             Text(message)
         }
+        .alert(Text("No Connection", bundle: .module), isPresented: $showNoConnection) {
+            Button(role: .cancel) {} label: { Text("Cancel", bundle: .module) }
+            Button { viewModel.onGenerateRouteClicked() } label: { Text("Retry", bundle: .module) }
+        } message: {
+            Text("no_connection_message", bundle: .module)
+        }
         .task {
             for await event in viewModel.makeEventsStream() {
                 handle(event)
@@ -90,6 +97,8 @@ public struct RouteView: View {
         switch event {
         case .showError(let error):
             errorMessage = error.message
+        case .showNoConnection:
+            showNoConnection = true
         case .requestUserProfile:
             showProfileSheet = true
         case .navigateToTracking(let startPoint, let plannedRoutePoints, let activityType):

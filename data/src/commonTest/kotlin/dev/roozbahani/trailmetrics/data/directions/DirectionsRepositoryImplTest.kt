@@ -238,12 +238,14 @@ class DirectionsRepositoryImplTest {
     }
 
     private fun repository(handler: MockRequestHandler) =
-        DirectionsRepositoryImpl(httpClient = mockHttpClient(handler), apiKey = API_KEY)
+        RealTimeDirectionsRepository(
+            DirectionsRepositoryImpl(httpClient = mockHttpClient(handler = handler), apiKey = API_KEY)
+        )
 
     private fun repositoryRespondingWith(
         polyline: String,
         legDistances: List<Int> = listOf(1000),
-    ): DirectionsRepositoryImpl {
+    ): RealTimeDirectionsRepository {
         val body = DirectionsResponseFixtures.response(
             routes = listOf(DirectionsResponseFixtures.route(polyline, legDistances)),
         )

@@ -1,5 +1,6 @@
 package dev.roozbahani.trailmetrics.data.directions
 
+import dev.roozbahani.trailmetrics.data.common.isTransportFailure
 import dev.roozbahani.trailmetrics.data.common.safeApiCall
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.Route
@@ -48,7 +49,16 @@ class DirectionsRepositoryImpl(
                     )
                 )
             },
-            onFailure = { Result.failure(RouteError.DirectionsApiError(it)) }
+            onFailure = { failure ->
+                // The client already retried a transport failure (installNetworkPolicy): what is left is offline.
+                // safeApiCall rethrows every cancellation, so only a plain timeout or connection failure gets here.
+                val error = if (failure.isTransportFailure()) {
+                    RouteError.NoConnection(failure)
+                } else {
+                    RouteError.DirectionsApiError(failure)
+                }
+                Result.failure(error)
+            }
         )
     }
 
