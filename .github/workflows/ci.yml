@@ -75,6 +75,10 @@ jobs:
       - name: Build
         run: ./gradlew assembleDebug
 
+      # Crashlytics without Analytics or the advertising ID (owner decision 2026-11-25): the merged manifest of the build above.
+      - name: No analytics (Android)
+        run: scripts/check-no-analytics-linked.sh --android
+
       # The build must leave data/schemas/ as committed: Room rewrites the current version's
       # schema file when an entity changed without a version bump.
       - name: Room schema export freshness
@@ -288,6 +292,10 @@ jobs:
             EXCLUDED_ARCHS=x86_64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO
+
+      # The app built above: no analytics or advertising-ID code linked (owner decision 2026-11-25).
+      - name: No analytics (iOS)
+        run: scripts/check-no-analytics-linked.sh --ios
 
       # The package tests use the Kotlin test support (SwiftTestFlow and the rest), which only the
       # test-only variant of the framework holds. Built after "Build iOS app", which links production.

@@ -41,6 +41,7 @@ a line names a file that does not exist. Each script's header says how to run it
 - `scripts/check-pr-review-workflow.py`: the implementation behind `check-pr-review-workflow.sh`.
 - `scripts/check-variant-api.sh`: the test-only framework variant's API against production's.
 - `scripts/check-production-framework.sh`: no test-only Kotlin in the production framework.
+- `scripts/check-no-analytics-linked.sh`: no analytics or advertising-ID code in the built apps (merged Android manifest, iOS symbols and links).
 - `scripts/check-localized-strings.sh`: self-test of the SwiftLint rules against hardcoded user-visible strings.
 - `scripts/check-optional-try.sh`: self-test of the SwiftLint `optional_try` rule.
 - `scripts/checks/self-tests.sh`: runs and checks the lists of script self-tests, `scripts/checks/self-tests-tooling.list` (light) and `scripts/checks/self-tests.list` (the groups only the iOS job runs, heavy).

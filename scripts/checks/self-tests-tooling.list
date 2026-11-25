@@ -58,3 +58,4 @@ tooling	epic report check self-test	scripts/epic/check-report.sh
 tooling	epic device log self-test	scripts/epic/keep-device-log.sh
 tooling	PR description check self-test	scripts/check-pr-description.sh
 tooling	PR comment post self-test	scripts/post-pr-comment.sh
+tooling	no analytics linked self-test	scripts/check-no-analytics-linked.sh
