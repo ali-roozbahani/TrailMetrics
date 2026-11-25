@@ -39,6 +39,10 @@ Moved word for word from `SKILL.md`: the sections "Build integration (XCFramewor
     safety net. If the pre-action didn't run, it rebuilds and then fails the build with
     "build again" rather than link the stale copy. Don't declare the XCFramework as a phase
     output: Xcode reports "Cycle inside TrailMetrics".
+  - The target's last phase, "Upload Crashlytics dSYM", runs Firebase's `Crashlytics/run` in a Release build
+    when `GoogleService-Info.plist` is in the app, and exits at once otherwise (Debug, Debug-UITest, the gate,
+    CI). The Release app's dSYM holds the Kotlin framework's debug info (the linked framework is the debug
+    one, `release-build-links-debug-xcframework`), which is what symbolicates Kotlin frames in a report.
   - `scripts/pre-push-check.sh` runs it before the iOS build, then
     `scripts/check-production-framework.sh` on the production framework, and runs it with
     `--variant uitest` right before the package tests (see below).

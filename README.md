@@ -156,13 +156,14 @@ The goal is that anyone reading this repository — human or automated — can t
    GMS_API_KEY = YOUR_IOS_MAPS_API_KEY
    INFOPLIST_KEY_GMSApiKey = $(GMS_API_KEY)
    ```
-3. Build the shared Kotlin framework once before first open (this is also where `DIRECTIONS_API_KEY` from Android's `local.properties` gets picked up, since the shared module is compiled once for both platforms):
+3. Optional, crash reporting: put the Firebase project's `GoogleService-Info.plist` in `iosApp/TrailMetrics/` (git-ignored). Without it Firebase is not configured and nothing is reported; with it a Release build also uploads its dSYM.
+4. Build the shared Kotlin framework once before first open (this is also where `DIRECTIONS_API_KEY` from Android's `local.properties` gets picked up, since the shared module is compiled once for both platforms):
    ```bash
    ./gradlew :shared:assembleTrailMetricsSharedDebugXCFramework
    ```
-4. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. The shared `TrailMetrics` scheme rebuilds the shared framework automatically before each build (incrementally, only when `domain`/`data`/`core`/`shared`/`shared-uitest` Kotlin sources or the Gradle build files change, or the other variant of the framework is in place) through `scripts/build-kmp-framework.sh` — see `LEARNINGS.md` ("Xcode skipped the KMP build phase"). The same script can instead put a test-only variant of the framework at the same path (`--variant uitest`; built by `shared-uitest`, the framework plus the iOS UI-test seam, see [`ADR-002`](docs/architecture/ADR-002-shared-umbrella-module.md), "Amendment"). Normal Debug and Release builds never link it: the next normal run puts the production framework back.
+5. Open `iosApp/TrailMetrics.xcodeproj` in Xcode. The shared `TrailMetrics` scheme rebuilds the shared framework automatically before each build (incrementally, only when `domain`/`data`/`core`/`shared`/`shared-uitest` Kotlin sources or the Gradle build files change, or the other variant of the framework is in place) through `scripts/build-kmp-framework.sh` — see `LEARNINGS.md` ("Xcode skipped the KMP build phase"). The same script can instead put a test-only variant of the framework at the same path (`--variant uitest`; built by `shared-uitest`, the framework plus the iOS UI-test seam, see [`ADR-002`](docs/architecture/ADR-002-shared-umbrella-module.md), "Amendment"). Normal Debug and Release builds never link it: the next normal run puts the production framework back.
    For a command-line build (the flags it needs, taken from CI), see `.claude/skills/tm-ios/build-and-schemes.md`, "Build integration".
-5. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
+6. Run on an iOS Simulator or device. The Live Activity requires a real device or a Simulator running iOS 16.1+; to exercise a full tracked route without walking it yourself, see `scripts/simulate-route.sh`.
 
 ---
 
