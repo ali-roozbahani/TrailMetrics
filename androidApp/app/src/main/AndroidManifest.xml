@@ -23,7 +23,7 @@
             android:value="${MAPS_API_KEY}" />
 
         <!-- Crash reporting reports from the release build only (androidApp/app/build.gradle.kts,
-             crashReportingEnabled): off in debug, including the session events of Firebase Sessions. -->
+             crashReportingEnabled): off in debug and benchmark, including the session events of Firebase Sessions. -->
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashReportingEnabled}" />

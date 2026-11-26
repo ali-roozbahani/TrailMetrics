@@ -1,3 +1,4 @@
+import com.android.build.api.variant.HostTestBuilder
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
 import java.util.Properties
 
@@ -13,8 +14,8 @@ plugins {
 // Crash reporting (Firebase Crashlytics) is on only when the owner's google-services.json is in this module's
 // directory (git-ignored). Without it the build warns instead of failing, no Firebase app is initialised and
 // nothing is reported: the gate and CI build without it.
-// With the file, only the release build reports: the debug build switches Crashlytics' and Firebase Sessions'
-// collection off in its manifest (`crashReportingEnabled` below), so a developer's own crashes never reach the
+// With the file, only the release build reports: the debug and benchmark builds switch Crashlytics' and Firebase
+// Sessions' collection off in their manifest (`crashReportingEnabled` below), so a developer's own crashes never reach the
 // Firebase project. The owner's manual checks switch it on in a debug build with the Gradle property
 // `trailmetrics.crashReportingInDebug=true`, given on the command line (-P...) or in the user's own
 // ~/.gradle/gradle.properties, never in a file of the repository.
@@ -61,6 +62,17 @@ android {
                 enable = false
             }
         }
+        // Only for the Macrobenchmark in androidApp/benchmark (docs/performance/android-cold-start.md): the
+        // release build type as it is, signed with the debug key so that it installs, and profileable so that
+        // the benchmark can trace it. Never shipped.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isProfileable = true
+            // A benchmark run on a developer's device never reports to the Firebase project.
+            manifestPlaceholders["crashReportingEnabled"] = "false"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -75,6 +87,14 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+    }
+}
+
+// The benchmark build type is for the Macrobenchmark only: its host tests would run the same Robolectric
+// suite a third time.
+androidComponents {
+    beforeVariants(selector().withBuildType("benchmark")) { variant ->
+        variant.hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = false
     }
 }
 
