@@ -9,5 +9,5 @@ import os
 /// `LaunchPerformanceTests` (docs/performance/). A signpost costs next to nothing while no tool records it.
 /// The subsystem, category and interval names are repeated in `LaunchPerformanceTests`: change both together.
 enum StartupSignposts {
-    static let signposter = OSSignposter(subsystem: "dev.roozbahani.trailmetrics", category: "Startup")
+    static let signposter = OSSignposter(subsystem: "dev.roozbahani.TrailMetrics", category: "Startup")
 }

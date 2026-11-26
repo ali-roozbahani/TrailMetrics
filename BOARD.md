@@ -42,8 +42,8 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: androidApp, iosApp, docs/performance
 - Order: 695
 - Source: owner decisions 2026-11-26 (performance budget)
-- Problem: `docs/performance/README.md` defines seven metrics with the same names on both platforms; the owner's three tasks of 2026-11-26 measure only `cold_start_first_frame_ms` (queue entries `android-cold-start-macrobenchmark` and `ios-cold-start-launch-metric`). Not measured on either platform: `first_map_frame_ms`, `history_scroll_jank_pct`, `tracking_2h_memory_mb`, `tracking_2h_cpu_pct`, `alloc_per_location_update_bytes`; `cold_start_fully_drawn_ms` is not defined because neither app has a fully-drawn point. Every number measured so far is of an emulator or a simulator (the owner's "local runs first"); a measurement on a real phone of each platform needs a device, which the agent does not have. Each needs its own harness: a trace section or signpost at the map's first render, a seeded History list of a fixed size, a fake 1 Hz location feed that runs a session for 2 hours, an allocation count over a counted run of updates. Reason for a record: an epic (ten measurements on two platforms, each with its own harness), with owner decisions in it: what the fully-drawn point is (a product choice), whether the measured build carries the owner's Maps key (`first_map_frame_ms` measures nothing without it, and the agent never reads the key), the History seed size, and two 2-hour runs that each hold the Mac's heavy-run lock for their whole length.
-- Done when: A human-approved plan exists under `docs/epics/`; every metric of `docs/performance/README.md` has a baseline on both platforms or a recorded owner decision not to measure it; `cold_start_first_frame_ms` also has a baseline on a real device of each platform, or an owner decision not to take one; each baseline cell names its setup and links its measurement file.
+- Problem: `docs/performance/README.md` defines seven metrics with the same names on both platforms; the owner's three tasks of 2026-11-26 measure only `cold_start_first_frame_ms` (queue entries `android-cold-start-macrobenchmark` and `ios-cold-start-launch-metric`). Not measured on either platform: `first_map_frame_ms`, `history_scroll_jank_pct`, `tracking_2h_memory_mb`, `tracking_2h_cpu_pct`, `alloc_per_location_update_bytes`; `cold_start_fully_drawn_ms` is not defined because neither app has a fully-drawn point. Each needs its own harness: a trace section or signpost at the map's first render, a seeded History list of a fixed size, a fake 1 Hz location feed that runs a session for 2 hours, an allocation count over a counted run of updates. Reason for a record: an epic (ten measurements on two platforms, each with its own harness), with owner decisions in it: what the fully-drawn point is (a product choice), whether the measured build carries the owner's Maps key (`first_map_frame_ms` measures nothing without it, and the agent never reads the key), the History seed size, and two 2-hour runs that each hold the Mac's heavy-run lock for their whole length.
+- Done when: A human-approved plan exists under `docs/epics/`; every metric of `docs/performance/README.md` has a baseline on both platforms or a recorded owner decision not to measure it; each baseline cell names its setup and links its measurement file.
 - Refs: `docs/performance/README.md`; `android-baseline-profiles-and-macrobenchmark`; `android-first-minified-release-build`; `release-build-links-debug-xcframework`; `epic-orchestration` skill.
 
 ### figma-design-system
@@ -706,6 +706,24 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Needs the owner's decision (new dependencies: `androidx.profileinstaller`, a baseline-profile plugin, `androidx.benchmark`) and a device or emulator to generate and measure. The app has no Baseline Profile and no Macrobenchmark (no `baselineprofile`, `benchmark` or `profileinstaller` anywhere). Startup of a Compose, Koin, Room and Maps app is the cost a profile removes, and a performance claim needs a measurement on a release build, which does not exist yet.
 - Done when: the owner approved the dependencies, a baseline profile is generated and shipped in the release build, and a Macrobenchmark of cold start exists with its result recorded.
 - Refs: `androidApp/app/build.gradle.kts`; `gradle/libs.versions.toml`; `android-first-minified-release-build`.
+
+### cold-start-real-device-baseline
+- Type: task
+- Area: docs/performance, androidApp, iosApp
+- Order: 692
+- Source: owner decisions 2026-11-26 (performance budget); local review of the iOS cold start PR
+- Problem: Every `cold_start_first_frame_ms` number in `docs/performance/` is of an emulator or a simulator (the owner's "local runs first"): iOS on the pinned simulator, Android on the gate's AVD. Neither says what a phone does. Reason for a record: it needs a real device of each platform, which the agent does not have, and the owner's choice of which devices.
+- Done when: `cold_start_first_frame_ms` has a baseline on a named real device of each platform (same test, same build as the emulator or simulator baseline, its runs recorded), or the owner decided not to take one.
+- Refs: `docs/performance/README.md`; `docs/performance/ios-cold-start.md`; `performance-baseline-remaining-metrics`.
+
+### ios-launch-measurement-in-gate-ui-suite
+- Type: task
+- Area: iosApp/TrailMetricsUITests, .claude/skills/tm-testing
+- Order: 693
+- Source: local review of the iOS cold start PR, 2026-11-26
+- Problem: `LaunchPerformanceTests` runs in the gate's iOS UI suite and in the full UI run on `main` (it cannot be skipped: `tm-testing` D6 forbids `XCTSkip`): 5 launches with no scenario, about 39 s, timing never asserted. That is an exception to D5 ("one `launch` per test, with its scenario") which no owner decision covers, and a recurring cost. Keeping it out of the suite needs a test plan or scheme change (`TrailMetrics.xcodeproj`, protected). Reason for a record: an owner decision (accept the exception and write it under D5, or move the measurement out of the gate's suite).
+- Done when: the owner decided; either D5 names the exception, or the measurement runs only on request and the gate's UI suite no longer runs it.
+- Refs: `iosApp/TrailMetricsUITests/Performance/LaunchPerformanceTests.swift`; `.claude/skills/tm-testing/xcuitest-rules.md` (D5, D6); `scripts/ios-ui-tests.sh`.
 
 ### android-predictive-back
 - Type: task

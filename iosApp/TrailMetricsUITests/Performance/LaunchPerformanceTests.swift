@@ -15,7 +15,7 @@ import XCTest
 final class LaunchPerformanceTests: XCTestCase {
 
     // Must match `StartupSignposts` in the app target.
-    private static let subsystem = "dev.roozbahani.trailmetrics"
+    private static let subsystem = "dev.roozbahani.TrailMetrics"
     private static let category = "Startup"
     private static let intervals = ["CrashReportingStart", "KoinStart", "MapsConfigure"]
 
@@ -29,7 +29,13 @@ final class LaunchPerformanceTests: XCTestCase {
             XCTOSSignpostMetric(subsystem: Self.subsystem, category: Self.category, name: $0)
         }
         let options = XCTMeasureOptions()
-        if let iterations = Int(ProcessInfo.processInfo.environment["TM_LAUNCH_ITERATIONS"] ?? ""), iterations > 0 {
+        // Absent: XCTest's default. Present but not a positive number: a failure, so a measurement for the
+        // doc is never taken with another count than the one asked for.
+        if let value = ProcessInfo.processInfo.environment["TM_LAUNCH_ITERATIONS"] {
+            guard let iterations = Int(value), iterations > 0 else {
+                XCTFail("TM_LAUNCH_ITERATIONS must be a positive number, got '\(value)'")
+                return
+            }
             options.iterationCount = iterations
         }
 

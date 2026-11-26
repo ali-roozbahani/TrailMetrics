@@ -38,7 +38,9 @@ makes no claim about where in it the time goes.
     launch does not wait for the map either way.
 - Metric: `XCTApplicationLaunchMetric()` (launch until the app's first frame), with
   `XCTOSSignpostMetric` for the app's `os_signpost` intervals (`StartupSignposts`, subsystem
-  `dev.roozbahani.trailmetrics`, category `Startup`). Each iteration calls `XCUIApplication().launch()`,
+  `dev.roozbahani.TrailMetrics`, category `Startup`). The series were taken at commit 6eafb89, where the subsystem was
+  spelled `dev.roozbahani.trailmetrics`; the spelling was then aligned with the app's other logger, nothing else
+  changed. Each iteration calls `XCUIApplication().launch()`,
   which terminates the instance of the iteration before.
 
 ## How to measure again
