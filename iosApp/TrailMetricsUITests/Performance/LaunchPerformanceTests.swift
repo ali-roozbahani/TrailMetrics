@@ -11,7 +11,7 @@ import XCTest
 // baseline, so a slow run never fails it: the numbers are read from the result bundle and recorded by hand
 // (docs/performance/ says how). The gate's UI run measures with XCTest's default iteration count; a
 // measurement for the doc sets more through the runner's environment: `TEST_RUNNER_TM_LAUNCH_ITERATIONS=<n>`
-// on the xcodebuild command line.
+// in the environment of xcodebuild (docs/performance/ios-cold-start.md has the command).
 final class LaunchPerformanceTests: XCTestCase {
 
     // Must match `StartupSignposts` in the app target.
