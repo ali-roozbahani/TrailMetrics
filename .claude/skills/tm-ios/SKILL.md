@@ -131,7 +131,8 @@ fails, so observe through a use case that turns the failure into a value on the 
   continuation loses the event. So `emit` keeps every event that `yield` does not report as
   `.enqueued` in `pendingEvents` (at most `maxPendingEvents`, 10, oldest dropped first), and
   `makeEventsStream()` yields those to the new stream first (see `RouteViewModel.emit`;
-  `TrackingViewModel.emit` is the same).
+  `TrackingViewModel` keeps the same mechanism in `TrackingEventChannel`, whose new stream also
+  re-offers `.sessionNotSaved` while the warning is still raised).
 - iOS is **not** part of the Android MVI migration. iOS ViewModels expose intent methods
   (`onGenerateRouteClicked()`, `onMapTapped(_:)`). Keep that style. Some existing methods
   take completion closures (`TrackingViewModel.onFinishClicked(snapshotFilePath:onSaved:)`,

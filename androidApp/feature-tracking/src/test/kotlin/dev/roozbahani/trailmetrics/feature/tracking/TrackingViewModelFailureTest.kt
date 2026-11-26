@@ -288,8 +288,47 @@ class TrackingViewModelFailureTest {
 
         assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
         assertIs<TrackingState.Tracking>(viewModel.state.value.trackingState)
+        // Queued, not yet shown: the warning stays raised until the screen reports that it showed it.
+        assertEquals(true, sessionManager.unsavedSessionWarning.isRaised.value)
+
+        viewModel.onAction(TrackingAction.SessionNotSavedShown)
+
         assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
     }
+
+    @Test
+    fun `a new collector of the same ViewModel gets the warning again while it is not shown`() =
+        runTest(testScheduler) {
+            sessionStore.saveFailure = IllegalStateException("disk full")
+            val viewModel = createViewModel()
+            val first = collectEvents(viewModel)
+            viewModel.onAction(TrackingAction.Start(START))
+            testScheduler.runCurrent()
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), first)
+
+            // A recreated Activity: a new Root collects the events of the same ViewModel.
+            val second = collectEvents(viewModel)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), second)
+        }
+
+    @Test
+    fun `a warning queued by a ViewModel whose screen never showed it is shown by the next ViewModel`() =
+        runTest(testScheduler) {
+            sessionStore.saveFailure = IllegalStateException("disk full")
+            val first = createViewModel()
+            first.onAction(TrackingAction.Start(START))
+            testScheduler.runCurrent()
+            receiveLocation(NEXT, millisAfterStart = 1_000L)
+            // `first` queued ShowSessionNotSaved, but nothing collected its events: its screen is gone.
+
+            val second = newViewModel()
+            val events = collectEvents(second)
+            testScheduler.runCurrent()
+
+            assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
+        }
 
     @Test
     fun `a save that failed while no screen was open is shown by the next ViewModel`() = runTest(testScheduler) {
@@ -306,7 +345,8 @@ class TrackingViewModelFailureTest {
         testScheduler.runCurrent()
 
         assertEquals(listOf<TrackingEvent>(TrackingEvent.ShowSessionNotSaved), events)
-        assertEquals(false, sessionManager.unsavedSessionWarning.isRaised.value)
+        // Queued, not shown: raised until the screen sends SessionNotSavedShown.
+        assertEquals(true, sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     private companion object {

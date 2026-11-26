@@ -16,8 +16,8 @@ enum class UiTestScenario(
     internal val heldCall: UiTestHeldCall?,
     internal val failsDelete: Boolean,
     internal val walksRoute: Boolean,
-    internal val storesPausedSession: Boolean = false,
-    internal val firstDirectionsHasNoConnection: Boolean = false
+    internal val firstDirectionsHasNoConnection: Boolean = false,
+    internal val sessionStore: UiTestSessionStore = UiTestSessionStore.Empty
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -51,7 +51,7 @@ enum class UiTestScenario(
         heldCall = null,
         failsDelete = false,
         walksRoute = false,
-        storesPausedSession = true
+        sessionStore = UiTestSessionStore.StoresPausedSession
     ),
 
     /**
@@ -75,7 +75,51 @@ enum class UiTestScenario(
         failsDelete = false,
         walksRoute = false,
         firstDirectionsHasNoConnection = true
-    )
+    ),
+
+    /** Empty history, nothing held. Every save of the in-progress session throws, as a store that cannot write. */
+    FailedSessionSave(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        sessionStore = UiTestSessionStore.FailsEverySave
+    ),
+
+    /**
+     * Empty history, nothing held. Each location collection (Start) first reports the location unavailable three
+     * times in a row, so the session reports a location issue, and then one fix at the route's second point. Every
+     * session save after that issue throws, so the issue's error and the unsaved-session warning reach the screen
+     * together.
+     */
+    LocationIssueThenFailedSessionSave(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        sessionStore = UiTestSessionStore.FailsSavesAfterLocationIssue
+    );
+
+    /**
+     * Whether each location collection first reports the location unavailable (a location issue) and then one fix
+     * (see [UiTestLocationRepository]); only [LocationIssueThenFailedSessionSave], whose store fails after that issue.
+     */
+    internal val reportsLocationIssueFirst: Boolean get() = this == LocationIssueThenFailedSessionSave
+}
+
+/** What a scenario's session store holds at launch, and when its saves throw. */
+internal enum class UiTestSessionStore {
+    /** Nothing stored; every save succeeds. */
+    Empty,
+
+    /** Holds [UiTestFixtures.pausedSession], as an app killed while paused leaves it; every save succeeds. */
+    StoresPausedSession,
+
+    /** Nothing stored; every save throws. */
+    FailsEverySave,
+
+    /** Nothing stored; every save after the location fake has reported its issue throws. */
+    FailsSavesAfterLocationIssue
 }
 
 /** The repository call a scenario holds until [UiTestControls.releaseHeldCalls]. */

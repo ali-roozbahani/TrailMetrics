@@ -3,6 +3,8 @@ package dev.roozbahani.trailmetrics.feature.tracking
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasAnyAncestor
@@ -31,25 +33,30 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         plannedRoutePoints: List<Coordinates>,
         onNavigateBack: () -> Unit,
         inspectionMode: Boolean = true,
-        viaNavHostEntry: Boolean = false
+        viaNavHostEntry: Boolean = false,
+        isRootShown: State<Boolean> = mutableStateOf(true)
     ) = apply {
         rule.setContent {
             TrailMetricsTheme {
                 CompositionLocalProvider(LocalInspectionMode provides inspectionMode) {
-                    if (viaNavHostEntry) {
-                        TrackingScreen(
-                            initialStartPoint = startPoint,
-                            plannedRoutePoints = plannedRoutePoints,
-                            activityType = ActivityType.Running,
-                            onNavigateBack = onNavigateBack
-                        )
-                    } else {
-                        TrackingRoot(
-                            initialStartPoint = startPoint,
-                            plannedRoutePoints = plannedRoutePoints,
-                            activityType = ActivityType.Running,
-                            onNavigateBack = onNavigateBack
-                        )
+                    // When not shown, the Root is out of composition: its effects are cancelled, the Activity's
+                    // ViewModel stays (as across a recreated Activity).
+                    if (isRootShown.value) {
+                        if (viaNavHostEntry) {
+                            TrackingScreen(
+                                initialStartPoint = startPoint,
+                                plannedRoutePoints = plannedRoutePoints,
+                                activityType = ActivityType.Running,
+                                onNavigateBack = onNavigateBack
+                            )
+                        } else {
+                            TrackingRoot(
+                                initialStartPoint = startPoint,
+                                plannedRoutePoints = plannedRoutePoints,
+                                activityType = ActivityType.Running,
+                                onNavigateBack = onNavigateBack
+                            )
+                        }
                     }
                 }
             }
@@ -163,6 +170,12 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         rule.waitForIdle()
     }
 
+    /** Lets a long snackbar's duration (10 s) and its exit pass on the test clock. */
+    fun waitForLongSnackbarToHide() = apply {
+        rule.mainClock.advanceTimeBy(SNACKBAR_LONG_MILLIS)
+        rule.waitForIdle()
+    }
+
     private fun assertButtons(shown: List<Int>) {
         CONTROL_BUTTONS.forEach { label ->
             if (label in shown) button(label).assertExists() else button(label).assertDoesNotExist()
@@ -181,6 +194,9 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
     private companion object {
         /** `SnackbarDuration.Short` without accessibility services, plus a margin. */
         const val SNACKBAR_SHORT_MILLIS = 5_000L
+
+        /** `SnackbarDuration.Long` without accessibility services, plus a margin. */
+        const val SNACKBAR_LONG_MILLIS = 11_000L
 
         val CONTROL_BUTTONS = listOf(
             R.string.btn_tracking_start,

@@ -19,7 +19,9 @@ public struct TrackingView: View {
     // by writing a new UUID here; TrackingMapView notices the change, takes the
     // snapshot itself, and reports the result back via `handleSnapshotReady`.
     @State private var snapshotRequestID: UUID?
-    @State private var errorMessage: String?
+    /// The errors and the unsaved-session warning, shown one after the other through the one error alert below
+    /// (see TrackingAlertQueue). The warning's OK marks it shown.
+    @State private var alerts = TrackingAlertQueue()
     @State private var showExitConfirmation = false
 
     public init(
@@ -92,16 +94,21 @@ public struct TrackingView: View {
         } message: {
             Text("Tracking is still in progress. Leaving now will stop and discard this activity.", bundle: .module)
         }
+        // One alert for errors and the warning: SwiftUI may not present a second `.alert` while one is up. The OK
+        // removes the alert on screen; the binding's setter does nothing, so one OK never removes two alerts.
         .alert(
             Text("Error", bundle: .module),
-            isPresented: Binding(get: { errorMessage != nil }, set: { isPresented in
-                if !isPresented { errorMessage = nil }
-            }),
-            presenting: errorMessage
-        ) { _ in
-            Button { errorMessage = nil } label: { Text("OK", bundle: .module) }
-        } message: { message in
-            Text(message)
+            isPresented: Binding(get: { alerts.current != nil }, set: { _ in }),
+            presenting: alerts.current
+        ) { alert in
+            Button { dismissAlert(alert) } label: { Text("OK", bundle: .module) }
+        } message: { alert in
+            switch alert {
+            case .error(let message):
+                Text(message)
+            case .sessionNotSaved:
+                Text("session_not_saved_message", bundle: .module)
+            }
         }
         .task {
             for await event in viewModel.makeEventsStream() {
@@ -113,11 +120,18 @@ public struct TrackingView: View {
     private func handle(_ event: TrackingUiEvent) {
         switch event {
         case .showError(let error):
-            errorMessage = error.message
+            alerts.enqueue(.error(error.message))
         case .sessionNotSaved:
-            errorMessage = String(localized: "session_not_saved_message", bundle: .module)
+            alerts.enqueue(.sessionNotSaved)
         case .dismissed:
             dismiss()
+        }
+    }
+
+    private func dismissAlert(_ alert: TrackingAlert) {
+        guard alerts.dismiss(alert) else { return }
+        if alert == .sessionNotSaved {
+            viewModel.onSessionNotSavedShown()
         }
     }
 
