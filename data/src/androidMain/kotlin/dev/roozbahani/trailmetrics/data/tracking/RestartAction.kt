@@ -2,7 +2,6 @@ package dev.roozbahani.trailmetrics.data.tracking
 
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.util.Logger
-import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import kotlinx.coroutines.CancellationException
 
 /** What [TrackingService] does once a restart with no intent has restored the stored session. */
@@ -14,30 +13,41 @@ internal sealed interface RestartAction {
     data object KeepTracking : RestartAction
 
     /** The session waits for the user: post this one normal notification, then stop. */
-    data class ShowNotice(val text: String) : RestartAction
+    data class ShowNotice(val notice: RestartNotice) : RestartAction
+}
+
+/**
+ * Which notice a restart leaves: a typed value, not text. Its text comes from the Android string resources
+ * ([restartNoticeText]; owner decision of 2026-11-25: no user-visible text in code).
+ */
+internal sealed interface RestartNotice {
+    /** A paused session that waits to be continued, with the distance recorded so far. */
+    data class Paused(val distanceMeters: Double) : RestartNotice
+
+    /** A finished session that is not saved yet. */
+    data object Finished : RestartNotice
+
+    /**
+     * A restore that threw (owner decision of 2026-11-25: surfaced, not stopped silently). The stored session may
+     * still be there: opening the app restores it again, and the app says so if that fails too.
+     */
+    data object RestoreFailed : RestartNotice
 }
 
 internal fun restartActionFor(restored: TrackingState): RestartAction = when (restored) {
     TrackingState.Idle -> RestartAction.StopSilently
     is TrackingState.Tracking -> RestartAction.KeepTracking
-    is TrackingState.Paused ->
-        RestartAction.ShowNotice("Paused - ${formatDistance(restored.metrics.distanceMeters)}, tap to continue")
-    is TrackingState.Finished -> RestartAction.ShowNotice("Finished - not saved, tap to save")
+    is TrackingState.Paused -> RestartAction.ShowNotice(RestartNotice.Paused(restored.metrics.distanceMeters))
+    is TrackingState.Finished -> RestartAction.ShowNotice(RestartNotice.Finished)
 }
-
-/**
- * The notice of a restore that threw (owner decision of 2026-11-25: surfaced, not stopped silently). The stored
- * session may still be there: opening the app restores it again, and the app says so if that fails too.
- */
-internal const val RESTORE_FAILED_NOTICE = "Could not restore your saved session, tap to open"
 
 /** What [TrackingService] does for each [RestartAction]; the service implements it, a test fakes it. */
 internal interface RestartEffects {
     /** Removes the foreground notification and stops the service. */
     fun stopService()
 
-    /** Removes the foreground notification, posts [text] as a normal notification and stops the service. */
-    fun leaveNotice(text: String)
+    /** Removes the foreground notification, posts [notice] as a normal notification and stops the service. */
+    fun leaveNotice(notice: RestartNotice)
 
     /** Keeps the foreground service for the live session; returns only when the service is done. */
     suspend fun keepTracking()
@@ -45,7 +55,7 @@ internal interface RestartEffects {
 
 /**
  * Restores the stored session after the system restarted the service with no intent, and does what
- * [restartActionFor] decides. A restore that throws is logged and leaves [RESTORE_FAILED_NOTICE]: the service
+ * [restartActionFor] decides. A restore that throws is logged and leaves [RestartNotice.RestoreFailed]: the service
  * does not stay in the foreground with nothing to track, and the user learns that recording stopped.
  */
 internal suspend fun handleRestart(restore: suspend () -> TrackingState, logger: Logger, effects: RestartEffects) {
@@ -55,12 +65,12 @@ internal suspend fun handleRestart(restore: suspend () -> TrackingState, logger:
         throw e
     } catch (expected: Exception) {
         logger.debug(TAG, "Restoring the session after a restart failed: $expected")
-        RestartAction.ShowNotice(RESTORE_FAILED_NOTICE)
+        RestartAction.ShowNotice(RestartNotice.RestoreFailed)
     }
     when (action) {
         RestartAction.StopSilently -> effects.stopService()
         RestartAction.KeepTracking -> effects.keepTracking()
-        is RestartAction.ShowNotice -> effects.leaveNotice(action.text)
+        is RestartAction.ShowNotice -> effects.leaveNotice(action.notice)
     }
 }
 
