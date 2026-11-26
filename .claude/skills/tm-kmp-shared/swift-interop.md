@@ -1,6 +1,6 @@
 # SKIE and Swift-facing API design, the `@Throws` policy, iOS location (L1)
 
-Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "SKIE and Swift-facing API design" (with "`@Throws` policy (Kotlin called from Swift)") and "iOS location (L1)". The rules are unchanged since the move, except rule 6 of the `@Throws` policy, which the owner extended on 2026-11-25 (a new function that cannot throw, a new class that only exposes read-only `StateFlow`s); they are still cited as `tm-kmp-shared`, "SKIE and Swift-facing API design", "`@Throws` policy" and "iOS location (L1)".
+Moved from `SKILL.md`, word for word except the references that now name this skill's files: the sections "SKIE and Swift-facing API design" (with "`@Throws` policy (Kotlin called from Swift)") and "iOS location (L1)". Rule 6 of the `@Throws` policy was extended by the owner on 2026-11-25 (a new function that cannot throw, a new class whose Swift-visible members are read-only `StateFlow`s and such functions). The other rules are unchanged since the move; they are still cited as `tm-kmp-shared`, "SKIE and Swift-facing API design", "`@Throws` policy" and "iOS location (L1)".
 
 ## SKIE and Swift-facing API design
 
