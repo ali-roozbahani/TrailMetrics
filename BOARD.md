@@ -37,6 +37,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: A human-approved plan exists under `docs/epics/` that splits the agent's code and doc parts (1, 2, 3, 5, 6, 7 as text) from the owner's Apple account parts (4, plus the policy and label entries in App Store Connect), and every item above is done or declined with a reason.
 - Refs: `iosApp/TrailMetrics/Info.plist`; `iosApp/TrackingWidget/`; `data/src/iosMain/kotlin/dev/roozbahani/trailmetrics/data/location/IosLocationRepositoryImpl.kt`; `release-build-links-debug-xcframework`; `epic-orchestration` skill.
 
+### performance-baseline-remaining-metrics
+- Type: epic
+- Area: androidApp, iosApp, docs/performance
+- Order: 695
+- Source: owner decisions 2026-11-26 (performance budget)
+- Problem: `docs/performance/README.md` defines seven metrics with the same names on both platforms; the owner's three tasks of 2026-11-26 measure only `cold_start_first_frame_ms` (queue entries `android-cold-start-macrobenchmark` and `ios-cold-start-launch-metric`). Not measured on either platform: `first_map_frame_ms`, `history_scroll_jank_pct`, `tracking_2h_memory_mb`, `tracking_2h_cpu_pct`, `alloc_per_location_update_bytes`; `cold_start_fully_drawn_ms` is not defined because neither app has a fully-drawn point. Each needs its own harness: a trace section or signpost at the map's first render, a seeded History list of a fixed size, a fake 1 Hz location feed that runs a session for 2 hours, an allocation count over a counted run of updates. Reason for a record: an epic (ten measurements on two platforms, each with its own harness), with owner decisions in it: what the fully-drawn point is (a product choice), whether the measured build carries the owner's Maps key (`first_map_frame_ms` measures nothing without it, and the agent never reads the key), the History seed size, and two 2-hour runs that each hold the Mac's heavy-run lock for their whole length.
+- Done when: A human-approved plan exists under `docs/epics/`; every metric of `docs/performance/README.md` has a baseline on both platforms or a recorded owner decision not to measure it; each baseline cell names its setup and links its measurement file.
+- Refs: `docs/performance/README.md`; `android-baseline-profiles-and-macrobenchmark`; `android-first-minified-release-build`; `release-build-links-debug-xcframework`; `epic-orchestration` skill.
+
 ### figma-design-system
 - Type: epic
 - Area: design
