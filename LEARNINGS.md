@@ -513,8 +513,8 @@ the stamp if one of them ever does change the framework).
   different modules, and there's no single extension type that covers all
   of them. The blocks are `org.jetbrains.kotlin.jvm`,
   `org.jetbrains.kotlin.multiplatform` (the KMP modules), and
-  `com.android.application` / `com.android.library` (the `androidApp/*`
-  modules).
+  `com.android.application` / `com.android.library` / `com.android.test`
+  (the `androidApp/*` modules; `com.android.test` is `androidApp/benchmark`).
 - AGP 9 built-in Kotlin: `androidApp/*` modules never apply
   `org.jetbrains.kotlin.android`. AGP applies `KotlinBaseApiPlugin` and
   registers the `kotlin` extension (still typed
