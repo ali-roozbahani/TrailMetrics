@@ -27,9 +27,9 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   - held calls are released only through `uitest.probe.release`;
   - `continueAfterFailure = false`; SwiftLint `--strict` applies, so no force unwraps;
   - check once in the working tree that the test fails when the guarded behavior breaks.
-- **Shards.** The gate and the full run on `main` run the UI tests in one `scripts/ios-ui-tests.sh` run; plan
-  a shard step in that script when they exceed about
-  10 tests (cap 3).
+- **Shards.** None (owner decision of 2026-11-25): the gate and the full run on `main` run the UI tests in one
+  `scripts/ios-ui-tests.sh` run on one pinned simulator, and the script has no shard step. Look again when a full
+  run takes over about 10 minutes. Why, in `xcuitest.md`, "Shards and CI timing".
 - **Flakes (D6).** No retries, no `-retry-tests-on-failure`, no `XCTSkip`: red is red, and a
   failure without a related change is logged in `CI_FLAKES.md` (`tm-pr-workflow`, "Flake log").
 - **Identifiers (D7).** Find elements by their text first; a View gets an
