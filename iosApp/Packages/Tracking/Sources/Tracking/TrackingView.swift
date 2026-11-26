@@ -94,7 +94,7 @@ public struct TrackingView: View {
         } message: {
             Text("Tracking is still in progress. Leaving now will stop and discard this activity.", bundle: .module)
         }
-        // One alert for errors and the warning: SwiftUI does not present a second `.alert` while one is up. The OK
+        // One alert for errors and the warning: SwiftUI may not present a second `.alert` while one is up. The OK
         // removes the alert on screen; the binding's setter does nothing, so one OK never removes two alerts.
         .alert(
             Text("Error", bundle: .module),

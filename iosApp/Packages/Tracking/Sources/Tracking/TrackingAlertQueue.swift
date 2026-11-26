@@ -11,9 +11,10 @@ enum TrackingAlert: Equatable {
     case sessionNotSaved
 }
 
-/// The alerts TrackingView shows through its one error alert, in order. One alert and not two: SwiftUI does not
-/// present a second `.alert` while another is up, so a warning that arrived behind an error alert would never show
-/// (owner decision of 2026-11-26: the warning is never lost behind an error alert).
+/// The alerts TrackingView shows through its one error alert, in order. One alert and not two (owner decision of
+/// 2026-11-26: the warning is never lost behind an error alert): SwiftUI may not present a second `.alert` while
+/// another is up. The iOS 26.5 simulator did present it after the first one's OK; the order here does not depend
+/// on that.
 ///
 /// - The warning is queued once and nothing replaces it: it waits behind the alert on screen and shows after its OK.
 /// - Errors keep their behavior: at most one error is kept, and a newer error replaces the older one in its place.
