@@ -5,6 +5,7 @@
 //  Created by Ali Roozbahani on 07.09.26.
 //
 
+import os
 import Route
 import SharedKit
 import SwiftUI
@@ -17,8 +18,11 @@ struct TrailMetricsApp: App {
     #endif
 
     init() {
+        let signposter = StartupSignposts.signposter
         // First, so an uncaught Kotlin exception during the Koin start is reported too (off without the config file).
-        CrashReporting.startIfConfigured()
+        signposter.withIntervalSignpost("CrashReportingStart") {
+            CrashReporting.startIfConfigured()
+        }
 
         #if UITEST_SEAM
         // Debug-UITest only (the test-only framework variant): a UI test's scenario replaces the
@@ -28,13 +32,19 @@ struct TrailMetricsApp: App {
             UIView.setAnimationsEnabled(false)
         } else {
             uiTestControls = nil
-            KoinInitIosKt.doInitKoinIos()
+            signposter.withIntervalSignpost("KoinStart") {
+                KoinInitIosKt.doInitKoinIos()
+            }
         }
         #else
-        KoinInitIosKt.doInitKoinIos()
+        signposter.withIntervalSignpost("KoinStart") {
+            KoinInitIosKt.doInitKoinIos()
+        }
         #endif
 
-        RouteMapConfiguration.configureIfKeyPresent()
+        signposter.withIntervalSignpost("MapsConfigure") {
+            RouteMapConfiguration.configureIfKeyPresent()
+        }
     }
 
     var body: some Scene {
