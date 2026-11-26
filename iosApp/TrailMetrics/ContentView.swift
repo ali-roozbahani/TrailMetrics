@@ -31,6 +31,7 @@ struct ContentView: View {
                 .tag(AppTab.history)
         }
         .tint(Color.trailGreen)
+        .onAppear { StartupSignposts.endFirstScreen() }
         .onOpenURL(perform: handleOpenURL)
         // Once per launch: the model ignores a later run of this task.
         .task { await savedSessionOffer.restoreOnce() }

@@ -19,8 +19,26 @@ budget's 10% is well above the 0.6% seen here, but more series are needed before
 
 What the numbers say: the three named phases in `TrailMetricsApp.init` together take under 4 ms of the
 roughly 1000 ms. The rest is before `init` (process start, loading the app's frameworks, the Kotlin
-framework among them) and after it (the first SwiftUI frame). No phase is marked there yet, so this file
-makes no claim about where in it the time goes.
+framework among them) and after it (the first SwiftUI frame).
+
+## Series 3: the time after `init` (2026-11-26)
+
+`FirstScreenAppear` runs from the end of `TrailMetricsApp.init` to the first `onAppear` of `ContentView`'s
+tab view. Same setup and command, one series of 20, measured on the code of commit 2412cc77 (subsystem
+`dev.roozbahani.TrailMetrics`):
+
+| Metric | Median | Range |
+|---|---|---|
+| `cold_start_first_frame_ms` (`Duration (AppLaunch)`) | 1013 ms | 983 to 1661 ms |
+| `FirstScreenAppear` interval | 448 ms | 433 to 772 ms |
+| `CrashReportingStart`, `KoinStart`, `MapsConfigure` | 2.87 ms, 0.72 ms, 0.07 ms | |
+
+So about 448 ms of the launch is between the end of `init` and the first screen's appearance: building
+the first SwiftUI hierarchy (the Route tab, its map view, the History tab) and whatever runs on the main
+actor meanwhile. The remaining roughly 550 ms is before `init` and after `onAppear` (the first frame's
+render), neither marked. This series' launch median is 1.0% above the baseline (1002 ms): above both earlier medians
+(1002 and 996 ms) but inside the range of their runs (953 to 1668 ms). Whether the added signpost costs
+anything is not distinguishable from noise in one series.
 
 ## Setup
 
@@ -38,7 +56,7 @@ makes no claim about where in it the time goes.
     launch does not wait for the map either way.
 - Metric: `XCTApplicationLaunchMetric()` (launch until the app's first frame), with
   `XCTOSSignpostMetric` for the app's `os_signpost` intervals (`StartupSignposts`, subsystem
-  `dev.roozbahani.TrailMetrics`, category `Startup`). The series were taken at commit 6eafb89, where the subsystem was
+  `dev.roozbahani.TrailMetrics`, category `Startup`). Series 1 and 2 were taken at commit 6eafb89, where the subsystem was
   spelled `dev.roozbahani.trailmetrics`; the spelling was then aligned with the app's other logger, nothing else
   changed. Each iteration calls `XCUIApplication().launch()`,
   which terminates the instance of the iteration before.
