@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -440,6 +441,27 @@ class TrackingScreenTest {
 
         robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
         assertTrue(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a save warning whose snackbar runs out while the app is not visible stays raised and shows again`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        showStartedSession().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // The app goes to the background (the screen off) while the long snackbar shows, and its time runs out there.
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        robot.waitForLongSnackbarToHide()
+
+        assertTrue(
+            fixture.sessionManager.unsavedSessionWarning.isRaised.value,
+            "the warning counted as shown while the app was not visible"
+        )
+
+        // Back in the foreground: the warning is shown again, and counts as shown once it ran its course there.
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        robot.waitForLongSnackbarToHide()
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test

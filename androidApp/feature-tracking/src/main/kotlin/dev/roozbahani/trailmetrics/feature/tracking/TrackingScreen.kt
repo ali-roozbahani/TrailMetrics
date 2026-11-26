@@ -64,7 +64,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
@@ -133,6 +136,7 @@ fun TrackingRoot(
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val permissionHandler = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -155,33 +159,39 @@ fun TrackingRoot(
 
     // Lint flags Context.getString on LocalContext.current because a value read in composition goes stale when the
     // Configuration changes. Here it is read once per event, when the snackbar is shown, and not kept in state.
+    // Events are collected only while the screen is visible (STARTED): a snackbar that would run out with the app in
+    // the background is cancelled when it stops, so the unsaved-session warning never counts as shown unseen; it is
+    // still raised, and the next collection, when the screen is visible again, shows it again. Events of the Channel
+    // wait for that collection.
     @Suppress("LocalContextGetResourceValueCall")
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is TrackingEvent.ShowError -> {
-                    // A child of this effect, so the next event is not held until the snackbar is
-                    // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
-                    launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
-                }
-
-                is TrackingEvent.ShowSessionNotSaved -> {
-                    launch {
-                        snackBarHostState.showSnackbar(
-                            message = context.getString(R.string.msg_session_not_saved),
-                            duration = SnackbarDuration.Long
-                        )
-                        // Only once it was on screen: a snackbar still queued, or cut off because the Root left
-                        // composition, leaves the warning raised for the next screen.
-                        viewModel.onAction(TrackingAction.SessionNotSavedShown)
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.events.collect { event ->
+                when (event) {
+                    is TrackingEvent.ShowError -> {
+                        // A child of this effect, so the next event is not held until the snackbar is
+                        // dismissed; SnackbarHostState still shows queued messages one at a time, in order.
+                        launch { snackBarHostState.showSnackbar(context.getString(event.error.stringRes)) }
                     }
-                }
 
-                is TrackingEvent.RequestLocationPermission -> {
-                    permissionHandler.launch(LOCATION_PERMISSIONS)
-                }
+                    is TrackingEvent.ShowSessionNotSaved -> {
+                        launch {
+                            snackBarHostState.showSnackbar(
+                                message = context.getString(R.string.msg_session_not_saved),
+                                duration = SnackbarDuration.Long
+                            )
+                            // Only once it ran its course on screen: a snackbar still queued, or cut off because the
+                            // Root left composition or the app went to the background, leaves the warning raised.
+                            viewModel.onAction(TrackingAction.SessionNotSavedShown)
+                        }
+                    }
 
-                is TrackingEvent.Saved -> currentOnNavigateBack()
+                    is TrackingEvent.RequestLocationPermission -> {
+                        permissionHandler.launch(LOCATION_PERMISSIONS)
+                    }
+
+                    is TrackingEvent.Saved -> currentOnNavigateBack()
+                }
             }
         }
     }
