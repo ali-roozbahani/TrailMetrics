@@ -9,6 +9,7 @@
 #   scripts/queue/queue.sh set <slug> <field>=<value>...     fields: status, pr, branch
 #   scripts/queue/queue.sh show
 #   scripts/queue/queue.sh next
+#   scripts/queue/queue.sh may-push <branch>
 #   scripts/queue/queue.sh --self-test
 #
 # The queue file: ${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}, outside the repository
@@ -59,6 +60,17 @@
 # queue session goes. The cleaner keeps everything an open entry uses and refuses a directory that is not
 # the agent workspace, so it does nothing for a queue file outside it; its failure never fails the `set`.
 #
+# may-push <branch> says whether a push of <branch> (or a PR from it) is allowed, from the file alone
+# (owner decision of 2026-11-26: a PR of the queue is pushed only when the queue says PUSH for it). The
+# push hook (scripts/claude-hooks/require-local-review.sh) asks it for every branch a `git push` or
+# `gh pr create` names; a `refs/heads/` prefix is ignored. One line:
+#   OUTSIDE <branch>        exit 0   no entry has this branch (a task outside the queue, an epic branch)
+#   ALLOW <slug> PUSH       exit 0   `next` prints `PUSH <slug>`: the entry's first push and its PR
+#   ALLOW <slug> pushed #N  exit 0   the entry is pushed: a new commit for its open PR (a CI fix, a merge)
+#   REFUSE <slug> ...       exit 1   any other state: planned, building, ready behind another entry,
+#                                    merged or dropped
+# A missing queue file is OUTSIDE for every branch; an unreadable one exits 2 (the hook then blocks).
+#
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Lock: `add` and `set` read the file, validate against it and replace it, so two of them at the same
@@ -80,6 +92,7 @@ TAB="$(printf '\t')"
 USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
        scripts/queue/queue.sh task <slug>
        scripts/queue/queue.sh set <slug> <field>=<value>...   (status, pr, branch)
+       scripts/queue/queue.sh may-push <branch>
        scripts/queue/queue.sh show | next | --self-test"
 
 usage() { echo "$USAGE" >&2; exit 2; }
@@ -305,6 +318,20 @@ cmd_show() {
                 print line c[r, n[r]]
             }
         }'
+}
+
+# may-push <branch>: whether a push of <branch>, or a PR from it, is allowed by the queue (see the header).
+cmd_may_push() {
+    local branch="${1#refs/heads/}" row slug status pr nxt
+    [ -n "$branch" ] || usage
+    row="$(entries | awk -F '\t' -v b="$branch" '$3 == b { print; exit }')" || exit 2
+    if [ -z "$row" ]; then echo "OUTSIDE $branch"; return 0; fi
+    slug="$(printf '%s\n' "$row" | cut -f2)"; status="$(printf '%s\n' "$row" | cut -f6)"; pr="$(printf '%s\n' "$row" | cut -f7)"
+    if [ "$status" = pushed ]; then echo "ALLOW $slug pushed #$pr"; return 0; fi
+    nxt="$(cmd_next)" || exit 2
+    if [ "$nxt" = "PUSH $slug" ]; then echo "ALLOW $slug PUSH"; return 0; fi
+    echo "REFUSE $slug is $status and the queue says '$nxt', not 'PUSH $slug'"
+    return 1
 }
 
 cmd_next() {
@@ -567,6 +594,27 @@ self_test() {
     rm -f "$(dirname "$QF")/tasks/b.md"
     check "task of an entry whose text is gone" "queue: refused: 'b' has no task text ($(dirname "$QF")/tasks/b.md is missing)" 1 nt task b
     check "a refused add (duplicate slug) keeps the first text" "Do the thing." 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' add a --branch chore/a2 --task '$tmp/other.txt' >/dev/null 2>&1; cat '$(dirname "$QF")/tasks/a.md' | head -1"
+    # may-push: a push of an entry's branch only when the queue says PUSH for it, or for its open PR.
+    fresh mp0
+    check "may-push: no queue file, every branch is outside" "OUTSIDE chore/x" 0 q may-push chore/x
+    fresh mp1; line 1 a - agent pushed 386; line 2 b - owner ready -; line 3 c - agent planned -; line 4 d - agent merged 380; line 5 e - agent dropped -
+    check "may-push: a branch not in the queue is outside" "OUTSIDE feature/epic/route" 0 q may-push feature/epic/route
+    check "may-push: the pushed entry takes new commits" "ALLOW a pushed #386" 0 q may-push chore/a
+    check "may-push: refs/heads/ is ignored" "ALLOW a pushed #386" 0 q may-push refs/heads/chore/a
+    check "may-push: a ready entry behind a PR waiting for the owner is refused (the #386/#387 case)" "REFUSE b is ready and the queue says 'BUILD c', not 'PUSH b'" 1 q may-push chore/b
+    check "may-push: a planned entry is refused" "REFUSE c is planned and the queue says 'BUILD c', not 'PUSH c'" 1 q may-push chore/c
+    check "may-push: a merged entry is refused" "REFUSE d is merged and the queue says 'BUILD c', not 'PUSH d'" 1 q may-push chore/d
+    check "may-push: a dropped entry is refused" "REFUSE e is dropped and the queue says 'BUILD c', not 'PUSH e'" 1 q may-push chore/e
+    fresh mp2; line 1 a - agent merged 386; line 2 b - owner ready -
+    check "may-push: once the previous PR is merged, PUSH allows it" "ALLOW b PUSH" 0 q may-push chore/b
+    fresh mp3; line 1 a - agent ready -; line 2 b - agent ready -
+    check "may-push: only the entry that PUSH names" "REFUSE b is ready and the queue says 'PUSH a', not 'PUSH b'" 1 q may-push chore/b
+    fresh mp4; line 1 a - agent building -
+    check "may-push: a building entry is refused" "REFUSE a is building and the queue says 'FINISH_BUILD a', not 'PUSH a'" 1 q may-push chore/a
+    fresh mpbad; mkdir -p "$tmp/mpbad"; printf 'x\ta\n' > "$QF"
+    check "may-push: an unreadable queue file exits 2" "queue: $QF:1 is not <order> <slug> <branch> <after> <kind> <status> <pr>" 2 q may-push chore/a
+    check "may-push without a branch is a usage error" "usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]" 2 q may-push
+
     if [ "$fails" = 0 ]; then echo "queue.sh self-test: all passed"; else echo "queue.sh self-test: $fails failed" >&2; fi
     [ "$fails" = 0 ]
     exit $?
@@ -579,5 +627,6 @@ case "${1:-}" in
     show) [ "$#" = 1 ] || usage; cmd_show ;;
     task) [ "$#" = 2 ] || usage; cmd_task "$2" ;;
     next) [ "$#" = 1 ] || usage; cmd_next ;;
+    may-push) [ "$#" = 2 ] || usage; cmd_may_push "$2" ;;
     *) usage ;;
 esac

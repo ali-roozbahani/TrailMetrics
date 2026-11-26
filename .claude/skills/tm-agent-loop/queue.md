@@ -135,6 +135,13 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   entry comes after it: re-point or drop that entry first, as "Recording events" says; then `HOLD` above).
   Why: #387 was pushed while #386 still waited for the owner, and the queue
   could not record #387 as merged afterwards (its entry said dropped).
+- **The push hook.** The rule does not depend on following `next`: `scripts/claude-hooks/require-local-review.sh`
+  asks `scripts/queue/queue.sh may-push <branch>` for every branch a `git push` writes or a `gh pr create`
+  opens a PR from, and blocks the command on `REFUSE`. An entry's branch is allowed when `next` prints
+  `PUSH <slug>` (its first push and its PR) or the entry is `pushed` (a new commit for its open PR: a CI fix,
+  a local merge after `CONFLICT`). A branch that is no entry (a task outside the queue, an epic branch) is
+  not affected, and neither is `scripts/queue/update-branch.sh`, which pushes nothing locally. A block is
+  not worked around: build the entry, wait for the merge, push at `PUSH`.
 - **Owner PRs stay current.** Owner entries are pushed last, when everything ahead is merged, and
   one PR of the queue is pushed at a time, so the agent's own merges never leave an owner PR behind
   `main`. Only a merge outside the queue can (`BEHIND` above); after the update, post a fresh Merge

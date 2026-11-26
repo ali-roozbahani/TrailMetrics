@@ -163,6 +163,8 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   and the agent has synced with `main` (owner decision of 2026-11-26). While a PR waits for the owner, the
   agent may build the next entries locally but does not push them; once the owner has merged, it merges
   `main` into them, reviews and gates once, and pushes (`queue.md`, "Merge, hand-over and the read of main").
+  The push hook enforces it: a `git push` or `gh pr create` of a queue entry's branch is blocked unless
+  `scripts/queue/queue.sh may-push <branch>` allows it (`queue.md`, "The push hook").
 - Wait in the background (section 6 for the pushed PR's checks, `scripts/queue/watch-prs.sh --wait`
   otherwise); never end the turn while a wait runs.
 - Merge when the six conditions hold and the read of `main` right before it shows

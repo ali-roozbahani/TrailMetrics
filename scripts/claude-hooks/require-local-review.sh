@@ -14,6 +14,14 @@
 # group or `||` list, or a cd that is not the command word of its segment) blocks a later push or
 # PR creation.
 #
+# The same push or PR creation is also checked against the local PR queue (owner decision of
+# 2026-11-26): for each branch it writes (no refspec or `HEAD` = the checked-out branch, `src` = src,
+# `src:dst` = dst, `refs/heads/` dropped; a deletion or a tag is none) or opens a PR from (`--head`, or
+# the checked-out branch), `scripts/queue/queue.sh may-push <branch>` must allow it. A branch that is no
+# queue entry (a task outside the queue, an epic branch) passes; an entry's branch passes only when
+# `queue.sh next` says PUSH for it or the entry is `pushed` (a new commit for its open PR); every other
+# state blocks. `scripts/queue/update-branch.sh` pushes nothing locally, so it is not affected.
+#
 # The hook also blocks the main session from calling `local-review-gate.sh record`
 # or touching the review records through the shell: the records come from the reviewer itself.
 #
@@ -53,6 +61,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/../local-review-gate.sh"
+QUEUE="$SCRIPT_DIR/../queue/queue.sh"
 # A segment that has the words git ... push or gh ... pr ... create in order, whatever sits between
 # them (global options, option arguments): when its command is not git / gh itself it is a wrapper.
 PUSH_OR_PR_RE='(^|[^[:alnum:]_-])(git[[:space:]]([^|]*[[:space:]])?push|gh[[:space:]]([^|]*[[:space:]])?pr[[:space:]]+create)([^[:alnum:]_-]|$)'
@@ -223,6 +232,7 @@ push_targets() {
     # positional[0] is the remote, the rest are refspecs.
     if [ "${#positional[@]}" -le 1 ]; then
         resolve_commit "$dir" HEAD
+        [ "$delete" = 1 ] || dest_branch "$dir" HEAD
         return 0
     fi
     for word in "${positional[@]:1}"; do
@@ -232,12 +242,29 @@ push_targets() {
         if [[ "$word" == *:* ]]; then
             src="${word%%:*}"
             [ -n "$src" ] || continue # ":dst" deletes dst
+            dest_branch "$dir" "${word#*:}"
         else
             src="$word"
+            dest_branch "$dir" "$src"
         fi
         resolve_commit "$dir" "$src"
     done
     [ "$refs" = 1 ] || resolve_commit "$dir" HEAD
+}
+
+# dest_branch <dir> <ref>: "BRANCH <name>" for the branch a push writes or a PR is opened from, which
+# the queue check reads (queue.sh may-push). HEAD is the checked-out branch (none when detached); a
+# ref outside refs/heads/ (a tag) is no branch.
+dest_branch() {
+    local ref="$2"
+    if [ "$ref" = HEAD ]; then
+        ref="$(git_in "$1" symbolic-ref --short -q HEAD 2>/dev/null)" || return 0
+    fi
+    case "$ref" in
+        refs/heads/*) ref="${ref#refs/heads/}" ;;
+        refs/*) return 0 ;;
+    esac
+    [ -z "$ref" ] || echo "BRANCH $ref"
 }
 
 pr_targets() {
@@ -254,10 +281,12 @@ pr_targets() {
     done
     if [ -z "$head" ]; then
         resolve_commit "$dir" HEAD
+        dest_branch "$dir" HEAD
     elif [[ "$head" == *:* ]]; then
         echo "BLOCK gh pr create --head $head names a branch of another owner; the review of its commit cannot be checked"
     else
         resolve_commit "$dir" "$head"
+        dest_branch "$dir" "$head"
     fi
 }
 
@@ -309,6 +338,19 @@ handle_pre_tool_use() {
         if [[ "$target" == BLOCK\ * ]]; then
             echo "Blocked: ${target#BLOCK }." >&2
             return 2
+        fi
+        if [[ "$target" == BRANCH\ * ]]; then
+            # The queue's push rule (queue.sh may-push): the branch of a queue entry is pushed, and its PR
+            # opened, only when `queue.sh next` says PUSH for it or the entry's PR is the open one.
+            [ -f "$QUEUE" ] || { echo "Blocked: $QUEUE is missing, so the queue's push rule cannot be checked." >&2; return 2; }
+            reason="$(bash "$QUEUE" may-push "${target#BRANCH }" 2>&1)" || {
+                {
+                    echo "Blocked by the queue: ${reason#REFUSE }."
+                    echo "A PR of the queue is pushed only when 'scripts/queue/queue.sh next' prints PUSH for it, after the previous PR of the queue is merged (tm-agent-loop, section 9). Build it locally, wait for the merge, then push at PUSH. Do not work around this hook."
+                } >&2
+                return 2
+            }
+            continue
         fi
         if ! reason="$(cd "$root" && "$GATE" check "$target" 2>&1 >/dev/null)"; then
             {
@@ -520,6 +562,36 @@ self_test() {
     expect "gh api POST pulls blocks" 2 "gh api repos/o/r/pulls -f title=t"
     review "$other" APPROVE
     expect "push of another branch with its review allowed" 0 "git push origin other:branch"
+    # The queue's push rule (queue.sh may-push): with every commit reviewed, a branch of a queue entry is
+    # pushed only at PUSH or while its own PR is the open one; a branch outside the queue is not affected.
+    export QUEUE_FILE="$tmp/queue/queue.tsv"
+    mkdir -p "$tmp/queue"
+    printf '1\ta\tchore/a\t-\tagent\tpushed\t386\n2\tm\tmain\t-\towner\tready\t-\n3\tc\tchore/c\t-\tagent\tplanned\t-\n' > "$QUEUE_FILE"
+    queue_reason() { # queue_reason <name>: the last block came from the queue check, with the queue's reason
+        if grep -qF "Blocked by the queue: m is ready and the queue says 'BUILD c', not 'PUSH m'." "$tmp/err"; then echo "ok   $1"; else
+            echo "FAIL $1: $(head -c 300 "$tmp/err")" >&2; fails=$((fails + 1)); fi
+    }
+    expect "queue: a ready entry behind a pushed PR is not pushed (the #386/#387 case)" 2 "git push"
+    queue_reason "queue: the block names the queue's reason"
+    expect "queue: nor with the remote and HEAD named" 2 "git push -u origin HEAD"
+    expect "queue: nor another commit pushed to its branch" 2 "git push origin other:main"
+    expect "queue: nor with refs/heads/ in the refspec" 2 "git push origin other:refs/heads/main"
+    expect "queue: nor through git -C" 2 "git -C $repo push"
+    expect "queue: no PR is opened from it" 2 "gh pr create --base main --body-file b.md"
+    expect "queue: nor with --head naming it" 2 "gh pr create --head main --base main"
+    queue_reason "queue: the PR creation block names the queue's reason"
+    expect "queue: a branch outside the queue (a named task, an epic branch) is pushed" 0 "git push origin other:feature/epic/x"
+    expect "queue: the pushed entry's branch takes a new commit" 0 "git push origin other:chore/a"
+    expect "queue: deleting a queue branch pushes nothing" 0 "git push origin --delete main"
+    expect "queue: a tag is no branch" 0 "git push origin other:refs/tags/v1"
+    printf '1\ta\tchore/a\t-\tagent\tmerged\t386\n2\tm\tmain\t-\towner\tready\t-\n3\tc\tchore/c\t-\tagent\tmerged\t388\n' > "$QUEUE_FILE"
+    expect "queue: at PUSH the entry is pushed" 0 "git push -u origin main"
+    expect "queue: at PUSH its PR is opened" 0 "gh pr create --base main --body-file b.md"
+    printf 'x\ta\n' > "$QUEUE_FILE"
+    expect "queue: an unreadable queue file blocks" 2 "git push"
+    rm -f "$QUEUE_FILE"
+    expect "queue: no queue file, nothing is in the queue" 0 "git push"
+    unset QUEUE_FILE
     expect "calling record from the shell blocks" 2 "scripts/local-review-gate.sh record $sha"
     expect "touching the records directory blocks" 2 "echo x > $tmp/reviews/$sha/report"
     for tool in Write Edit MultiEdit NotebookEdit; do

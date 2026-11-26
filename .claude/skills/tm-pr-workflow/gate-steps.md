@@ -53,5 +53,7 @@ Moved word for word from `SKILL.md`, "Tier 1: the local gate" (the bullets from 
   run it: go back. A second hook, `scripts/claude-hooks/require-local-review.sh`, also blocks
   `git push` and `gh pr create` unless the reviewer's own report for the commit that would be
   pushed (the pushed ref resolved to a SHA: `git push origin other:branch` needs the review of
-  `other`) allows it; "Push and PR" (`commits-push-pr.md`) says how to satisfy it. A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
+  `other`) allows it; "Push and PR" (`commits-push-pr.md`) says how to satisfy it. The same hook blocks
+  a push or PR of a queue entry's branch that `scripts/queue/queue.sh may-push` refuses (`tm-agent-loop`,
+  `queue.md`, "The push hook"). A terminal push by the human is not seen by the hook, unchanged. When to run it and record it (after the last commit, before the gate's final run, again after
   every new commit) is in `tm-pr-review`, "Orchestrator's part".
