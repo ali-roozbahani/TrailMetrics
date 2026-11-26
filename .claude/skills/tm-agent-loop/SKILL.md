@@ -46,7 +46,8 @@ missing; the agent never reads or creates it, and stops and reports instead.
 A named task skips only section 1: after "Before starting" and the work it goes through
 sections 3 to 9, Auto-merge, After-merge cleanup, Stop and Report exactly as a picked one.
 
-The task is done when its PR and every PR queued from it are merged or handed to the owner. A run
+The task is done when its PR and every PR queued from it are merged, handed to the owner, or left
+unpushed behind a PR handed to the owner. A run
 ends at the queue's `DONE`, when the owner wait runs out, or at a stop condition (section 9). A
 session continues from `scripts/queue/queue.sh show` and GitHub, never from memory. The next
 task is a new run; the human clears the session between runs.
@@ -158,6 +159,10 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   pushed), and record every change of an entry's state with
   `queue.sh set` before the next action. At `PUSH`: merge `origin/main` when behind, then review
   and gate once. Never rebase, force-push or open a PR against a base other than `main`.
+- **A PR of the queue is pushed only after the previous one is merged** (by the agent or by the owner)
+  and the agent has synced with `main` (owner decision of 2026-11-26). While a PR waits for the owner, the
+  agent may build the next entries locally but does not push them; once the owner has merged, it merges
+  `main` into them, reviews and gates once, and pushes (`queue.md`, "Merge, hand-over and the read of main").
 - Wait in the background (section 6 for the pushed PR's checks, `scripts/queue/watch-prs.sh --wait`
   otherwise); never end the turn while a wait runs.
 - Merge when the six conditions hold and the read of `main` right before it shows
@@ -165,8 +170,8 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   progress is not a reason to wait, nor is a cancelled one (`unverified`, exit 5: reported, not a stop); an unacknowledged red run stops everything, as at the start of
   a task), else hand over with a fresh Merge check comment. A PR behind
   `main` from a merge outside the queue: `scripts/queue/update-branch.sh` (the fallback).
-- Only owner PRs left: wait at most 180 minutes, then report them in queue order with their exact
-  merge commands (full 40-character SHA).
+- A PR handed to the owner and nothing left to build: wait at most 180 minutes, then report it with
+  its exact merge command (full 40-character SHA) and the entries not pushed yet.
 
 ## Stop and report
 
@@ -184,7 +189,8 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
   PR is never a way to re-trigger the reviewer (`tm-pr-workflow`, `commits-push-pr.md`, "PR description": the rule is stated
   there once); after any description edit read the current head SHA's checks again.
 - The read of `main` right before a merge shows an unacknowledged red run (section 9), or fails.
-- A merge condition that is "no" is not a stop: the PR is handed over and the queue goes on.
+- A merge condition that is "no" is not a stop: the PR is handed over, and the queue builds
+  but pushes nothing until the owner has merged it (section 9).
 
 ## Report
 

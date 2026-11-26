@@ -124,7 +124,8 @@ text exists, posts it through the REST API when it does not, and fails (exit 1) 
 The reason after "no" is the condition that is "no", or the first line of the merge
 command's refusal. The agent runs the merge command in section 8 only when all six are "yes".
 When any condition is "no", the comment is posted without a merge attempt and the PR is handed to
-the human, who merges; the queue goes on (section 9). A refused merge is handled the same way.
+the human, who merges; the PR stays pushed, and the queue builds the next entries locally but
+pushes none until the owner has merged it (section 9). A refused merge is handled the same way.
 
 
 ## After-merge cleanup
