@@ -226,7 +226,7 @@ class UiTestFakesTest {
             launchUiTest(scenario)
             val store = KoinPlatform.getKoin().get<TrackingSessionStore>()
             val session = UiTestFixtures.pausedSession
-            if (scenario.failsSessionSave) {
+            if (scenario.sessionStore == UiTestSessionStore.FailsEverySave) {
                 assertFailsWith<IllegalStateException>("$scenario") { store.save(session) }
             } else {
                 store.save(session)
@@ -287,7 +287,10 @@ class UiTestFakesTest {
 
     @Test
     fun `scenarios that do not walk emit no location update and stay open`() = runTest {
-        UiTestScenario.entries.filterNot { it.walksRoute || it.reportsLocationIssueThenFailsSave }.forEach { scenario ->
+        val walksOrReportsIssue = { scenario: UiTestScenario ->
+            scenario.walksRoute || scenario.sessionStore == UiTestSessionStore.FailsSavesAfterLocationIssue
+        }
+        UiTestScenario.entries.filterNot(walksOrReportsIssue).forEach { scenario ->
             val launch = launchUiTest(scenario)
             val updates = mutableListOf<LocationUpdate>()
 

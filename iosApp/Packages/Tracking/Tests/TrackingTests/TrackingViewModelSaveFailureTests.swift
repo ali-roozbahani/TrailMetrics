@@ -58,8 +58,8 @@ final class TrackingViewModelSaveFailureTests: TrackingTestCase {
         XCTAssertEqual(secondRecorder.events.filter(\.isSessionNotSaved).count, 1, "got \(secondRecorder.events)")
     }
 
-    /// Finish while the warning is still on screen (its OK not yet tapped): the warning belongs to the ended session, so
-    /// the next stream (the next Tracking screen) is not offered it.
+    /// Finish while the warning is still on screen (its OK not yet tapped): the warning belongs to the ended session,
+    /// so the next stream (the next Tracking screen) is not offered it.
     func test_finishBeforeTheWarningWasShown_offersNoWarningToTheNextStream() async {
         let store = FakeTrackingSessionStore()
         store.setSaveFailing(true)
@@ -72,7 +72,9 @@ final class TrackingViewModelSaveFailureTests: TrackingTestCase {
         let firstRecorder = EventRecorder(viewModel.makeEventsStream())
         viewModel.onStartClicked()
         await waitUntil { firstRecorder.events.contains(where: \.isSessionNotSaved) }
-        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count && viewModel.calories != nil }
+        await waitUntil {
+            viewModel.currentPath.count == TrackingFixtures.movingPath.count && viewModel.calories != nil
+        }
 
         viewModel.onStopClicked()
         var onSavedCallCount = 0

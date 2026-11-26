@@ -16,10 +16,8 @@ enum class UiTestScenario(
     internal val heldCall: UiTestHeldCall?,
     internal val failsDelete: Boolean,
     internal val walksRoute: Boolean,
-    internal val storesPausedSession: Boolean = false,
     internal val firstDirectionsHasNoConnection: Boolean = false,
-    internal val failsSessionSave: Boolean = false,
-    internal val reportsLocationIssueThenFailsSave: Boolean = false
+    internal val sessionStore: UiTestSessionStore = UiTestSessionStore.Empty
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -53,7 +51,7 @@ enum class UiTestScenario(
         heldCall = null,
         failsDelete = false,
         walksRoute = false,
-        storesPausedSession = true
+        sessionStore = UiTestSessionStore.StoresPausedSession
     ),
 
     /**
@@ -85,7 +83,7 @@ enum class UiTestScenario(
         heldCall = null,
         failsDelete = false,
         walksRoute = false,
-        failsSessionSave = true
+        sessionStore = UiTestSessionStore.FailsEverySave
     ),
 
     /**
@@ -99,8 +97,26 @@ enum class UiTestScenario(
         heldCall = null,
         failsDelete = false,
         walksRoute = false,
-        reportsLocationIssueThenFailsSave = true
+        sessionStore = UiTestSessionStore.FailsSavesAfterLocationIssue
     )
+}
+
+/** What a scenario's session store holds at launch, and when its saves throw. */
+internal enum class UiTestSessionStore {
+    /** Nothing stored; every save succeeds. */
+    Empty,
+
+    /** Holds [UiTestFixtures.pausedSession], as an app killed while paused leaves it; every save succeeds. */
+    StoresPausedSession,
+
+    /** Nothing stored; every save throws. */
+    FailsEverySave,
+
+    /**
+     * Nothing stored; the location stream first reports the location unavailable (a location issue), then one fix,
+     * and every save after the issue throws.
+     */
+    FailsSavesAfterLocationIssue
 }
 
 /** The repository call a scenario holds until [UiTestControls.releaseHeldCalls]. */
