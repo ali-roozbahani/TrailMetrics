@@ -26,24 +26,17 @@ class RestartActionTest {
     }
 
     @Test
-    fun `a paused session shows the distance in meters and offers to continue`() {
+    fun `a paused session leaves the paused notice with its distance`() {
         val action = restartActionFor(TrackingState.Paused(metrics(850.4)))
 
-        assertEquals(RestartAction.ShowNotice("Paused - 850 m, tap to continue"), action)
+        assertEquals(RestartAction.ShowNotice(RestartNotice.Paused(850.4)), action)
     }
 
     @Test
-    fun `a paused session over a kilometer shows kilometers`() {
-        val action = restartActionFor(TrackingState.Paused(metrics(1234.0)))
-
-        assertEquals(RestartAction.ShowNotice("Paused - 1.23 km, tap to continue"), action)
-    }
-
-    @Test
-    fun `a finished session says it is not saved and offers to save`() {
+    fun `a finished session leaves the finished notice`() {
         val action = restartActionFor(TrackingState.Finished(metrics(5000.0)))
 
-        assertEquals(RestartAction.ShowNotice("Finished - not saved, tap to save"), action)
+        assertEquals(RestartAction.ShowNotice(RestartNotice.Finished), action)
     }
 
     @Test
@@ -58,8 +51,8 @@ class RestartActionTest {
             calls += "stop"
         }
 
-        override fun leaveNotice(text: String) {
-            calls += "notice: $text"
+        override fun leaveNotice(notice: RestartNotice) {
+            calls += "notice: $notice"
         }
 
         override suspend fun keepTracking() {
@@ -90,7 +83,7 @@ class RestartActionTest {
 
         handleRestart({ TrackingState.Paused(metrics(850.0)) }, RecordingLogger(), effects)
 
-        assertEquals(listOf("notice: Paused - 850 m, tap to continue"), effects.calls)
+        assertEquals(listOf("notice: ${RestartNotice.Paused(850.0)}"), effects.calls)
     }
 
     @Test
@@ -109,7 +102,7 @@ class RestartActionTest {
 
         handleRestart({ error("unreadable") }, logger, effects)
 
-        assertEquals(listOf("notice: Could not restore your saved session, tap to open"), effects.calls)
+        assertEquals(listOf("notice: ${RestartNotice.RestoreFailed}"), effects.calls)
         assertTrue(logger.messages.any { "unreadable" in it })
     }
 

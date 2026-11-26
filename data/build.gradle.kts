@@ -34,7 +34,8 @@ kotlin {
         androidResources {
             enable = true
         }
-        withHostTestBuilder {}.configure {}
+        // The host tests read the module's string resources (the restart notices).
+        withHostTestBuilder {}.configure { isIncludeAndroidResources = true }
     }
 
     iosArm64()
