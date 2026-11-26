@@ -21,6 +21,9 @@ decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.
   `UITestProbe.refreshedCounters()` and `releasedCounters()`.
 - **Determinism (D5).**
   - one `launch` per test, with its scenario; no test depends on another or on simulator state;
+    the one exception is `LaunchPerformanceTests`, which launches several times with no scenario to
+    measure the launch: it runs on request (`docs/performance/ios-cold-start.md`), never in the gate or
+    the full run on `main` (`scripts/ios-ui-tests.sh` skips it; owner decision of 2026-11-26);
   - wait with `waitForExistence(timeout: 10)`; no `sleep`, no fixed delay, in tests or fakes;
   - for an absence, wait for a positive signal first (a probe read, a screen change), then
     assert the element does not exist;

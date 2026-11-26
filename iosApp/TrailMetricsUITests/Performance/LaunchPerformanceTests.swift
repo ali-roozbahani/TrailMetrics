@@ -9,7 +9,8 @@ import XCTest
 // metric, from the launch to the app's first frame, and the app's own startup intervals (`StartupSignposts`).
 // Like `LaunchUITests` it launches the real app with no scenario. It asserts no timing and has no Xcode
 // baseline, so a slow run never fails it: the numbers are read from the result bundle and recorded by hand
-// (docs/performance/ says how). The gate's UI run measures with XCTest's default iteration count; a
+// (docs/performance/ says how). It runs on request only: scripts/ios-ui-tests.sh, which the gate and the
+// full run on main use, skips it (tm-testing D5). Without an iteration count it uses XCTest's default; a
 // measurement for the doc sets more through the runner's environment: `TEST_RUNNER_TM_LAUNCH_ITERATIONS=<n>`
 // in the environment of xcodebuild (docs/performance/ios-cold-start.md has the command).
 final class LaunchPerformanceTests: XCTestCase {
