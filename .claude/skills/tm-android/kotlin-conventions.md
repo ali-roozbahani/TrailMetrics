@@ -28,7 +28,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
   `Icons.Filled.DirectionsRun`), including for AndroidX/Compose/Material APIs deprecated in the
   current BOM.
 - `allWarningsAsErrors = true` is set for every Kotlin module: the root `build.gradle.kts` hooks
-  `plugins.withId("com.android.application")` / `("com.android.library")` for `androidApp/*`
+  `plugins.withId("com.android.application")` / `("com.android.library")` / `("com.android.test")` for `androidApp/*`
   (AGP 9 built-in Kotlin, so `org.jetbrains.kotlin.android` is never applied) and the
   `org.jetbrains.kotlin.multiplatform` block for KMP modules. Any compiler warning, including a
   deprecation or an unacknowledged `@RequiresOptIn`, fails the build.

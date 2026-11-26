@@ -29,6 +29,7 @@ include(":androidApp:core-testing")
 include(":androidApp:feature-route")
 include(":androidApp:feature-tracking")
 include(":androidApp:feature-history")
+include(":androidApp:benchmark")
 
 include(":domain")
 include(":core")

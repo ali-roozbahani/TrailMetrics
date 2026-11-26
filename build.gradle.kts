@@ -17,6 +17,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.buildkonfig) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.android.test) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.google.services) apply false
     alias(libs.plugins.firebase.crashlytics) apply false
@@ -29,7 +30,8 @@ plugins {
 // Report only: the root has no verification rules. The coverage gate is each module's own
 // koverVerify (rules in domain, data and the androidApp feature modules; core, shared, androidApp:app
 // and androidApp:core-ui have none, each build file says why). androidApp:core-testing
-// is left out on purpose, it holds shared test fakes, not code under test.
+// is left out on purpose, it holds shared test fakes, not code under test; so is androidApp:benchmark, a
+// test-only measurement APK with nothing to cover.
 dependencies {
     kover(project(":domain"))
     kover(project(":data"))
@@ -71,12 +73,12 @@ subprojects {
         }
     }
 
-    // androidApp/* modules use AGP 9's built-in Kotlin: AGP registers the `kotlin`
+    // androidApp/* modules (androidApp/benchmark, a com.android.test module, too) use AGP 9's built-in Kotlin: AGP registers the `kotlin`
     // extension itself and the org.jetbrains.kotlin.android plugin id is never applied,
     // so hook on the AGP plugin ids instead. The KMP modules apply
     // com.android.kotlin.multiplatform.library, which is covered by the multiplatform
     // block below, not by these ids.
-    listOf("com.android.application", "com.android.library").forEach { agpPluginId ->
+    listOf("com.android.application", "com.android.library", "com.android.test").forEach { agpPluginId ->
         plugins.withId(agpPluginId) {
             configure<KotlinAndroidProjectExtension> {
                 compilerOptions {
