@@ -177,7 +177,8 @@ fails, so observe through a use case that turns the failure into a value on the 
   `RouteUiErrorGeneral.shared` as the fallback.
 - Never drop an error: no `try?` (rules and the one exception: "SwiftLint", `swiftlint.md`, `optional_try`) and
   no unstructured `Task { try ... }` without `do/catch` (review only). A caught error reaches the
-  user through the ViewModel's `.showError` event, and state stays as it was. Only Kotlin
+  user through an error event of the ViewModel (`.showError`, or one with an action of its own such as
+  Route's `.showNoConnection`, which offers a Retry), and state stays as it was. Only Kotlin
   functions with `@Throws` can throw into Swift without crashing; see `tm-kmp-shared` ("`@Throws`
   policy", `swift-interop.md`). History and Details have no events stream: they publish `errorMessage` and show it
   in an "Error" alert.

@@ -158,6 +158,13 @@ ViewModel via `koinViewModel()`, observes events), `<Screen>Screen` (pure `state
   and a one-line comment saying so.
 - Meaningful `contentDescription` (via string resources, `cd_*` keys) on
   interactive/informational elements; `null` for purely decorative ones.
+- No user-visible text in Kotlin: every text the user reads (a `Text`, a `contentDescription`, a snackbar, a
+  dialog, a notification's title, text and channel name) comes from a string resource (`R.string`): of the
+  module that shows it, or of `core-ui` for a text that several features show. Never a literal, and a
+  formatted text uses format arguments (`%1$s`), never concatenation. A value from `domain` or `data`
+  arrives typed and is mapped to resources (as `RouteUiError.stringRes` in `core-ui` maps it, which the
+  features call). The project-wide rule: `tm-kmp-shared`, "User-visible text". Enforced:
+  reviewer only. Severity: blocking for a new text.
 - Colors and typography come from `core-ui`'s `designsystem/theme`; no ad-hoc color
   literals in features.
 

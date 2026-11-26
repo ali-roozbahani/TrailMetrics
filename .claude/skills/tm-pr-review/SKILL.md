@@ -83,7 +83,10 @@ from memory.
    `type(scope): summary` commit format, Boundaries). Read them under
    `.claude/skills/<name>/SKILL.md`. Also `CLAUDE.md`'s hard rules. For the commit format and the headings of
    the PR description, which are in `.claude/skills/tm-pr-workflow/commits-push-pr.md`, Read that file too.
-   A new hardcoded user-visible string in iOS code, or a localized text without the package bundle (`tm-ios`, "Strings"), is blocking.
+   A new hardcoded user-visible string is blocking, in any module of either platform: iOS code (`tm-ios`, "Strings"),
+   Android code (`tm-android`, "Compose": text from `R.string`) and the shared modules, where `domain`, `data` and
+   `core` hand over a typed value instead of a sentence (`tm-kmp-shared`, "User-visible text"). So is a localized
+   iOS text without the package bundle. The existing ones listed under "Known deviations" are not findings.
 3. **Protected paths.** `protected` is `scripts/check-protected-paths.sh --base BASE`
    output. Also check the `diff` file list against `.github/CODEOWNERS` yourself. Any
    protected file, or a disagreement between the two, means `ESCALATE_TO_HUMAN`.

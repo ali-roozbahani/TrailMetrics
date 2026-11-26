@@ -61,10 +61,12 @@ class TrackingService : LifecycleService(), KoinComponent {
             stopSelf()
         }
 
-        override fun leaveNotice(text: String) {
+        override fun leaveNotice(notice: RestartNotice) {
             stopForeground(STOP_FOREGROUND_REMOVE)
-            val notice = buildRestoredNotification(this@TrackingService, CHANNEL_ID, R.drawable.ic_notif_location, text)
-            getSystemService(NotificationManager::class.java).notify(RESTORED_NOTIFICATION_ID, notice)
+            val text = restartNoticeText(this@TrackingService, notice)
+            val notification =
+                buildRestoredNotification(this@TrackingService, CHANNEL_ID, R.drawable.ic_notif_location, text)
+            getSystemService(NotificationManager::class.java).notify(RESTORED_NOTIFICATION_ID, notification)
             stopSelf()
         }
 

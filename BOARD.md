@@ -364,6 +364,15 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: distances, speeds, calories and durations on iOS (app and widget) are formatted with the user's locale (`Measurement`/`FormatStyle`, or values formatted by the platform), or the decision to keep metric units fixed is recorded; the widget no longer duplicates the shared formatter by hand.
 - Refs: `iosApp/TrackingWidget/TrackingLiveActivity.swift` (`formatDistance`, `formatSpeed`); `domain/.../util/MetricsFormatter.kt` (`formatFixed`); `shared-metrics-formatter-user-visible-strings`.
 
+### android-tracking-notification-text-in-code
+- Type: task
+- Area: data (TrackingService)
+- Order: 228
+- Source: PR for no-user-visible-text-in-code-rule
+- Problem: The rule of 2026-11-25 (`tm-kmp-shared`, "User-visible text") says no user-visible text is written in code. `TrackingService`'s foreground notification builds its text in Kotlin ("Tracking..." and "Paused - " with `formatDistance`, "Setting up..."), its title is `"TrailMetrics"`, its action label `"Stop"` and its channel name `"Tracking"`, and `RestoredNotification`'s title is `"TrailMetrics"`. Not on the board before, and not one of the owner's existing records (226, 227). A board record and not a queue entry because the queue held its limit of 5 open entries when the rule was written; the agent can do it.
+- Done when: those texts (text, title, action label, channel name) come from `data`'s `strings.xml` (the state handed over as a typed value, as `RouteUiError` is), with a test that reads them, and the `TrackingService`/`RestoredNotification` line of `tm-kmp-shared`'s "Known deviations" is removed.
+- Refs: `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/tracking/TrackingService.kt` (`createNotificationChannel`, the notification builder); `RestoredNotification.kt`; `shared-metrics-formatter-user-visible-strings` (the distance text); `android-tracking-notification-content` (the same notification's content, to plan together).
+
 ### skill-folder-front-matter-detection
 - Type: task
 - Area: scripts
@@ -724,15 +733,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Needs the owner's decision and design: nothing in this repository releases yet (no tag, signing or store-build step; see `android-first-minified-release-build` and `release-build-links-debug-xcframework`), so nothing calls `scripts/main-ui-run.sh --release`, which exits 0 only when the full UI run of the current `main` is green (it runs that run first when it is due). Low priority.
 - Done when: a release step exists and its first action is `scripts/main-ui-run.sh --release`; the step stops when that exits non-zero, and a test or self-test of the step shows it.
 - Refs: `scripts/main-ui-run.sh`; `.claude/skills/tm-agent-loop/SKILL.md` (section 9).
-
-### ios-ui-tests-shard-step
-- Type: task
-- Area: scripts, iosApp
-- Order: 920
-- Source: local review of #383 (note)
-- Problem: Needs the owner's decision and design. `tm-testing` (`xcuitest-rules.md`, "Shards"; `xcuitest.md`, "Shards and CI timing") says to plan a shard step in `scripts/ios-ui-tests.sh` once the iOS UI tests exceed about 10 tests (cap 3). They are 13 with #383 and were over 10 before it; the script runs them in one `xcodebuild` run with no shard step. CI no longer runs the UI tests: the gate and the full run on `main` run them one heavy run at a time on one pinned simulator (`scripts/heavy-run.sh`, 16 GB Mac), and a full run took about 250 s. What a shard step should achieve here (parallel simulators, split runs that time a launch on their own, or none), and whether the rule still holds, is a design decision. The script is protected.
-- Done when: the owner decides. Either `scripts/ios-ui-tests.sh` runs the suite in at most 3 shards with the gate green, or the "Shards" lines of `tm-testing` are changed to the decision.
-- Refs: `scripts/ios-ui-tests.sh`; `.claude/skills/tm-testing/xcuitest-rules.md`, `xcuitest.md`; `iosApp/TrailMetricsUITests/`.
 
 ## Drift
 
