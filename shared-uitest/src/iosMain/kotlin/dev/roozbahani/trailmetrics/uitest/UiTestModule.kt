@@ -17,10 +17,21 @@ import org.koin.dsl.module
  * user-defaults storage, so Koin (whose singles are lazy) never creates them.
  */
 internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestControls): Module = module {
-    single<LocationRepository> { UiTestLocationRepository(walksRoute = scenario.walksRoute) }
+    single<LocationRepository> {
+        UiTestLocationRepository(
+            walksRoute = scenario.walksRoute,
+            controls = controls,
+            reportsIssueFirst = scenario.reportsLocationIssueThenFailsSave
+        )
+    }
     single<TrackingServiceLauncher> { UiTestTrackingServiceLauncher() }
     single<TrackingSessionStore> {
-        UiTestTrackingSessionStore(controls, scenario.storedSession(), failsSave = scenario.failsSessionSave)
+        UiTestTrackingSessionStore(
+            controls,
+            scenario.storedSession(),
+            failsSave = scenario.failsSessionSave,
+            failsSaveAfterLocationIssue = scenario.reportsLocationIssueThenFailsSave
+        )
     }
     single<RouteDraftStore> { UiTestRouteDraftStore() }
     single<DirectionsRepository> { UiTestDirectionsRepository(scenario, controls) }

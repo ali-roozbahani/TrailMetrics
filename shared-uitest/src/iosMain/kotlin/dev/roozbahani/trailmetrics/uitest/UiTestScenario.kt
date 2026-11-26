@@ -18,7 +18,8 @@ enum class UiTestScenario(
     internal val walksRoute: Boolean,
     internal val storesPausedSession: Boolean = false,
     internal val firstDirectionsHasNoConnection: Boolean = false,
-    internal val failsSessionSave: Boolean = false
+    internal val failsSessionSave: Boolean = false,
+    internal val reportsLocationIssueThenFailsSave: Boolean = false
 ) {
     /** One seeded activity; every `deleteActivity` throws. Nothing is held. */
     FailedDelete(seedsHistory = true, heldCall = null, failsDelete = true, walksRoute = false),
@@ -85,6 +86,20 @@ enum class UiTestScenario(
         failsDelete = false,
         walksRoute = false,
         failsSessionSave = true
+    ),
+
+    /**
+     * Empty history, nothing held. Each location collection (Start) first reports the location unavailable three
+     * times in a row, so the session reports a location issue, and then one fix at the route's second point. Every
+     * session save after that issue throws, so the issue's error and the unsaved-session warning reach the screen
+     * together.
+     */
+    LocationIssueThenFailedSessionSave(
+        seedsHistory = false,
+        heldCall = null,
+        failsDelete = false,
+        walksRoute = false,
+        reportsLocationIssueThenFailsSave = true
     )
 }
 

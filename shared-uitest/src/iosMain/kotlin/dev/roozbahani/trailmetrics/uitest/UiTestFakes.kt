@@ -26,12 +26,29 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * Reports [UiTestFixtures.start] as the current location. The update stream stays open like a
  * real GPS stream; when [walksRoute], it first emits one update per route point, in order, up to the second-to-last
- * one (the last point has the start's coordinates, which route progress cannot tell from index 0).
+ * one (the last point has the start's coordinates, which route progress cannot tell from index 0). When
+ * [reportsIssueFirst], it first emits [ISSUE_UPDATES] unavailable updates (a location issue), records the issue in
+ * [controls], and then emits one fix at the route's second point.
  */
-internal class UiTestLocationRepository(private val walksRoute: Boolean) : LocationRepository {
+internal class UiTestLocationRepository(
+    private val walksRoute: Boolean,
+    private val controls: UiTestControls,
+    private val reportsIssueFirst: Boolean = false
+) : LocationRepository {
     override suspend fun getCurrentLocation(): Result<Coordinates> = Result.success(UiTestFixtures.start)
 
     override fun observeLocationUpdates(): Flow<LocationUpdate> = flow {
+        if (reportsIssueFirst) {
+            repeat(ISSUE_UPDATES) { emit(LocationUpdate.Unavailable(RouteError.LocationUnavailable())) }
+            controls.markLocationIssueReported()
+            emit(
+                LocationUpdate.Success(
+                    coordinates = UiTestFixtures.route.points[1].coordinates,
+                    speedMetersPerSecond = UiTestFixtures.WALK_SPEED_METERS_PER_SECOND,
+                    accuracyMeters = UiTestFixtures.WALK_ACCURACY_METERS
+                )
+            )
+        }
         if (walksRoute) {
             UiTestFixtures.route.points.dropLast(1).forEach { point ->
                 emit(
@@ -45,6 +62,11 @@ internal class UiTestLocationRepository(private val walksRoute: Boolean) : Locat
         }
         awaitCancellation()
     }
+
+    private companion object {
+        /** TrackingSessionManager reports a location issue after this many unavailable updates in a row. */
+        const val ISSUE_UPDATES = 3
+    }
 }
 
 /** Starts and stops nothing: no background location, no Live Activity. */
@@ -57,15 +79,19 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
 /**
  * Returns [stored] (null for every scenario but the one with a saved session), after the hold of the
  * scenario that holds the read, and keeps nothing else,
- * so no UI test opens the Room database through the session store.
+ * so no UI test opens the Room database through the session store. A save throws when [failsSave], or when
+ * [failsSaveAfterLocationIssue] and the location fake has reported its issue.
  */
 internal class UiTestTrackingSessionStore(
     private val controls: UiTestControls,
     private val stored: StoredTrackingSession? = null,
-    private val failsSave: Boolean = false
+    private val failsSave: Boolean = false,
+    private val failsSaveAfterLocationIssue: Boolean = false
 ) : TrackingSessionStore {
     override suspend fun save(session: StoredTrackingSession) {
-        if (failsSave) throw IllegalStateException("UI test: the session store cannot write")
+        if (failsSave || (failsSaveAfterLocationIssue && controls.hasReportedLocationIssue)) {
+            throw IllegalStateException("UI test: the session store cannot write")
+        }
     }
 
     override suspend fun load(): StoredTrackingSession? {

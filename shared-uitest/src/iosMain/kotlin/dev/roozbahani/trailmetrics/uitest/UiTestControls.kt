@@ -19,6 +19,7 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
     private val saves = MutableStateFlow(0)
     private val deletes = MutableStateFlow(0)
     private val gate = CompletableDeferred<Unit>()
+    private val locationIssueReported = MutableStateFlow(false)
 
     /** `getClosedRoute` calls received, counted on entry, before any hold. */
     val directionsRequestCount: Int get() = directionsRequests.value
@@ -43,6 +44,13 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
 
     internal suspend fun awaitReleaseIfHeld(call: UiTestHeldCall) {
         if (scenario.heldCall == call) gate.await()
+    }
+
+    /** Whether the location fake of [UiTestScenario.LocationIssueThenFailedSessionSave] has reported its issue. */
+    internal val hasReportedLocationIssue: Boolean get() = locationIssueReported.value
+
+    internal fun markLocationIssueReported() {
+        locationIssueReported.value = true
     }
 
     internal fun countDirectionsRequest() = directionsRequests.update { it + 1 }
