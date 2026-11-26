@@ -4,6 +4,10 @@ Moved word for word from `SKILL.md`: the sections "Strings", "Accessibility" and
 
 ## Strings
 
+This is the iOS side of the project-wide rule (`tm-kmp-shared`, "User-visible text"): no text the user
+reads is written in code, and a text that comes from Kotlin arrives as a typed value that iOS turns
+into text from its own catalog, never as a finished Kotlin string shown verbatim.
+
 No user-visible text is a hardcoded string. Every text the user reads (labels, button titles,
 navigation and tab titles, alerts, empty and error states, accessibility labels and hints, map
 marker titles) comes from a String Catalog, `Localizable.xcstrings`, next to the sources of the
