@@ -4,6 +4,8 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
 
 ## Performance and efficiency
 
+A performance claim names its measurement file under `docs/performance/`; the budget and the metric names are in `docs/performance/README.md`.
+
 - **P1** Compose: a stable `key` in every lazy list (`LazyColumn`, `LazyVerticalGrid`). Why: without
   it items lose state and recompose on reorder. Example: `HistoryScreen` (`key = { it.id }`).
   Enforced: reviewer only. Severity: important.
