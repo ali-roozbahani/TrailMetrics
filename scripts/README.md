@@ -77,7 +77,7 @@ a line names a file that does not exist. Each script's header says how to run it
 
 ## The PR queue (local, serial)
 
-- `scripts/queue/queue.sh`: the queue file of follow-up PRs; `next` says what to build, push or wait for.
+- `scripts/queue/queue.sh`: the queue file of follow-up PRs; `next` says what to build, push or wait for; `may-push` says whether a branch may be pushed now.
 - `scripts/queue/watch-prs.sh`: the bot's open PRs once, or waits for the first merge, close, new head, fall-behind or finished checks.
 - `scripts/queue/update-branch.sh`: asks GitHub to update a PR branch that fell behind and checks the update is merge-only.
 - `scripts/queue/merge-only-check.sh`: proves a merge commit only moved its branch's base.
@@ -91,7 +91,7 @@ a line names a file that does not exist. Each script's header says how to run it
 ## Claude Code hooks (named by `.claude/settings.json`)
 
 - `scripts/claude-hooks/block-git-push.sh`: blocks a push or PR creation without a fresh gate pass, a verdict and the `gh` credential helper.
-- `scripts/claude-hooks/require-local-review.sh`: records the local reviewer's report; blocks a push or PR creation it does not allow.
+- `scripts/claude-hooks/require-local-review.sh`: records the local reviewer's report; blocks a push or PR creation it does not allow, and one of a queue entry's branch that `queue.sh may-push` refuses.
 - `scripts/claude-hooks/block-branch-create-while-merged-branches.sh`: blocks a new branch while merged local branches remain.
 
 ## Build and local tools
