@@ -159,7 +159,7 @@ Don't copy these as a pattern for new code.
 - `MetricsFormatter` (`formatDistance`, `formatSpeed`, `formatCalories`) returns finished texts with unit words
   and placeholders ("1.50 km", "-- km/h"), which both platforms show (board: `shared-metrics-formatter-user-visible-strings`,
   `ios-hardcoded-number-formatting`).
-- `TrackingService`'s foreground notification (title, text, channel name) and `RestoredNotification`'s title
+- `TrackingService`'s foreground notification (title, text, the "Stop" action label, channel name) and `RestoredNotification`'s title
   are Kotlin literals (board: `android-tracking-notification-text-in-code`).
 - `RestartAction`'s three restart notices (paused, finished, restore failed) are Kotlin literals until #386,
   which moves them to `data`'s resources as a typed `RestartNotice`; the line goes when #386 is merged.
