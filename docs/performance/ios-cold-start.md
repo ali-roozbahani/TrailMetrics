@@ -24,7 +24,8 @@ framework among them) and after it (the first SwiftUI frame).
 ## Series 3: the time after `init` (2026-11-26)
 
 `FirstScreenAppear` runs from the end of `TrailMetricsApp.init` to the first `onAppear` of `ContentView`'s
-tab view. Same setup and command, one series of 20:
+tab view. Same setup and command, one series of 20, measured on the code of commit 2412cc77 (subsystem
+`dev.roozbahani.TrailMetrics`):
 
 | Metric | Median | Range |
 |---|---|---|
@@ -35,8 +36,9 @@ tab view. Same setup and command, one series of 20:
 So about 448 ms of the launch is between the end of `init` and the first screen's appearance: building
 the first SwiftUI hierarchy (the Route tab, its map view, the History tab) and whatever runs on the main
 actor meanwhile. The remaining roughly 550 ms is before `init` and after `onAppear` (the first frame's
-render), neither marked. This series' launch median is 1.0% above the baseline (1002 ms), inside the
-spread of the first two series; the added signpost is not a measured cost.
+render), neither marked. This series' launch median is 1.0% above the baseline (1002 ms): above both earlier medians
+(1002 and 996 ms) but inside the range of their runs (953 to 1668 ms). Whether the added signpost costs
+anything is not distinguishable from noise in one series.
 
 ## Setup
 
@@ -54,7 +56,7 @@ spread of the first two series; the added signpost is not a measured cost.
     launch does not wait for the map either way.
 - Metric: `XCTApplicationLaunchMetric()` (launch until the app's first frame), with
   `XCTOSSignpostMetric` for the app's `os_signpost` intervals (`StartupSignposts`, subsystem
-  `dev.roozbahani.TrailMetrics`, category `Startup`). The series were taken at commit 6eafb89, where the subsystem was
+  `dev.roozbahani.TrailMetrics`, category `Startup`). Series 1 and 2 were taken at commit 6eafb89, where the subsystem was
   spelled `dev.roozbahani.trailmetrics`; the spelling was then aligned with the app's other logger, nothing else
   changed. Each iteration calls `XCUIApplication().launch()`,
   which terminates the instance of the iteration before.
