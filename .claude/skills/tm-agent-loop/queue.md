@@ -131,8 +131,9 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   While a PR waits for the owner, build the next entries locally (`BUILD`, `FINISH_BUILD`) and push
   none of them. When the watch prints `MERGED` for it: `set <slug> status=merged`, sync with `main`
   (`git fetch --prune origin && git switch main && git pull --ff-only`), then at `PUSH` merge `main`
-  into the entry, review and gate once, and push. A `CLOSED` is recorded as `dropped` and the queue
-  goes on the same way. Why: #387 was pushed while #386 still waited for the owner, and the queue
+  into the entry, review and gate once, and push. A `CLOSED` is recorded as `dropped` (refused while an
+  entry comes after it: re-point or drop that entry first, as "Recording events" says; then `HOLD` above).
+  Why: #387 was pushed while #386 still waited for the owner, and the queue
   could not record #387 as merged afterwards (its entry said dropped).
 - **Owner PRs stay current.** Owner entries are pushed last, when everything ahead is merged, and
   one PR of the queue is pushed at a time, so the agent's own merges never leave an owner PR behind
