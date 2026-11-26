@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs the iOS UI tests (scheme TrailMetricsUITests, the full suite unless --tests names a part) once, on a
-# dedicated simulator of this script's own.
+# dedicated simulator of this script's own. The full suite leaves out LaunchPerformanceTests (a launch-time
+# measurement that asserts no timing, run on request: docs/performance/ios-cold-start.md; owner decision of
+# 2026-11-26), so the gate and the full run on main never run it; --tests can still name it.
 #
 #   scripts/ios-ui-tests.sh [--tests <TrailMetricsUITests/Class[/method]>]
 #
@@ -93,7 +95,11 @@ args=(
     -maximum-test-execution-time-allowance 90
     -skipMacroValidation
 )
-[ -z "$only" ] || args+=(-only-testing:"$only")
+if [ -n "$only" ]; then
+    args+=(-only-testing:"$only")
+else
+    args+=(-skip-testing:TrailMetricsUITests/LaunchPerformanceTests)
+fi
 args+=(CODE_SIGNING_ALLOWED=NO ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO)
 set -o pipefail
 xcodebuild "${args[@]}" 2>&1 | "$filter"

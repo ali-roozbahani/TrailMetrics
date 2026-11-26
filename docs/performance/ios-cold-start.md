@@ -75,6 +75,8 @@ TEST_RUNNER_TM_LAUNCH_ITERATIONS=20 xcodebuild test -project TrailMetrics.xcodep
 ```
 
 `TEST_RUNNER_` variables reach the test only through xcodebuild's environment, not as a build setting
-argument. The values are the `measured [Duration (...), s]` lines of the log. The gate's UI run also runs
-`LaunchPerformanceTests` (5 iterations, configuration Debug-UITest, never failing on time): its numbers are
-not comparable with these (another configuration and framework variant).
+argument. The values are the `measured [Duration (...), s]` lines of the log. The measurement runs only on
+request: the gate's iOS UI run and the full run on `main` skip `LaunchPerformanceTests`
+(`scripts/ios-ui-tests.sh`, owner decision of 2026-11-26). `scripts/ios-ui-tests.sh --tests
+TrailMetricsUITests/LaunchPerformanceTests` also runs it, on the Debug-UITest configuration and the test-only
+framework variant, so its numbers are not comparable with these.
