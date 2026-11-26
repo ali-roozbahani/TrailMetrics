@@ -76,7 +76,7 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
   number, a date), and each platform builds the text from its own resources. `RouteError` to `RouteUiError`,
   mapped to `strings.xml` on Android and to the catalog on iOS, is the pattern. Android-only code in `data`
   (`androidMain`, the tracking service's notifications) keeps its text in `data`'s own Android resources
-  (`data/src/androidMain/res/values/strings.xml`, created by the first text that moves there).
+  (`data/src/androidMain/res/values/strings.xml`).
 - Not user-visible text: log messages, exception messages, identifiers, keys, test code and fakes.
 - Why: a text in code cannot be translated, and a sentence built in shared code cannot follow each
   platform's resources. Example: `RouteUiError`. Enforced: reviewer only (`tm-pr-review`, item 2).
