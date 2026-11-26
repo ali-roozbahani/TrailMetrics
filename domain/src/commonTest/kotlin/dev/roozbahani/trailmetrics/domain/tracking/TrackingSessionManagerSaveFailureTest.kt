@@ -8,6 +8,7 @@ import dev.roozbahani.trailmetrics.domain.fakes.FakeTrackingSessionStore
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
 import dev.roozbahani.trailmetrics.domain.model.Coordinates
 import dev.roozbahani.trailmetrics.domain.model.LocationUpdate
+import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.SpeedCalculator
@@ -123,6 +124,68 @@ class TrackingSessionManagerSaveFailureTest {
         testScheduler.runCurrent()
 
         manager.start(point2, ActivityType.Running)
+        testScheduler.runCurrent()
+
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `stop clears a warning that no screen has shown yet`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+        store.saveFailure = IllegalStateException("disk full")
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+        assertTrue(manager.unsavedSessionWarning.isRaised.value)
+
+        manager.stop()
+        testScheduler.runCurrent()
+
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a failed save of the stopped session raises no warning`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+
+        store.saveFailure = IllegalStateException("disk full")
+        manager.stop()
+        testScheduler.runCurrent()
+
+        assertIs<TrackingState.Finished>(manager.currentState.value)
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `discarding a running session clears its warning`() = runTest(testScheduler) {
+        locationRepository.setUpdatesFlow(updates)
+        store.saveFailure = IllegalStateException("disk full")
+        manager.start(point1, ActivityType.Running)
+        testScheduler.runCurrent()
+
+        manager.discard()
+        testScheduler.runCurrent()
+
+        assertFalse(manager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `clearing a restored finished session clears its warning`() = runTest(testScheduler) {
+        val metrics = TrackingMetrics(
+            elapsedMillis = 5_000L,
+            lastUpdateElapsedRealtimeMillis = 9_000L,
+            distanceMeters = 42.0,
+            path = listOf(point1, point2),
+            currentSpeedMetersPerSecond = 1.5f
+        )
+        store.stored = TrackingState.Finished(metrics)
+        store.saveFailure = IllegalStateException("disk full")
+        manager.restore()
+        testScheduler.runCurrent()
+        assertTrue(manager.unsavedSessionWarning.isRaised.value, "precondition: the restored session's save failed")
+
+        manager.clearSession()
         testScheduler.runCurrent()
 
         assertFalse(manager.unsavedSessionWarning.isRaised.value)

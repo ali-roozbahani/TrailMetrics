@@ -443,6 +443,33 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `a session finished before its save warning had run its course leaves no warning for the next screen`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        val isRootShown = mutableStateOf(true)
+        shadowOf(composeRule.activity.application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        grantLocationPermission()
+        robot.setContent(
+            startPoint = START,
+            plannedRoutePoints = WALKED_ROUTE,
+            onNavigateBack = { navigateBackCalls++ },
+            isRootShown = isRootShown
+        ).clickStart().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // Finish while the long snackbar is still up: the session ends and is saved as an activity.
+        fixture.receiveLocation(END, millisAfterStart = 60_000L)
+        robot.waitForIdle().clickFinish().waitForIdle()
+        assertEquals(1, navigateBackCalls)
+
+        // The next Tracking screen: nothing of the finished session's warning.
+        isRootShown.value = false
+        robot.waitForIdle()
+        isRootShown.value = true
+
+        robot.waitForIdle().assertMessageNotShown(R.string.msg_session_not_saved)
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
     fun `a profile that fails to load shows the general error`() {
         fixture.userProfileRepository.getUserProfileFailure = IllegalStateException("db closed")
 
