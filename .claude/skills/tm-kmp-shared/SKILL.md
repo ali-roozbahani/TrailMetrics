@@ -161,5 +161,3 @@ Don't copy these as a pattern for new code.
   `ios-hardcoded-number-formatting`).
 - `TrackingService`'s foreground notification (title, text, the "Stop" action label, channel name) and `RestoredNotification`'s title
   are Kotlin literals (board: `android-tracking-notification-text-in-code`).
-- `RestartAction`'s three restart notices (paused, finished, restore failed) are Kotlin literals until #386,
-  which moves them to `data`'s resources as a typed `RestartNotice`; the line goes when #386 is merged.
