@@ -370,8 +370,8 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Order: 228
 - Source: PR for no-user-visible-text-in-code-rule
 - Problem: The rule of 2026-11-25 (`tm-kmp-shared`, "User-visible text") says no user-visible text is written in code. `TrackingService`'s foreground notification builds its text in Kotlin ("Tracking..." and "Paused - " with `formatDistance`), its title is `"TrailMetrics"` and its channel name `"Tracking"`, and `RestoredNotification`'s title is `"TrailMetrics"`. Not on the board before, and not one of the owner's existing records (226, 227). A board record and not a queue entry because the queue held its limit of 5 open entries when the rule was written; the agent can do it.
-- Done when: those texts come from `data`'s `strings.xml` (the state handed over as a typed value, as `RestartNotice` of #386 does), with a test that reads them, and the "Known deviations" lines in `tm-kmp-shared` and `tm-android` are removed.
-- Refs: `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/tracking/TrackingService.kt` (`createNotificationChannel`, the notification builder); `RestoredNotification.kt`; `shared-metrics-formatter-user-visible-strings` (the distance text).
+- Done when: those texts come from `data`'s `strings.xml` (the state handed over as a typed value, as `RouteUiError` is), with a test that reads them, and the "Known deviations" lines in `tm-kmp-shared` and `tm-android` are removed.
+- Refs: `data/src/androidMain/kotlin/dev/roozbahani/trailmetrics/data/tracking/TrackingService.kt` (`createNotificationChannel`, the notification builder); `RestoredNotification.kt`; `shared-metrics-formatter-user-visible-strings` (the distance text); `android-tracking-notification-content` (the same notification's content, to plan together).
 
 ### skill-folder-front-matter-detection
 - Type: task

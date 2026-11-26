@@ -159,10 +159,11 @@ ViewModel via `koinViewModel()`, observes events), `<Screen>Screen` (pure `state
 - Meaningful `contentDescription` (via string resources, `cd_*` keys) on
   interactive/informational elements; `null` for purely decorative ones.
 - No user-visible text in Kotlin: every text the user reads (a `Text`, a `contentDescription`, a snackbar, a
-  dialog, a notification's title, text and channel name) comes from a string resource (`R.string`) of the
-  module that shows it, never a literal, and a formatted text uses format arguments (`%1$s`), never
-  concatenation. A value from `domain` or `data` arrives typed and the module maps it to its resources (as
-  `RouteUiError.stringRes` does). The project-wide rule: `tm-kmp-shared`, "User-visible text". Enforced:
+  dialog, a notification's title, text and channel name) comes from a string resource (`R.string`): of the
+  module that shows it, or of `core-ui` for a text that several features show. Never a literal, and a
+  formatted text uses format arguments (`%1$s`), never concatenation. A value from `domain` or `data`
+  arrives typed and is mapped to resources (as `RouteUiError.stringRes` in `core-ui` maps it, which the
+  features call). The project-wide rule: `tm-kmp-shared`, "User-visible text". Enforced:
   reviewer only. Severity: blocking for a new text.
 - Colors and typography come from `core-ui`'s `designsystem/theme`; no ad-hoc color
   literals in features.
@@ -200,5 +201,3 @@ Don't copy these as a pattern for new code.
 - `TrackingViewModel.events` is not only its `Channel`: it merges the manager's `locationIssues` `SharedFlow` and
   the unsaved-session warning's `isRaised` `StateFlow` (as `ShowSessionNotSaved` to every collector while it is
   raised, until the Root sends `SessionNotSavedShown`). A new screen sends its own events through its `Channel`.
-- `TrackingService`'s foreground notification and `RestoredNotification`'s title are Kotlin literals in `data`
-  (board: `android-tracking-notification-text-in-code`).
