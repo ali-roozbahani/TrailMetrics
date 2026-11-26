@@ -35,7 +35,7 @@ build and the number of runs.
 
 | Metric | Android | iOS |
 |---|---|---|
-| `cold_start_first_frame_ms` | not measured yet | 1002 ms, simulator iPhone 17 / iOS 26.5, Release (links the debug Kotlin framework), 20 runs ([ios-cold-start.md](ios-cold-start.md)) |
+| `cold_start_first_frame_ms` | 852 ms, emulator API 37 (AVD `TrailMetrics_UITest`), `benchmark` build type (release, not minified), 20 runs ([android-cold-start.md](android-cold-start.md)) | 1002 ms, simulator iPhone 17 / iOS 26.5, Release (links the debug Kotlin framework), 20 runs ([ios-cold-start.md](ios-cold-start.md)) |
 | `cold_start_fully_drawn_ms` | not defined (no fully-drawn point) | not defined (no fully-drawn point) |
 | `first_map_frame_ms` | not measured yet | not measured yet |
 | `history_scroll_jank_pct` | not measured yet | not measured yet |
