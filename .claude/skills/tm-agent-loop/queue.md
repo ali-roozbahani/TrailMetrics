@@ -125,7 +125,15 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   must print `APPROVE <reviewed sha> (<n> updates)`, and the dispositions of that commit's report
   count. A head pushed from the clone always has its own review (the push hook requires it).
 - **Hand-over.** Any condition "no": post the Merge check comment for the head SHA (a fresh one
-  after every new head), leave the entry `pushed`, and go on with `next`.
+  after every new head), leave the entry `pushed`, and go on with `next`. That PR stays pushed and
+  holds the queue: `next` answers `BUILD` or `WAIT`, never `PUSH`, until it is merged.
+- **The next PR is pushed only after the previous one is merged** (owner decision of 2026-11-26).
+  While a PR waits for the owner, build the next entries locally (`BUILD`, `FINISH_BUILD`) and push
+  none of them. When the watch prints `MERGED` for it: `set <slug> status=merged`, sync with `main`
+  (`git fetch --prune origin && git switch main && git pull --ff-only`), then at `PUSH` merge `main`
+  into the entry, review and gate once, and push. A `CLOSED` is recorded as `dropped` and the queue
+  goes on the same way. Why: #387 was pushed while #386 still waited for the owner, and the queue
+  could not record #387 as merged afterwards (its entry said dropped).
 - **Owner PRs stay current.** Owner entries are pushed last, when everything ahead is merged, and
   one PR of the queue is pushed at a time, so the agent's own merges never leave an owner PR behind
   `main`. Only a merge outside the queue can (`BEHIND` above); after the update, post a fresh Merge
@@ -147,11 +155,11 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
 
 ## The owner wait
 
-When only PRs handed to the owner are left (the next action is `WAIT` on one, and its Merge check
-is posted), the run waits for them with `watch-prs.sh --wait` (default 180 minutes; that is the
-run's maximum wait). A `MERGED` goes on with `next`. On `TIMEOUT` the run ends with
-the report, which lists, in queue order, each PR waiting for the owner with its exact merge command
-and the full 40-character head SHA:
+When the pushed PR is handed to the owner and nothing is left to build (the next action is `WAIT` on
+it, and its Merge check is posted), the run waits for it with `watch-prs.sh --wait` (default 180 minutes;
+that is the run's maximum wait). A `MERGED` is recorded, `main` is synced, and the run goes on with `next`
+(the hand-over above). On `TIMEOUT` the run ends with the report, which gives the PR waiting for the
+owner with its exact merge command and the full 40-character head SHA:
 
 ```bash
 gh pr merge <N> --squash --match-head-commit <40-character SHA> --subject "<PR title> (#<N>)" --body ""
