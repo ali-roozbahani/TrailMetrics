@@ -287,10 +287,7 @@ class UiTestFakesTest {
 
     @Test
     fun `scenarios that do not walk emit no location update and stay open`() = runTest {
-        val walksOrReportsIssue = { scenario: UiTestScenario ->
-            scenario.walksRoute || scenario.sessionStore == UiTestSessionStore.FailsSavesAfterLocationIssue
-        }
-        UiTestScenario.entries.filterNot(walksOrReportsIssue).forEach { scenario ->
+        UiTestScenario.entries.filterNot { it.walksRoute || it.reportsLocationIssueFirst }.forEach { scenario ->
             val launch = launchUiTest(scenario)
             val updates = mutableListOf<LocationUpdate>()
 

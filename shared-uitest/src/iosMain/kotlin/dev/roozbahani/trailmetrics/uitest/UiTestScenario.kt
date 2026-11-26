@@ -98,7 +98,13 @@ enum class UiTestScenario(
         failsDelete = false,
         walksRoute = false,
         sessionStore = UiTestSessionStore.FailsSavesAfterLocationIssue
-    )
+    );
+
+    /**
+     * Whether each location collection first reports the location unavailable (a location issue) and then one fix
+     * (see [UiTestLocationRepository]); only [LocationIssueThenFailedSessionSave], whose store fails after that issue.
+     */
+    internal val reportsLocationIssueFirst: Boolean get() = this == LocationIssueThenFailedSessionSave
 }
 
 /** What a scenario's session store holds at launch, and when its saves throw. */
@@ -112,10 +118,7 @@ internal enum class UiTestSessionStore {
     /** Nothing stored; every save throws. */
     FailsEverySave,
 
-    /**
-     * Nothing stored; the location stream first reports the location unavailable (a location issue), then one fix,
-     * and every save after the issue throws.
-     */
+    /** Nothing stored; every save after the location fake has reported its issue throws. */
     FailsSavesAfterLocationIssue
 }
 

@@ -79,15 +79,15 @@ internal class UiTestTrackingServiceLauncher : TrackingServiceLauncher {
 /**
  * Returns [stored] (null for every scenario but the one with a saved session), after the hold of the
  * scenario that holds the read, and keeps nothing else,
- * so no UI test opens the Room database through the session store. A save throws as [saveFailure] says.
+ * so no UI test opens the Room database through the session store. A save throws as [sessionStore] says.
  */
 internal class UiTestTrackingSessionStore(
     private val controls: UiTestControls,
     private val stored: StoredTrackingSession? = null,
-    private val saveFailure: UiTestSessionStore = UiTestSessionStore.Empty
+    private val sessionStore: UiTestSessionStore = UiTestSessionStore.Empty
 ) : TrackingSessionStore {
     override suspend fun save(session: StoredTrackingSession) {
-        val fails = when (saveFailure) {
+        val fails = when (sessionStore) {
             UiTestSessionStore.Empty, UiTestSessionStore.StoresPausedSession -> false
             UiTestSessionStore.FailsEverySave -> true
             UiTestSessionStore.FailsSavesAfterLocationIssue -> controls.hasReportedLocationIssue

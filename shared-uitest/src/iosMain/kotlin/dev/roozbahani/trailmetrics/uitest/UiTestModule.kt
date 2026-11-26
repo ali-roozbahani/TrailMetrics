@@ -21,7 +21,7 @@ internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestCont
         UiTestLocationRepository(
             walksRoute = scenario.walksRoute,
             controls = controls,
-            reportsIssueFirst = scenario.sessionStore == UiTestSessionStore.FailsSavesAfterLocationIssue
+            reportsIssueFirst = scenario.reportsLocationIssueFirst
         )
     }
     single<TrackingServiceLauncher> { UiTestTrackingServiceLauncher() }
@@ -29,7 +29,7 @@ internal fun uiTestOverrideModule(scenario: UiTestScenario, controls: UiTestCont
         UiTestTrackingSessionStore(
             controls,
             scenario.storedSession(),
-            saveFailure = scenario.sessionStore
+            sessionStore = scenario.sessionStore
         )
     }
     single<RouteDraftStore> { UiTestRouteDraftStore() }
