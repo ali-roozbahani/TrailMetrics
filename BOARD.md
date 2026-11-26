@@ -716,15 +716,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: `cold_start_first_frame_ms` has a baseline on a named real device of each platform (same test, same build as the emulator or simulator baseline, its runs recorded), or the owner decided not to take one.
 - Refs: `docs/performance/README.md`; `docs/performance/ios-cold-start.md`; `performance-baseline-remaining-metrics`.
 
-### ios-launch-measurement-in-gate-ui-suite
-- Type: task
-- Area: iosApp/TrailMetricsUITests, .claude/skills/tm-testing
-- Order: 693
-- Source: local review of the iOS cold start PR, 2026-11-26
-- Problem: `LaunchPerformanceTests` runs in the gate's iOS UI suite and in the full UI run on `main` (it cannot be skipped: `tm-testing` D6 forbids `XCTSkip`): 5 launches with no scenario, about 39 s, timing never asserted. That is an exception to D5 ("one `launch` per test, with its scenario") which no owner decision covers, and a recurring cost. Keeping it out of the suite needs a test plan or scheme change (`TrailMetrics.xcodeproj`, protected). Reason for a record: an owner decision (accept the exception and write it under D5, or move the measurement out of the gate's suite).
-- Done when: the owner decided; either D5 names the exception, or the measurement runs only on request and the gate's UI suite no longer runs it.
-- Refs: `iosApp/TrailMetricsUITests/Performance/LaunchPerformanceTests.swift`; `.claude/skills/tm-testing/xcuitest-rules.md` (D5, D6); `scripts/ios-ui-tests.sh`.
-
 ### android-predictive-back
 - Type: task
 - Area: androidApp/app, androidApp/feature-tracking
