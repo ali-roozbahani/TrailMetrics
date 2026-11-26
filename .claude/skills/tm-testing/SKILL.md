@@ -45,7 +45,9 @@ testing stack is fixed). Hand-written fakes and `kotlin.test` cover every layer:
   resources. See "Compose UI tests" (`compose-ui-test-rules.md`).
 - The one `androidTest` source set is in `androidApp/app` ("Which test goes where"); it adds
   `androidx.test.uiautomator` (catalog entry `androidx-test-uiautomator`) and the existing `kotlin-test`
-  to that module only.
+  to that source set. `androidApp/benchmark`, a `com.android.test` module that measures the app's cold
+  start (`docs/performance/`) and holds no correctness test, also uses `androidx-test-uiautomator`, with
+  `androidx-junit` and `androidx-benchmark-macro-junit4`.
 - Ktor `MockEngine` is a `data` commonTest dependency (Android host and iOS simulator).
   Build the real repository on `HttpClient(MockEngine { respond(...) })` with the same
   `ContentNegotiation`/`Json` setup as `networkModule` and JSON shaped like the DTO (see
