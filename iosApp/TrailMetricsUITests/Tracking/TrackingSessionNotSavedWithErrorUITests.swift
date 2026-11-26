@@ -8,7 +8,7 @@ import XCTest
 // Scenario LocationIssueThenFailedSessionSave: right after Start the location is reported unavailable and the session's
 // save fails, so a location error and the unsaved-session warning reach the Tracking screen together, while one of them
 // is already on screen. The screen must show both, one after the other, through its one alert: the second alert comes
-// after the first one's OK and is never lost (owner decision of 2026-11-25).
+// after the first one's OK and is never lost (owner decision of 2026-11-26).
 //
 // Which of the two arrives first is not fixed (two observations of the view model deliver them), so the test accepts
 // either order. The rule for an error already on screen (the warning waits behind it and comes next) is pinned by

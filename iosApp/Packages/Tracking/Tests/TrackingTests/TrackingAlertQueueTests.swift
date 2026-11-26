@@ -3,7 +3,7 @@
 //  TrackingTests
 //
 //  The Tracking screen's one alert: the unsaved-session warning is never lost behind an error alert that is
-//  already up (owner decision of 2026-11-25), and errors keep their behavior.
+//  already up (owner decision of 2026-11-26), and errors keep their behavior.
 //
 
 @testable import Tracking
