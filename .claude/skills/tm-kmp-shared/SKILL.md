@@ -65,6 +65,22 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
   Enforced: reviewer only. Violation: `important`.
 - Crashes, ANR, exceptions, dispatchers, process death, leaks and performance: `tm-robustness`.
 
+## User-visible text
+
+- No text the user reads is written in code, in any module of either platform (owner decision of 2026-11-25):
+  it comes from the platform's resources, Android `strings.xml` and the iOS String Catalog (`tm-ios`,
+  "Strings", `strings-and-accessibility.md`). User-visible text is anything shown on a screen, in a
+  notification, a widget or a Live Activity, or read out by accessibility: labels, messages, titles, unit
+  words, placeholders.
+- `domain`, `data` and `core` do not build sentences: they hand over a typed value (a sealed or enum case, a
+  number, a date), and each platform builds the text from its own resources. `RouteError` to `RouteUiError`,
+  mapped to `strings.xml` on Android and to the catalog on iOS, is the pattern. Android-only code in `data`
+  (`androidMain`, the tracking service's notifications) reads `data`'s own `strings.xml`.
+- Not user-visible text: log messages, exception messages, identifiers, keys, test code and fakes.
+- Why: a text in code cannot be translated, and a sentence built in shared code cannot follow each
+  platform's resources. Example: `RouteUiError`. Enforced: reviewer only (`tm-pr-review`, item 2).
+  Severity: blocking for a new text in code. The existing ones are known deviations (below).
+
 ## Exhaustive `when` over a sealed type
 
 - A `when` over a sealed type or an enum names every case and has no catch-all `else`; a case that is
@@ -139,4 +155,8 @@ CI-enforced: config `config/detekt/detekt.yml`, rules and limits in `tm-android`
 ## Known deviations in the current code
 
 Don't copy these as a pattern for new code.
-- None today.
+- `MetricsFormatter` (`formatDistance`, `formatSpeed`, `formatCalories`) returns finished texts with unit words
+  and placeholders ("1.50 km", "-- km/h"), which both platforms show (board: `shared-metrics-formatter-user-visible-strings`,
+  `ios-hardcoded-number-formatting`).
+- `TrackingService`'s foreground notification (title, text, channel name) and `RestoredNotification`'s title
+  are Kotlin literals (board: `android-tracking-notification-text-in-code`).
