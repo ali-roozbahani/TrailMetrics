@@ -126,7 +126,7 @@ Events of `watch-prs.sh --wait` that do not change the status are acted on:
   count. A head pushed from the clone always has its own review (the push hook requires it).
 - **Hand-over.** Any condition "no": post the Merge check comment for the head SHA (a fresh one
   after every new head), leave the entry `pushed`, and go on with `next`. That PR stays pushed and
-  holds the queue: `next` answers `BUILD` or `WAIT`, never `PUSH`, until it is merged.
+  holds the queue: `next` answers `BUILD`, `FINISH_BUILD` or `WAIT`, never `PUSH`, until it is merged.
 - **The next PR is pushed only after the previous one is merged** (owner decision of 2026-11-26).
   While a PR waits for the owner, build the next entries locally (`BUILD`, `FINISH_BUILD`) and push
   none of them. When the watch prints `MERGED` for it: `set <slug> status=merged`, sync with `main`

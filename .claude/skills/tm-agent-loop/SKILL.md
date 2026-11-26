@@ -46,7 +46,8 @@ missing; the agent never reads or creates it, and stops and reports instead.
 A named task skips only section 1: after "Before starting" and the work it goes through
 sections 3 to 9, Auto-merge, After-merge cleanup, Stop and Report exactly as a picked one.
 
-The task is done when its PR and every PR queued from it are merged or handed to the owner. A run
+The task is done when its PR and every PR queued from it are merged, handed to the owner, or left
+unpushed behind a PR handed to the owner. A run
 ends at the queue's `DONE`, when the owner wait runs out, or at a stop condition (section 9). A
 session continues from `scripts/queue/queue.sh show` and GitHub, never from memory. The next
 task is a new run; the human clears the session between runs.
