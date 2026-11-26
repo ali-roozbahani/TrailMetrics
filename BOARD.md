@@ -703,8 +703,8 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Order: 690
 - After: android-first-minified-release-build
 - Source: spike android/skills 2026-11-15
-- Problem: Needs the owner's decision (new dependencies: `androidx.profileinstaller`, a baseline-profile plugin, `androidx.benchmark`) and a device or emulator to generate and measure. The app has no Baseline Profile and no Macrobenchmark (no `baselineprofile`, `benchmark` or `profileinstaller` anywhere). Startup of a Compose, Koin, Room and Maps app is the cost a profile removes, and a performance claim needs a measurement on a release build, which does not exist yet.
-- Done when: the owner approved the dependencies, a baseline profile is generated and shipped in the release build, and a Macrobenchmark of cold start exists with its result recorded.
+- Problem: Needs the owner's decision (new dependencies: `androidx.profileinstaller` and a baseline-profile plugin; `androidx.benchmark` was approved on 2026-11-26 as a test-only dependency) and a device or emulator to generate and measure. The app has no Baseline Profile (no `baselineprofile` or `profileinstaller` anywhere). The Macrobenchmark of cold start exists (`androidApp/benchmark`, `docs/performance/android-cold-start.md`): 852 ms median on the emulator, measured with `CompilationMode.None()` on the non-minified `benchmark` build type. Startup of a Compose, Koin, Room and Maps app is the cost a profile removes; showing it needs a profile and a measurement of the minified release build, which does not exist yet.
+- Done when: the owner approved the dependencies, a baseline profile is generated and shipped in the release build, and `ColdStartBenchmark` is measured with and without it on the same setup, both results recorded in `docs/performance/`.
 - Refs: `androidApp/app/build.gradle.kts`; `gradle/libs.versions.toml`; `android-first-minified-release-build`.
 
 ### cold-start-real-device-baseline
