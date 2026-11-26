@@ -17,7 +17,7 @@ final class LaunchPerformanceTests: XCTestCase {
     // Must match `StartupSignposts` in the app target.
     private static let subsystem = "dev.roozbahani.TrailMetrics"
     private static let category = "Startup"
-    private static let intervals = ["CrashReportingStart", "KoinStart", "MapsConfigure"]
+    private static let intervals = ["CrashReportingStart", "KoinStart", "MapsConfigure", "FirstScreenAppear"]
 
     override func setUpWithError() throws {
         continueAfterFailure = false

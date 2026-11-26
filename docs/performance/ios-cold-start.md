@@ -19,8 +19,24 @@ budget's 10% is well above the 0.6% seen here, but more series are needed before
 
 What the numbers say: the three named phases in `TrailMetricsApp.init` together take under 4 ms of the
 roughly 1000 ms. The rest is before `init` (process start, loading the app's frameworks, the Kotlin
-framework among them) and after it (the first SwiftUI frame). No phase is marked there yet, so this file
-makes no claim about where in it the time goes.
+framework among them) and after it (the first SwiftUI frame).
+
+## Series 3: the time after `init` (2026-11-26)
+
+`FirstScreenAppear` runs from the end of `TrailMetricsApp.init` to the first `onAppear` of `ContentView`'s
+tab view. Same setup and command, one series of 20:
+
+| Metric | Median | Range |
+|---|---|---|
+| `cold_start_first_frame_ms` (`Duration (AppLaunch)`) | 1013 ms | 983 to 1661 ms |
+| `FirstScreenAppear` interval | 448 ms | 433 to 772 ms |
+| `CrashReportingStart`, `KoinStart`, `MapsConfigure` | 2.87 ms, 0.72 ms, 0.07 ms | |
+
+So about 448 ms of the launch is between the end of `init` and the first screen's appearance: building
+the first SwiftUI hierarchy (the Route tab, its map view, the History tab) and whatever runs on the main
+actor meanwhile. The remaining roughly 550 ms is before `init` and after `onAppear` (the first frame's
+render), neither marked. This series' launch median is 1.0% above the baseline (1002 ms), inside the
+spread of the first two series; the added signpost is not a measured cost.
 
 ## Setup
 

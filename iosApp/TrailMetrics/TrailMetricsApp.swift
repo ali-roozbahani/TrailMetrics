@@ -45,6 +45,8 @@ struct TrailMetricsApp: App {
         signposter.withIntervalSignpost("MapsConfigure") {
             RouteMapConfiguration.configureIfKeyPresent()
         }
+
+        StartupSignposts.beginFirstScreen()
     }
 
     var body: some Scene {
