@@ -62,7 +62,8 @@ struct UITestProbeView: View {
         "refreshes=\(refreshes) directions=\(controls.directionsRequestCount) "
             + "directionsDone=\(controls.directionsCompletedCount) "
             + "saves=\(controls.saveCount) deletes=\(controls.deleteCount) "
-            + "waypoints=\(UITestWaypointCount.current())"
+            + "waypoints=\(UITestWaypointCount.current()) "
+            + "warning=\(controls.isSessionWarningRaised ? 1 : 0)"
     }
 }
 #endif

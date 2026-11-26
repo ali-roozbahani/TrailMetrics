@@ -20,17 +20,8 @@ public class TrackingViewModel: ObservableObject {
     public let plannedRoutePoints: [Coordinates]
     public let startPoint: Coordinates
 
-    // Not a stored `let events` created once in init(): an AsyncStream has one consumer for its whole
-    // life, so a screen covered by a push would leave it dead (see RouteViewModel.makeEventsStream()).
-    //
-    // Before TrackingView's first `.task` runs nobody consumes, and the profile load started
-    // in init() can fail by then. An event emitted while no consumer is active goes to
-    // `pendingEvents` and the next stream delivers it first, as in RouteViewModel.
-    private var eventsContinuation: AsyncStream<TrackingUiEvent>.Continuation?
-    /// Events emitted while no consumer was active, oldest first, at most `maxPendingEvents`.
-    private var pendingEvents: [TrackingUiEvent] = []
-    /// Location issues can repeat while nobody consumes; TrackingView shows one error at a time.
-    private static let maxPendingEvents = 10
+    /// The one-shot events and the ones kept while no consumer is active.
+    private let events = TrackingEventChannel()
 
     /// The one source of "the app is still reading the stored session" (`isRestoring`): `canStart` and
     /// `onStartClicked()` read it here, nothing is copied, so a caller cannot skip the gate.
@@ -174,21 +165,12 @@ public class TrackingViewModel: ObservableObject {
     }
 
     public func makeEventsStream() -> AsyncStream<TrackingUiEvent> {
-        let (stream, continuation) = AsyncStream.makeStream(of: TrackingUiEvent.self)
-        for event in pendingEvents {
-            continuation.yield(event)
-        }
-        pendingEvents.removeAll()
-        eventsContinuation = continuation
-        return stream
+        let isRaised = trackingSessionManager.unsavedSessionWarning.isRaised.value.boolValue
+        return events.makeStream(isSessionNotSavedRaised: isRaised)
     }
 
     private func emit(_ event: TrackingUiEvent) {
-        if case .enqueued = eventsContinuation?.yield(event) { return }
-        pendingEvents.append(event)
-        if pendingEvents.count > Self.maxPendingEvents {
-            pendingEvents.removeFirst()
-        }
+        events.emit(event)
     }
 
     private func loadUserProfile() {
@@ -254,6 +236,11 @@ public class TrackingViewModel: ObservableObject {
                 }
             }
         })
+    }
+
+    /// The View showed `.sessionNotSaved`: the warning is not offered again for this session.
+    public func onSessionNotSavedShown() {
+        trackingSessionManager.unsavedSessionWarning.markShown()
     }
 
     deinit {

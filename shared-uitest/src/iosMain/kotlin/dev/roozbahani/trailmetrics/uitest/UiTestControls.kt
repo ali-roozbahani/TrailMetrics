@@ -1,8 +1,10 @@
 package dev.roozbahani.trailmetrics.uitest
 
+import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import org.koin.mp.KoinPlatform
 
 /**
  * What a UI test reads and drives in one launch started by [doInitKoinIosForUiTest].
@@ -17,6 +19,7 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
     private val saves = MutableStateFlow(0)
     private val deletes = MutableStateFlow(0)
     private val gate = CompletableDeferred<Unit>()
+    private val locationIssueReported = MutableStateFlow(false)
 
     /** `getClosedRoute` calls received, counted on entry, before any hold. */
     val directionsRequestCount: Int get() = directionsRequests.value
@@ -30,6 +33,10 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
     /** `deleteActivity` calls that completed without failing. */
     val deleteCount: Int get() = deletes.value
 
+    /** Whether the session manager's unsaved-session warning is raised (not yet shown by a screen). */
+    val isSessionWarningRaised: Boolean
+        get() = KoinPlatform.getKoin().get<TrackingSessionManager>().unsavedSessionWarning.isRaised.value
+
     /** Completes every held call. Calls made after this are not held. */
     fun releaseHeldCalls() {
         gate.complete(Unit)
@@ -37,6 +44,13 @@ class UiTestControls internal constructor(private val scenario: UiTestScenario) 
 
     internal suspend fun awaitReleaseIfHeld(call: UiTestHeldCall) {
         if (scenario.heldCall == call) gate.await()
+    }
+
+    /** Whether the location fake of [UiTestScenario.LocationIssueThenFailedSessionSave] has reported its issue. */
+    internal val hasReportedLocationIssue: Boolean get() = locationIssueReported.value
+
+    internal fun markLocationIssueReported() {
+        locationIssueReported.value = true
     }
 
     internal fun countDirectionsRequest() = directionsRequests.update { it + 1 }

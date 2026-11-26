@@ -1,12 +1,14 @@
 package dev.roozbahani.trailmetrics.feature.tracking
 
 import android.Manifest
+import androidx.compose.runtime.mutableStateOf
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import dev.roozbahani.trailmetrics.core.error.RouteUiError
 import dev.roozbahani.trailmetrics.core.error.stringRes
 import dev.roozbahani.trailmetrics.domain.model.ActivityType
@@ -32,6 +34,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowActivity
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -410,6 +413,82 @@ class TrackingScreenTest {
         showStartedSession()
 
         robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        // Shown but not yet gone: the warning counts as shown only once the snackbar has been on screen.
+        assertTrue(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+
+        robot.waitForLongSnackbarToHide()
+
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a Root that left before the save warning had run its course shows it again when it comes back`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        val isRootShown = mutableStateOf(true)
+        shadowOf(composeRule.activity.application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        grantLocationPermission()
+        robot.setContent(
+            startPoint = START,
+            plannedRoutePoints = WALKED_ROUTE,
+            onNavigateBack = { navigateBackCalls++ },
+            isRootShown = isRootShown
+        ).clickStart().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // As a recreated Activity: the Root leaves composition while its snackbar shows, a new one comes.
+        isRootShown.value = false
+        robot.waitForIdle().assertMessageNotShown(R.string.msg_session_not_saved)
+        isRootShown.value = true
+
+        robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        assertTrue(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a save warning whose snackbar runs out while the app is not visible stays raised and shows again`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        showStartedSession().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // The app goes to the background (the screen off) while the long snackbar shows, and its time runs out there.
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        robot.waitForLongSnackbarToHide()
+
+        assertTrue(
+            fixture.sessionManager.unsavedSessionWarning.isRaised.value,
+            "the warning counted as shown while the app was not visible"
+        )
+
+        // Back in the foreground: the warning is shown again, and counts as shown once it ran its course there.
+        composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        robot.waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+        robot.waitForLongSnackbarToHide()
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
+    }
+
+    @Test
+    fun `a session finished before its save warning had run its course leaves no warning for the next screen`() {
+        fixture.store.saveFailure = IllegalStateException("disk full")
+        val isRootShown = mutableStateOf(true)
+        shadowOf(composeRule.activity.application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        grantLocationPermission()
+        robot.setContent(
+            startPoint = START,
+            plannedRoutePoints = WALKED_ROUTE,
+            onNavigateBack = { navigateBackCalls++ },
+            isRootShown = isRootShown
+        ).clickStart().waitForIdle().assertMessageShown(R.string.msg_session_not_saved)
+
+        // Finish while the long snackbar is still up: the session ends and is saved as an activity.
+        fixture.receiveLocation(END, millisAfterStart = 60_000L)
+        robot.waitForIdle().clickFinish().waitForIdle()
+        assertEquals(1, navigateBackCalls)
+
+        // The next Tracking screen: nothing of the finished session's warning.
+        isRootShown.value = false
+        robot.waitForIdle()
+        isRootShown.value = true
+
+        robot.waitForIdle().assertMessageNotShown(R.string.msg_session_not_saved)
+        assertFalse(fixture.sessionManager.unsavedSessionWarning.isRaised.value)
     }
 
     @Test

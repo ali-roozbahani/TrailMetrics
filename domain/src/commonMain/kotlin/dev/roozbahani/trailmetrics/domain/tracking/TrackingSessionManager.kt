@@ -63,8 +63,8 @@ class TrackingSessionManager(
     val locationIssues: SharedFlow<RouteError> = _locationIssues.asSharedFlow()
 
     /**
-     * Raised by the first failed save of the current session, at most once per session; [start] clears it
-     * (owner decision of 2026-11-25).
+     * Raised by the first failed save of the current session, at most once per session; [start], [stop] and
+     * [clearSession] (so [discard] and a saved Finish too) clear it (owner decision of 2026-11-25).
      */
     val unsavedSessionWarning = UnsavedSessionWarning()
 
@@ -131,6 +131,8 @@ class TrackingSessionManager(
     fun stop() {
         if (_state.value is TrackingState.Idle || _state.value is TrackingState.Finished) return
         locationObservationJob?.cancel()
+        // Before the dispatch: the save of the Finished state that follows must not raise it again.
+        unsavedSessionWarning.endSession()
         dispatch(TrackingEvent.Stop(clock.elapsedRealtimeMillis()))
         trackingServiceLauncher.stop()
     }
@@ -199,6 +201,8 @@ class TrackingSessionManager(
             val details = _sessionDetails.value
             if (_state.compareAndSet(clearing, TrackingState.Idle)) {
                 isSessionDiscarded.value = true
+                // A Finished session restored in this process was never stopped here, so its warning ends here.
+                unsavedSessionWarning.endSession()
                 _sessionDetails.compareAndSet(details, null)
                 // No session, no progress: the next screen must not show this session's traveled segment.
                 _routeProgress.value = null

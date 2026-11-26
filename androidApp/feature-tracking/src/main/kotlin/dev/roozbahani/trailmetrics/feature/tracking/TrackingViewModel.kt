@@ -88,17 +88,6 @@ class TrackingViewModel(
         }
     }
 
-    init {
-        // Raised by the manager at most once per session; it waits as state while no ViewModel exists, and is
-        // marked shown once it is in the event channel, which keeps it until the screen collects.
-        viewModelScope.launch {
-            trackingSessionManager.unsavedSessionWarning.isRaised.filter { it }.collect {
-                _events.send(TrackingEvent.ShowSessionNotSaved)
-                trackingSessionManager.unsavedSessionWarning.markShown()
-            }
-        }
-    }
-
     private val initialProfileLoad: Job = viewModelScope.launch {
         try {
             _userProfile.value = userProfileRepository.getUserProfile()
@@ -135,8 +124,13 @@ class TrackingViewModel(
 
     // Location issues keep the session manager's SharedFlow delivery (dropped while nothing
     // collects); only events the ViewModel originates go through the Channel.
+    //
+    // The unsaved-session warning comes from the manager's StateFlow, not the Channel: each collector, so each new Root
+    // (a recreated Activity keeps this ViewModel), gets it again while it is raised, until the Root reports it shown
+    // (TrackingAction.SessionNotSavedShown). A StateFlow repeats no value, so one collector gets it once.
     val events: Flow<TrackingEvent> = merge(
         _events.receiveAsFlow(),
+        trackingSessionManager.unsavedSessionWarning.isRaised.filter { it }.map { TrackingEvent.ShowSessionNotSaved },
         trackingSessionManager.locationIssues.map { routeError ->
             if (routeError is RouteError.MissingLocationPermission) {
                 TrackingEvent.RequestLocationPermission
@@ -154,6 +148,7 @@ class TrackingViewModel(
             TrackingAction.Resume -> trackingSessionManager.resume()
             TrackingAction.Stop -> stop()
             is TrackingAction.Finish -> finish(action.snapshotFilePath)
+            TrackingAction.SessionNotSavedShown -> trackingSessionManager.unsavedSessionWarning.markShown()
         }
     }
 
@@ -334,6 +329,9 @@ sealed interface TrackingAction {
     data object Resume : TrackingAction
     data object Stop : TrackingAction
     data class Finish(val snapshotFilePath: String?) : TrackingAction
+
+    /** The screen showed [TrackingEvent.ShowSessionNotSaved]: the warning is not shown again for this session. */
+    data object SessionNotSavedShown : TrackingAction
 }
 
 sealed interface TrackingEvent {

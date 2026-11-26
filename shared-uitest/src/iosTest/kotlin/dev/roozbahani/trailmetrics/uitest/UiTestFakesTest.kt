@@ -221,6 +221,42 @@ class UiTestFakesTest {
     }
 
     @Test
+    fun `FailedSessionSave throws on every session save and other scenarios save silently`() = runTest {
+        UiTestScenario.entries.forEach { scenario ->
+            launchUiTest(scenario)
+            val store = KoinPlatform.getKoin().get<TrackingSessionStore>()
+            val session = UiTestFixtures.pausedSession
+            if (scenario.sessionStore == UiTestSessionStore.FailsEverySave) {
+                assertFailsWith<IllegalStateException>("$scenario") { store.save(session) }
+            } else {
+                store.save(session)
+            }
+            stopKoin()
+        }
+    }
+
+    @Test
+    fun `LocationIssueThenFailedSessionSave reports an issue then a fix and fails saves only after it`() =
+        runTest {
+            val launch = launchUiTest(UiTestScenario.LocationIssueThenFailedSessionSave)
+            val store = KoinPlatform.getKoin().get<TrackingSessionStore>()
+            store.save(UiTestFixtures.pausedSession)
+            val updates = mutableListOf<LocationUpdate>()
+
+            val collector = backgroundScope.launch { launch.location.observeLocationUpdates().toList(updates) }
+            testScheduler.runCurrent()
+
+            assertEquals(3, updates.takeWhile { it is LocationUpdate.Unavailable }.size)
+            assertIs<RouteError.LocationUnavailable>(assertIs<LocationUpdate.Unavailable>(updates.first()).reason)
+            assertEquals(
+                UiTestFixtures.route.points[1].coordinates,
+                assertIs<LocationUpdate.Success>(updates.drop(3).single()).coordinates
+            )
+            assertTrue(collector.isActive, "the location flow completed")
+            assertFailsWith<IllegalStateException> { store.save(UiTestFixtures.pausedSession) }
+        }
+
+    @Test
     fun `FinishTwice walks the route point by point to its second-to-last point and stays open`() = runTest {
         val launch = launchUiTest(UiTestScenario.FinishTwice)
         val points = UiTestFixtures.route.points
@@ -251,7 +287,7 @@ class UiTestFakesTest {
 
     @Test
     fun `scenarios that do not walk emit no location update and stay open`() = runTest {
-        UiTestScenario.entries.filterNot { it.walksRoute }.forEach { scenario ->
+        UiTestScenario.entries.filterNot { it.walksRoute || it.reportsLocationIssueFirst }.forEach { scenario ->
             val launch = launchUiTest(scenario)
             val updates = mutableListOf<LocationUpdate>()
 
