@@ -23,6 +23,7 @@ public struct TrackingView: View {
     /// (see TrackingAlertQueue). The warning's OK marks it shown.
     @State private var alerts = TrackingAlertQueue()
     @State private var showExitConfirmation = false
+    @State private var showDiscardConfirmation = false
 
     public init(
         activityType: ActivityType,
@@ -56,7 +57,11 @@ public struct TrackingView: View {
                 Spacer()
                 VStack(spacing: 16) {
                     if let metrics = viewModel.currentMetrics {
-                        MetricsDisplay(metrics: metrics, calories: viewModel.calories)
+                        MetricsDisplay(
+                            metrics: metrics,
+                            elapsedMillis: { viewModel.displayedElapsedMillis },
+                            calories: viewModel.calories
+                        )
                     }
 
                     if viewModel.canFinish {
@@ -93,6 +98,16 @@ public struct TrackingView: View {
             Button(role: .cancel) {} label: { Text("Cancel", bundle: .module) }
         } message: {
             Text("Tracking is still in progress. Leaving now will stop and discard this activity.", bundle: .module)
+        }
+        .alert(Text("Discard this recording?", bundle: .module), isPresented: $showDiscardConfirmation) {
+            Button(role: .destructive) {
+                viewModel.onDiscardFinishedClicked()
+            } label: {
+                Text("Discard", bundle: .module)
+            }
+            Button(role: .cancel) {} label: { Text("Cancel", bundle: .module) }
+        } message: {
+            Text("The recording will be deleted and cannot be recovered.", bundle: .module)
         }
         // One alert for errors and the warning: SwiftUI may not present a second `.alert` while one is up. The OK
         // removes the alert on screen; the binding's setter does nothing, so one OK never removes two alerts.
@@ -181,13 +196,26 @@ public struct TrackingView: View {
         VStack(spacing: 12) {
             Text("Route completed!", bundle: .module)
                 .font(.title3.weight(.semibold))
-            Button {
-                finishTracking()
-            } label: {
-                Label { Text("Finish", bundle: .module) } icon: { Image(systemName: "checkmark") }
+            HStack(spacing: 12) {
+                if viewModel.canDiscardFinished {
+                    // Asks first: the recording is deleted. Not while a Finish waits for its snapshot.
+                    Button(role: .destructive) {
+                        showDiscardConfirmation = true
+                    } label: {
+                        Label { Text("Discard", bundle: .module) } icon: { Image(systemName: "trash") }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.trailRed)
+                    .disabled(snapshotRequestID != nil)
+                }
+                Button {
+                    finishTracking()
+                } label: {
+                    Label { Text("Finish", bundle: .module) } icon: { Image(systemName: "checkmark") }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.trailGreen)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.trailGreen)
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))

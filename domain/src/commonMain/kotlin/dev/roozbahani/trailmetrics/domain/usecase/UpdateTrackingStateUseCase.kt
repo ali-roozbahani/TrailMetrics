@@ -3,6 +3,7 @@ package dev.roozbahani.trailmetrics.domain.usecase
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.model.pausedState
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
 
 class UpdateTrackingStateUseCase {
@@ -41,7 +42,7 @@ class UpdateTrackingStateUseCase {
 
     private fun handlePause(currentState: TrackingState): TrackingState {
         return when (currentState) {
-            is TrackingState.Tracking -> TrackingState.Paused(currentState.metrics)
+            is TrackingState.Tracking -> pausedState(currentState.metrics)
             is TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> currentState
         }
     }

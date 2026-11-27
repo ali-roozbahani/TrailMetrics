@@ -13,6 +13,7 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.UserProfile
 import dev.roozbahani.trailmetrics.domain.model.availableControls
+import dev.roozbahani.trailmetrics.domain.model.displayedElapsedMillis
 import dev.roozbahani.trailmetrics.domain.repository.UserProfileRepository
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.usecase.SaveActivityUseCase
@@ -25,10 +26,13 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -63,7 +67,7 @@ class TrackingViewModel(
     /**
      * The snapshot file kept after a Finish that did not save, so the retry reuses it instead of
      * writing a new one. Deleted by [onCleared] if no retry used it: after a failed save the session stays
-     * Finished, so no new session starts.
+     * Finished, so no new session starts. Deleted by [discardFinished] too: no retry follows a discard.
      */
     private val retainedSnapshotPath = MutableStateFlow<String?>(null)
 
@@ -99,17 +103,42 @@ class TrackingViewModel(
         }
     }
 
+    /**
+     * The session state with the elapsed time to show (`displayedElapsedMillis`, `domain`'s rule). The session
+     * manager emits only on location events and controls, so while Tracking the time is computed again at each
+     * full second of the shown time; in any other state once. `collectLatest` cancels the ticking at the next
+     * state, and it ends with the collection of [state] (`WhileSubscribed`, [viewModelScope]).
+     */
+    private val trackingStateWithElapsed: Flow<TrackingStateWithElapsed> = channelFlow {
+        trackingSessionManager.currentState.collectLatest { trackingState ->
+            when (trackingState) {
+                is TrackingState.Tracking -> while (true) {
+                    val shown = trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis())
+                    send(TrackingStateWithElapsed(trackingState, shown))
+                    delay(MILLIS_PER_SECOND - shown % MILLIS_PER_SECOND)
+                }
+                TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> send(
+                    TrackingStateWithElapsed(
+                        trackingState,
+                        trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis())
+                    )
+                )
+            }
+        }
+    }
+
     val state: StateFlow<TrackingScreenState> = combine(
-        trackingSessionManager.currentState,
+        trackingStateWithElapsed,
         trackingSessionManager.routeProgress,
         _userProfile,
         retainedSnapshotPath,
         isRestoring
-    ) { trackingState, routeProgress, userProfile, retainedPath, restoring ->
+    ) { (trackingState, displayedElapsedMillis), routeProgress, userProfile, retainedPath, restoring ->
         val calories = trackingMetricsUseCase(trackingState, activityType, userProfile?.weightKg).calories
 
         TrackingScreenState(
             trackingState = trackingState,
+            displayedElapsedMillis = displayedElapsedMillis,
             calories = calories,
             plannedRoutePoints = plannedRoutePoints,
             routeProgress = routeProgress,
@@ -147,6 +176,7 @@ class TrackingViewModel(
             TrackingAction.Pause -> trackingSessionManager.pause()
             TrackingAction.Resume -> trackingSessionManager.resume()
             TrackingAction.Stop -> stop()
+            TrackingAction.DiscardFinished -> discardFinished()
             is TrackingAction.Finish -> finish(action.snapshotFilePath)
             TrackingAction.SessionNotSavedShown -> trackingSessionManager.unsavedSessionWarning.markShown()
         }
@@ -168,6 +198,18 @@ class TrackingViewModel(
      * ended by the session manager and stays stored until it is saved with Finish.
      */
     private fun stop() {
+        viewModelScope.launch { trackingSessionManager.discard() }
+    }
+
+    /**
+     * The user deletes a finished session instead of saving it. The screen stays: the session becomes Idle and Start
+     * is offered again. Nothing happens while a Finish is saving it ([isSessionSaved]): the save then clears it.
+     */
+    private fun discardFinished() {
+        val controls = trackingSessionManager.currentState.value.availableControls(isRestoring.value)
+        if (!controls.canDiscard || isSessionSaved) return
+        retainedSnapshotPath.value?.let(::deleteSnapshotFile)
+        retainedSnapshotPath.value = null
         viewModelScope.launch { trackingSessionManager.discard() }
     }
 
@@ -256,9 +298,18 @@ class TrackingViewModel(
         userProfileRepository.getUserProfile().also { _userProfile.value = it }
 }
 
+private data class TrackingStateWithElapsed(val trackingState: TrackingState, val displayedElapsedMillis: Long)
+
+private const val MILLIS_PER_SECOND = 1_000L
+
 /** Named to avoid colliding with the domain [TrackingState] it wraps. */
 data class TrackingScreenState(
     val trackingState: TrackingState = TrackingState.Idle,
+    /**
+     * The elapsed time the screen shows (`displayedElapsedMillis` of `domain`): while Tracking it ticks between
+     * location events. Display only; the recorded time is the metrics' `elapsedMillis`.
+     */
+    val displayedElapsedMillis: Long = 0L,
     val calories: Double? = null,
     val plannedRoutePoints: List<Coordinates> = emptyList(),
     val routeProgress: RouteProgress? = null,
@@ -303,6 +354,9 @@ data class TrackingScreenState(
 
     val canSave: Boolean
         get() = controls.canSave
+
+    val canDiscard: Boolean
+        get() = controls.canDiscard
 }
 
 private const val MIN_POINTS_FOR_LINE = 2
@@ -329,6 +383,9 @@ sealed interface TrackingAction {
     data object Resume : TrackingAction
     data object Stop : TrackingAction
     data class Finish(val snapshotFilePath: String?) : TrackingAction
+
+    /** The user confirmed deleting the finished session without saving it; the screen stays. */
+    data object DiscardFinished : TrackingAction
 
     /** The screen showed [TrackingEvent.ShowSessionNotSaved]: the warning is not shown again for this session. */
     data object SessionNotSavedShown : TrackingAction

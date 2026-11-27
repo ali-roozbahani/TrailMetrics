@@ -199,14 +199,54 @@ class TrackingScreenTest {
     }
 
     @Test
-    fun `Paused shows Resume and Stop and keeps the metrics`() {
+    fun `Paused shows Resume and Stop, keeps the metrics and shows no current speed`() {
         showStartedSession()
         walkTwoFixes()
 
         robot.clickPause()
             .assertPausedControls()
-            .assertWalkedMetricsShown()
+            // A paused session records nothing, so it has no current speed (the domain clears it on Pause).
+            .assertMetricsShown(
+                distance = WALKED_DISTANCE,
+                time = WALKED_TIME,
+                speed = NO_SPEED,
+                calories = WALKED_CALORIES
+            )
         assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell moves each second while tracking with no location event`() {
+        showStartedSession().assertTimeShown("00:00")
+
+        fixture.passTime(1_000L)
+        robot.waitForIdle().assertTimeShown("00:01")
+        fixture.passTime(1_000L)
+
+        robot.waitForIdle().assertTimeShown("00:02")
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell stands still while paused`() {
+        showStartedSession()
+        walkTwoFixes()
+        robot.clickPause().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell shows the final time of a finished session and does not move`() {
+        showReachedDestination().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Finished>(trackingState())
     }
 
     @Test
@@ -611,6 +651,81 @@ class TrackingScreenTest {
 
     // endregion
 
+    // region Discard of a finished session
+
+    @Test
+    fun `Discard on the completed card asks first and Cancel keeps the finished session`() {
+        showReachedDestination()
+            .assertCompletedCard()
+            .clickDiscard()
+            .waitForIdle()
+            .assertDiscardDialogShown()
+
+        robot.dismissDiscard().waitForIdle()
+            .assertDiscardDialogNotShown()
+            .assertCompletedCard()
+        assertIs<TrackingState.Finished>(trackingState())
+        assertIs<TrackingState.Finished>(fixture.store.stored)
+        assertEquals(0, fixture.store.clearCallCount)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `confirming Discard deletes the finished session and offers Start on the same screen`() {
+        showReachedDestination().clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+
+        robot.assertDiscardDialogNotShown()
+            .assertCompletedCardNotShown()
+            .assertIdleControls()
+        assertEquals(TrackingState.Idle, trackingState())
+        assertNull(fixture.store.stored)
+        assertEquals(emptyList(), fixture.activityHistoryRepository.savedActivities)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `the completed card keeps its Discard button while it fades out after the discard`() {
+        showReachedDestination().clickDiscard().waitForIdle()
+        composeRule.mainClock.autoAdvance = false
+        robot.confirmDiscard()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeByFrame()
+
+        assertEquals(TrackingState.Idle, trackingState())
+        // Mid-fade: the card that leaves still shows both of its buttons.
+        robot.assertDiscardEnabled(true)
+        composeRule.mainClock.autoAdvance = true
+        robot.waitForIdle().assertCompletedCardNotShown().assertIdleControls()
+    }
+
+    @Test
+    fun `a confirmation left open when the session ends elsewhere does not open by itself on the next finish`() {
+        showReachedDestination().clickDiscard().waitForIdle().assertDiscardDialogShown()
+
+        fixture.discardSessionElsewhere()
+        robot.waitForIdle().assertDiscardDialogNotShown().assertIdleControls()
+
+        robot.clickStart().waitForIdle()
+        fixture.receiveLocation(END, millisAfterStart = 120_000L)
+        robot.waitForIdle().assertCompletedCard().assertDiscardDialogNotShown()
+    }
+
+    @Test
+    fun `a restored finished session can be discarded and a new one started`() {
+        storeSession(TrackingState.Finished(STORED_METRICS))
+        showScreen().assertCompletedCard()
+        grantLocationPermission()
+
+        robot.clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+            .assertIdleControls()
+        assertNull(fixture.store.stored)
+
+        robot.clickStart().waitForIdle().assertTrackingControls()
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    // endregion
+
     /** What the system's permission dialog returns for the location request the screen made. */
     private fun answerLocationPermissionRequest(granted: Boolean) {
         val request = assertNotNull(lastPermissionRequest(), "a permission request")
@@ -646,6 +761,7 @@ class TrackingScreenTest {
 
         // The speed over the last two fixes: ~55.6 m in 30 s, 6.67 km/h.
         const val WALKED_SPEED = "6.7 km/h"
+        const val NO_SPEED = "-- km/h"
 
         // Average 10.0 km/h: running MET 9.8 x 70 kg x 1/60 h = 11.4 kcal.
         const val WALKED_CALORIES = "11 kcal"
