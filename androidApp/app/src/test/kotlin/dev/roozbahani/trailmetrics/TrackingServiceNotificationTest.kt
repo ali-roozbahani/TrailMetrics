@@ -2,6 +2,7 @@ package dev.roozbahani.trailmetrics
 
 import android.app.Application
 import android.app.Notification
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.IntentFilter
@@ -128,6 +129,18 @@ class TrackingServiceNotificationTest {
 
         assertEquals(TrackingService.ACTION_STOP_TRACKING, intent.action)
         assertTrue(StopTrackingAuthorization.isAuthorized(intent))
+    }
+
+    @Test
+    fun `the posted notification shows the title, the setting-up text and its channel's name`() {
+        val notification = foregroundNotification()
+
+        assertEquals("TrailMetrics", notification.extras.getString(Notification.EXTRA_TITLE))
+        // No location update has arrived yet in this setup, so the session shows the setting-up text.
+        assertEquals("Setting up...", notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString())
+        val channel = application.getSystemService(NotificationManager::class.java)
+            .getNotificationChannel(notification.channelId)
+        assertEquals("Tracking", assertNotNull(channel).name.toString())
     }
 
 }
