@@ -21,7 +21,8 @@
 #   kind    agent | owner                                status  planned | building | ready | pushed | merged | dropped
 #   pr      the PR number, or `-`
 # An entry is open while its status is not `merged` or `dropped`. Queue order: agent entries before
-# owner entries, then by `order`.
+# owner entries, then by `order`. There is no limit on open entries (owner decision of 2026-11-27): a
+# new entry gets the next `order`, so it comes after every entry of its kind.
 #
 # The task text. Every entry carries the text of its task, so a session that did not queue it can build
 # it: `add` needs `--task <file>` (or `--task -` for stdin) and copies the text to `tasks/<slug>.md` in
@@ -29,8 +30,8 @@
 # `merged` or `dropped` and the text is older than 3 days, never the text of an open entry. The text
 # is what the task template (`task-template.md`) asks for: what to do, its scope, when it is done.
 #
-# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a sixth
-#   open entry, a slug already in the file, an --after slug that is not in the file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
+# add refuses: no task text (no --task, a file that is not there, an empty or blank text), a slug
+#   already in the file, an --after slug that is not in the file or is dropped, an agent entry after an owner entry, a branch already in the file, a branch
 #   without a feature/, bugfix/ or chore/ prefix. A new entry is `planned` with PR `-`.
 # set refuses: an unknown slug, field or status, a PR that is not a number or `-`; status `pushed`
 #   without a PR number, for an entry that is not `ready`, while another entry is pushed, for an
@@ -74,7 +75,7 @@
 # show prints the entries in queue order as aligned columns (awk only, no `column`).
 #
 # Lock: `add` and `set` read the file, validate against it and replace it, so two of them at the same
-# time would lose one update (and could both pass the limit of 5). Each runs under an exclusive
+# time would lose one update (and could both take the same `order`). Each runs under an exclusive
 # flock(2) on `<queue file>.lock`, held from before the read until the process ends; a second one
 # waits, and refuses (exit 1, "the queue file is locked by another add or set") after
 # ${TM_QUEUE_LOCK_WAIT:-30} seconds. The kernel drops the lock when its holder dies, so a killed `add`
@@ -87,7 +88,6 @@ set -u -o pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 QUEUE_FILE="${QUEUE_FILE:-$HOME/agent-workspace/queue/queue.tsv}"
-MAX_OPEN=5
 TAB="$(printf '\t')"
 USAGE="usage: scripts/queue/queue.sh add <slug> --branch <branch> --task <file|-> [--after <slug>] [--kind agent|owner]
        scripts/queue/queue.sh task <slug>
@@ -202,8 +202,6 @@ cmd_add() {
             refuse "an agent entry cannot come after the owner entry '$after' (owner entries are pushed last)"
         fi
     fi
-    open="$(entries | awk -F '\t' '$6 != "merged" && $6 != "dropped"' | wc -l | tr -d ' ')"
-    [ "$open" -lt "$MAX_OPEN" ] || refuse "the queue already has $open open entries (maximum $MAX_OPEN)"
     order="$(entries | awk -F '\t' 'BEGIN { m = 0 } $1 > m { m = $1 } END { print m + 1 }')"
     # The text first, so an entry in the file always has its text; written whole, then moved into place.
     mkdir -p "$(dirname "$(task_file "$slug")")" || die "cannot create $(dirname "$(task_file "$slug")")"
@@ -428,7 +426,6 @@ self_test() {
     check "bad kind" "queue: refused: kind 'human' is not agent or owner" 1 q add c --branch chore/c --kind human
     check "bad slug" "queue: refused: slug 'C_1' is not kebab-case" 1 q add C_1 --branch chore/c
     check "fifth open entry" "added c (agent, order 5)" 0 q add c --branch chore/c
-    check "sixth open entry refused" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add d --branch chore/d
     check "agent entries order before owner entries" "5      c     chore/c   -      agent  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | sed -n 4p"
     check "owner entries last" "4      o2    chore/o2  o      owner  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | tail -1"
     check "next builds the first entry" "BUILD a" 0 q next
@@ -450,10 +447,12 @@ self_test() {
     check "a ready entry is not merged" "queue: refused: 'b' is ready; only a pushed entry is merged" 1 q set b status=merged pr=12
     check "next independent entry is built" "BUILD c" 0 q next
     check "a child is not pushed while its parent is pushed" "queue: refused: 'a' is pushed; one PR of the queue is pushed at a time" 1 q set b status=pushed pr=12
-    check "dropped frees a slot" "set c: status dropped, pr -, branch chore/c" 0 q set c status=dropped
+    check "set c dropped" "set c: status dropped, pr -, branch chore/c" 0 q set c status=dropped
     check "add after a dropped entry refused" "queue: refused: --after 'c' is dropped" 1 q add d --branch chore/d --after c
-    check "add into the freed slot" "added d (agent, order 6)" 0 q add d --branch chore/d
-    check "a sixth open entry is still refused" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add e --branch chore/e
+    check "add d" "added d (agent, order 6)" 0 q add d --branch chore/d
+    check "a sixth open entry is added (no limit)" "added e (agent, order 7)" 0 q add e --branch chore/e
+    check "a seventh open entry is added" "added f (agent, order 8)" 0 q add f --branch chore/f
+    check "a new agent entry comes after the open agent entries, before the owner entries" "8      f     chore/f   -      agent  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | sed -n 7p"
     check "add ends with the next action" "next: BUILD a" 0 q_fresh_add
     check "set ready ends with PUSH, not another BUILD" "next: PUSH a" 0 q_ready_first
     check "a second entry is not built before the first is pushed" "next: FINISH_BUILD a" 0 q_two_entries
@@ -513,15 +512,15 @@ self_test() {
     check "pushed entry can be set merged" "set a: status merged, pr 3, branch chore/a" 0 q set a status=merged
     check "after the merge: DONE" "DONE" 0 q next
 
-    # The lock: five adds at once all land (without it, replacing the file loses updates), the sixth is
-    # refused by the limit, and an add that cannot get the lock refuses instead of writing.
+    # The lock: six adds at once all land, each with its own order (without it, replacing the file loses
+    # updates), and an add that cannot get the lock refuses instead of writing.
     fresh lk1; mkdir -p "$tmp/lk1"
-    for s in a b c d e; do q add "$s" --branch "chore/$s" >/dev/null 2>&1 & done
+    for s in a b c d e f; do q add "$s" --branch "chore/$s" >/dev/null 2>&1 & done
     wait
     out="$(q show 2>&1)"
-    if [ "$(printf '%s\n' "$out" | grep -c ' planned ')" = 5 ]; then echo "ok   five concurrent adds all land"; else
-        echo "FAIL five concurrent adds: expected 5 planned entries, got:" >&2; printf '%s\n' "$out" | sed 's/^/       /' >&2; fails=$((fails + 1)); fi
-    check "the sixth add is refused by the limit" "queue: refused: the queue already has 5 open entries (maximum 5)" 1 q add f --branch chore/f
+    if [ "$(printf '%s\n' "$out" | grep -c ' planned ')" = 6 ]; then echo "ok   six concurrent adds all land"; else
+        echo "FAIL six concurrent adds: expected 6 planned entries, got:" >&2; printf '%s\n' "$out" | sed 's/^/       /' >&2; fails=$((fails + 1)); fi
+    check "the six concurrent adds have six different orders" "1 2 3 4 5 6" 0 sh -c "awk -F '\t' '{ print \$1 }' '$QF' | sort -n | tr '\n' ' ' | sed 's/ \$//'"
     fresh lk2; mkdir -p "$tmp/lk2"
     perl -e 'use Fcntl qw(:flock); open(my $f, ">>", $ARGV[0]) or exit 2; flock($f, LOCK_EX) or exit 2; sleep 4' "$QF.lock" &
     local holder=$!

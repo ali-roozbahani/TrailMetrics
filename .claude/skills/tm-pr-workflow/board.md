@@ -21,9 +21,7 @@ step of the gate and of CI's `tooling` job.
      owner merges): a queue entry and a PR of its own (`tm-agent-loop`, section 9), never a
      record.
    - **A `BOARD.md` record, in the same PR**, only for: an item that needs an owner decision
-     or design; an epic, and the follow-ups its board commit records (rule 5); an item the
-     queue refuses
-     because 5 entries are open; a finding of an owner-opened sweep (rule 4); and a flake escalated
+     or design; an epic, and the follow-ups its board commit records (rule 5); a finding of an owner-opened sweep (rule 4); and a flake escalated
      at count 3 ("Flake log"; a runner-not-acquired failure never is). An `[important]` reviewer finding not fixed in the PR is deferred as
      `queued <slug>` (a queue entry and a PR of its own, the push hook checks that the entry exists)
      or, when it is one of the items above, as `board record <slug>`.
