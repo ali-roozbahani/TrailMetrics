@@ -375,7 +375,11 @@ fun TrackingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 state.currentMetrics?.let { metrics ->
-                    MetricsDisplay(metrics = metrics, calories = state.calories)
+                    MetricsDisplay(
+                        metrics = metrics,
+                        elapsedMillis = state.displayedElapsedMillis,
+                        calories = state.calories
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -518,6 +522,7 @@ fun TrackingScreen(
 @Composable
 fun MetricsDisplay(
     metrics: TrackingMetrics,
+    elapsedMillis: Long,
     calories: Double?,
     modifier: Modifier = Modifier
 ) {
@@ -536,7 +541,7 @@ fun MetricsDisplay(
                 )
                 MetricCell(
                     label = stringResource(CoreStrings.label_time),
-                    value = formatElapsedTime(metrics.elapsedMillis),
+                    value = formatElapsedTime(elapsedMillis),
                     icon = Icons.Filled.Timer,
                     modifier = Modifier.weight(1f)
                 )
@@ -584,6 +589,7 @@ private fun TrackingScreenPreview() {
                         currentSpeedMetersPerSecond = 2.8f
                     )
                 ),
+                displayedElapsedMillis = 754_000L,
                 calories = 148.0,
                 plannedRoutePoints = plannedRoute,
                 routeProgress = RouteProgress(
