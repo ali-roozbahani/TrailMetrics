@@ -232,10 +232,27 @@ class TrackingSessionManagerPersistenceTest {
 
     @Test
     fun `a paused session is restored as Paused`() = runTest(testScheduler) {
-        val metrics = metrics()
+        // No speed: a paused session has none (the cases below restore one that was stored with a speed).
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = null)
         store.stored = TrackingState.Paused(metrics)
 
         assertEquals(TrackingState.Paused(metrics), manager.restore())
+    }
+
+    @Test
+    fun `a paused session stored with a speed is restored without one`() = runTest(testScheduler) {
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = 3.1f)
+        store.stored = TrackingState.Paused(metrics)
+
+        assertEquals(TrackingState.Paused(metrics.copy(currentSpeedMetersPerSecond = null)), manager.restore())
+    }
+
+    @Test
+    fun `a tracking session stored with a speed is restored as Paused without one`() = runTest(testScheduler) {
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = 3.1f)
+        store.stored = TrackingState.Tracking(metrics)
+
+        assertEquals(TrackingState.Paused(metrics.copy(currentSpeedMetersPerSecond = null)), manager.restore())
     }
 
     @Test

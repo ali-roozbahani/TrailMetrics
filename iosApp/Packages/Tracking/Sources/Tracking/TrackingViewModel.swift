@@ -8,14 +8,15 @@ import SharedKit
 
 @MainActor
 public class TrackingViewModel: ObservableObject {
-    @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared {
-        didSet {
-            elapsedTimeTicker.show(trackingState, clock: clock) { [weak self] in self?.displayedElapsedMillis = $0 }
-        }
+    @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared
+    /// The time the metrics panel shows, computed when read (`domain`'s `displayedElapsedMillis` at the monotonic
+    /// clock's now): while Tracking it moves between location events. Not published: `MetricsDisplay` reads it
+    /// once a second while it is on screen (a `TimelineView`), so nothing ticks for a hidden screen or in the
+    /// background, and a tick re-renders the metrics panel only. Display only; the Live Activity gets the
+    /// recorded `elapsedMillis` (its own timer ticks).
+    public var displayedElapsedMillis: Int64 {
+        trackingState.displayedElapsedMillis(nowElapsedRealtimeMillis: clock.elapsedRealtimeMillis())
     }
-    /// The time the metrics panel shows: ticks while Tracking (`ElapsedTimeTicker`). Display only; the Live
-    /// Activity gets the recorded `elapsedMillis` (its own timer ticks).
-    @Published public private(set) var displayedElapsedMillis: Int64 = 0
     @Published public private(set) var calories: Double?
     /// How far along the planned route the session is, as the manager reports it (nil before the first fix
     /// and without a plan). The route's end is the manager's rule: it ends the session itself.
@@ -51,7 +52,6 @@ public class TrackingViewModel: ObservableObject {
     // The state, route progress and location issues observations, cancelled together.
     private var observationTasks: [Task<Void, Never>] = []
 
-    private let elapsedTimeTicker = ElapsedTimeTicker()
     private var liveActivityController: TrackingLiveActivityController?
     /// Set when the Live Activity of the session was ended (by Stop or by the observed Finished state), so it
     /// ends once; cleared when a session starts or resumes.

@@ -100,6 +100,13 @@ class TrackingScreenFixture(private val snapshotDispatcher: CoroutineDispatcher 
         locationRepository.emit(LocationUpdate.Success(coordinates, speedMetersPerSecond = null, accuracyMeters = null))
     }
 
+    /** Time passes with no location event: the monotonic clock and the coroutines' virtual time move together. */
+    fun passTime(millis: Long) {
+        clock.elapsedRealtimeMillis += millis
+        testScheduler.advanceTimeBy(millis)
+        testScheduler.runCurrent()
+    }
+
     /** Enough consecutive failures for the session manager to report [reason]. */
     fun receiveUnavailable(reason: RouteError) {
         repeat(UNAVAILABLE_THRESHOLD) { locationRepository.emit(LocationUpdate.Unavailable(reason)) }
