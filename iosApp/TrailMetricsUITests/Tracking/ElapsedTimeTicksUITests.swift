@@ -30,7 +30,8 @@ final class ElapsedTimeTicksUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(movedTime.waitForExistence(timeout: 10), "The Time cell did not move past 05:00 after Resume")
         // No location event arrived: the distance is still the restored one.
-        XCTAssertTrue(metricCell(in: app, label: "Distance", value: "400 m").exists, "A location event moved the distance")
+        let restoredDistance = metricCell(in: app, label: "Distance", value: "400 m")
+        XCTAssertTrue(restoredDistance.exists, "A location event moved the distance")
     }
 
     /// The metric cell is one accessibility element whose label combines its caption and its value.
