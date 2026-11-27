@@ -662,6 +662,81 @@ class TrackingScreenTest {
 
     // endregion
 
+    // region Discard of a finished session
+
+    @Test
+    fun `Discard on the completed card asks first and Cancel keeps the finished session`() {
+        showReachedDestination()
+            .assertCompletedCard()
+            .clickDiscard()
+            .waitForIdle()
+            .assertDiscardDialogShown()
+
+        robot.dismissDiscard().waitForIdle()
+            .assertDiscardDialogNotShown()
+            .assertCompletedCard()
+        assertIs<TrackingState.Finished>(trackingState())
+        assertIs<TrackingState.Finished>(fixture.store.stored)
+        assertEquals(0, fixture.store.clearCallCount)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `confirming Discard deletes the finished session and offers Start on the same screen`() {
+        showReachedDestination().clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+
+        robot.assertDiscardDialogNotShown()
+            .assertCompletedCardNotShown()
+            .assertIdleControls()
+        assertEquals(TrackingState.Idle, trackingState())
+        assertNull(fixture.store.stored)
+        assertEquals(emptyList(), fixture.activityHistoryRepository.savedActivities)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `the completed card keeps its Discard button while it fades out after the discard`() {
+        showReachedDestination().clickDiscard().waitForIdle()
+        composeRule.mainClock.autoAdvance = false
+        robot.confirmDiscard()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeByFrame()
+
+        assertEquals(TrackingState.Idle, trackingState())
+        // Mid-fade: the card that leaves still shows both of its buttons.
+        robot.assertDiscardEnabled(true)
+        composeRule.mainClock.autoAdvance = true
+        robot.waitForIdle().assertCompletedCardNotShown().assertIdleControls()
+    }
+
+    @Test
+    fun `a confirmation left open when the session ends elsewhere does not open by itself on the next finish`() {
+        showReachedDestination().clickDiscard().waitForIdle().assertDiscardDialogShown()
+
+        fixture.discardSessionElsewhere()
+        robot.waitForIdle().assertDiscardDialogNotShown().assertIdleControls()
+
+        robot.clickStart().waitForIdle()
+        fixture.receiveLocation(END, millisAfterStart = 120_000L)
+        robot.waitForIdle().assertCompletedCard().assertDiscardDialogNotShown()
+    }
+
+    @Test
+    fun `a restored finished session can be discarded and a new one started`() {
+        storeSession(TrackingState.Finished(STORED_METRICS))
+        showScreen().assertCompletedCard()
+        grantLocationPermission()
+
+        robot.clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+            .assertIdleControls()
+        assertNull(fixture.store.stored)
+
+        robot.clickStart().waitForIdle().assertTrackingControls()
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    // endregion
+
     /** What the system's permission dialog returns for the location request the screen made. */
     private fun answerLocationPermissionRequest(granted: Boolean) {
         val request = assertNotNull(lastPermissionRequest(), "a permission request")

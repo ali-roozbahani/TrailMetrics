@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -73,6 +75,8 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
 
     fun clickFinish() = apply { button(R.string.btn_tracking_finish).performClick() }
 
+    fun clickDiscard() = apply { button(R.string.btn_tracking_discard).performClick() }
+
     /** Two taps with no move in between, so the second lands before any recomposition can react to the first. */
     fun doubleTapFinish() = apply {
         button(R.string.btn_tracking_finish).performTouchInput {
@@ -97,7 +101,17 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
 
     fun dismissExit() = apply { dialogButton(R.string.dialog_exit_tracking_dismiss).performClick() }
 
+    fun confirmDiscard() = apply { dialogButton(R.string.dialog_discard_finished_confirm).performClick() }
+
+    fun dismissDiscard() = apply { dialogButton(R.string.dialog_discard_finished_dismiss).performClick() }
+
     fun waitForIdle() = apply { rule.waitForIdle() }
+
+    /** Whether the finish card's Discard can be tapped (not while a Finish waits for its snapshot). */
+    fun assertDiscardEnabled(enabled: Boolean) = apply {
+        val discard = button(R.string.btn_tracking_discard)
+        if (enabled) discard.assertIsEnabled() else discard.assertIsNotEnabled()
+    }
 
     fun assertIdleControls() = apply {
         assertButtons(shown = listOf(R.string.btn_tracking_start))
@@ -111,15 +125,16 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         assertButtons(shown = listOf(R.string.btn_tracking_resume, R.string.btn_tracking_stop))
     }
 
-    /** The completed card: its message and Finish, and none of the session controls. */
+    /** The completed card: its message, Finish and Discard, and none of the session controls. */
     fun assertCompletedCard() = apply {
         rule.onNodeWithText(string(R.string.msg_route_completed)).assertExists()
-        assertButtons(shown = listOf(R.string.btn_tracking_finish))
+        assertButtons(shown = listOf(R.string.btn_tracking_finish, R.string.btn_tracking_discard))
     }
 
     fun assertCompletedCardNotShown() = apply {
         rule.onNodeWithText(string(R.string.msg_route_completed)).assertDoesNotExist()
         button(R.string.btn_tracking_finish).assertDoesNotExist()
+        button(R.string.btn_tracking_discard).assertDoesNotExist()
     }
 
     /** Each metric's label and its value, as `MetricsDisplay` shows them. */
@@ -164,6 +179,20 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
     fun assertExitDialogNotShown() = apply {
         rule.onNode(isDialog()).assertDoesNotExist()
         rule.onNodeWithText(string(R.string.dialog_exit_tracking_title)).assertDoesNotExist()
+    }
+
+    /** The discard confirmation: it says the recording is deleted and cannot be recovered. */
+    fun assertDiscardDialogShown() = apply {
+        rule.onNode(isDialog()).assertExists()
+        rule.onNodeWithText(string(R.string.dialog_discard_finished_title)).assertExists()
+        rule.onNodeWithText(string(R.string.dialog_discard_finished_message)).assertExists()
+        dialogButton(R.string.dialog_discard_finished_confirm).assertExists()
+        dialogButton(R.string.dialog_discard_finished_dismiss).assertExists()
+    }
+
+    fun assertDiscardDialogNotShown() = apply {
+        rule.onNode(isDialog()).assertDoesNotExist()
+        rule.onNodeWithText(string(R.string.dialog_discard_finished_title)).assertDoesNotExist()
     }
 
     fun assertMessageShown(@StringRes message: Int) = apply {
@@ -213,7 +242,8 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
             R.string.btn_tracking_pause,
             R.string.btn_tracking_resume,
             R.string.btn_tracking_stop,
-            R.string.btn_tracking_finish
+            R.string.btn_tracking_finish,
+            R.string.btn_tracking_discard
         )
     }
 }
