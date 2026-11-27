@@ -161,6 +161,7 @@ class TrackingViewModelDiscardFinishedTest {
         assertIs<TrackingState.Tracking>(store.stored)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     @Test
     fun `a discard emits no event, so the screen stays`() = runTest(testScheduler) {
         val viewModel = createViewModel()
