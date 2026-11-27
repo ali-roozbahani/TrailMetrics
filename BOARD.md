@@ -228,15 +228,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the time is attributed (resolution, build, simulator boot, tests, per package) from a CI log, and the owner has the options with expected savings (one `xcodebuild` for all packages, build once and test without building, a cache of derived data, parallel simulators); a PR does the chosen one with before and after step times.
 - Refs: `.github/workflows/ci.yml` (`ios-build`, step "Run iOS package tests"); `scripts/pre-push-check.sh` (the gate's package-test step); `tm-ios` ("Build integration", `build-and-schemes.md`).
 
-### tracking-location-path-double-clock-read
-- Type: task
-- Area: domain
-- Order: 140
-- Source: PR #66 drift
-- Problem: In `TrackingSessionManager.observeLocation`, each `LocationUpdate.Success` reads `clock.elapsedRealtimeMillis()` twice: once for `speedCalculator.calculate` and once for `TrackingEvent.LocationReceived`. Speed and accounting can therefore see slightly different timestamps for the same event.
-- Done when: the clock is read once per event and reused, with a test.
-- Refs: `domain` `TrackingSessionManager.observeLocation`, `SpeedCalculator`.
-
 ### polyline-decoder-invalid-characters
 - Type: task
 - Area: data
