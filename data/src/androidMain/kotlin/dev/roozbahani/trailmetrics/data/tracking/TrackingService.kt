@@ -34,6 +34,9 @@ class TrackingService : LifecycleService(), KoinComponent {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
+        // The two-argument form is enough at target 37: it passes FOREGROUND_SERVICE_TYPE_MANIFEST, so the service
+        // runs with every type the manifest declares for it (`location`), and it is not deprecated. The typed form
+        // is only needed to start with a subset of those types.
         startForeground(NOTIFICATION_ID, buildNotification(TrackingState.Idle))
         if (intent == null) {
             // The system restarted the service after the process died: there is nothing to observe until
