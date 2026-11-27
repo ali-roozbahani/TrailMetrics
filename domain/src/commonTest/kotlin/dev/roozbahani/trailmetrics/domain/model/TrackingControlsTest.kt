@@ -23,8 +23,9 @@ class TrackingControlsTest {
         canPause: Boolean = false,
         canResume: Boolean = false,
         canStop: Boolean = false,
-        canSave: Boolean = false
-    ) = TrackingControls(canStart, canPause, canResume, canStop, canSave)
+        canSave: Boolean = false,
+        canDiscard: Boolean = false
+    ) = TrackingControls(canStart, canPause, canResume, canStop, canSave, canDiscard)
 
     @Test
     fun `idle offers only Start`() {
@@ -42,8 +43,8 @@ class TrackingControlsTest {
     }
 
     @Test
-    fun `a finished session offers only Save and never Start`() {
-        assertEquals(controls(canSave = true), finished.availableControls(isRestoring = false))
+    fun `a finished session offers only Save and Discard and never Start`() {
+        assertEquals(controls(canSave = true, canDiscard = true), finished.availableControls(isRestoring = false))
     }
 
     @Test
@@ -75,5 +76,14 @@ class TrackingControlsTest {
             val controls = state.availableControls(isRestoring = false)
             assertEquals(controls.canPause || controls.canResume, controls.canStop, "for $state")
         }
+    }
+
+    @Test
+    fun `Discard is offered in no state but finished`() {
+        listOf(idle, tracking, paused).forEach { state ->
+            assertEquals(false, state.availableControls(isRestoring = false).canDiscard, "for $state")
+            assertEquals(false, state.availableControls(isRestoring = true).canDiscard, "for $state")
+        }
+        assertEquals(true, finished.availableControls(isRestoring = true).canDiscard)
     }
 }
