@@ -159,5 +159,3 @@ Don't copy these as a pattern for new code.
 - `MetricsFormatter` (`formatDistance`, `formatSpeed`, `formatCalories`) returns finished texts with unit words
   and placeholders ("1.50 km", "-- km/h"), which both platforms show (board: `shared-metrics-formatter-user-visible-strings`,
   `ios-hardcoded-number-formatting`).
-- `TrackingService`'s foreground notification (title, text, the "Stop" action label, channel name) and `RestoredNotification`'s title
-  are Kotlin literals (board: `android-tracking-notification-text-in-code`).

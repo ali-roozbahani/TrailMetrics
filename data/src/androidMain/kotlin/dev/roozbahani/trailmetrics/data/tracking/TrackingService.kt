@@ -13,7 +13,6 @@ import dev.roozbahani.trailmetrics.data.R
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.tracking.TrackingSessionManager
 import dev.roozbahani.trailmetrics.domain.util.Logger
-import dev.roozbahani.trailmetrics.domain.util.formatDistance
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -107,7 +106,7 @@ class TrackingService : LifecycleService(), KoinComponent {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Tracking",
+            getString(R.string.tracking_notification_channel),
             NotificationManager.IMPORTANCE_LOW
         )
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -115,18 +114,12 @@ class TrackingService : LifecycleService(), KoinComponent {
     }
 
     private fun buildNotification(state: TrackingState): Notification {
-        val contentText = when (state) {
-            is TrackingState.Tracking -> "Tracking...${formatDistance(state.metrics.distanceMeters)}"
-            is TrackingState.Paused -> "Paused - ${formatDistance(state.metrics.distanceMeters)}"
-            is TrackingState.Idle, is TrackingState.Finished -> "Setting up..."
-        }
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("TrailMetrics")
-            .setContentText(contentText)
+            .setContentTitle(getString(R.string.tracking_notification_title))
+            .setContentText(trackingNotificationText(this, state))
             .setSmallIcon(R.drawable.ic_notif_location)
             .setContentIntent(buildOpenTrackingPendingIntent())
-            .addAction(0, "Stop", buildStopPendingIntent())
+            .addAction(0, getString(R.string.tracking_notification_stop), buildStopPendingIntent())
             .setOngoing(true)
             .build()
     }

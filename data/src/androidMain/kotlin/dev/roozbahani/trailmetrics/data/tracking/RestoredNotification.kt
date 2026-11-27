@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import dev.roozbahani.trailmetrics.data.R
 
 /**
  * The Intent that opens the app's launcher Activity (`MainActivity`, in the androidApp/app module, which
@@ -32,7 +33,7 @@ internal fun buildRestoredNotification(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
     return NotificationCompat.Builder(context, channelId)
-        .setContentTitle("TrailMetrics")
+        .setContentTitle(context.getString(R.string.tracking_notification_title))
         .setContentText(text)
         .setSmallIcon(smallIcon)
         .setContentIntent(openApp)

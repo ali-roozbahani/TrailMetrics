@@ -4,4 +4,14 @@
     <string name="restart_notice_paused">Paused - %1$s, tap to continue</string>
     <string name="restart_notice_finished">Finished - not saved, tap to save</string>
     <string name="restart_notice_restore_failed">Could not restore your saved session, tap to open</string>
+    <!-- The tracking service's notifications (TrackingService, RestoredNotification). -->
+    <string name="tracking_notification_title">TrailMetrics</string>
+    <!-- %1$s: the distance, e.g. "1.50 km". -->
+    <string name="tracking_notification_tracking">Tracking...%1$s</string>
+    <!-- %1$s: the distance, e.g. "850 m". -->
+    <string name="tracking_notification_paused">Paused - %1$s</string>
+    <string name="tracking_notification_setting_up">Setting up...</string>
+    <string name="tracking_notification_stop">Stop</string>
+    <!-- The notification channel's name, shown in the system's notification settings. -->
+    <string name="tracking_notification_channel">Tracking</string>
 </resources>
