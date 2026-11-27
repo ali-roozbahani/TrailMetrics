@@ -54,9 +54,10 @@ class TrackingViewModel(
 
     /**
      * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
-     * can't save the session again. Cleared by [start] for a new session, and if the save fails.
+     * can't save the session again. Cleared by [start] for a new session, and if the save fails. The screen
+     * reads it as [TrackingScreenState.isSaving]: no Discard while it is set.
      */
-    private var isSessionSaved = false
+    private val isSessionSaved = MutableStateFlow(false)
 
     /**
      * The snapshot file of the Finish whose save is running or has succeeded: a saved activity
@@ -131,9 +132,9 @@ class TrackingViewModel(
         trackingStateWithElapsed,
         trackingSessionManager.routeProgress,
         _userProfile,
-        retainedSnapshotPath,
+        combine(retainedSnapshotPath, isSessionSaved, ::Pair),
         isRestoring
-    ) { (trackingState, displayedElapsedMillis), routeProgress, userProfile, retainedPath, restoring ->
+    ) { (trackingState, displayedElapsedMillis), routeProgress, userProfile, (retainedPath, saving), restoring ->
         val calories = trackingMetricsUseCase(trackingState, activityType, userProfile?.weightKg).calories
 
         TrackingScreenState(
@@ -143,6 +144,7 @@ class TrackingViewModel(
             plannedRoutePoints = plannedRoutePoints,
             routeProgress = routeProgress,
             retainedSnapshotPath = retainedPath,
+            isSaving = saving,
             isRestoring = restoring
         )
     }.stateIn(
@@ -185,7 +187,7 @@ class TrackingViewModel(
     private fun start(startCoordinates: Coordinates) {
         // A stored or unsaved session is never replaced: its first save would overwrite the stored one.
         if (!trackingSessionManager.currentState.value.availableControls(isRestoring.value).canStart) return
-        isSessionSaved = false
+        isSessionSaved.value = false
         snapshotInUse = null
         viewModelScope.launch {
             trackingSessionManager.start(startCoordinates, activityType, plannedRoutePoints)
@@ -207,7 +209,7 @@ class TrackingViewModel(
      */
     private fun discardFinished() {
         val controls = trackingSessionManager.currentState.value.availableControls(isRestoring.value)
-        if (!controls.canDiscard || isSessionSaved) return
+        if (!controls.canDiscard || isSessionSaved.value) return
         retainedSnapshotPath.value?.let(::deleteSnapshotFile)
         retainedSnapshotPath.value = null
         viewModelScope.launch { trackingSessionManager.discard() }
@@ -218,7 +220,7 @@ class TrackingViewModel(
         val loadedProfile = _userProfile.value
         // The first load is still running: Finish does nothing, as before, and a later tap works.
         val isProfileLoading = loadedProfile == null && initialProfileLoad.isActive
-        if (isSessionSaved || finishedState == null || isProfileLoading) {
+        if (isSessionSaved.value || finishedState == null || isProfileLoading) {
             deleteIfUnreferenced(snapshotFilePath)
             return
         }
@@ -226,7 +228,7 @@ class TrackingViewModel(
         val path = retainedSnapshotPath.value ?: snapshotFilePath
         snapshotInUse = path
         retainedSnapshotPath.value = null
-        isSessionSaved = true
+        isSessionSaved.value = true
         val startedAtEpochMillis = trackingSessionManager.sessionDetails.value?.startedAtEpochMillis
             // A session stored by an older version has no start time: this is an estimate, the wall clock now
             // minus the time the session ran.
@@ -265,7 +267,7 @@ class TrackingViewModel(
     }
 
     private fun keepForRetry(snapshotFilePath: String?) {
-        isSessionSaved = false
+        isSessionSaved.value = false
         snapshotInUse = null
         retainedSnapshotPath.value = snapshotFilePath
     }
@@ -315,6 +317,8 @@ data class TrackingScreenState(
     val routeProgress: RouteProgress? = null,
     /** Set after a Finish that did not save: the screen sends this file again instead of a new one. */
     val retainedSnapshotPath: String? = null,
+    /** True from a Finish until its save failed or a new session starts: Discard is not offered meanwhile. */
+    val isSaving: Boolean = false,
     /** True until the stored session has been loaded; Start is not offered meanwhile. */
     val isRestoring: Boolean = false
 ) {
