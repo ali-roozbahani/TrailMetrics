@@ -86,13 +86,9 @@ class UpdateTrackingStateUseCase {
                 } else {
                     currentState.metrics.path.last().distanceTo(newEvent.coordinates)
                 }
-                // The contract is monotonic input (Clock.elapsedRealtimeMillis), so this is never
-                // negative in practice; the clamp keeps this pure function safe for any caller.
-                val deltaTime = (newEvent.elapsedRealtimeMillis - currentState.metrics.lastUpdateElapsedRealtimeMillis)
-                    .coerceAtLeast(0L)
-
                 val newMetrics = currentState.metrics.copy(
-                    elapsedMillis = currentState.metrics.elapsedMillis + deltaTime,
+                    elapsedMillis = currentState.metrics.elapsedMillis +
+                        currentState.metrics.millisSinceLastUpdate(newEvent.elapsedRealtimeMillis),
                     lastUpdateElapsedRealtimeMillis = newEvent.elapsedRealtimeMillis,
                     distanceMeters = currentState.metrics.distanceMeters + deltaDistance,
                     path = currentState.metrics.path + newEvent.coordinates,
@@ -109,10 +105,18 @@ class UpdateTrackingStateUseCase {
 
     /**
      * The time from the last accounted update (a fix, a Start or a Resume) to [elapsedRealtimeMillis] of a Pause or
-     * Stop counts as recorded time: the user was recording until then. Clamped at 0 as for a location event.
+     * Stop counts as recorded time: the user was recording until then.
      */
     private fun TrackingMetrics.accountedUntil(elapsedRealtimeMillis: Long): TrackingMetrics = copy(
-        elapsedMillis = elapsedMillis + (elapsedRealtimeMillis - lastUpdateElapsedRealtimeMillis).coerceAtLeast(0L),
+        elapsedMillis = elapsedMillis + millisSinceLastUpdate(elapsedRealtimeMillis),
         lastUpdateElapsedRealtimeMillis = maxOf(lastUpdateElapsedRealtimeMillis, elapsedRealtimeMillis)
     )
+
+    /**
+     * The recorded time a location event, a Pause or a Stop at [elapsedRealtimeMillis] adds. The contract is monotonic
+     * input (Clock.elapsedRealtimeMillis), so this is never negative in practice; the clamp keeps this pure function
+     * safe for any caller.
+     */
+    private fun TrackingMetrics.millisSinceLastUpdate(elapsedRealtimeMillis: Long): Long =
+        (elapsedRealtimeMillis - lastUpdateElapsedRealtimeMillis).coerceAtLeast(0L)
 }

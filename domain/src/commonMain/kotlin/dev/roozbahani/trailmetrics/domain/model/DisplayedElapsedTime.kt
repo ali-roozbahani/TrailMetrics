@@ -3,7 +3,7 @@ package dev.roozbahani.trailmetrics.domain.model
 /**
  * The elapsed time a screen shows at [nowElapsedRealtimeMillis], for both platforms. Display only: the
  * accounting of [TrackingMetrics.elapsedMillis] (`UpdateTrackingStateUseCase`, which adds time on location
- * events) is unchanged and nothing here is stored.
+ * events, a Pause and a Stop) is unchanged and nothing here is stored.
  *
  * While [TrackingState.Tracking], the time since the last accounted update is added, so the display ticks
  * without location events and equals what the next location event will account (no jump when it arrives).
