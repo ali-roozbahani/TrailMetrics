@@ -113,7 +113,7 @@ ViewModel via `koinViewModel()`, observes events), `<Screen>Screen` (pure `state
   Zero business logic, zero data transformation in composables. Logic like route
   progress/completion belongs in `domain`, as iOS needs it too: `TrackingSessionManager`
   owns the route-end rule and `routeProgress`; `TrackingViewModel` only puts the manager's
-  `routeProgress` into its state, and the finish card follows `canSave`.
+  `routeProgress` into its state, and the finish card follows `canSave` and `canDiscard`.
 - Stateless and hoisted: a composable takes state as parameters and reports changes through
   lambdas. Below the Root, no composable reads a ViewModel; pass data down.
 - State lives in the ViewModel's `StateFlow`, collected with
