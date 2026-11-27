@@ -8,8 +8,9 @@ import SwiftUI
 
 struct MetricsDisplay: View {
     let metrics: TrackingMetrics
-    /// The ticking time of the screen (`TrackingViewModel.displayedElapsedMillis`), not `metrics.elapsedMillis`.
-    let elapsedMillis: Int64
+    /// The ticking time of the screen (`TrackingViewModel.elapsedTime`), not `metrics.elapsedMillis`; observed
+    /// here only, so a tick re-renders this panel and not the screen around it.
+    @ObservedObject var elapsedTime: ElapsedTimeTicker
     let calories: Double?
 
     var body: some View {
@@ -22,7 +23,7 @@ struct MetricsDisplay: View {
                 )
                 TrackingMetricCell(
                     label: Text("Time", bundle: .module),
-                    value: formatElapsedTime(millis: elapsedMillis),
+                    value: formatElapsedTime(millis: elapsedTime.displayedElapsedMillis),
                     systemImage: "timer"
                 )
             }

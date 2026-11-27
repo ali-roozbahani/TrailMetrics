@@ -10,12 +10,13 @@ import SharedKit
 public class TrackingViewModel: ObservableObject {
     @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared {
         didSet {
-            elapsedTimeTicker.show(trackingState, clock: clock) { [weak self] in self?.displayedElapsedMillis = $0 }
+            elapsedTime.show(trackingState, clock: clock)
         }
     }
-    /// The time the metrics panel shows: ticks while Tracking (`ElapsedTimeTicker`). Display only; the Live
-    /// Activity gets the recorded `elapsedMillis` (its own timer ticks).
-    @Published public private(set) var displayedElapsedMillis: Int64 = 0
+    /// The time the metrics panel shows: ticks while Tracking. Display only; the Live Activity gets the recorded
+    /// `elapsedMillis` (its own timer ticks). Not published here: `MetricsDisplay` observes `elapsedTime`, so a tick
+    /// does not re-render the whole screen.
+    public var displayedElapsedMillis: Int64 { elapsedTime.displayedElapsedMillis }
     @Published public private(set) var calories: Double?
     /// How far along the planned route the session is, as the manager reports it (nil before the first fix
     /// and without a plan). The route's end is the manager's rule: it ends the session itself.
@@ -51,7 +52,7 @@ public class TrackingViewModel: ObservableObject {
     // The state, route progress and location issues observations, cancelled together.
     private var observationTasks: [Task<Void, Never>] = []
 
-    private let elapsedTimeTicker = ElapsedTimeTicker()
+    let elapsedTime = ElapsedTimeTicker()
     private var liveActivityController: TrackingLiveActivityController?
     /// Set when the Live Activity of the session was ended (by Stop or by the observed Finished state), so it
     /// ends once; cleared when a session starts or resumes.
