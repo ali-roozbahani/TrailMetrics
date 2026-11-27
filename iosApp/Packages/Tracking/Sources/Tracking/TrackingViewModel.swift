@@ -8,7 +8,13 @@ import SharedKit
 
 @MainActor
 public class TrackingViewModel: ObservableObject {
-    @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared
+    @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared {
+        didSet { updateDisplayedElapsedTime() }
+    }
+    /// The elapsed time the metrics panel shows (`displayedElapsedMillis`, `domain`'s rule, as on Android): while
+    /// Tracking it ticks between location events. Display only; the recorded time is the metrics' `elapsedMillis`,
+    /// which the Live Activity gets (its own timer ticks).
+    @Published public private(set) var displayedElapsedMillis: Int64 = 0
     @Published public private(set) var calories: Double?
     /// How far along the planned route the session is, as the manager reports it (nil before the first fix
     /// and without a plan). The route's end is the manager's rule: it ends the session itself.
@@ -43,6 +49,10 @@ public class TrackingViewModel: ObservableObject {
     // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
     // The state, route progress and location issues observations, cancelled together.
     private var observationTasks: [Task<Void, Never>] = []
+
+    /// Computes `displayedElapsedMillis` again at each full second of the shown time while Tracking; cancelled
+    /// at every state change (a new one starts if the state is still Tracking) and on deinit.
+    private var elapsedTimeTickTask: Task<Void, Never>?
 
     private var liveActivityController: TrackingLiveActivityController?
     /// Set when the Live Activity of the session was ended (by Stop or by the observed Finished state), so it
@@ -245,6 +255,42 @@ public class TrackingViewModel: ObservableObject {
 
     deinit {
         observationTasks.forEach { $0.cancel() }
+        elapsedTimeTickTask?.cancel()
+    }
+
+    private func currentDisplayedElapsedMillis() -> Int64 {
+        trackingState.displayedElapsedMillis(nowElapsedRealtimeMillis: clock.elapsedRealtimeMillis())
+    }
+
+    /// Shows the elapsed time of the new state, and ticks it while the state is Tracking: the manager emits only
+    /// on location events and controls.
+    private func updateDisplayedElapsedTime() {
+        elapsedTimeTickTask?.cancel()
+        elapsedTimeTickTask = nil
+        let shown = currentDisplayedElapsedMillis()
+        displayedElapsedMillis = shown
+        guard case .tracking = onEnum(of: trackingState) else { return }
+        // Made on the main actor, so the Task runs there; `self` is held only between two sleeps.
+        elapsedTimeTickTask = Task { [weak self] in
+            var lastShown = shown
+            while true {
+                do {
+                    try await Task.sleep(for: .milliseconds(Self.millisToNextSecond(after: lastShown)))
+                } catch {
+                    // Task.sleep throws only CancellationError: the state changed or the ViewModel is gone.
+                    return
+                }
+                guard let self else { return }
+                lastShown = self.currentDisplayedElapsedMillis()
+                self.displayedElapsedMillis = lastShown
+            }
+        }
+    }
+
+    /// The wait until the shown time reaches its next full second, so the displayed seconds change on time.
+    private static func millisToNextSecond(after shownMillis: Int64) -> Int64 {
+        let millisPerSecond: Int64 = 1_000
+        return millisPerSecond - shownMillis % millisPerSecond
     }
 
     private func recomputeCalories() {

@@ -8,6 +8,8 @@ import SwiftUI
 
 struct MetricsDisplay: View {
     let metrics: TrackingMetrics
+    /// The ticking time of the screen (`TrackingViewModel.displayedElapsedMillis`), not `metrics.elapsedMillis`.
+    let elapsedMillis: Int64
     let calories: Double?
 
     var body: some View {
@@ -20,7 +22,7 @@ struct MetricsDisplay: View {
                 )
                 TrackingMetricCell(
                     label: Text("Time", bundle: .module),
-                    value: formatElapsedTime(millis: metrics.elapsedMillis),
+                    value: formatElapsedTime(millis: elapsedMillis),
                     systemImage: "timer"
                 )
             }
