@@ -50,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -133,6 +134,9 @@ fun TrackingRoot(
         )
     })
     val state: TrackingScreenState by viewModel.state.collectAsStateWithLifecycle()
+    // Kept as a State and read only in MetricsDisplay (through the lambda below), so a tick does not recompose
+    // the Root or the screen.
+    val displayedElapsedMillis: State<Long> = viewModel.displayedElapsedMillis.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
@@ -205,6 +209,7 @@ fun TrackingRoot(
 
     TrackingScreen(
         state = state,
+        elapsedMillis = { displayedElapsedMillis.value },
         onAction = viewModel::onAction,
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
@@ -222,6 +227,7 @@ class TrackingPlatformActions(
 @Composable
 fun TrackingScreen(
     state: TrackingScreenState,
+    elapsedMillis: () -> Long,
     onAction: (TrackingAction) -> Unit,
     initialStartPoint: Coordinates,
     snackBarHostState: SnackbarHostState,
@@ -377,7 +383,7 @@ fun TrackingScreen(
                 state.currentMetrics?.let { metrics ->
                     MetricsDisplay(
                         metrics = metrics,
-                        elapsedMillis = state.displayedElapsedMillis,
+                        elapsedMillis = elapsedMillis,
                         calories = state.calories
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -522,7 +528,8 @@ fun TrackingScreen(
 @Composable
 fun MetricsDisplay(
     metrics: TrackingMetrics,
-    elapsedMillis: Long,
+    /** Read here only (a deferred read), so the elapsed-time tick recomposes this panel and nothing around it. */
+    elapsedMillis: () -> Long,
     calories: Double?,
     modifier: Modifier = Modifier
 ) {
@@ -541,7 +548,7 @@ fun MetricsDisplay(
                 )
                 MetricCell(
                     label = stringResource(CoreStrings.label_time),
-                    value = formatElapsedTime(elapsedMillis),
+                    value = formatElapsedTime(elapsedMillis()),
                     icon = Icons.Filled.Timer,
                     modifier = Modifier.weight(1f)
                 )
@@ -589,7 +596,6 @@ private fun TrackingScreenPreview() {
                         currentSpeedMetersPerSecond = 2.8f
                     )
                 ),
-                displayedElapsedMillis = 754_000L,
                 calories = 148.0,
                 plannedRoutePoints = plannedRoute,
                 routeProgress = RouteProgress(
@@ -598,6 +604,7 @@ private fun TrackingScreenPreview() {
                     lastIndex = 1
                 )
             ),
+            elapsedMillis = { 754_000L },
             onAction = {},
             initialStartPoint = plannedRoute.first(),
             snackBarHostState = remember { SnackbarHostState() },
