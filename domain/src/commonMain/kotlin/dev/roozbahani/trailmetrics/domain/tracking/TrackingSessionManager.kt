@@ -161,7 +161,7 @@ class TrackingSessionManager(
         }.let { state ->
             // A Finished session an older version stored can hold the speed of its last fix: a restored one has
             // none. A step of its own: built as a `when` branch above, Kotlin/Native (iosSimulatorArm64 tests,
-            // 2026-11-27) took a restored Paused session for Idle.
+            // 2026-11-27) took a restored Paused session for Idle (LEARNINGS.md).
             if (state is TrackingState.Finished) finishedState(state.metrics) else state
         }
         // A session the user started while the load ran is not replaced. The details are set first: the
