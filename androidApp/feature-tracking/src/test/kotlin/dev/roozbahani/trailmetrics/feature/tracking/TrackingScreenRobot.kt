@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -104,6 +106,12 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
     fun dismissDiscard() = apply { dialogButton(R.string.dialog_discard_finished_dismiss).performClick() }
 
     fun waitForIdle() = apply { rule.waitForIdle() }
+
+    /** Whether the finish card's Discard can be tapped (not while a Finish waits for its snapshot). */
+    fun assertDiscardEnabled(enabled: Boolean) = apply {
+        val discard = button(R.string.btn_tracking_discard)
+        if (enabled) discard.assertIsEnabled() else discard.assertIsNotEnabled()
+    }
 
     fun assertIdleControls() = apply {
         assertButtons(shown = listOf(R.string.btn_tracking_start))

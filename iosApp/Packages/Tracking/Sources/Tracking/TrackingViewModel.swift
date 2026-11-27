@@ -47,7 +47,8 @@ public class TrackingViewModel: ObservableObject {
     /// twice; cleared when the save fails (retry) and when a new session starts. Published: `canDiscardFinished`.
     @Published private(set) var isSessionSaved = false
     /// Set while the discard of a Finished session runs (`onDiscardFinishedClicked`), so it runs once.
-    @Published var isDiscardingFinished = false
+    @Published private(set) var isDiscardingFinished = false
+    func markDiscardingFinished(_ isRunning: Bool) { isDiscardingFinished = isRunning }
 
     // Kotlin's `trackingScope` runs on `Dispatchers.Default`, so `for await` can resume off the main actor
     // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
@@ -71,7 +72,7 @@ public class TrackingViewModel: ObservableObject {
 
     /// A Finished session waits to be saved: the route's end, or a restored one. Not while it is discarded
     /// (a presentation detail of this screen: Stop passes through Finished on its way to Idle).
-    public var canFinish: Bool { controls.canSave && !isDiscarding }
+    public var canFinish: Bool { controls.canSave && !isDiscarding && !isDiscardingFinished }
 
     public var canResume: Bool { controls.canResume }
 

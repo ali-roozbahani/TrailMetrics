@@ -58,6 +58,8 @@ final class TrackingViewModelDiscardFinishedTests: TrackingTestCase {
         XCTAssertFalse(viewModel.canStart)
 
         viewModel.onDiscardFinishedClicked()
+        XCTAssertTrue(viewModel.trackingState is TrackingStateFinished, "The discard has not run yet")
+        XCTAssertFalse(viewModel.canFinish, "No Finish while the discard runs")
         await waitUntil { viewModel.trackingState is TrackingStateIdle }
 
         XCTAssertEqual(store.clearCount, 1)

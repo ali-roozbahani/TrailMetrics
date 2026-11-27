@@ -20,10 +20,10 @@ extension TrackingViewModel {
     /// observation delivers, and Start is offered again.
     public func onDiscardFinishedClicked() {
         guard canDiscardFinished else { return }
-        isDiscardingFinished = true
+        markDiscardingFinished(true)
         Task {
             await clearStoredSession()
-            isDiscardingFinished = false
+            markDiscardingFinished(false)
         }
     }
 }
