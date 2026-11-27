@@ -71,4 +71,16 @@ class DisplayedElapsedTimeTest {
         assertEquals(shownBefore, afterLocation.displayedElapsedMillis(nowElapsedRealtimeMillis = 107_000L))
         assertEquals(67_000L, (afterLocation as TrackingState.Tracking).metrics.elapsedMillis)
     }
+
+    @Test
+    fun `pausing or stopping does not move the shown time`() {
+        val tracking = TrackingState.Tracking(metrics)
+        val shownBefore = tracking.displayedElapsedMillis(107_000L)
+
+        val paused = updateTrackingState(tracking, TrackingEvent.Pause(elapsedRealtimeMillis = 107_000L))
+        val stopped = updateTrackingState(tracking, TrackingEvent.Stop(elapsedRealtimeMillis = 107_000L))
+
+        assertEquals(shownBefore, paused.displayedElapsedMillis(200_000L))
+        assertEquals(shownBefore, stopped.displayedElapsedMillis(200_000L))
+    }
 }
