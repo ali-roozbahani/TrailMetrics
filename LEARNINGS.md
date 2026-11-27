@@ -949,3 +949,15 @@ it is `epic-orchestration`, `plan-format.md`, "Responsibilities moved", and `tm-
   tests that asserted a finish card that outlived the save (the old card followed a sticky `hasReachedDestination`). They were found by what they assert (the card after a save), not by a changed symbol.
   S2 and S4 were then one integration unit: S2 alone was red, because the two trackers co-existed until S4 removed the Android one. One plan name did not match the test that was written
   (`the session ends once, not at each later fix`: a native test name cannot hold a comma).
+
+## Robolectric downloaded its Android framework jar in every CI run (2026-11-27)
+
+Robolectric 4.14 does not ship the Android framework: the first test that needs an SDK level makes it download
+`android-all-instrumented` for that level (about 190 MB for SDK 35) from Maven Central into the local Maven repository
+(`~/.m2/repository/org/robolectric/android-all-instrumented`). On a developer machine that happens once. A CI runner starts
+empty, so every Android job downloaded it again, and when the download failed every Robolectric test of the run failed with
+"java.lang.AssertionError at MavenArtifactFetcher" caused by `java.io.IOException at HttpURLConnection`: 138 to 145 tests in
+one stroke, while the PR's own run of the same head had passed (`CI_FLAKES.md`, `robolectric-artifact-download-failed`, three
+push runs on `main` from 2026-11-16 to 2026-11-27). The fix (#402) caches that directory with `actions/cache`, keyed on the
+Robolectric version, which names the jar it fetches; no retry. What it leaves: a cache miss (a version bump, an evicted
+entry) still downloads once, and a new SDK level in a test's `@Config` is downloaded in each run until the version changes.
