@@ -271,6 +271,10 @@ fun TrackingScreen(
     }
 
     var showDiscardConfirmation by remember { mutableStateOf(false) }
+    // A confirmation the session's end closed (a save, a discard elsewhere) is not opened again by the next finish.
+    LaunchedEffect(state.canDiscard) {
+        if (!state.canDiscard) showDiscardConfirmation = false
+    }
 
     // Only while a finished session can be discarded: a dialog left open over a saved or discarded one does nothing.
     if (showDiscardConfirmation && state.canDiscard) {

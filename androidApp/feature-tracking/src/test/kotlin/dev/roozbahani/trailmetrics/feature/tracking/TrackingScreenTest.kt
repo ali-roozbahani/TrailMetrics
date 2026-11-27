@@ -684,6 +684,33 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `the completed card keeps its Discard button while it fades out after the discard`() {
+        showReachedDestination().clickDiscard().waitForIdle()
+        composeRule.mainClock.autoAdvance = false
+        robot.confirmDiscard()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.mainClock.advanceTimeByFrame()
+
+        assertEquals(TrackingState.Idle, trackingState())
+        // Mid-fade: the card that leaves still shows both of its buttons.
+        robot.assertDiscardEnabled(true)
+        composeRule.mainClock.autoAdvance = true
+        robot.waitForIdle().assertCompletedCardNotShown().assertIdleControls()
+    }
+
+    @Test
+    fun `a confirmation left open when the session ends elsewhere does not open by itself on the next finish`() {
+        showReachedDestination().clickDiscard().waitForIdle().assertDiscardDialogShown()
+
+        fixture.discardSessionElsewhere()
+        robot.waitForIdle().assertDiscardDialogNotShown().assertIdleControls()
+
+        robot.clickStart().waitForIdle()
+        fixture.receiveLocation(END, millisAfterStart = 120_000L)
+        robot.waitForIdle().assertCompletedCard().assertDiscardDialogNotShown()
+    }
+
+    @Test
     fun `a restored finished session can be discarded and a new one started`() {
         storeSession(TrackingState.Finished(STORED_METRICS))
         showScreen().assertCompletedCard()
