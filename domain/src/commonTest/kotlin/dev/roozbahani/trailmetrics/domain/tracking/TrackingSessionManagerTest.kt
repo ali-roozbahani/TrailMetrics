@@ -265,9 +265,9 @@ class TrackingSessionManagerTest {
 
         val finished = trackSession(updates, fixes = 3)
 
-        // 80_000 - 50_000: the elapsedRealtime advance from Start to the last fix.
-        // (Wall clock: 10_000 - 290_000 + 10_000 = -270_000.)
-        assertEquals(30_000L, finished.metrics.elapsedMillis)
+        // 85_000 - 50_000: the elapsedRealtime advance from Start to Stop.
+        // (Wall clock: 10_000 - 290_000 + 15_000 = -265_000.)
+        assertEquals(35_000L, finished.metrics.elapsedMillis)
     }
 
     @Test
@@ -282,8 +282,8 @@ class TrackingSessionManagerTest {
 
         val finished = trackSession(updates, fixes = 3)
 
-        // 80_000 - 50_000. (Wall clock: 10_000 + 3_610_000 + 10_000 = 3_630_000.)
-        assertEquals(30_000L, finished.metrics.elapsedMillis)
+        // 85_000 - 50_000, Start to Stop. (Wall clock: 10_000 + 3_610_000 + 15_000 = 3_635_000.)
+        assertEquals(35_000L, finished.metrics.elapsedMillis)
     }
 
     @Test
@@ -310,9 +310,9 @@ class TrackingSessionManagerTest {
             testScheduler.runCurrent()
 
             val finished = assertIs<TrackingState.Finished>(manager.currentState.value)
-            // (10_000 - 0) before the pause + (85_000 - 75_000) after it; the 60 s pause is excluded.
-            // (Wall clock: 10_000 + (400_000 - 1_075_000) = -665_000.)
-            assertEquals(20_000L, finished.metrics.elapsedMillis)
+            // (15_000 - 0) from Start to Pause + (90_000 - 75_000) from Resume to Stop; the 60 s pause is excluded.
+            // (Wall clock: 15_000 + (405_000 - 1_075_000) = -655_000.)
+            assertEquals(30_000L, finished.metrics.elapsedMillis)
         }
 
     /** Start at [point1], deliver [fixes] Success updates alternating point2/point1, then Stop. */

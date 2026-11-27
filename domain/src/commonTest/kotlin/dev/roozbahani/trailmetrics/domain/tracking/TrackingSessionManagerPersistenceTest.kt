@@ -587,7 +587,11 @@ class TrackingSessionManagerPersistenceTest {
         manager.pause()
         testScheduler.runCurrent()
 
-        assertEquals(TrackingState.Paused(tracking.metrics), store.stored)
+        // The Pause counts the time since the fix: the clock reads 2_000 at the fix and 3_000 at the Pause.
+        assertEquals(
+            TrackingState.Paused(tracking.metrics.copy(elapsedMillis = 3_000L, lastUpdateElapsedRealtimeMillis = 3_000L)),
+            store.stored
+        )
     }
 
     private suspend fun emitFix(coordinates: Coordinates) {

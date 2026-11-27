@@ -13,9 +13,9 @@ class UpdateTrackingStateUseCase {
     ): TrackingState {
         return when (newEvent) {
             is TrackingEvent.Start -> handleStart(currentState, newEvent)
-            is TrackingEvent.Pause -> handlePause(currentState)
+            is TrackingEvent.Pause -> handlePause(currentState, newEvent)
             is TrackingEvent.Resume -> handleResume(currentState, newEvent)
-            is TrackingEvent.Stop -> handleStop(currentState)
+            is TrackingEvent.Stop -> handleStop(currentState, newEvent)
             is TrackingEvent.LocationReceived -> handleLocationReceived(currentState, newEvent)
         }
     }
@@ -39,9 +39,10 @@ class UpdateTrackingStateUseCase {
         }
     }
 
-    private fun handlePause(currentState: TrackingState): TrackingState {
+    private fun handlePause(currentState: TrackingState, pauseEvent: TrackingEvent.Pause): TrackingState {
         return when (currentState) {
-            is TrackingState.Tracking -> TrackingState.Paused(currentState.metrics)
+            is TrackingState.Tracking ->
+                TrackingState.Paused(currentState.metrics.accountedUntil(pauseEvent.elapsedRealtimeMillis))
             is TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> currentState
         }
     }
@@ -62,9 +63,10 @@ class UpdateTrackingStateUseCase {
         }
     }
 
-    private fun handleStop(currentState: TrackingState): TrackingState {
+    private fun handleStop(currentState: TrackingState, stopEvent: TrackingEvent.Stop): TrackingState {
         return when (currentState) {
-            is TrackingState.Tracking -> TrackingState.Finished(currentState.metrics)
+            is TrackingState.Tracking ->
+                TrackingState.Finished(currentState.metrics.accountedUntil(stopEvent.elapsedRealtimeMillis))
             is TrackingState.Paused -> TrackingState.Finished(currentState.metrics)
             is TrackingState.Idle, is TrackingState.Finished -> currentState
         }
@@ -103,4 +105,12 @@ class UpdateTrackingStateUseCase {
         }
     }
 
+    /**
+     * The time from the last accounted update (a fix, a Start or a Resume) to [elapsedRealtimeMillis] of a Pause or
+     * Stop counts as recorded time: the user was recording until then. Clamped at 0 as for a location event.
+     */
+    private fun TrackingMetrics.accountedUntil(elapsedRealtimeMillis: Long): TrackingMetrics = copy(
+        elapsedMillis = elapsedMillis + (elapsedRealtimeMillis - lastUpdateElapsedRealtimeMillis).coerceAtLeast(0L),
+        lastUpdateElapsedRealtimeMillis = maxOf(lastUpdateElapsedRealtimeMillis, elapsedRealtimeMillis)
+    )
 }

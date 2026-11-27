@@ -48,7 +48,7 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
-    fun `pause from Tracking transitions to Paused without changing metrics`() {
+    fun `pause from Tracking transitions to Paused and counts the time up to the pause`() {
         val metrics = sampleMetrics()
         val currentState = TrackingState.Tracking(metrics = metrics)
         val pauseEvent = TrackingEvent.Pause(elapsedRealtimeMillis = 15)
@@ -56,7 +56,8 @@ class UpdateTrackingStateUseCaseTest {
         val newState = useCase(currentState, pauseEvent)
         assertIs<TrackingState.Paused>(newState)
 
-        assertEquals(metrics, newState.metrics)
+        // 10 ms recorded + the 5 ms from the last update (10) to the Pause (15); nothing else changes.
+        assertEquals(metrics.copy(elapsedMillis = 15, lastUpdateElapsedRealtimeMillis = 15), newState.metrics)
     }
 
     @Test
@@ -164,14 +165,18 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
-    fun `stop from Tracking transitions to Finished`() {
+    fun `stop from Tracking transitions to Finished and counts the time up to the stop`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
         val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateElapsedRealtimeMillis + 10)
 
         val newState = useCase(currentState, stopEvent)
 
         assertIs<TrackingState.Finished>(newState)
-        assertEquals(currentState.metrics, newState.metrics)
+        // 10 ms recorded + the 10 ms from the last update to the Stop; nothing else changes.
+        assertEquals(
+            currentState.metrics.copy(elapsedMillis = 20, lastUpdateElapsedRealtimeMillis = 20),
+            newState.metrics
+        )
     }
 
     @Test
