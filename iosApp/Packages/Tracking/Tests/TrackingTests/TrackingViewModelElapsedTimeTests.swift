@@ -2,9 +2,9 @@
 //  TrackingViewModelElapsedTimeTests.swift
 //  TrackingTests
 //
-//  The elapsed time the metrics panel shows ticks between location events while Tracking and stands still
-//  while Paused. No location event is delivered: only the ViewModel's monotonic clock moves, and the ticks
-//  (at each full second of the shown time) are real ones, so each wait is at most about a second.
+//  The elapsed time the metrics panel shows moves between location events while Tracking and stands still
+//  while Paused. No location event is delivered: only the ViewModel's monotonic clock moves, and the shown time
+//  is computed when read (the panel reads it once a second while on screen).
 //
 
 import SharedKit
@@ -49,8 +49,6 @@ final class TrackingViewModelElapsedTimeTests: TrackingTestCase {
         XCTAssertEqual(viewModel.displayedElapsedMillis, recorded)
 
         subject.clock.setElapsedRealtimeMillis(base + 10_000)
-        // Longer than one tick: a running ticker would have shown the new reading by now.
-        try await Task.sleep(for: .milliseconds(1_200))
 
         XCTAssertEqual(viewModel.displayedElapsedMillis, recorded)
     }
