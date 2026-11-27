@@ -152,7 +152,8 @@ class TrackingSessionManager(
         val stored = storeMutex.withLock { trackingSessionStore.load() }
         val restored = when (val storedState = stored?.state) {
             null, TrackingState.Idle -> TrackingState.Idle
-            // A stored Tracking session holds the speed of its last fix, and so can a Paused one an older version stored.
+            // A stored Tracking session holds the speed of its last fix, and so can a Paused one that an
+            // older version stored.
             is TrackingState.Tracking -> pausedState(storedState.metrics)
             is TrackingState.Paused -> pausedState(storedState.metrics)
             is TrackingState.Finished -> storedState
