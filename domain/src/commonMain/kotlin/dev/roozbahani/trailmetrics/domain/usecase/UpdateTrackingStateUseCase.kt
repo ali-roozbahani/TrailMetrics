@@ -4,6 +4,7 @@ import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingMetrics
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.model.finishedState
+import dev.roozbahani.trailmetrics.domain.model.millisSinceLastUpdate
 import dev.roozbahani.trailmetrics.domain.model.pausedState
 import dev.roozbahani.trailmetrics.domain.util.distanceTo
 
@@ -111,12 +112,4 @@ class UpdateTrackingStateUseCase {
         elapsedMillis = elapsedMillis + millisSinceLastUpdate(elapsedRealtimeMillis),
         lastUpdateElapsedRealtimeMillis = maxOf(lastUpdateElapsedRealtimeMillis, elapsedRealtimeMillis)
     )
-
-    /**
-     * The recorded time a location event, a Pause or a Stop at [elapsedRealtimeMillis] adds. The contract is monotonic
-     * input (Clock.elapsedRealtimeMillis), so this is never negative in practice; the clamp keeps this pure function
-     * safe for any caller.
-     */
-    private fun TrackingMetrics.millisSinceLastUpdate(elapsedRealtimeMillis: Long): Long =
-        (elapsedRealtimeMillis - lastUpdateElapsedRealtimeMillis).coerceAtLeast(0L)
 }
