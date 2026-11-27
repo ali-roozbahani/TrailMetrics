@@ -199,13 +199,19 @@ class TrackingScreenTest {
     }
 
     @Test
-    fun `Paused shows Resume and Stop and keeps the metrics`() {
+    fun `Paused shows Resume and Stop, keeps the metrics and shows no current speed`() {
         showStartedSession()
         walkTwoFixes()
 
         robot.clickPause()
             .assertPausedControls()
-            .assertWalkedMetricsShown()
+            // A paused session records nothing, so it has no current speed (the domain clears it on Pause).
+            .assertMetricsShown(
+                distance = WALKED_DISTANCE,
+                time = WALKED_TIME,
+                speed = NO_SPEED,
+                calories = WALKED_CALORIES
+            )
         assertIs<TrackingState.Paused>(trackingState())
     }
 
@@ -646,6 +652,7 @@ class TrackingScreenTest {
 
         // The speed over the last two fixes: ~55.6 m in 30 s, 6.67 km/h.
         const val WALKED_SPEED = "6.7 km/h"
+        const val NO_SPEED = "-- km/h"
 
         // Average 10.0 km/h: running MET 9.8 x 70 kg x 1/60 h = 11.4 kcal.
         const val WALKED_CALORIES = "11 kcal"
