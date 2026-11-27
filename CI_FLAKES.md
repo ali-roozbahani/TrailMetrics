@@ -347,7 +347,10 @@ run, and the jobs it hit are counted below.
   test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher", caused by
   `java.io.IOException at HttpURLConnection` (Robolectric could not download its Android framework jar)
 - Count: 3
-- Status: open
+- Status: fixed (unverified)
+- Fix: #402 (the Android job caches Robolectric's downloaded jars, keyed on the Robolectric version; no retry)
+- Learned: Robolectric fetched its 190 MB Android framework jar from the network in every CI run, so any network hiccup failed
+  every Robolectric test; see `LEARNINGS.md`, "Robolectric downloaded its Android framework jar in every CI run".
 - Occurrences:
   - 2026-11-16, run 43919159264 (push to `main`, merge of #319, a skills-only change), re-run: no (a run on `main` is never re-run).
     138 tests failed in 4 test tasks (`:data:testAndroidHostTest` 71 of 133, and the `testDebugUnitTest` tasks of `feature-history` and
@@ -366,7 +369,7 @@ run, and the jobs it hit are counted below.
   of 2026-11-16: no caching or retry fix at count 1); a recurrence is handled by the normal flake rules.
   At count 3 the owner decided (2026-11-27) to fix it instead of escalating it to a `BOARD.md` record: the Android job of `ci.yml`
   caches Robolectric's downloaded jars (`~/.m2/repository/org/robolectric/android-all-instrumented`, keyed on the Robolectric
-  version), no retry. The status is set per the flake rules once that fix is merged.
+  version), no retry, in #402. It becomes `fixed` after 5 consecutive green runs of the job on `main` after that merge.
 
 ## ios-package-tests-history-silent-stall
 
