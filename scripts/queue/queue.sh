@@ -453,6 +453,7 @@ self_test() {
     check "a sixth open entry is added (no limit)" "added e (agent, order 7)" 0 q add e --branch chore/e
     check "a seventh open entry is added" "added f (agent, order 8)" 0 q add f --branch chore/f
     check "a new agent entry comes after the open agent entries, before the owner entries" "8      f     chore/f   -      agent  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | sed -n 7p"
+    check "the owner entries stay last after it" "4      o2    chore/o2  o      owner  planned  -" 0 sh -c "QUEUE_FILE='$QF' bash '$SELF' show | tail -1"
     check "add ends with the next action" "next: BUILD a" 0 q_fresh_add
     check "set ready ends with PUSH, not another BUILD" "next: PUSH a" 0 q_ready_first
     check "a second entry is not built before the first is pushed" "next: FINISH_BUILD a" 0 q_two_entries
