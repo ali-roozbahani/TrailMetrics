@@ -412,13 +412,15 @@ fun TrackingScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                // Discard is in the target, so the card that fades out keeps its own buttons (canSave and canDiscard
+                // change together: both are Finished only).
                 AnimatedContent(
-                    targetState = state.canSave,
+                    targetState = state.canSave to state.canDiscard,
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
                     label = "tracking_controls"
-                ) { completed ->
+                ) { (completed, discardable) ->
                     if (completed) {
                         Card(
                             colors = CardDefaults.cardColors(
@@ -437,7 +439,7 @@ fun TrackingScreen(
                                 )
                                 Spacer(Modifier.height(12.dp))
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    if (state.canDiscard) {
+                                    if (discardable) {
                                         OutlinedButton( // Discard: asks first, the recording is deleted
                                             onClick = { showDiscardConfirmation = true },
                                             colors = ButtonDefaults.outlinedButtonColors(
