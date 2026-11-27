@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.model.finishedState
 import dev.roozbahani.trailmetrics.domain.model.pausedState
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
@@ -157,6 +158,11 @@ class TrackingSessionManager(
             is TrackingState.Tracking -> pausedState(storedState.metrics)
             is TrackingState.Paused -> pausedState(storedState.metrics)
             is TrackingState.Finished -> storedState
+        }.let { state ->
+            // A Finished session an older version stored can hold the speed of its last fix: a restored one has
+            // none. A step of its own: built as a `when` branch above, Kotlin/Native (iosSimulatorArm64 tests,
+            // 2026-11-27) took a restored Paused session for Idle.
+            if (state is TrackingState.Finished) finishedState(state.metrics) else state
         }
         // A session the user started while the load ran is not replaced. The details are set first: the
         // state change below is saved with them.

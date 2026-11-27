@@ -257,7 +257,8 @@ class TrackingSessionManagerPersistenceTest {
 
     @Test
     fun `a finished session stays Finished and starts nothing`() = runTest(testScheduler) {
-        val metrics = metrics()
+        // No speed: a finished session has none (the case below restores one that was stored with a speed).
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = null)
         store.stored = TrackingState.Finished(metrics)
 
         val restored = manager.restore()
