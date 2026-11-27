@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.model.pausedState
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
@@ -151,8 +152,9 @@ class TrackingSessionManager(
         val stored = storeMutex.withLock { trackingSessionStore.load() }
         val restored = when (val storedState = stored?.state) {
             null, TrackingState.Idle -> TrackingState.Idle
-            is TrackingState.Tracking -> TrackingState.Paused(storedState.metrics)
-            is TrackingState.Paused -> storedState
+            // A stored Tracking session holds the speed of its last fix, and so can a Paused one an older version stored.
+            is TrackingState.Tracking -> pausedState(storedState.metrics)
+            is TrackingState.Paused -> pausedState(storedState.metrics)
             is TrackingState.Finished -> storedState
         }
         // A session the user started while the load ran is not replaced. The details are set first: the
