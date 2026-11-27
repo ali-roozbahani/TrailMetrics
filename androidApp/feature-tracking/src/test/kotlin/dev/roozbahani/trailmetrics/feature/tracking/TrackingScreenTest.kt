@@ -611,6 +611,54 @@ class TrackingScreenTest {
 
     // endregion
 
+    // region Discard of a finished session
+
+    @Test
+    fun `Discard on the completed card asks first and Cancel keeps the finished session`() {
+        showReachedDestination()
+            .assertCompletedCard()
+            .clickDiscard()
+            .waitForIdle()
+            .assertDiscardDialogShown()
+
+        robot.dismissDiscard().waitForIdle()
+            .assertDiscardDialogNotShown()
+            .assertCompletedCard()
+        assertIs<TrackingState.Finished>(trackingState())
+        assertIs<TrackingState.Finished>(fixture.store.stored)
+        assertEquals(0, fixture.store.clearCallCount)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `confirming Discard deletes the finished session and offers Start on the same screen`() {
+        showReachedDestination().clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+
+        robot.assertDiscardDialogNotShown()
+            .assertCompletedCardNotShown()
+            .assertIdleControls()
+        assertEquals(TrackingState.Idle, trackingState())
+        assertNull(fixture.store.stored)
+        assertEquals(emptyList(), fixture.activityHistoryRepository.savedActivities)
+        assertEquals(0, navigateBackCalls)
+    }
+
+    @Test
+    fun `a restored finished session can be discarded and a new one started`() {
+        storeSession(TrackingState.Finished(STORED_METRICS))
+        showScreen().assertCompletedCard()
+        grantLocationPermission()
+
+        robot.clickDiscard().waitForIdle().confirmDiscard().waitForIdle()
+            .assertIdleControls()
+        assertNull(fixture.store.stored)
+
+        robot.clickStart().waitForIdle().assertTrackingControls()
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    // endregion
+
     /** What the system's permission dialog returns for the location request the screen made. */
     private fun answerLocationPermissionRequest(granted: Boolean) {
         val request = assertNotNull(lastPermissionRequest(), "a permission request")
