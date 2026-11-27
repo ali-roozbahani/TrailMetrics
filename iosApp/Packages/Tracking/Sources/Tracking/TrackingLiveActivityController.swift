@@ -17,6 +17,7 @@ final class TrackingLiveActivityController {
     private let client: LiveActivityClient
     private let onStopRequested: () -> Void
     private let now: () -> Date
+    private let uptime: () -> ContinuousClock.Instant
 
     // Timestamp of the last `Activity.update()` call actually dispatched, used
     // by `update(...)`'s rate limit below. `nil` means "no update sent yet
@@ -28,10 +29,12 @@ final class TrackingLiveActivityController {
     init(
         client: LiveActivityClient = ActivityKitLiveActivityClient(),
         now: @escaping () -> Date = Date.init,
+        uptime: @escaping () -> ContinuousClock.Instant = { ContinuousClock.now },
         onStopRequested: @escaping () -> Void
     ) {
         self.client = client
         self.now = now
+        self.uptime = uptime
         self.onStopRequested = onStopRequested
         registerStopNotificationObserver()
     }
