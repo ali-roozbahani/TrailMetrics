@@ -12,7 +12,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 
-/** The tracking notification's texts come from the string resources of `data`, the same texts as before they moved there. */
+/**
+ * The tracking notification's texts come from the string resources of `data`, the same texts as before they
+ * moved there.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class TrackingNotificationTextAndroidHostTest {

@@ -5,7 +5,10 @@ import dev.roozbahani.trailmetrics.data.R
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
 import dev.roozbahani.trailmetrics.domain.util.formatDistance
 
-/** The text of the tracking notification for [state], from the string resources of `data` (`tracking_notification_*`). */
+/**
+ * The text of the tracking notification for [state], from the string resources of `data`
+ * (`tracking_notification_*`).
+ */
 internal fun trackingNotificationText(context: Context, state: TrackingState): String = when (state) {
     is TrackingState.Tracking ->
         context.getString(R.string.tracking_notification_tracking, formatDistance(state.metrics.distanceMeters))
