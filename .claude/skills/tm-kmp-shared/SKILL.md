@@ -54,7 +54,7 @@ convention. Extend `RouteError`/`RouteUiError` with new cases instead.
   can-start/can-pause rules) belongs in `domain` as a pure function or use case, tested
   once. Do not re-implement it separately in an Android ViewModel and a Swift ViewModel.
   The metrics and the calories of a `TrackingState` come from `TrackingMetricsUseCase`; the
-  controls (start, pause, resume, stop, save) come from `availableControls`, which both ViewModels ask.
+  controls (start, pause, resume, stop, save, discard) come from `availableControls`, which both ViewModels ask.
 - Platform ViewModels only adapt shared logic to UI state/Action/Event. They do not own
   business rules.
 - One reason to change per class. Enforced: detekt `TooManyFunctions` and `LongParameterList`

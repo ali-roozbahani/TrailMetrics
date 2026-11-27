@@ -7,6 +7,7 @@ import dev.roozbahani.trailmetrics.domain.model.RouteError
 import dev.roozbahani.trailmetrics.domain.model.RouteProgress
 import dev.roozbahani.trailmetrics.domain.model.TrackingEvent
 import dev.roozbahani.trailmetrics.domain.model.TrackingState
+import dev.roozbahani.trailmetrics.domain.model.pausedState
 import dev.roozbahani.trailmetrics.domain.repository.LocationRepository
 import dev.roozbahani.trailmetrics.domain.usecase.UpdateTrackingStateUseCase
 import dev.roozbahani.trailmetrics.domain.util.Clock
@@ -151,8 +152,10 @@ class TrackingSessionManager(
         val stored = storeMutex.withLock { trackingSessionStore.load() }
         val restored = when (val storedState = stored?.state) {
             null, TrackingState.Idle -> TrackingState.Idle
-            is TrackingState.Tracking -> TrackingState.Paused(storedState.metrics)
-            is TrackingState.Paused -> storedState
+            // A stored Tracking session holds the speed of its last fix, and so can a Paused one that an
+            // older version stored.
+            is TrackingState.Tracking -> pausedState(storedState.metrics)
+            is TrackingState.Paused -> pausedState(storedState.metrics)
             is TrackingState.Finished -> storedState
         }
         // A session the user started while the load ran is not replaced. The details are set first: the
@@ -255,16 +258,18 @@ class TrackingSessionManager(
                 when (update) {
                     is LocationUpdate.Success -> {
                         consecutiveUnavailableCount = 0
+                        // One read per fix: the speed and the accounting see the same moment.
+                        val fixElapsedRealtimeMillis = clock.elapsedRealtimeMillis()
                         val speed = speedCalculator.calculate(
                             coordinates = update.coordinates,
-                            elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                            elapsedRealtimeMillis = fixElapsedRealtimeMillis,
                             reportedSpeedMetersPerSecond = update.speedMetersPerSecond,
                             accuracyMeters = update.accuracyMeters
                         )
                         dispatch(
                             TrackingEvent.LocationReceived(
                                 coordinates = update.coordinates,
-                                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                                elapsedRealtimeMillis = fixElapsedRealtimeMillis,
                                 speedMetersPerSecond = speed
                             )
                         )

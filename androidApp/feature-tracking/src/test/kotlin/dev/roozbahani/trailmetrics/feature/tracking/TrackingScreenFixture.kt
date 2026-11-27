@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -98,6 +99,19 @@ class TrackingScreenFixture(private val snapshotDispatcher: CoroutineDispatcher 
     fun receiveLocation(coordinates: Coordinates, millisAfterStart: Long) {
         clock.elapsedRealtimeMillis = START_ELAPSED_REALTIME + millisAfterStart
         locationRepository.emit(LocationUpdate.Success(coordinates, speedMetersPerSecond = null, accuracyMeters = null))
+    }
+
+    /** Time passes with no location event: the monotonic clock and the coroutines' virtual time move together. */
+    fun passTime(millis: Long) {
+        clock.elapsedRealtimeMillis += millis
+        testScheduler.advanceTimeBy(millis)
+        testScheduler.runCurrent()
+    }
+
+    /** The session is discarded by something other than this screen (as the notification's Stop does). */
+    fun discardSessionElsewhere() {
+        sessionScope.launch { sessionManager.discard() }
+        testScheduler.runCurrent()
     }
 
     /** Enough consecutive failures for the session manager to report [reason]. */

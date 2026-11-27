@@ -8,6 +8,10 @@ import SwiftUI
 
 struct MetricsDisplay: View {
     let metrics: TrackingMetrics
+    /// The time to show (`TrackingViewModel.displayedElapsedMillis`), not `metrics.elapsedMillis`. Read again once a
+    /// second while this panel is on screen, so the time moves between location events and only this panel
+    /// re-renders for it.
+    let elapsedMillis: () -> Int64
     let calories: Double?
 
     var body: some View {
@@ -18,11 +22,13 @@ struct MetricsDisplay: View {
                     value: formatDistance(meters: metrics.distanceMeters),
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 )
-                TrackingMetricCell(
-                    label: Text("Time", bundle: .module),
-                    value: formatElapsedTime(millis: metrics.elapsedMillis),
-                    systemImage: "timer"
-                )
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    TrackingMetricCell(
+                        label: Text("Time", bundle: .module),
+                        value: formatElapsedTime(millis: elapsedMillis()),
+                        systemImage: "timer"
+                    )
+                }
             }
             HStack(spacing: 8) {
                 TrackingMetricCell(

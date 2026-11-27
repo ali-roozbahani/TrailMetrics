@@ -161,7 +161,7 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Area: iosApp/TrackingWidget, iosApp/TrailMetrics
 - Order: 78
 - Source: PR feature/ios-route-map-incremental-update
-- Problem: Experiment of 2026-11-16 (simulator, iPhone, iOS 26.5, UI test tapping Stop on the lock screen, the intent logging its process): `StopTrackingIntent` as shipped, a type of the widget extension target only, ran `perform()` in the `TrackingWidgetExtension` process (pid 14322, bundle `dev.roozbahani.TrailMetrics.TrackingWidget`), which is why it posts a Darwin notification that only a live app process hears. With the same intent also compiled into the app target it ran in the app process (`TrailMetrics`, pid 14974); and with the app terminated first it ran in a new app process (pid 15728). The Stop button therefore does nothing when the app is not alive today, and a copy of the intent in the app target would let it reach the app, which then holds no `TrackingSessionManager` state until it restores the stored session. Real iPhone, 2026-11-27 (owner): (A) app alive: Stop works, the Live Activity ends, tracking is finished; (B) app killed: Stop does nothing, the Live Activity timer keeps ticking while nothing is recorded, and after the app is opened the Live Activity ends and the screen offers the restored Paused session. Owner decision 2026-11-27: Stop must work when the app was terminated. The intent is also compiled into the app target; `perform()` uses the live tracking manager when there is one, otherwise runs the launch-time restore of the stored session, then stops and saves it as finished and ends the Live Activity (queue entry `ios-stop-intent-killed-app`, which narrows this record to the open question). Open design question: what a Live Activity shows when the app is dead and nothing is recorded (for example a stale date); not decided, it waits for `tracking-ui-timer-independent-of-location` and `live-activity-throttle-uses-wall-clock`. Reason for a record: a design decision for the owner.
+- Problem: Experiment of 2026-11-16 (simulator, iPhone, iOS 26.5, UI test tapping Stop on the lock screen, the intent logging its process): `StopTrackingIntent` as shipped, a type of the widget extension target only, ran `perform()` in the `TrackingWidgetExtension` process (pid 14322, bundle `dev.roozbahani.TrailMetrics.TrackingWidget`), which is why it posts a Darwin notification that only a live app process hears. With the same intent also compiled into the app target it ran in the app process (`TrailMetrics`, pid 14974); and with the app terminated first it ran in a new app process (pid 15728). The Stop button therefore does nothing when the app is not alive today, and a copy of the intent in the app target would let it reach the app, which then holds no `TrackingSessionManager` state until it restores the stored session. Real iPhone, 2026-11-27 (owner): (A) app alive: Stop works, the Live Activity ends, tracking is finished; (B) app killed: Stop does nothing, the Live Activity timer keeps ticking while nothing is recorded, and after the app is opened the Live Activity ends and the screen offers the restored Paused session. Owner decision 2026-11-27: Stop must work when the app was terminated. The intent is also compiled into the app target; `perform()` uses the live tracking manager when there is one, otherwise runs the launch-time restore of the stored session, then stops and saves it as finished and ends the Live Activity (queue entry `ios-stop-intent-killed-app`, which narrows this record to the open question). Open design question: what a Live Activity shows when the app is dead and nothing is recorded (for example a stale date); not decided; the in-app timer that ticks without location events (#406) and the Live Activity's update throttle on a monotonic clock are done. Reason for a record: a design decision for the owner.
 - Done when: The owner has decided what the Live Activity shows when the app is dead and nothing is recorded, and Stop for a terminated app (queue entry `ios-stop-intent-killed-app`) is merged.
 - Refs: `iosApp/TrackingWidget/StopTrackingIntent.swift`; `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`registerStopNotificationObserver`).
 
@@ -173,15 +173,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Part of the epic `ios-release-readiness`. The accessibility pass of PR #325 is checked by `AccessibilityAuditUITests` (element descriptions and hit regions, run in the gate), but not Reduce Motion, the scaled zoom buttons at large text sizes, the widget's grouping on the lock screen or how the screens sound. Reason for a record: an owner decision of 2026-11-16 to track this pass here; it is the owner's manual pass on a device, needed before a release and not before a merge, and the owner decides when it is done.
 - Done when: The owner has done a manual pass with VoiceOver, Reduce Motion and the largest text size: on Route the top bar and zoom buttons read "User Profile", "Reset", "Zoom in", "Zoom out"; in History and Details the metric cells read as label and value pairs and the type icon is skipped; with Reduce Motion on, Zoom in jumps and the maps follow a position without panning animation; at the largest text size the zoom buttons grow and stay tappable; the Live Activity on the lock screen reads each metric as one element; findings are fixed or declined, and this record is deleted.
 - Refs: `iosApp/TrailMetricsUITests/Accessibility/AccessibilityAuditUITests.swift`; `iosApp/Packages/Route/Sources/Route/GMSMapView+ReduceMotion.swift`; `ios-release-readiness`; `ios-dynamic-type-beyond-the-pass`; `tm-ios` ("Accessibility", `strings-and-accessibility.md`).
-
-### tracking-ui-timer-independent-of-location
-- Type: task
-- Area: domain, iosApp, androidApp
-- Order: 80
-- Source: PR #66 test
-- Problem: The in-app elapsed time shows `metrics.elapsedMillis` from the tracking state, which is only re-emitted on location events. There is no ticker, so a stationary device freezes the timer and the display can jump (observed by 2 s).
-- Done when: the displayed time ticks independently of location events on both platforms, without changing the domain's accounting of elapsed time.
-- Refs: `TrackingSessionManager` (state emissions); Android `TrackingScreen` (`formatElapsedTime(metrics.elapsedMillis)`); iOS `MetricsDisplay`.
 
 ### ios-mainactor-run-hop-redundant
 - Type: task
@@ -236,15 +227,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Problem: Needs the owner's design: each way to shorten it changes how every package is tested in CI and in the gate (one `xcodebuild` for all packages against one per package, build once and test without building, a derived-data cache, parallel simulators), and trades CI minutes against isolation per package; the workflow and gate files are protected. In the four latest runs of `main` (2026-11-16), the step "Run iOS package tests" of the `ios-build` job took 377 to 603 s of a job of 683 to 1176 s. It runs `xcodebuild test` once per package with a `Tests/` directory, and each run resolves, builds and links the packages and the test-only framework variant again.
 - Done when: the time is attributed (resolution, build, simulator boot, tests, per package) from a CI log, and the owner has the options with expected savings (one `xcodebuild` for all packages, build once and test without building, a cache of derived data, parallel simulators); a PR does the chosen one with before and after step times.
 - Refs: `.github/workflows/ci.yml` (`ios-build`, step "Run iOS package tests"); `scripts/pre-push-check.sh` (the gate's package-test step); `tm-ios` ("Build integration", `build-and-schemes.md`).
-
-### tracking-location-path-double-clock-read
-- Type: task
-- Area: domain
-- Order: 140
-- Source: PR #66 drift
-- Problem: In `TrackingSessionManager.observeLocation`, each `LocationUpdate.Success` reads `clock.elapsedRealtimeMillis()` twice: once for `speedCalculator.calculate` and once for `TrackingEvent.LocationReceived`. Speed and accounting can therefore see slightly different timestamps for the same event.
-- Done when: the clock is read once per event and reused, with a test.
-- Refs: `domain` `TrackingSessionManager.observeLocation`, `SpeedCalculator`.
 
 ### polyline-decoder-invalid-characters
 - Type: task
@@ -436,23 +418,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
 - Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
-### finished-session-discard-control
-- Type: task
-- Area: domain, androidApp/feature-tracking, iosApp/Tracking
-- Order: 320
-- Source: review of PR #358 (owner request, 2026-11-19)
-- Problem: A session that stops by itself at the route's end, or a restored finished one, offers only Save (the finish card's "Finish") on both platforms. Since PR #358, Start is not offered over it on either platform, because starting would replace the unsaved recording. If the end of the recording is bad (for example a bad GPS fix), the user has no way to get rid of it: they must save it, or leave the screen and keep it stored, which is offered again as a finished session and blocks starting a new activity. The route-completion epic makes a session end by itself also with the phone locked, so this state will be reached more often. Reason for a record: whether to offer Discard in the finished state is a product decision for the owner, not an agent follow-up.
-- Done when: the owner decides. If yes: `domain`'s `TrackingControls` gets a `canDiscard` rule for `Finished` (one rule, `availableControls`, with `kotlin.test` cases for every state against it), both ViewModels only show it (a Discard control on the finish card, the same on both platforms, with a confirmation that says the recording is deleted), `discard()` clears the stored session as it does after a save, each platform has an adapter test and a test that a discarded finished session leaves Idle and offers Start, and this record is deleted. If no: the decision and its reason are written in `tm-android`/`tm-ios` or the PR that closes it (a finished session is saved or kept), and this record is deleted.
-- Refs: `domain/.../model/TrackingControls.kt` (`canSave`, `canStop`); `TrackingSessionManager.discard`; Android `TrackingScreen` (the finish card); iOS `TrackingView` (`finishCard`).
-
-### live-activity-throttle-uses-wall-clock
-- Type: task
-- Area: iosApp/Tracking
-- Order: 330
-- Source: sweep tm-kmp-shared
-- Problem: `tm-kmp-shared` "Time": durations are measured with the monotonic clock, and two wall-clock reads are never subtracted (the skill gives no severity, read here as `important`). `TrackingLiveActivityController.update` throttles with `Date()` and `now.timeIntervalSince(lastUpdateDate)`. If the system time moves back (a manual change, a network time correction), the difference stays below `minimumUpdateInterval` and the Live Activity drops every update until the wall clock catches up. Count 1. Recorded, not fixed: this sweep changes no code, and the fix (the shared `Clock.elapsedRealtimeMillis()`, or `ContinuousClock` in Swift) is a choice for the iOS change.
-- Done when: `grep -n 'Date()' iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` shows no read used for the throttle, and a package test drives the throttle through an injected clock, including a clock that goes back.
-- Refs: `iosApp/Packages/Tracking/Sources/Tracking/TrackingLiveActivityController.swift` (`update`, `minimumUpdateInterval`); `tm-kmp-shared` ("Time").
 
 ### android-mainactivity-field-injection
 - Type: task
