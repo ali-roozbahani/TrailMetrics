@@ -48,7 +48,9 @@ sections 3 to 9, Auto-merge, After-merge cleanup, Stop and Report exactly as a p
 
 The task is done when its PR and every PR queued from it are merged, handed to the owner, or left
 unpushed behind a PR handed to the owner. A run
-ends at the queue's `DONE`, when the owner wait runs out, or at a stop condition (section 9). A
+ends at the queue's `DONE`, when the owner wait runs out, when its context runs low, or at a stop
+condition (section 9). When the context runs low, the run finishes the current entry, reports, and leaves
+the other entries in the queue file for the next session (`queue.md`, "A new session"). A
 session continues from `scripts/queue/queue.sh show` and GitHub, never from memory. The next
 task is a new run; the human clears the session between runs.
 
@@ -151,9 +153,12 @@ around it: no other login, no `git -c`, no API call that writes the file.
 
 How, with the commands: `queue.md`; the queue's rules: the header of `scripts/queue/queue.sh`.
 
-- The task's PR is the first entry; every follow-up and drift the agent can do is an entry and a
-  PR of its own (`tm-pr-workflow`, "Board", rule 1). Board instead: owner decision or design, an
-  epic, an entry over the limit of 5.
+- The task's PR is the first entry; every follow-up and drift the agent can do, found while building
+  a task or in its review, is added to the end of the queue (`queue.sh add`) and becomes a PR of its own
+  (`tm-pr-workflow`, "Board", rule 1). The queue has no limit on open entries (owner decision of
+  2026-11-27). An entry other than the task's own PR comes only from what the work or its review found, never
+  from browsing for work.
+  Board instead: owner decision or design, an epic, an owner-opened sweep finding, a flake at count 3.
 - Do what `scripts/queue/queue.sh next` prints (`add` and `set` end with a `next:` line that is the
   same answer: follow it, not your own plan, so a second entry is built only while the first is
   pushed), and record every change of an entry's state with

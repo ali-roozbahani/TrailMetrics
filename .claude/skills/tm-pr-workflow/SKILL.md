@@ -195,7 +195,7 @@ The user-visible behavior of a change is validated by automated tests, not by a 
 
 ## Board
 
-`BOARD.md` is the backlog of what the agent does not do on its own. The seven rules (0 picking work, 1 add, 2 delete, 3 report, 4 no board-only PRs, 5 epics, 6 leave other records alone) are in `board.md`; read it before touching `BOARD.md` or leaving anything for later. In short: a follow-up the agent can do is a queue entry and a PR of its own, never a record; a record only for an owner decision or design, an epic, an item the queue refuses, a sweep finding or a flake at count 3; the PR that resolves a record deletes it in its own commit; every PR description carries a `Board:` line.
+`BOARD.md` is the backlog of what the agent does not do on its own. The seven rules (0 picking work, 1 add, 2 delete, 3 report, 4 no board-only PRs, 5 epics, 6 leave other records alone) are in `board.md`; read it before touching `BOARD.md` or leaving anything for later. In short: a follow-up the agent can do is a queue entry and a PR of its own, never a record; a record only for an owner decision or design, an epic, a sweep finding or a flake at count 3; the PR that resolves a record deletes it in its own commit; every PR description carries a `Board:` line.
 
 ## Flake log
 

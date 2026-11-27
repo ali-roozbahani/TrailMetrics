@@ -1,6 +1,6 @@
 # The PR queue in the agent loop
 
-Detail of `SKILL.md`, section 9. The queue's own rules (statuses, order, the limit of 5, what each
+Detail of `SKILL.md`, section 9. The queue's own rules (statuses, order, no limit on open entries, what each
 `next` line means) are in the header of `scripts/queue/queue.sh`; the scripts named here say in
 their headers what they read and print. This file says how the loop uses them.
 
@@ -33,8 +33,13 @@ Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review
   it first, then dispose the finding as `queued <slug>` (`tm-pr-review`, "Orchestrator's part",
   step 5). The push gate accepts the disposition only for a slug that is an entry of the queue
   file and not dropped; it does not check that the entry fixes the finding.
-- **Not in the queue:** an item that needs an owner decision or design, an epic,
-  and an item `add` refuses because 5 entries are open. Those get a `BOARD.md` record instead. An epic run
+- **No limit on open entries** (owner decision of 2026-11-27). The agent works through related tasks
+  with a free hand: every follow-up it can do, found while building a task or in its review, is added
+  to the end of the queue with `add`, however many entries are open. An entry comes only from what the
+  work or its review found, never from browsing for work (the board, the code, other records); the task's
+  own PR, named or picked with `check-board.sh --next`, is the exception.
+- **Not in the queue:** an item that needs an owner decision or design, an epic, a finding of an
+  owner-opened sweep and a flake escalated at count 3. Those get a `BOARD.md` record instead. An epic run
   does not use the queue either: its subtasks are not PRs (they merge locally into the integration branch) and its one PR
   is opened at the end of the run, so none is an entry, and an epic starts only when the queue is `DONE` or waits for the owner alone
   (`epic-orchestration`, `running-an-epic.md`, "The queue and the epic"). A
@@ -183,6 +188,11 @@ A session never continues from memory. It starts with `tm-pr-workflow`, "Before 
 file and GitHub disagree, GitHub wins: a PR merged or closed meanwhile is recorded (`set`) first.
 A `building` entry is finished (`FINISH_BUILD`). A run that finds open entries continues them
 before it starts a new task; the new task's PR then enters the same queue.
+
+A session also ends when its context runs low (every way a run ends: `SKILL.md`, "One task per run").
+It then finishes the current entry (the one being built is committed and `ready`, or the pushed one reaches its Merge check), sends
+the report, and leaves every other entry in the queue file as it is; the next session continues them
+from the file.
 
 ## The report
 
