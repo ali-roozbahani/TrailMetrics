@@ -30,22 +30,22 @@ class DisplayedElapsedTimeTest {
 
     @Test
     fun `tracking at the last update shows the accounted time`() {
-        assertEquals(60_000L, TrackingState.Tracking(metrics).displayedElapsedMillis(nowElapsedRealtimeMillis = 100_000L))
+        assertEquals(60_000L, TrackingState.Tracking(metrics).displayedElapsedMillis(100_000L))
     }
 
     @Test
     fun `tracking clamps a now before the last update to the accounted time`() {
-        assertEquals(60_000L, TrackingState.Tracking(metrics).displayedElapsedMillis(nowElapsedRealtimeMillis = 90_000L))
+        assertEquals(60_000L, TrackingState.Tracking(metrics).displayedElapsedMillis(90_000L))
     }
 
     @Test
     fun `paused shows the accounted time however late now is`() {
-        assertEquals(60_000L, TrackingState.Paused(metrics).displayedElapsedMillis(nowElapsedRealtimeMillis = 900_000L))
+        assertEquals(60_000L, TrackingState.Paused(metrics).displayedElapsedMillis(900_000L))
     }
 
     @Test
     fun `finished shows the accounted time however late now is`() {
-        assertEquals(60_000L, TrackingState.Finished(metrics).displayedElapsedMillis(nowElapsedRealtimeMillis = 900_000L))
+        assertEquals(60_000L, TrackingState.Finished(metrics).displayedElapsedMillis(900_000L))
     }
 
     @Test
