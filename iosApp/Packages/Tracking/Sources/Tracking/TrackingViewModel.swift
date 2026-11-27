@@ -9,6 +9,14 @@ import SharedKit
 @MainActor
 public class TrackingViewModel: ObservableObject {
     @Published public private(set) var trackingState: TrackingState = TrackingStateIdle.shared
+    /// The time the metrics panel shows, computed when read (`domain`'s `displayedElapsedMillis` at the monotonic
+    /// clock's now): while Tracking it moves between location events. Not published: `MetricsDisplay` reads it
+    /// once a second while it is on screen (a `TimelineView`), so nothing ticks for a hidden screen or in the
+    /// background, and a tick re-renders the metrics panel only. Display only; the Live Activity gets the
+    /// recorded `elapsedMillis` (its own timer ticks).
+    public var displayedElapsedMillis: Int64 {
+        trackingState.displayedElapsedMillis(nowElapsedRealtimeMillis: clock.elapsedRealtimeMillis())
+    }
     @Published public private(set) var calories: Double?
     /// How far along the planned route the session is, as the manager reports it (nil before the first fix
     /// and without a plan). The route's end is the manager's rule: it ends the session itself.
@@ -36,8 +44,11 @@ public class TrackingViewModel: ObservableObject {
     /// True while the load started in `init` runs; a Finish in that time does nothing.
     private var isLoadingUserProfile = false
     /// Set before a save starts, so a repeated Finish neither saves twice nor calls `onSaved`
-    /// twice; cleared when the save fails (retry) and when a new session starts.
-    private var isSessionSaved = false
+    /// twice; cleared when the save fails (retry) and when a new session starts. Published: `canDiscardFinished`.
+    @Published private(set) var isSessionSaved = false
+    /// Set while the discard of a Finished session runs (`onDiscardFinishedClicked`), so it runs once.
+    @Published private(set) var isDiscardingFinished = false
+    func markDiscardingFinished(_ isRunning: Bool) { isDiscardingFinished = isRunning }
 
     // Kotlin's `trackingScope` runs on `Dispatchers.Default`, so `for await` can resume off the main actor
     // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
@@ -51,7 +62,7 @@ public class TrackingViewModel: ObservableObject {
 
     /// The controls the user may use now. The rules are `domain`'s (`availableControls`, the same ones
     /// Android asks); this only reads them.
-    private var controls: TrackingControls {
+    var controls: TrackingControls {
         trackingState.availableControls(isRestoring: storedSessionReadState.isRestoring)
     }
 
@@ -61,7 +72,7 @@ public class TrackingViewModel: ObservableObject {
 
     /// A Finished session waits to be saved: the route's end, or a restored one. Not while it is discarded
     /// (a presentation detail of this screen: Stop passes through Finished on its way to Idle).
-    public var canFinish: Bool { controls.canSave && !isDiscarding }
+    public var canFinish: Bool { controls.canSave && !isDiscarding && !isDiscardingFinished }
 
     public var canResume: Bool { controls.canResume }
 
@@ -359,7 +370,7 @@ public class TrackingViewModel: ObservableObject {
     /// The manager's `discard()`: the session is already Finished here, so it only clears, and the clear runs
     /// non-cancellable (the caller, a screen that is left, is often gone by then), as on Android. The manager
     /// logs a failing store and discards in memory; what reaches here is anything else it throws.
-    private func clearStoredSession() async {
+    func clearStoredSession() async {
         do {
             try await trackingSessionManager.discard()
         } catch {
