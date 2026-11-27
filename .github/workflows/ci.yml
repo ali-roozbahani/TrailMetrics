@@ -42,6 +42,27 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Robolectric downloads its Android framework jar (android-all-instrumented, one per SDK level, about 190 MB for
+      # SDK 35) into the local Maven repository the first time a test needs it. Downloading it in every run failed three
+      # runs on main (CI_FLAKES.md, robolectric-artifact-download-failed), so the jar is cached. Keyed on the Robolectric
+      # version, which names the jar it fetches; a new SDK level in a test's @Config is fetched on top of a restored
+      # entry until the version changes.
+      - name: Read the Robolectric version
+        id: robolectric
+        run: |
+          version="$(sed -n 's/^robolectric = "\(.*\)"/\1/p' gradle/libs.versions.toml)"
+          if [ -z "$version" ]; then
+            echo "::error file=gradle/libs.versions.toml::no Robolectric version found: the line robolectric = \"...\" is missing from gradle/libs.versions.toml, so the Robolectric cache key would never change on a Robolectric bump"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Robolectric's Android framework jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric/android-all-instrumented
+          key: robolectric-${{ runner.os }}-${{ steps.robolectric.outputs.version }}
+
       - name: Run lint
         run: ./gradlew lint
 

@@ -346,7 +346,7 @@ run, and the jobs it hit are counted below.
 - Signature: job `Android build — lint, Detekt, tests, coverage, debug build, Room export`, step `Run unit tests`, every Robolectric
   test of the run, first error line "java.lang.AssertionError at MavenArtifactFetcher", caused by
   `java.io.IOException at HttpURLConnection` (Robolectric could not download its Android framework jar)
-- Count: 2
+- Count: 3
 - Status: open
 - Occurrences:
   - 2026-11-16, run 43919159264 (push to `main`, merge of #319, a skills-only change), re-run: no (a run on `main` is never re-run).
@@ -358,8 +358,15 @@ run, and the jobs it hit are counted below.
     "java.lang.AssertionError at MavenArtifactFetcher" and `Caused by: java.io.IOException at HttpURLConnection`; the first 20
     failures read are all of that kind (no compile, lint or Detekt error, no assertion on a value). The PR's own run of the same
     head passed. The owner acknowledged the run
+  - 2026-11-27, run 45980234652 (push to `main`, merge of #400, a `data` and test change), re-run: no. 145 tests failed in three
+    test tasks (`:data:testAndroidHostTest` 84 of 161, `:androidApp:app:testDebugUnitTest` 40 of 57, and 21 of 54 in a third
+    task), each read failure with the error line "java.lang.AssertionError at MavenArtifactFetcher" and `Caused by:
+    java.io.IOException at HttpURLConnection`. The PR's own run of the same head passed. The owner acknowledged the run
 - Notes: class infra (network from the runner to the artifact repository), not the diff. Nothing is changed for it now (owner decision
   of 2026-11-16: no caching or retry fix at count 1); a recurrence is handled by the normal flake rules.
+  At count 3 the owner decided (2026-11-27) to fix it instead of escalating it to a `BOARD.md` record: the Android job of `ci.yml`
+  caches Robolectric's downloaded jars (`~/.m2/repository/org/robolectric/android-all-instrumented`, keyed on the Robolectric
+  version), no retry. The status is set per the flake rules once that fix is merged.
 
 ## ios-package-tests-history-silent-stall
 
