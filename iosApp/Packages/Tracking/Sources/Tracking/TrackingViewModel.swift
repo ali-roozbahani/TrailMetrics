@@ -43,8 +43,10 @@ public class TrackingViewModel: ObservableObject {
     /// True while the load started in `init` runs; a Finish in that time does nothing.
     private var isLoadingUserProfile = false
     /// Set before a save starts, so a repeated Finish neither saves twice nor calls `onSaved`
-    /// twice; cleared when the save fails (retry) and when a new session starts.
-    private var isSessionSaved = false
+    /// twice; cleared when the save fails (retry) and when a new session starts. Published: `canDiscardFinished`.
+    @Published private(set) var isSessionSaved = false
+    /// Set while the discard of a Finished session runs (`onDiscardFinishedClicked`), so it runs once.
+    @Published var isDiscardingFinished = false
 
     // Kotlin's `trackingScope` runs on `Dispatchers.Default`, so `for await` can resume off the main actor
     // despite @MainActor. The tasks are stored so `onStopClicked()` cancels them deterministically.
@@ -59,7 +61,7 @@ public class TrackingViewModel: ObservableObject {
 
     /// The controls the user may use now. The rules are `domain`'s (`availableControls`, the same ones
     /// Android asks); this only reads them.
-    private var controls: TrackingControls {
+    var controls: TrackingControls {
         trackingState.availableControls(isRestoring: storedSessionReadState.isRestoring)
     }
 
@@ -367,7 +369,7 @@ public class TrackingViewModel: ObservableObject {
     /// The manager's `discard()`: the session is already Finished here, so it only clears, and the clear runs
     /// non-cancellable (the caller, a screen that is left, is often gone by then), as on Android. The manager
     /// logs a failing store and discards in memory; what reaches here is anything else it throws.
-    private func clearStoredSession() async {
+    func clearStoredSession() async {
         do {
             try await trackingSessionManager.discard()
         } catch {
