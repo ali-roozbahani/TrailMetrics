@@ -36,7 +36,8 @@ Only the orchestrator (the main agent) runs `queue.sh`, the watch and the review
 - **No limit on open entries** (owner decision of 2026-11-27). The agent works through related tasks
   with a free hand: every follow-up it can do, found while building a task or in its review, is added
   to the end of the queue with `add`, however many entries are open. An entry comes only from what the
-  work or its review found, never from browsing for work (the board, the code, other records).
+  work or its review found, never from browsing for work (the board, the code, other records); the task's
+  own PR, named or picked with `check-board.sh --next`, is the exception.
 - **Not in the queue:** an item that needs an owner decision or design, an epic, a finding of an
   owner-opened sweep and a flake escalated at count 3. Those get a `BOARD.md` record instead. An epic run
   does not use the queue either: its subtasks are not PRs (they merge locally into the integration branch) and its one PR

@@ -156,7 +156,8 @@ How, with the commands: `queue.md`; the queue's rules: the header of `scripts/qu
 - The task's PR is the first entry; every follow-up and drift the agent can do, found while building
   a task or in its review, is added to the end of the queue (`queue.sh add`) and becomes a PR of its own
   (`tm-pr-workflow`, "Board", rule 1). The queue has no limit on open entries (owner decision of
-  2026-11-27). An entry comes only from what the work or its review found, never from browsing for work.
+  2026-11-27). An entry other than the task's own PR comes only from what the work or its review found, never
+  from browsing for work.
   Board instead: owner decision or design, an epic, an owner-opened sweep finding, a flake at count 3.
 - Do what `scripts/queue/queue.sh next` prints (`add` and `set` end with a `next:` line that is the
   same answer: follow it, not your own plan, so a second entry is built only while the first is
