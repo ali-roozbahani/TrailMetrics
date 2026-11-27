@@ -216,6 +216,40 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `the Time cell moves each second while tracking with no location event`() {
+        showStartedSession().assertTimeShown("00:00")
+
+        fixture.passTime(1_000L)
+        robot.waitForIdle().assertTimeShown("00:01")
+        fixture.passTime(1_000L)
+
+        robot.waitForIdle().assertTimeShown("00:02")
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell stands still while paused`() {
+        showStartedSession()
+        walkTwoFixes()
+        robot.clickPause().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell shows the final time of a finished session and does not move`() {
+        showReachedDestination().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Finished>(trackingState())
+    }
+
+    @Test
     fun `reaching the end of the planned route shows the completed card with Finish`() {
         showReachedDestination()
             .assertCompletedCard()

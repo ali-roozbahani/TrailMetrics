@@ -53,6 +53,23 @@ final class TrackingViewModelElapsedTimeTests: TrackingTestCase {
         XCTAssertEqual(viewModel.displayedElapsedMillis, recorded)
     }
 
+    func test_whenFinished_theShownTimeIsTheFinalTimeAndStandsStill() async throws {
+        let subject = makeSubject()
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.trackingState is TrackingStateTracking }
+        // Ended by the manager, as at the route's end, so the ViewModel keeps observing it.
+        subject.trackingSessionManager.stop()
+        await waitUntil { viewModel.trackingState is TrackingStateFinished }
+        let recorded = try XCTUnwrap(viewModel.currentMetrics?.elapsedMillis)
+        let base = try XCTUnwrap(lastUpdate(of: viewModel))
+        XCTAssertEqual(viewModel.displayedElapsedMillis, recorded)
+
+        subject.clock.setElapsedRealtimeMillis(base + 10_000)
+
+        XCTAssertEqual(viewModel.displayedElapsedMillis, recorded)
+    }
+
     func test_afterResume_theShownTimeGoesOnFromThePausedTime() async throws {
         let subject = makeSubject()
         let viewModel = subject.viewModel
