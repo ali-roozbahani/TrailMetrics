@@ -47,6 +47,7 @@ class RestoredNotificationAndroidHostTest {
         val notice = buildRestoredNotification(context, "channel", android.R.drawable.ic_dialog_info, "Paused - 1 m")
 
         assertEquals("Paused - 1 m", notice.extras.getString(Notification.EXTRA_TEXT))
+        assertEquals("TrailMetrics", notice.extras.getString(Notification.EXTRA_TITLE))
         assertTrue(notice.flags and Notification.FLAG_AUTO_CANCEL != 0)
         assertEquals(0, notice.flags and Notification.FLAG_ONGOING_EVENT)
         val tap = shadowOf(assertNotNull(notice.contentIntent)).savedIntent
