@@ -59,7 +59,7 @@ public struct TrackingView: View {
                     if let metrics = viewModel.currentMetrics {
                         MetricsDisplay(
                             metrics: metrics,
-                            elapsedMillis: viewModel.displayedElapsedMillis,
+                            elapsedMillis: { viewModel.displayedElapsedMillis },
                             calories: viewModel.calories
                         )
                     }

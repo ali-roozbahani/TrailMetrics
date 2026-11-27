@@ -199,14 +199,54 @@ class TrackingScreenTest {
     }
 
     @Test
-    fun `Paused shows Resume and Stop and keeps the metrics`() {
+    fun `Paused shows Resume and Stop, keeps the metrics and shows no current speed`() {
         showStartedSession()
         walkTwoFixes()
 
         robot.clickPause()
             .assertPausedControls()
-            .assertWalkedMetricsShown()
+            // A paused session records nothing, so it has no current speed (the domain clears it on Pause).
+            .assertMetricsShown(
+                distance = WALKED_DISTANCE,
+                time = WALKED_TIME,
+                speed = NO_SPEED,
+                calories = WALKED_CALORIES
+            )
         assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell moves each second while tracking with no location event`() {
+        showStartedSession().assertTimeShown("00:00")
+
+        fixture.passTime(1_000L)
+        robot.waitForIdle().assertTimeShown("00:01")
+        fixture.passTime(1_000L)
+
+        robot.waitForIdle().assertTimeShown("00:02")
+        assertIs<TrackingState.Tracking>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell stands still while paused`() {
+        showStartedSession()
+        walkTwoFixes()
+        robot.clickPause().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Paused>(trackingState())
+    }
+
+    @Test
+    fun `the Time cell shows the final time of a finished session and does not move`() {
+        showReachedDestination().assertTimeShown(WALKED_TIME)
+
+        fixture.passTime(5_000L)
+
+        robot.waitForIdle().assertTimeShown(WALKED_TIME)
+        assertIs<TrackingState.Finished>(trackingState())
     }
 
     @Test
@@ -694,6 +734,7 @@ class TrackingScreenTest {
 
         // The speed over the last two fixes: ~55.6 m in 30 s, 6.67 km/h.
         const val WALKED_SPEED = "6.7 km/h"
+        const val NO_SPEED = "-- km/h"
 
         // Average 10.0 km/h: running MET 9.8 x 70 kg x 1/60 h = 11.4 kcal.
         const val WALKED_CALORIES = "11 kcal"
