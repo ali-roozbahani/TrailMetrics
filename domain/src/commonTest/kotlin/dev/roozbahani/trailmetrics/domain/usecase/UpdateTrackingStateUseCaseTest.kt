@@ -60,6 +60,25 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
+    fun `pause clears the current speed and keeps every other metric`() {
+        val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
+
+        val newState = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 15))
+
+        assertEquals(TrackingState.Paused(metrics.copy(currentSpeedMetersPerSecond = null)), newState)
+    }
+
+    @Test
+    fun `a session stopped while paused finishes without a current speed`() {
+        val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
+        val paused = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 15))
+
+        val finished = useCase(paused, TrackingEvent.Stop(elapsedRealtimeMillis = 20))
+
+        assertEquals(TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null)), finished)
+    }
+
+    @Test
     fun `resume from Paused transitions to Tracking and updates lastUpdateElapsedRealtimeMillis`() {
         val pausedStateMetrics = sampleMetrics()
         val pausedState = TrackingState.Paused(pausedStateMetrics)
