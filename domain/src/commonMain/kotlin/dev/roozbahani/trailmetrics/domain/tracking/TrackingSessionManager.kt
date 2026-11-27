@@ -255,16 +255,18 @@ class TrackingSessionManager(
                 when (update) {
                     is LocationUpdate.Success -> {
                         consecutiveUnavailableCount = 0
+                        // One read per fix: the speed and the accounting see the same moment.
+                        val fixElapsedRealtimeMillis = clock.elapsedRealtimeMillis()
                         val speed = speedCalculator.calculate(
                             coordinates = update.coordinates,
-                            elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                            elapsedRealtimeMillis = fixElapsedRealtimeMillis,
                             reportedSpeedMetersPerSecond = update.speedMetersPerSecond,
                             accuracyMeters = update.accuracyMeters
                         )
                         dispatch(
                             TrackingEvent.LocationReceived(
                                 coordinates = update.coordinates,
-                                elapsedRealtimeMillis = clock.elapsedRealtimeMillis(),
+                                elapsedRealtimeMillis = fixElapsedRealtimeMillis,
                                 speedMetersPerSecond = speed
                             )
                         )
