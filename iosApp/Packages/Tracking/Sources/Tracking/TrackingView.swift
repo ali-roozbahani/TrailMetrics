@@ -56,7 +56,11 @@ public struct TrackingView: View {
                 Spacer()
                 VStack(spacing: 16) {
                     if let metrics = viewModel.currentMetrics {
-                        MetricsDisplay(metrics: metrics, calories: viewModel.calories)
+                        MetricsDisplay(
+                            metrics: metrics,
+                            elapsedMillis: { viewModel.displayedElapsedMillis },
+                            calories: viewModel.calories
+                        )
                     }
 
                     if viewModel.canFinish {
