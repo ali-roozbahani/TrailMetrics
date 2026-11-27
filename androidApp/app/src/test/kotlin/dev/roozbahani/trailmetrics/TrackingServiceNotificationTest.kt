@@ -136,7 +136,7 @@ class TrackingServiceNotificationTest {
         val notification = foregroundNotification()
 
         assertEquals("TrailMetrics", notification.extras.getString(Notification.EXTRA_TITLE))
-        // No location update has arrived yet in this setup, so the session shows the setting-up text.
+        // onStartCommand posts its first foreground notification for TrackingState.Idle: the setting-up text.
         assertEquals("Setting up...", notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString())
         val channel = application.getSystemService(NotificationManager::class.java)
             .getNotificationChannel(notification.channelId)
