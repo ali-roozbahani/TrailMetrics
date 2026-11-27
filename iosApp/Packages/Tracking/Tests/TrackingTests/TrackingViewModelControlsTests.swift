@@ -24,6 +24,9 @@ final class TrackingViewModelControlsTests: TrackingTestCase {
             XCTAssertEqual(viewModel.canResume, expected.canResume, "canResume in \(label)", file: file, line: line)
             XCTAssertEqual(viewModel.canStop, expected.canStop, "canStop in \(label)", file: file, line: line)
             XCTAssertEqual(viewModel.canFinish, expected.canSave, "canFinish in \(label)", file: file, line: line)
+            XCTAssertEqual(
+                viewModel.canDiscardFinished, expected.canDiscard, "canDiscard in \(label)", file: file, line: line
+            )
         }
 
         assertMatchesDomain("idle")

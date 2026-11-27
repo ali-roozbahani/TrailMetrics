@@ -67,7 +67,7 @@ class TrackingViewModel(
     /**
      * The snapshot file kept after a Finish that did not save, so the retry reuses it instead of
      * writing a new one. Deleted by [onCleared] if no retry used it: after a failed save the session stays
-     * Finished, so no new session starts.
+     * Finished, so no new session starts. Deleted by [discardFinished] too: no retry follows a discard.
      */
     private val retainedSnapshotPath = MutableStateFlow<String?>(null)
 
@@ -176,6 +176,7 @@ class TrackingViewModel(
             TrackingAction.Pause -> trackingSessionManager.pause()
             TrackingAction.Resume -> trackingSessionManager.resume()
             TrackingAction.Stop -> stop()
+            TrackingAction.DiscardFinished -> discardFinished()
             is TrackingAction.Finish -> finish(action.snapshotFilePath)
             TrackingAction.SessionNotSavedShown -> trackingSessionManager.unsavedSessionWarning.markShown()
         }
@@ -197,6 +198,18 @@ class TrackingViewModel(
      * ended by the session manager and stays stored until it is saved with Finish.
      */
     private fun stop() {
+        viewModelScope.launch { trackingSessionManager.discard() }
+    }
+
+    /**
+     * The user deletes a finished session instead of saving it. The screen stays: the session becomes Idle and Start
+     * is offered again. Nothing happens while a Finish is saving it ([isSessionSaved]): the save then clears it.
+     */
+    private fun discardFinished() {
+        val controls = trackingSessionManager.currentState.value.availableControls(isRestoring.value)
+        if (!controls.canDiscard || isSessionSaved) return
+        retainedSnapshotPath.value?.let(::deleteSnapshotFile)
+        retainedSnapshotPath.value = null
         viewModelScope.launch { trackingSessionManager.discard() }
     }
 
@@ -341,6 +354,9 @@ data class TrackingScreenState(
 
     val canSave: Boolean
         get() = controls.canSave
+
+    val canDiscard: Boolean
+        get() = controls.canDiscard
 }
 
 private const val MIN_POINTS_FOR_LINE = 2
@@ -367,6 +383,9 @@ sealed interface TrackingAction {
     data object Resume : TrackingAction
     data object Stop : TrackingAction
     data class Finish(val snapshotFilePath: String?) : TrackingAction
+
+    /** The user confirmed deleting the finished session without saving it; the screen stays. */
+    data object DiscardFinished : TrackingAction
 
     /** The screen showed [TrackingEvent.ShowSessionNotSaved]: the warning is not shown again for this session. */
     data object SessionNotSavedShown : TrackingAction

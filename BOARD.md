@@ -427,15 +427,6 @@ deleting records: the "Board" section of `.claude/skills/tm-pr-workflow/SKILL.md
 - Done when: the owner decides whether the local input builder copies the base's instruction files into a scratch tree like CI does, and the skills and `scripts/review-task.sh` say what the decision is.
 - Refs: `.github/workflows/pr-review.yml` ("Build review inputs"); `scripts/review-task.sh`; `.claude/skills/tm-pr-review/SKILL.md` ("Orchestrator's part"); PR #234.
 
-### finished-session-discard-control
-- Type: task
-- Area: domain, androidApp/feature-tracking, iosApp/Tracking
-- Order: 320
-- Source: review of PR #358 (owner request, 2026-11-19)
-- Problem: A session that stops by itself at the route's end, or a restored finished one, offers only Save (the finish card's "Finish") on both platforms. Since PR #358, Start is not offered over it on either platform, because starting would replace the unsaved recording. If the end of the recording is bad (for example a bad GPS fix), the user has no way to get rid of it: they must save it, or leave the screen and keep it stored, which is offered again as a finished session and blocks starting a new activity. The route-completion epic makes a session end by itself also with the phone locked, so this state will be reached more often. Reason for a record: whether to offer Discard in the finished state is a product decision for the owner, not an agent follow-up.
-- Done when: the owner decides. If yes: `domain`'s `TrackingControls` gets a `canDiscard` rule for `Finished` (one rule, `availableControls`, with `kotlin.test` cases for every state against it), both ViewModels only show it (a Discard control on the finish card, the same on both platforms, with a confirmation that says the recording is deleted), `discard()` clears the stored session as it does after a save, each platform has an adapter test and a test that a discarded finished session leaves Idle and offers Start, and this record is deleted. If no: the decision and its reason are written in `tm-android`/`tm-ios` or the PR that closes it (a finished session is saved or kept), and this record is deleted.
-- Refs: `domain/.../model/TrackingControls.kt` (`canSave`, `canStop`); `TrackingSessionManager.discard`; Android `TrackingScreen` (the finish card); iOS `TrackingView` (`finishCard`).
-
 ### live-activity-throttle-uses-wall-clock
 - Type: task
 - Area: iosApp/Tracking

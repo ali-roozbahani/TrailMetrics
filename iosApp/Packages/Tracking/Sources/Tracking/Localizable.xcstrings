@@ -31,6 +31,26 @@
         }
       }
     },
+    "Discard" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        }
+      }
+    },
+    "Discard this recording?" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard this recording?"
+          }
+        }
+      }
+    },
     "Distance" : {
       "localizations" : {
         "en" : {
@@ -157,6 +177,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop tracking?"
+          }
+        }
+      }
+    },
+    "The recording will be deleted and cannot be recovered." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The recording will be deleted and cannot be recovered."
           }
         }
       }
