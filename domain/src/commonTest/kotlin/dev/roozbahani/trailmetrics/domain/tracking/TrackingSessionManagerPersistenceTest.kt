@@ -605,8 +605,9 @@ class TrackingSessionManagerPersistenceTest {
         manager.pause()
         testScheduler.runCurrent()
 
-        // The Pause counts the time since the fix: the clock reads 2_000 at the fix and 3_000 at the Pause.
-        val pausedMetrics = tracking.metrics.copy(elapsedMillis = 3_000L, lastUpdateElapsedRealtimeMillis = 3_000L)
+        // The Pause counts the time since the fix: the clock reads 1_000 at the fix (one read per fix, #408) and
+        // 2_000 at the Pause.
+        val pausedMetrics = tracking.metrics.copy(elapsedMillis = 2_000L, lastUpdateElapsedRealtimeMillis = 2_000L)
         assertEquals(TrackingState.Paused(pausedMetrics), store.stored)
     }
 
