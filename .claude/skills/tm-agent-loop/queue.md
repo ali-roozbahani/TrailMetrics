@@ -189,8 +189,8 @@ file and GitHub disagree, GitHub wins: a PR merged or closed meanwhile is record
 A `building` entry is finished (`FINISH_BUILD`). A run that finds open entries continues them
 before it starts a new task; the new task's PR then enters the same queue.
 
-A session ends at `DONE`, or when its context runs low. In the second case it finishes the current
-entry (the one being built is committed and `ready`, or the pushed one reaches its Merge check), sends
+A session also ends when its context runs low (every way a run ends: `SKILL.md`, "One task per run").
+It then finishes the current entry (the one being built is committed and `ready`, or the pushed one reaches its Merge check), sends
 the report, and leaves every other entry in the queue file as it is; the next session continues them
 from the file.
 
