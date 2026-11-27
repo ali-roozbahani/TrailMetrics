@@ -418,4 +418,13 @@ class UpdateTrackingStateUseCaseTest {
 
         assertEquals(10_000, assertIs<TrackingState.Paused>(paused).metrics.elapsedMillis)
     }
+
+    @Test
+    fun `stop while tracking finishes without a current speed`() {
+        val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
+
+        val finished = useCase(TrackingState.Tracking(metrics), TrackingEvent.Stop(elapsedRealtimeMillis = 10))
+
+        assertEquals(TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null)), finished)
+    }
 }

@@ -625,4 +625,12 @@ class TrackingSessionManagerPersistenceTest {
     private companion object {
         const val STARTED_AT = 1_700_000_000_000L
     }
+
+    @Test
+    fun `a finished session stored with a speed is restored without one`() = runTest(testScheduler) {
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = 3.1f)
+        store.stored = TrackingState.Finished(metrics)
+
+        assertEquals(TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null)), manager.restore())
+    }
 }
