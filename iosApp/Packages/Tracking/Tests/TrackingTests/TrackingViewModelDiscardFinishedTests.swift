@@ -14,6 +14,24 @@ import XCTest
 @MainActor
 final class TrackingViewModelDiscardFinishedTests: TrackingTestCase {
 
+    /// A session with a loaded profile and both moving fixes, finished by the manager as at the route's end: the
+    /// ViewModel keeps observing, unlike after `onStopClicked()` (which only a leaving screen calls).
+    private func makeSessionFinishedByTheManager(sessionStore: FakeTrackingSessionStore) async -> TrackingSubject {
+        let subject = makeSubject(
+            updates: TrackingFixtures.movingUpdates,
+            profile: UserProfile(weightKg: Self.weightKg),
+            sessionStore: sessionStore
+        )
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil {
+            viewModel.currentPath.count == TrackingFixtures.movingPath.count && viewModel.calories != nil
+        }
+        subject.trackingSessionManager.stop()
+        await waitUntil { viewModel.canFinish }
+        return subject
+    }
+
     func test_canDiscardFinished_isOfferedForAFinishedSessionOnly() async {
         let viewModel = makeSubject(updates: TrackingFixtures.movingUpdates).viewModel
         XCTAssertFalse(viewModel.canDiscardFinished, "idle")
@@ -34,7 +52,7 @@ final class TrackingViewModelDiscardFinishedTests: TrackingTestCase {
 
     func test_onDiscardFinishedClicked_leavesIdleClearsTheStoredSessionAndOffersStart() async {
         let store = FakeTrackingSessionStore()
-        let subject = await makeFinishedSubject(sessionStore: store)
+        let subject = await makeSessionFinishedByTheManager(sessionStore: store)
         let viewModel = subject.viewModel
         XCTAssertNotNil(store.storedSession)
         XCTAssertFalse(viewModel.canStart)
@@ -74,7 +92,7 @@ final class TrackingViewModelDiscardFinishedTests: TrackingTestCase {
 
     func test_onDiscardFinishedClicked_twice_discardsOnce() async {
         let store = FakeTrackingSessionStore()
-        let subject = await makeFinishedSubject(sessionStore: store)
+        let subject = await makeSessionFinishedByTheManager(sessionStore: store)
         let viewModel = subject.viewModel
 
         viewModel.onDiscardFinishedClicked()
@@ -101,7 +119,7 @@ final class TrackingViewModelDiscardFinishedTests: TrackingTestCase {
 
     func test_onDiscardFinishedClicked_whileAFinishSaves_doesNothingAndTheSaveClearsOnce() async {
         let store = FakeTrackingSessionStore()
-        let subject = await makeFinishedSubject(sessionStore: store)
+        let subject = await makeSessionFinishedByTheManager(sessionStore: store)
         let viewModel = subject.viewModel
 
         var onSavedCallCount = 0
