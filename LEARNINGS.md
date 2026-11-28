@@ -961,3 +961,33 @@ one stroke, while the PR's own run of the same head had passed (`CI_FLAKES.md`, 
 push runs on `main` from 2026-11-16 to 2026-11-27). The fix (#402) caches that directory with `actions/cache`, keyed on the
 Robolectric version, which names the jar it fetches; no retry. What it leaves: a cache miss (a version bump, an evicted
 entry) still downloads once, and a new SDK level in a test's `@Config` is downloaded in each run until the version changes.
+
+## Kotlin/Native read a restored Paused session as Idle (2026-11-27)
+
+In `TrackingSessionManager.restore()` (Kotlin 2.4.10), changing the Finished branch of the `when` that maps the stored
+state made the iOS target take a restored Paused session for Idle. This is the smallest shape that fails; it was not cut
+down to a standalone file:
+
+```kotlin
+val restored = when (val storedState = stored?.state) {
+    null, TrackingState.Idle -> TrackingState.Idle
+    is TrackingState.Tracking -> pausedState(storedState.metrics)
+    is TrackingState.Paused -> pausedState(storedState.metrics)
+    is TrackingState.Finished -> finishedState(storedState.metrics)   // was: storedState
+}
+if (stored != null && restored !is TrackingState.Idle) { /* set the session details */ }
+```
+
+- `pausedState` and `finishedState` are internal top-level functions that return `Paused` and `Finished`, each with a
+  `copy` of the metrics.
+- With the Finished branch returning `storedState`, all tests pass on both targets.
+- With it calling `finishedState`, a debug print showed `restored=Paused(...) isIdle=true`. Four restore tests failed on
+  `iosSimulatorArm64` only; the Android host passed them.
+- The failure stayed with the call written inline (`TrackingState.Finished(storedState.metrics.copy(...))`), with the
+  branches reordered (Finished first or last) and with `restored` given an explicit `TrackingState` type.
+- What works: the `when` is left as it was, and a separate `.let { state -> if (state is TrackingState.Finished)
+  finishedState(state.metrics) else state }` step follows it.
+
+Before the next change to a branch of that `when`, or to any `when` whose result is then tested with `is` or `!is`, run
+the iOS tests too (`:domain:iosSimulatorArm64Test`, or the gate's `allTests`): the Android host does not show the
+failure. The cause in the compiler is not known, and no issue has been filed.

@@ -15,11 +15,14 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
 
     private let origin = Date(timeIntervalSinceReferenceDate: 1_000_000)
     private var clockNow = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    private let uptimeOrigin = ContinuousClock.now
+    private lazy var uptimeNow = uptimeOrigin
 
     private func makeController(_ client: FakeLiveActivityClient) -> TrackingLiveActivityController {
         TrackingLiveActivityController(
             client: client,
             now: { [weak self] in self?.clockNow ?? .distantPast },
+            uptime: { [weak self] in self?.uptimeNow ?? ContinuousClock.now },
             onStopRequested: {}
         )
     }
@@ -191,6 +194,37 @@ final class TrackingLiveActivityControllerTests: XCTestCase {
                 staleDate: nil
             )
         ])
+    }
+
+    func test_update_whenTheWallClockGoesBack_isThrottledByTheMonotonicClockOnly() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        controller.update(distanceMeters: 1, elapsedMillis: 1_000, currentSpeedMetersPerSecond: nil, isPaused: false)
+        // The system time is set back an hour; 1.5 s pass on the monotonic clock.
+        clockNow = origin.addingTimeInterval(-3_600)
+        uptimeNow = uptimeOrigin.advanced(by: .milliseconds(1_500))
+
+        controller.update(distanceMeters: 2, elapsedMillis: 2_500, currentSpeedMetersPerSecond: nil, isPaused: false)
+        await waitUntil { client.updates.count == 2 }
+
+        XCTAssertEqual(client.updates.map(\.state.distanceMeters), [1, 2])
+    }
+
+    func test_update_whenTheWallClockJumpsForward_isStillThrottledWithinOneSecond() async {
+        let client = FakeLiveActivityClient()
+        let controller = startedController(client)
+        controller.update(distanceMeters: 1, elapsedMillis: 1_000, currentSpeedMetersPerSecond: nil, isPaused: false)
+        // The system time jumps an hour forward; only 0.5 s pass on the monotonic clock.
+        clockNow = origin.addingTimeInterval(3_600)
+        uptimeNow = uptimeOrigin.advanced(by: .milliseconds(500))
+        controller.update(distanceMeters: 2, elapsedMillis: 1_500, currentSpeedMetersPerSecond: nil, isPaused: false)
+        uptimeNow = uptimeOrigin.advanced(by: .milliseconds(1_000))
+
+        controller.update(distanceMeters: 3, elapsedMillis: 2_000, currentSpeedMetersPerSecond: nil, isPaused: false)
+        await waitUntil { client.updates.count == 2 }
+
+        // Only the update 1 s later on the monotonic clock is sent.
+        XCTAssertEqual(client.updates.map(\.state.distanceMeters), [1, 3])
     }
 
     func test_update_pauseRightAfterARunningUpdate_isNotThrottled() async {

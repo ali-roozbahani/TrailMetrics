@@ -6,6 +6,11 @@
     <string name="btn_tracking_stop">Stop</string>
     <string name="msg_route_completed">Your journey is finished, Congrats!</string>
     <string name="btn_tracking_finish">Finish</string>
+    <string name="btn_tracking_discard">Discard</string>
+    <string name="dialog_discard_finished_title">Discard this recording?</string>
+    <string name="dialog_discard_finished_message">The recording will be deleted and cannot be recovered.</string>
+    <string name="dialog_discard_finished_confirm">Discard</string>
+    <string name="dialog_discard_finished_dismiss">Cancel</string>
     <string name="dialog_exit_tracking_title">Stop tracking?</string>
     <string name="dialog_exit_tracking_message">Going back will stop your current tracking session. This cannot be undone.</string>
     <string name="dialog_exit_tracking_confirm">Stop</string>

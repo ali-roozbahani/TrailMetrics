@@ -5,7 +5,7 @@ Moved from `SKILL.md`, word for word except the references that now name this sk
 ## XCUITest
 
 When you write or change an XCUITest, a `UiTestScenario` or a fake in `shared-uitest`, read
-`xcuitest.md` first: the run command, the seam and probe in detail, the CI shard and timing details.
+`xcuitest.md` first: the run command, the seam and probe in detail, where the UI tests run (not in CI) and their timing.
 
 The iOS UI tests are `iosApp/TrailMetricsUITests` (XCTest, no other library); the plan and its
 decisions D5 to D7 are in `docs/epics/ios-ui-tests.md`.

@@ -235,7 +235,8 @@ final class TrackingViewModelTests: TrackingTestCase {
         let caloriesBeforePause = viewModel.calories
         viewModel.onPauseClicked()
         await waitUntil { viewModel.trackingState is TrackingStatePaused }
-        XCTAssertEqual(viewModel.calories, caloriesBeforePause, "Paused keeps the same metrics")
+        // The Pause counts the time up to it, so the paused metrics (and their calories) are its own.
+        XCTAssertEqual(viewModel.calories, expectedCalories(for: viewModel), "Paused shows its metrics' calories")
 
         // Resuming collects the cold fake flow again, so both fixes are appended a second time.
         viewModel.onResumeClicked()

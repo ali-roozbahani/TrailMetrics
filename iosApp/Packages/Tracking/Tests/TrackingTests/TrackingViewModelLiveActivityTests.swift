@@ -3,7 +3,7 @@
 //  TrackingTests
 //
 //  What the ViewModel hands the Live Activity controller, on a fake ActivityKit client: that Pause reaches
-//  the Activity as a held timer, and Resume as a running one.
+//  the Activity as a held timer, Resume as a running one, and Stop as the final totals.
 //
 
 import SharedKit
@@ -56,6 +56,30 @@ final class TrackingViewModelLiveActivityTests: TrackingTestCase {
         XCTAssertEqual(ends.count, 1, "The Live Activity ends once")
         XCTAssertNotNil(ends.first?.finalState, "It ends with the final totals")
         XCTAssertGreaterThan(ends.first?.finalState?.distanceMeters ?? 0, 0)
+    }
+
+    /// Stop while Tracking: the final content shows no speed of the last fix, and its time runs up to the Stop
+    /// (the manager's clock moves 10 s per reading, so the Stop comes 10 s after the last fix).
+    func test_onStopClicked_endsWithTheTimeUpToTheStopAndNoSpeed() async {
+        let subject = makeSubject(updates: TrackingFixtures.movingUpdates)
+        let viewModel = subject.viewModel
+        viewModel.onStartClicked()
+        await waitUntil { viewModel.currentPath.count == TrackingFixtures.movingPath.count }
+        let elapsedAtLastFix = viewModel.currentMetrics?.elapsedMillis ?? 0
+        XCTAssertNotNil(viewModel.currentMetrics?.currentSpeedMetersPerSecond, "The last fix has a speed")
+
+        viewModel.onStopClicked()
+
+        await waitUntil { !subject.liveActivityClient.endCalls.isEmpty }
+        guard let finalState = subject.liveActivityClient.endCalls.first?.finalState,
+              let pausedAt = finalState.pausedAt else {
+            return XCTFail("The Live Activity did not end with held final totals")
+        }
+        XCTAssertNil(finalState.currentSpeedMetersPerSecond, "A finished session shows no current speed")
+        XCTAssertNil(viewModel.currentMetrics?.currentSpeedMetersPerSecond, "The finished panel's Speed is empty")
+        let shownElapsedMillis = pausedAt.timeIntervalSince(finalState.timerStart) * 1000
+        XCTAssertEqual(shownElapsedMillis, Double(elapsedAtLastFix + 10_000), accuracy: 1,
+                       "The final time counts up to the Stop, not to the last fix")
     }
 
     func test_onStopClicked_endsTheLiveActivityOnce() async {
