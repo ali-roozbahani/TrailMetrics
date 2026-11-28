@@ -74,7 +74,8 @@ Every screen has:
    via `Channel`, never a plain callback lambda.
 4. **ViewModel** — `StateFlow<State>` + `onAction()`, no other public methods.
 
-**Current code:** all four ViewModels follow this shape: `val state: StateFlow<<X>State>`,
+**Current code:** all four ViewModels follow this shape (one addition in `TrackingViewModel`, under "Known
+deviations"): `val state: StateFlow<<X>State>`,
 `val events: Flow<<X>Event>` backed by a `Channel`, one public `onAction(<X>Action)`; each screen
 file has a `<X>Root` (`koinViewModel()`, collects events) and a stateless `<X>Screen(state,
 onAction, ...)`. `HistoryViewModel` is a reference for a new screen (`TrackingViewModel`'s state is
@@ -201,3 +202,9 @@ Don't copy these as a pattern for new code.
 - `TrackingViewModel.events` is not only its `Channel`: it merges the manager's `locationIssues` `SharedFlow` and
   the unsaved-session warning's `isRaised` `StateFlow` (as `ShowSessionNotSaved` to every collector while it is
   raised, until the Root sends `SessionNotSavedShown`). A new screen sends its own events through its `Channel`.
+- `TrackingViewModel` exposes a second UI-state flow, `displayedElapsedMillis: StateFlow<Long>` (the Time cell's
+  one-second tick), outside `TrackingScreenState`, and the stateless `TrackingScreen` takes it as
+  `elapsedMillis: () -> Long`, which only `MetricsDisplay` reads. Inside the state, each tick made a new screen state
+  and recomposed the whole screen, the map content included (`tm-robustness` P2, P4); the deferred read recomposes the
+  metrics card only. A value that changes every frame or second and is drawn in one place is the case for this; other
+  state goes in the screen state.
