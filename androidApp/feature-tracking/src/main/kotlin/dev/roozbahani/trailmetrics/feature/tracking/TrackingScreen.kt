@@ -456,7 +456,7 @@ fun TrackingScreen(
                                         OutlinedButton( // Discard: asks first, the recording is deleted
                                             onClick = { showDiscardConfirmation = true },
                                             // Not while a Finish waits for its snapshot or saves the session.
-                                            enabled = !isSnapshotPending && !state.isSaving,
+                                            enabled = !isSnapshotPending && !state.isSaveStarted,
                                             colors = ButtonDefaults.outlinedButtonColors(
                                                 contentColor = MaterialTheme.colorScheme.error
                                             )

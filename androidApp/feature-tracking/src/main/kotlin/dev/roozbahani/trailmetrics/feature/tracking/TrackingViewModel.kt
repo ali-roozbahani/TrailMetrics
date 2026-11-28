@@ -55,7 +55,7 @@ class TrackingViewModel(
     /**
      * Set synchronously by [finish] before the save is launched, so a second Finish (a double tap)
      * can't save the session again. Cleared by [start] for a new session, and if the save fails. The screen
-     * reads it as [TrackingScreenState.isSaving]: no Discard while it is set.
+     * reads it as [TrackingScreenState.isSaveStarted]: no Discard while it is set.
      */
     private val isSessionSaved = MutableStateFlow(false)
 
@@ -148,7 +148,7 @@ class TrackingViewModel(
             plannedRoutePoints = plannedRoutePoints,
             routeProgress = routeProgress,
             retainedSnapshotPath = retainedPath,
-            isSaving = saving,
+            isSaveStarted = saving,
             isRestoring = restoring
         )
     }.stateIn(
@@ -314,8 +314,11 @@ data class TrackingScreenState(
     val routeProgress: RouteProgress? = null,
     /** Set after a Finish that did not save: the screen sends this file again instead of a new one. */
     val retainedSnapshotPath: String? = null,
-    /** True from a Finish until its save failed or a new session starts: Discard is not offered meanwhile. */
-    val isSaving: Boolean = false,
+    /**
+     * True from a Finish's save on, until it fails or a new session starts (so also after a save that succeeded, while
+     * the screen leaves): Discard is not offered meanwhile.
+     */
+    val isSaveStarted: Boolean = false,
     /** True until the stored session has been loaded; Start is not offered meanwhile. */
     val isRestoring: Boolean = false
 ) {
