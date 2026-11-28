@@ -206,5 +206,4 @@ Don't copy these as a pattern for new code.
   one-second tick), outside `TrackingScreenState`, and the stateless `TrackingScreen` takes it as
   `elapsedMillis: () -> Long`, which only `MetricsDisplay` reads. Inside the state, each tick made a new screen state
   and recomposed the whole screen, the map content included (`tm-robustness` P2, P4); the deferred read recomposes the
-  metrics card only. A value that changes every frame or second and is drawn in one place is the case for this; other
-  state goes in the screen state.
+  metrics card only.
