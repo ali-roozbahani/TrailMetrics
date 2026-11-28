@@ -111,7 +111,7 @@ class TrackingViewModel(
      * last collector (`WhileSubscribed`, [viewModelScope]). Display only; the recorded time is the metrics'
      * `elapsedMillis`.
      */
-    val displayedElapsedMillis: StateFlow<Long> = channelFlow {
+    private val elapsedTicks: Flow<Long> = channelFlow {
         trackingSessionManager.currentState.collectLatest { trackingState ->
             when (trackingState) {
                 is TrackingState.Tracking -> while (true) {
@@ -123,7 +123,10 @@ class TrackingViewModel(
                     send(trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis()))
             }
         }
-    }.stateIn(
+    }
+
+    /** [elapsedTicks] for the Root, which reads it only in `MetricsDisplay`. */
+    val displayedElapsedMillis: StateFlow<Long> = elapsedTicks.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = 0L
