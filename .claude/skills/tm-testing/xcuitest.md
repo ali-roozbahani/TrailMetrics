@@ -50,7 +50,7 @@ CI no longer runs the UI tests: the gate and the full run on `main` do, through 
 waits for it (`simctl bootstatus -b`) before `xcodebuild`, and prints its pins; the step's log is the
 place to time a launch timeout.
 
-No shard step (owner decision of 2026-11-25). CI runs no UI tests, and the gate and the full run on `main` run
+No shard step (owner decision of 2026-11-25). The gate and the full run on `main` run
 them as one heavy run on one pinned simulator, about 250 s. Parallel simulators do not fit a 16 GB Mac and the
 heavy-run lock (`scripts/heavy-run.sh`, one heavy run at a time), and shards run one after another would only add
 the launch and boot overhead of each. The trigger to look again is a full run over about 10 minutes; then a

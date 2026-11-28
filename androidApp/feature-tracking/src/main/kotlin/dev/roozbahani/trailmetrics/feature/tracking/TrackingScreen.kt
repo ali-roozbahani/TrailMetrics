@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -43,6 +44,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -274,6 +276,37 @@ fun TrackingScreen(
         )
     }
 
+    var showDiscardConfirmation by remember { mutableStateOf(false) }
+    // A confirmation the session's end closed (a save, a discard elsewhere) is not opened again by the next finish.
+    LaunchedEffect(state.canDiscard) {
+        if (!state.canDiscard) showDiscardConfirmation = false
+    }
+
+    // Only while a finished session can be discarded: a dialog left open over a saved or discarded one does nothing.
+    if (showDiscardConfirmation && state.canDiscard) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmation = false },
+            title = { Text(stringResource(R.string.dialog_discard_finished_title)) },
+            text = { Text(stringResource(R.string.dialog_discard_finished_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmation = false
+                        onAction(TrackingAction.DiscardFinished)
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.dialog_discard_finished_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmation = false }) {
+                    Text(stringResource(R.string.dialog_discard_finished_dismiss))
+                }
+            }
+        )
+    }
+
     LaunchedEffect(initialStartPoint) {
         cameraPositionState.position = CameraPosition.fromLatLngZoom(
             LatLng(initialStartPoint.latitude, initialStartPoint.longitude),
@@ -389,13 +422,15 @@ fun TrackingScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                // Discard is in the target, so the card that fades out keeps its own buttons (canSave and canDiscard
+                // change together: both are Finished only).
                 AnimatedContent(
-                    targetState = state.canSave,
+                    targetState = state.canSave to state.canDiscard,
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
                     label = "tracking_controls"
-                ) { completed ->
+                ) { (completed, discardable) ->
                     if (completed) {
                         Card(
                             colors = CardDefaults.cardColors(
@@ -413,38 +448,54 @@ fun TrackingScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Spacer(Modifier.height(12.dp))
-                                Button( // Finish
-                                    onClick = {
-                                        val map = googleMapRef
-                                        val retainedPath = state.retainedSnapshotPath
-                                        if (retainedPath != null) {
-                                            // A failed save kept its file; the retry reuses it.
-                                            onAction(TrackingAction.Finish(retainedPath))
-                                        } else if (map != null) {
-                                            if (!isSnapshotPending) {
-                                                isSnapshotPending = true
-                                                map.snapshot { bitmap ->
-                                                    snapshotScope.launch {
-                                                        val filePath = try {
-                                                            bitmap?.let { platformActions.saveSnapshot(it) }
-                                                        } finally {
-                                                            isSnapshotPending = false
-                                                        }
-                                                        onAction(TrackingAction.Finish(filePath))
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            onAction(TrackingAction.Finish(null))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    if (discardable) {
+                                        OutlinedButton( // Discard: asks first, the recording is deleted
+                                            onClick = { showDiscardConfirmation = true },
+                                            // Not while a Finish waits for its snapshot, as on iOS.
+                                            enabled = !isSnapshotPending,
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.error
+                                            )
+                                        ) {
+                                            Icon(imageVector = Icons.Filled.Delete, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(stringResource(R.string.btn_tracking_discard))
                                         }
                                     }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Check,
-                                        contentDescription = null
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(stringResource(R.string.btn_tracking_finish))
+                                    Button( // Finish
+                                        onClick = {
+                                            val map = googleMapRef
+                                            val retainedPath = state.retainedSnapshotPath
+                                            if (retainedPath != null) {
+                                                // A failed save kept its file; the retry reuses it.
+                                                onAction(TrackingAction.Finish(retainedPath))
+                                            } else if (map != null) {
+                                                if (!isSnapshotPending) {
+                                                    isSnapshotPending = true
+                                                    map.snapshot { bitmap ->
+                                                        snapshotScope.launch {
+                                                            val filePath = try {
+                                                                bitmap?.let { platformActions.saveSnapshot(it) }
+                                                            } finally {
+                                                                isSnapshotPending = false
+                                                            }
+                                                            onAction(TrackingAction.Finish(filePath))
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                onAction(TrackingAction.Finish(null))
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.btn_tracking_finish))
+                                    }
                                 }
                             }
                         }

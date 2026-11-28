@@ -150,6 +150,17 @@ class TrackingScreenSnapshotTest {
     }
 
     @Test
+    fun `Discard cannot be tapped while Finish waits for the map snapshot`() {
+        showReachedDestination().assertDiscardEnabled(true).clickFinish().waitForIdle()
+        robot.assertDiscardEnabled(false)
+
+        composeRule.runOnUiThread { fakeMap.deliverSnapshot(bitmap(width = 300, height = 200)) }
+        robot.waitForIdle()
+
+        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size, "the Finish saved the session")
+    }
+
+    @Test
     fun `the snapshot is saved on the dispatcher Koin provides`() {
         showReachedDestination().clickFinish().waitForIdle()
         assertEquals(0, snapshotDispatcher.asked, "nothing is saved before the snapshot arrives")
