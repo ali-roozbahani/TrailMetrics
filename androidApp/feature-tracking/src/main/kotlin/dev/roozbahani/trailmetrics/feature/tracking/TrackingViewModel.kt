@@ -125,11 +125,15 @@ class TrackingViewModel(
         }
     }
 
-    /** [elapsedTicks] for the Root, which reads it only in `MetricsDisplay`. */
+    /**
+     * [elapsedTicks] for the Root, which reads it only in `MetricsDisplay` (through
+     * [TrackingScreenState.shownElapsedMillis]). It starts from the manager's current state, read once here, so the
+     * first read before the first tick is the session's time, not 0.
+     */
     val displayedElapsedMillis: StateFlow<Long> = elapsedTicks.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = 0L
+        initialValue = trackingSessionManager.currentState.value.displayedElapsedMillis(clock.elapsedRealtimeMillis())
     )
 
     val state: StateFlow<TrackingScreenState> = combine(
@@ -354,6 +358,18 @@ data class TrackingScreenState(
 
     val canDiscard: Boolean
         get() = controls.canDiscard
+
+    /**
+     * The time the Time cell shows, given the latest [tick] of `TrackingViewModel.displayedElapsedMillis`. The tick
+     * and this state come from two collectors, so at a state change one can arrive before the other: outside
+     * Tracking the time is this state's own recorded time, and while Tracking the tick, never less than the recorded
+     * time. So a Pause, a Stop or a fix never shows the tick of the state before it.
+     */
+    fun shownElapsedMillis(tick: Long): Long = when (trackingState) {
+        is TrackingState.Tracking -> maxOf(tick, trackingState.metrics.elapsedMillis)
+        TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished ->
+            trackingState.sessionMetrics()?.elapsedMillis ?: 0L
+    }
 }
 
 private const val MIN_POINTS_FOR_LINE = 2

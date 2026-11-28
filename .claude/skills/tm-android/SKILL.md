@@ -205,5 +205,7 @@ Don't copy these as a pattern for new code.
 - `TrackingViewModel` exposes a second UI-state flow, `displayedElapsedMillis: StateFlow<Long>` (the Time cell's
   one-second tick), outside `TrackingScreenState`, and the stateless `TrackingScreen` takes it as
   `elapsedMillis: () -> Long`, which only `MetricsDisplay` reads. Inside the state, each tick made a new screen state
-  and recomposed the whole screen, the map content included (`tm-robustness` P2, P4); the deferred read recomposes the
-  metrics card only.
+  and recomposed the whole screen, the map content included (`tm-robustness` P2, P4); now a tick makes no new screen
+  state (`TrackingViewModelElapsedTimeTest`), and which composables recompose is not measured. The cell shows
+  `TrackingScreenState.shownElapsedMillis(tick)`, so the two flows cannot show the tick of an earlier state
+  (`TrackingScreenStateShownElapsedTest`). Accepted by the owner (2026-11-28).

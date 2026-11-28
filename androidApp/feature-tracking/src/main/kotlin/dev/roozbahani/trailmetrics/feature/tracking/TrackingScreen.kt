@@ -136,8 +136,8 @@ fun TrackingRoot(
         )
     })
     val state: TrackingScreenState by viewModel.state.collectAsStateWithLifecycle()
-    // Kept as a State and read only in MetricsDisplay (through the lambda below), so a tick does not recompose
-    // the Root or the screen.
+    // Kept as a State and read only in MetricsDisplay (through the lambda below): a tick makes no new screen state,
+    // and nothing above MetricsDisplay reads it.
     val displayedElapsedMillis: State<Long> = viewModel.displayedElapsedMillis.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -212,7 +212,7 @@ fun TrackingRoot(
 
     TrackingScreen(
         state = state,
-        elapsedMillis = { displayedElapsedMillis.value },
+        elapsedMillis = { state.shownElapsedMillis(displayedElapsedMillis.value) },
         onAction = viewModel::onAction,
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
@@ -582,7 +582,7 @@ fun TrackingScreen(
 @Composable
 fun MetricsDisplay(
     metrics: TrackingMetrics,
-    /** Read here only (a deferred read), so the elapsed-time tick recomposes this panel and nothing around it. */
+    /** Read here only (a deferred read): a tick makes no new screen state, so it does not recompose the screen. */
     elapsedMillis: () -> Long,
     calories: Double?,
     modifier: Modifier = Modifier
