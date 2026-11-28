@@ -17,21 +17,25 @@ final class TrackingLiveActivityController {
     private let client: LiveActivityClient
     private let onStopRequested: () -> Void
     private let now: () -> Date
+    private let uptime: () -> ContinuousClock.Instant
 
-    // Timestamp of the last `Activity.update()` call actually dispatched, used
-    // by `update(...)`'s rate limit below. `nil` means "no update sent yet
-    // this session" — reset in `start(activityType:)` so the very next
+    // Monotonic time of the last `Activity.update()` call actually dispatched, used
+    // by `update(...)`'s rate limit below (never the wall clock: a system time set back
+    // would drop every update until the wall clock caught up). `nil` means "no update
+    // sent yet this session" — reset in `start(activityType:)` so the very next
     // `update(...)` call (the first one of a new session) is never throttled.
-    private var lastUpdateDate: Date?
+    private var lastUpdateUptime: ContinuousClock.Instant?
     private var lastUpdateWasPaused = false
 
     init(
         client: LiveActivityClient = ActivityKitLiveActivityClient(),
         now: @escaping () -> Date = Date.init,
+        uptime: @escaping () -> ContinuousClock.Instant = { ContinuousClock.now },
         onStopRequested: @escaping () -> Void
     ) {
         self.client = client
         self.now = now
+        self.uptime = uptime
         self.onStopRequested = onStopRequested
         registerStopNotificationObserver()
     }
@@ -53,7 +57,7 @@ final class TrackingLiveActivityController {
             state: contentState(distanceMeters: 0, elapsedMillis: 0, currentSpeedMetersPerSecond: nil, isPaused: false),
             staleDate: staleDate(isPaused: false)
         )
-        lastUpdateDate = nil
+        lastUpdateUptime = nil
         lastUpdateWasPaused = false
 
         Task { [client] in
@@ -73,10 +77,10 @@ final class TrackingLiveActivityController {
     // this silently drops any `update(...)` that arrives sooner than
     // `minimumUpdateInterval` after the last one actually sent — the caller
     // can keep calling on every emission with no awareness of this limit.
-    // `lastUpdateDate` starts `nil` each session (reset in `start(activityType:)`),
+    // `lastUpdateUptime` starts `nil` each session (reset in `start(activityType:)`),
     // so the first update after a Start is always sent regardless of timing;
     // `end(...)` doesn't go through this method at all, so it's never throttled.
-    private static let minimumUpdateInterval: TimeInterval = 1
+    private static let minimumUpdateInterval: Duration = .seconds(1)
 
     /// How long a sent state counts as current. The system marks the Activity stale after it, and the widget
     /// shows the distance and speed as old, until the next update.
@@ -85,14 +89,14 @@ final class TrackingLiveActivityController {
     func update(distanceMeters: Double, elapsedMillis: Int64, currentSpeedMetersPerSecond: Double?, isPaused: Bool) {
         guard let ownActivityID else { return }
 
-        let sentAt = now()
+        let sentAt = uptime()
         // A change between Running and Paused is sent at once: the timer would otherwise keep running (or
         // stay held) on the lock screen until the next update, and a paused session sends none.
         let isTransition = isPaused != lastUpdateWasPaused
-        if !isTransition, let lastUpdateDate, sentAt.timeIntervalSince(lastUpdateDate) < Self.minimumUpdateInterval {
+        if !isTransition, let lastUpdateUptime, sentAt - lastUpdateUptime < Self.minimumUpdateInterval {
             return
         }
-        lastUpdateDate = sentAt
+        lastUpdateUptime = sentAt
         lastUpdateWasPaused = isPaused
 
         let state = contentState(

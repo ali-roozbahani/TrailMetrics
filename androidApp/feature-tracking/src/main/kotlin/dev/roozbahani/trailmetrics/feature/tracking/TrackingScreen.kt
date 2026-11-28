@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -135,6 +136,9 @@ fun TrackingRoot(
         )
     })
     val state: TrackingScreenState by viewModel.state.collectAsStateWithLifecycle()
+    // Kept as a State and read only in MetricsDisplay (through the lambda below), so a tick does not recompose
+    // the Root or the screen.
+    val displayedElapsedMillis: State<Long> = viewModel.displayedElapsedMillis.collectAsStateWithLifecycle()
     val snackBarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
@@ -201,33 +205,38 @@ fun TrackingRoot(
     val platformActions = remember(permissionHandler, context, snapshotDispatcher) {
         TrackingPlatformActions(
             requestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
-            saveSnapshot = { bitmap -> saveSnapshotToFile(context, bitmap, snapshotDispatcher) }
+            saveSnapshot = { bitmap -> saveSnapshotToFile(context, bitmap, snapshotDispatcher) },
+            navigateBack = { currentOnNavigateBack() }
         )
     }
 
     TrackingScreen(
         state = state,
+        elapsedMillis = { displayedElapsedMillis.value },
         onAction = viewModel::onAction,
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
-        onNavigateBack = onNavigateBack,
         platformActions = platformActions
     )
 }
 
-/** What the stateless screen asks the platform for; [TrackingRoot] provides both. */
+/**
+ * What the stateless screen asks the platform for (a permission, a snapshot file, the way back); [TrackingRoot]
+ * provides them.
+ */
 class TrackingPlatformActions(
     val requestLocationPermission: () -> Unit,
-    val saveSnapshot: suspend (Bitmap) -> String?
+    val saveSnapshot: suspend (Bitmap) -> String?,
+    val navigateBack: () -> Unit
 )
 
 @Composable
 fun TrackingScreen(
     state: TrackingScreenState,
+    elapsedMillis: () -> Long,
     onAction: (TrackingAction) -> Unit,
     initialStartPoint: Coordinates,
     snackBarHostState: SnackbarHostState,
-    onNavigateBack: () -> Unit,
     platformActions: TrackingPlatformActions
 ) {
     val cameraPositionState = rememberCameraPositionState()
@@ -244,7 +253,7 @@ fun TrackingScreen(
         if (hasActiveSession) {
             showExitConfirmation = true
         } else {
-            onNavigateBack()
+            platformActions.navigateBack()
         }
     }
 
@@ -257,7 +266,7 @@ fun TrackingScreen(
                 TextButton(onClick = {
                     showExitConfirmation = false
                     onAction(TrackingAction.Stop)
-                    onNavigateBack()
+                    platformActions.navigateBack()
                 }) {
                     Text(stringResource(R.string.dialog_exit_tracking_confirm))
                 }
@@ -410,7 +419,7 @@ fun TrackingScreen(
                 state.currentMetrics?.let { metrics ->
                     MetricsDisplay(
                         metrics = metrics,
-                        elapsedMillis = state.displayedElapsedMillis,
+                        elapsedMillis = elapsedMillis,
                         calories = state.calories
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -545,7 +554,7 @@ fun TrackingScreen(
                                 Button( // Stop
                                     onClick = {
                                         onAction(TrackingAction.Stop)
-                                        onNavigateBack()
+                                        platformActions.navigateBack()
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
@@ -573,7 +582,8 @@ fun TrackingScreen(
 @Composable
 fun MetricsDisplay(
     metrics: TrackingMetrics,
-    elapsedMillis: Long,
+    /** Read here only (a deferred read), so the elapsed-time tick recomposes this panel and nothing around it. */
+    elapsedMillis: () -> Long,
     calories: Double?,
     modifier: Modifier = Modifier
 ) {
@@ -592,7 +602,7 @@ fun MetricsDisplay(
                 )
                 MetricCell(
                     label = stringResource(CoreStrings.label_time),
-                    value = formatElapsedTime(elapsedMillis),
+                    value = formatElapsedTime(elapsedMillis()),
                     icon = Icons.Filled.Timer,
                     modifier = Modifier.weight(1f)
                 )
@@ -640,7 +650,6 @@ private fun TrackingScreenPreview() {
                         currentSpeedMetersPerSecond = 2.8f
                     )
                 ),
-                displayedElapsedMillis = 754_000L,
                 calories = 148.0,
                 plannedRoutePoints = plannedRoute,
                 routeProgress = RouteProgress(
@@ -649,11 +658,15 @@ private fun TrackingScreenPreview() {
                     lastIndex = 1
                 )
             ),
+            elapsedMillis = { 754_000L },
             onAction = {},
             initialStartPoint = plannedRoute.first(),
             snackBarHostState = remember { SnackbarHostState() },
-            onNavigateBack = {},
-            platformActions = TrackingPlatformActions(requestLocationPermission = {}, saveSnapshot = { null })
+            platformActions = TrackingPlatformActions(
+                requestLocationPermission = {},
+                saveSnapshot = { null },
+                navigateBack = {}
+            )
         )
     }
 }

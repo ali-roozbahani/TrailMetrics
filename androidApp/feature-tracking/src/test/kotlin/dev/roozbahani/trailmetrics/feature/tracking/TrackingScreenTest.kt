@@ -172,6 +172,17 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `a stored finished session saved with a speed shows no current speed`() {
+        // A session stopped while tracking was stored with the speed of its last fix by an older version.
+        storeSession(TrackingState.Finished(STORED_METRICS.copy(currentSpeedMetersPerSecond = 2.5f)))
+
+        showScreen()
+            .assertCompletedCard()
+            .assertSpeedShown(NO_SPEED)
+        assertIs<TrackingState.Finished>(trackingState())
+    }
+
+    @Test
     fun `Back from a restored finished session leaves it stored`() {
         storeSession(TrackingState.Finished(STORED_METRICS))
 

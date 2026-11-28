@@ -257,7 +257,8 @@ class TrackingSessionManagerPersistenceTest {
 
     @Test
     fun `a finished session stays Finished and starts nothing`() = runTest(testScheduler) {
-        val metrics = metrics()
+        // No speed: a finished session has none (the case below restores one that was stored with a speed).
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = null)
         store.stored = TrackingState.Finished(metrics)
 
         val restored = manager.restore()
@@ -266,6 +267,14 @@ class TrackingSessionManagerPersistenceTest {
         assertEquals(TrackingState.Finished(metrics), manager.currentState.value)
         assertEquals(0, locationRepository.observeCallCount)
         assertEquals(0, launcher.startCallCount)
+    }
+
+    @Test
+    fun `a finished session stored with a speed is restored without one`() = runTest(testScheduler) {
+        val metrics = metrics().copy(currentSpeedMetersPerSecond = 3.1f)
+        store.stored = TrackingState.Finished(metrics)
+
+        assertEquals(TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null)), manager.restore())
     }
 
     @Test
@@ -604,7 +613,10 @@ class TrackingSessionManagerPersistenceTest {
         manager.pause()
         testScheduler.runCurrent()
 
-        assertEquals(TrackingState.Paused(tracking.metrics), store.stored)
+        // The Pause counts the time since the fix: the clock reads 1_000 at the fix (one read per fix, #408) and
+        // 2_000 at the Pause.
+        val pausedMetrics = tracking.metrics.copy(elapsedMillis = 2_000L, lastUpdateElapsedRealtimeMillis = 2_000L)
+        assertEquals(TrackingState.Paused(pausedMetrics), store.stored)
     }
 
     private suspend fun emitFix(coordinates: Coordinates) {

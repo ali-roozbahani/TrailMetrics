@@ -105,41 +105,45 @@ class TrackingViewModel(
     }
 
     /**
-     * The session state with the elapsed time to show (`displayedElapsedMillis`, `domain`'s rule). The session
-     * manager emits only on location events and controls, so while Tracking the time is computed again at each
-     * full second of the shown time; in any other state once. `collectLatest` cancels the ticking at the next
-     * state, and it ends with the collection of [state] (`WhileSubscribed`, [viewModelScope]).
+     * The elapsed time the screen shows (`displayedElapsedMillis`, `domain`'s rule), apart from [state], so a tick
+     * recomposes only what reads it (the metrics panel), not the whole screen. The session manager emits only on
+     * location events and controls, so while Tracking the time is computed again at each full second of the shown
+     * time; in any other state once. `collectLatest` cancels the ticking at the next state, and it ends with the
+     * last collector (`WhileSubscribed`, [viewModelScope]). Display only; the recorded time is the metrics'
+     * `elapsedMillis`.
      */
-    private val trackingStateWithElapsed: Flow<TrackingStateWithElapsed> = channelFlow {
+    private val elapsedTicks: Flow<Long> = channelFlow {
         trackingSessionManager.currentState.collectLatest { trackingState ->
             when (trackingState) {
                 is TrackingState.Tracking -> while (true) {
                     val shown = trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis())
-                    send(TrackingStateWithElapsed(trackingState, shown))
+                    send(shown)
                     delay(MILLIS_PER_SECOND - shown % MILLIS_PER_SECOND)
                 }
-                TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished -> send(
-                    TrackingStateWithElapsed(
-                        trackingState,
-                        trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis())
-                    )
-                )
+                TrackingState.Idle, is TrackingState.Paused, is TrackingState.Finished ->
+                    send(trackingState.displayedElapsedMillis(clock.elapsedRealtimeMillis()))
             }
         }
     }
 
+    /** [elapsedTicks] for the Root, which reads it only in `MetricsDisplay`. */
+    val displayedElapsedMillis: StateFlow<Long> = elapsedTicks.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = 0L
+    )
+
     val state: StateFlow<TrackingScreenState> = combine(
-        trackingStateWithElapsed,
+        trackingSessionManager.currentState,
         trackingSessionManager.routeProgress,
         _userProfile,
         combine(retainedSnapshotPath, isSessionSaved, ::Pair),
         isRestoring
-    ) { (trackingState, displayedElapsedMillis), routeProgress, userProfile, (retainedPath, saving), restoring ->
+    ) { trackingState, routeProgress, userProfile, (retainedPath, saving), restoring ->
         val calories = trackingMetricsUseCase(trackingState, activityType, userProfile?.weightKg).calories
 
         TrackingScreenState(
             trackingState = trackingState,
-            displayedElapsedMillis = displayedElapsedMillis,
             calories = calories,
             plannedRoutePoints = plannedRoutePoints,
             routeProgress = routeProgress,
@@ -300,18 +304,11 @@ class TrackingViewModel(
         userProfileRepository.getUserProfile().also { _userProfile.value = it }
 }
 
-private data class TrackingStateWithElapsed(val trackingState: TrackingState, val displayedElapsedMillis: Long)
-
 private const val MILLIS_PER_SECOND = 1_000L
 
 /** Named to avoid colliding with the domain [TrackingState] it wraps. */
 data class TrackingScreenState(
     val trackingState: TrackingState = TrackingState.Idle,
-    /**
-     * The elapsed time the screen shows (`displayedElapsedMillis` of `domain`): while Tracking it ticks between
-     * location events. Display only; the recorded time is the metrics' `elapsedMillis`.
-     */
-    val displayedElapsedMillis: Long = 0L,
     val calories: Double? = null,
     val plannedRoutePoints: List<Coordinates> = emptyList(),
     val routeProgress: RouteProgress? = null,
