@@ -80,6 +80,7 @@ class TrackingViewModelElapsedTimeTest {
             snapshotFileDeleter = FakeSnapshotFileDeleter()
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.displayedElapsedMillis.collect {} }
         testScheduler.runCurrent()
         viewModel.onAction(TrackingAction.Start(START))
         testScheduler.runCurrent()
@@ -94,7 +95,7 @@ class TrackingViewModelElapsedTimeTest {
         testScheduler.runCurrent()
     }
 
-    private fun TrackingViewModel.shownMillis(): Long = state.value.displayedElapsedMillis
+    private fun TrackingViewModel.shownMillis(): Long = displayedElapsedMillis.value
 
     @Test
     fun `the shown time advances each second while tracking with no location event`() = runTest(testScheduler) {
@@ -110,6 +111,23 @@ class TrackingViewModelElapsedTimeTest {
         assertEquals(3_000L, viewModel.shownMillis())
         // The recorded time is the domain's: unchanged without a location event.
         assertEquals(0L, viewModel.state.value.currentMetrics?.elapsedMillis)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `a tick changes only the shown time, not the screen state`() = runTest(testScheduler) {
+        val viewModel = createStartedViewModel()
+        val screenStates = mutableListOf<TrackingScreenState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect(screenStates::add) }
+        val statesBeforeTicks = screenStates.size
+
+        passTime(1_000L)
+        passTime(1_000L)
+        passTime(1_000L)
+
+        assertEquals(3_000L, viewModel.shownMillis())
+        // The whole screen recomposes on a new screen state; the ticks must not make one.
+        assertEquals(statesBeforeTicks, screenStates.size)
     }
 
     @Test
