@@ -32,6 +32,7 @@ import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 /**
  * The elapsed time the screen shows ticks between location events while Tracking, and stands still otherwise.
@@ -59,6 +60,17 @@ class TrackingViewModelElapsedTimeTest {
 
     @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
     private fun TestScope.createStartedViewModel(): TrackingViewModel {
+        createSessionManager()
+        val viewModel = newViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.displayedElapsedMillis.collect {} }
+        testScheduler.runCurrent()
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        return viewModel
+    }
+
+    private fun TestScope.createSessionManager() {
         sessionManager = TrackingSessionManager(
             locationRepository = locationRepository,
             updateTrackingStateUseCase = UpdateTrackingStateUseCase(),
@@ -69,7 +81,11 @@ class TrackingViewModelElapsedTimeTest {
             trackingSessionStore = FakeTrackingSessionStore(),
             scope = backgroundScope
         )
-        val viewModel = TrackingViewModel(
+    }
+
+    /** A ViewModel on [sessionManager] as it is now (a screen opened again), with nothing collecting it yet. */
+    private fun newViewModel(): TrackingViewModel =
+        TrackingViewModel(
             trackingSessionManager = sessionManager,
             userProfileRepository = FakeUserProfileRepository(),
             trackingMetricsUseCase = TrackingMetricsUseCase(CalorieCalculator()),
@@ -79,13 +95,6 @@ class TrackingViewModelElapsedTimeTest {
             clock = clock,
             snapshotFileDeleter = FakeSnapshotFileDeleter()
         )
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.state.collect {} }
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.displayedElapsedMillis.collect {} }
-        testScheduler.runCurrent()
-        viewModel.onAction(TrackingAction.Start(START))
-        testScheduler.runCurrent()
-        return viewModel
-    }
 
     /** The device's monotonic clock and the coroutines' virtual time both move by [millis]. */
     @OptIn(ExperimentalCoroutinesApi::class) // advanceTimeBy has no stable replacement
@@ -166,6 +175,41 @@ class TrackingViewModelElapsedTimeTest {
 
         passTime(1_000L)
         assertEquals(4_000L, viewModel.shownMillis())
+    }
+
+    @Test
+    fun `the first read of the shown time on opening the screen is the session's time, not 0`() =
+        runTest(testScheduler) {
+            val first = createStartedViewModel()
+            passTime(7_000L)
+            first.onAction(TrackingAction.Pause)
+            testScheduler.runCurrent()
+
+            // Before anything collects it, so before the first tick.
+            assertEquals(7_000L, newViewModel().displayedElapsedMillis.value)
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class) // UnconfinedTestDispatcher has no stable replacement
+    @Test
+    fun `the first read after a re-subscribe past the 5 s stop is not 0`() = runTest(testScheduler) {
+        createSessionManager()
+        val viewModel = newViewModel()
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.displayedElapsedMillis.collect {}
+        }
+        viewModel.onAction(TrackingAction.Start(START))
+        testScheduler.runCurrent()
+        passTime(3_000L)
+        collector.cancel()
+        passTime(6_000L) // past WhileSubscribed's 5 s: the ticking stopped
+
+        val reads = mutableListOf<Long>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.displayedElapsedMillis.collect(reads::add)
+        }
+
+        assertTrue(reads.first() > 0L, "first read after the re-subscribe: ${reads.first()}")
+        assertEquals(9_000L, reads.last(), "then the time now")
     }
 
     private companion object {
