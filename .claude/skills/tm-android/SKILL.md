@@ -199,9 +199,6 @@ Don't copy these as a pattern for new code.
 - The `AnimatedContent` in `TrackingScreen` reads `canStart`, `canPause`, `canResume` and `canStop` from
   the outer state in its `else` branch. No test shows the fade overlap this can cause, so the branch is
   as it is (the animation rule in "Compose").
-- The finish card's Discard in `TrackingScreen`'s `AnimatedContent` reads `state.isSaveStarted` from the outer state
-  for its `enabled`. In the target, the flag's change at each Finish would replay the card's entry animation; the
-  outgoing card's Discard can change from enabled to disabled while it fades out.
 - `TrackingViewModel.events` is not only its `Channel`: it merges the manager's `locationIssues` `SharedFlow` and
   the unsaved-session warning's `isRaised` `StateFlow` (as `ShowSessionNotSaved` to every collector while it is
   raised, until the Root sends `SessionNotSavedShown`). A new screen sends its own events through its `Channel`.
