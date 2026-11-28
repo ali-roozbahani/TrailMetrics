@@ -722,6 +722,21 @@ class TrackingScreenTest {
     }
 
     @Test
+    fun `Discard cannot be tapped while Finish saves the session`() {
+        val saveGate = CompletableDeferred<Unit>()
+        fixture.activityHistoryRepository.saveActivityGate = saveGate
+        showReachedDestination().assertDiscardEnabled(true).clickFinish().waitForIdle()
+
+        robot.assertDiscardEnabled(false)
+        assertEquals(0, fixture.activityHistoryRepository.savedActivities.size, "the save is held")
+
+        saveGate.complete(Unit)
+        robot.waitForIdle()
+        assertEquals(1, fixture.activityHistoryRepository.savedActivities.size)
+        assertEquals(1, navigateBackCalls)
+    }
+
+    @Test
     fun `a restored finished session can be discarded and a new one started`() {
         storeSession(TrackingState.Finished(STORED_METRICS))
         showScreen().assertCompletedCard()

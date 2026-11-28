@@ -425,15 +425,17 @@ fun TrackingScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Discard is in the target, so the card that fades out keeps its own buttons (canSave and canDiscard
-                // change together: both are Finished only).
+                // Discard and its save flag are in the target, so the card that fades out keeps its own buttons
+                // (canSave and canDiscard change together: both are Finished only). The key leaves out the save flag:
+                // its change at a Finish updates the card without animating it again.
                 AnimatedContent(
-                    targetState = state.canSave to state.canDiscard,
+                    targetState = Triple(state.canSave, state.canDiscard, state.isSaveStarted),
+                    contentKey = { (completed, discardable, _) -> completed to discardable },
                     transitionSpec = {
                         (fadeIn() + slideInVertically { fullHeight -> fullHeight / 2 }) togetherWith fadeOut()
                     },
                     label = "tracking_controls"
-                ) { (completed, discardable) ->
+                ) { (completed, discardable, saveStarted) ->
                     if (completed) {
                         Card(
                             colors = CardDefaults.cardColors(
@@ -455,8 +457,8 @@ fun TrackingScreen(
                                     if (discardable) {
                                         OutlinedButton( // Discard: asks first, the recording is deleted
                                             onClick = { showDiscardConfirmation = true },
-                                            // Not while a Finish waits for its snapshot, as on iOS.
-                                            enabled = !isSnapshotPending,
+                                            // Not while a Finish waits for its snapshot or saves the session.
+                                            enabled = !isSnapshotPending && !saveStarted,
                                             colors = ButtonDefaults.outlinedButtonColors(
                                                 contentColor = MaterialTheme.colorScheme.error
                                             )
