@@ -5,7 +5,10 @@ data class TrackingMetrics(
     val lastUpdateElapsedRealtimeMillis: Long,
     val distanceMeters: Double,
     val path: List<Coordinates>,
-    /** The speed of the last fix while [TrackingState.Tracking]; null while Paused ([pausedState]). */
+    /**
+     * The speed of the last fix while [TrackingState.Tracking]; null while Paused and Finished ([pausedState],
+     * [finishedState]).
+     */
     val currentSpeedMetersPerSecond: Float? = null,
     /**
      * True from a Resume until the first location after it. That location is where the user is now,

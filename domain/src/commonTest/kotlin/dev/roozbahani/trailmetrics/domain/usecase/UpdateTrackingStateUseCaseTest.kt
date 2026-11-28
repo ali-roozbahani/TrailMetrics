@@ -48,7 +48,7 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
-    fun `pause from Tracking transitions to Paused without changing metrics`() {
+    fun `pause from Tracking transitions to Paused and counts the time up to the pause`() {
         val metrics = sampleMetrics()
         val currentState = TrackingState.Tracking(metrics = metrics)
         val pauseEvent = TrackingEvent.Pause(elapsedRealtimeMillis = 15)
@@ -56,22 +56,25 @@ class UpdateTrackingStateUseCaseTest {
         val newState = useCase(currentState, pauseEvent)
         assertIs<TrackingState.Paused>(newState)
 
-        assertEquals(metrics, newState.metrics)
+        // 10 ms recorded + the 5 ms from the last update (10) to the Pause (15); nothing else changes.
+        assertEquals(metrics.copy(elapsedMillis = 15, lastUpdateElapsedRealtimeMillis = 15), newState.metrics)
     }
 
     @Test
     fun `pause clears the current speed and keeps every other metric`() {
+        // Paused at the last update's own time (10), so no time is added and only the speed changes.
         val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
 
-        val newState = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 15))
+        val newState = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 10))
 
         assertEquals(TrackingState.Paused(metrics.copy(currentSpeedMetersPerSecond = null)), newState)
     }
 
     @Test
     fun `a session stopped while paused finishes without a current speed`() {
+        // Paused at the last update's own time (10), so no time is added and only the speed changes.
         val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
-        val paused = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 15))
+        val paused = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 10))
 
         val finished = useCase(paused, TrackingEvent.Stop(elapsedRealtimeMillis = 20))
 
@@ -183,14 +186,18 @@ class UpdateTrackingStateUseCaseTest {
     }
 
     @Test
-    fun `stop from Tracking transitions to Finished`() {
+    fun `stop from Tracking transitions to Finished and counts the time up to the stop`() {
         val currentState = TrackingState.Tracking(sampleMetrics())
         val stopEvent = TrackingEvent.Stop(currentState.metrics.lastUpdateElapsedRealtimeMillis + 10)
 
         val newState = useCase(currentState, stopEvent)
 
         assertIs<TrackingState.Finished>(newState)
-        assertEquals(currentState.metrics, newState.metrics)
+        // 10 ms recorded + the 10 ms from the last update to the Stop; nothing else changes.
+        assertEquals(
+            currentState.metrics.copy(elapsedMillis = 20, lastUpdateElapsedRealtimeMillis = 20),
+            newState.metrics
+        )
     }
 
     @Test
@@ -367,4 +374,57 @@ class UpdateTrackingStateUseCaseTest {
         distanceMeters = distanceMeters,
         path = path
     )
+
+    @Test
+    fun `pause counts the time since the last location fix`() {
+        val metrics = sampleMetrics(elapsedMillis = 10_000, lastUpdateElapsedRealtimeMillis = 50_000)
+
+        val paused = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 54_000))
+
+        val pausedMetrics = assertIs<TrackingState.Paused>(paused).metrics
+        assertEquals(14_000, pausedMetrics.elapsedMillis)
+        assertEquals(54_000, pausedMetrics.lastUpdateElapsedRealtimeMillis)
+    }
+
+    @Test
+    fun `stop while tracking counts the time since the last location fix`() {
+        val metrics = sampleMetrics(elapsedMillis = 10_000, lastUpdateElapsedRealtimeMillis = 50_000)
+
+        val finished = useCase(TrackingState.Tracking(metrics), TrackingEvent.Stop(elapsedRealtimeMillis = 53_000))
+
+        val finishedMetrics = assertIs<TrackingState.Finished>(finished).metrics
+        assertEquals(13_000, finishedMetrics.elapsedMillis)
+        assertEquals(53_000, finishedMetrics.lastUpdateElapsedRealtimeMillis)
+    }
+
+    @Test
+    fun `a pause between two fixes is not counted and the time before it is`() {
+        val start = TrackingState.Tracking(sampleMetrics(elapsedMillis = 0, lastUpdateElapsedRealtimeMillis = 0))
+        val paused = useCase(start, TrackingEvent.Pause(elapsedRealtimeMillis = 4_000))
+        val resumed = useCase(paused, TrackingEvent.Resume(elapsedRealtimeMillis = 64_000))
+
+        val fix = TrackingEvent.LocationReceived(point2, elapsedRealtimeMillis = 66_000, speedMetersPerSecond = null)
+        val afterFix = useCase(resumed, fix)
+
+        // 4 s before the Pause + 2 s after the Resume; the 60 s pause is not counted.
+        assertEquals(6_000, assertIs<TrackingState.Tracking>(afterFix).metrics.elapsedMillis)
+    }
+
+    @Test
+    fun `pause with an event time before the last fix adds nothing`() {
+        val metrics = sampleMetrics(elapsedMillis = 10_000, lastUpdateElapsedRealtimeMillis = 50_000)
+
+        val paused = useCase(TrackingState.Tracking(metrics), TrackingEvent.Pause(elapsedRealtimeMillis = 49_000))
+
+        assertEquals(10_000, assertIs<TrackingState.Paused>(paused).metrics.elapsedMillis)
+    }
+
+    @Test
+    fun `stop while tracking finishes without a current speed`() {
+        val metrics = sampleMetrics().copy(currentSpeedMetersPerSecond = 3.1f)
+
+        val finished = useCase(TrackingState.Tracking(metrics), TrackingEvent.Stop(elapsedRealtimeMillis = 10))
+
+        assertEquals(TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null)), finished)
+    }
 }

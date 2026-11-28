@@ -150,6 +150,11 @@ class TrackingScreenRobot(private val rule: AndroidComposeTestRule<*, ComponentA
         }
     }
 
+    fun assertSpeedShown(speed: String) = apply {
+        rule.onNodeWithText(string(CoreStrings.label_speed)).assertExists()
+        rule.onNodeWithText(speed).assertExists()
+    }
+
     fun assertTimeShown(time: String) = apply {
         rule.onNodeWithText(string(CoreStrings.label_time)).assertExists()
         rule.onNodeWithText(time).assertExists()

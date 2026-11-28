@@ -14,3 +14,11 @@ sealed interface TrackingState {
  */
 internal fun pausedState(metrics: TrackingMetrics): TrackingState.Paused =
     TrackingState.Paused(metrics.copy(currentSpeedMetersPerSecond = null))
+
+/**
+ * The only way the domain makes a [TrackingState.Finished]: a finished session records nothing, so the speed of its
+ * last fix is not a current speed and is not kept, as for [pausedState] (both apps show the finished session's
+ * metrics as they are).
+ */
+internal fun finishedState(metrics: TrackingMetrics): TrackingState.Finished =
+    TrackingState.Finished(metrics.copy(currentSpeedMetersPerSecond = null))
