@@ -205,7 +205,8 @@ fun TrackingRoot(
     val platformActions = remember(permissionHandler, context, snapshotDispatcher) {
         TrackingPlatformActions(
             requestLocationPermission = { permissionHandler.launch(LOCATION_PERMISSIONS) },
-            saveSnapshot = { bitmap -> saveSnapshotToFile(context, bitmap, snapshotDispatcher) }
+            saveSnapshot = { bitmap -> saveSnapshotToFile(context, bitmap, snapshotDispatcher) },
+            navigateBack = { currentOnNavigateBack() }
         )
     }
 
@@ -215,15 +216,18 @@ fun TrackingRoot(
         onAction = viewModel::onAction,
         initialStartPoint = initialStartPoint,
         snackBarHostState = snackBarHostState,
-        onNavigateBack = onNavigateBack,
         platformActions = platformActions
     )
 }
 
-/** What the stateless screen asks the platform for; [TrackingRoot] provides both. */
+/**
+ * What the stateless screen asks the platform for (a permission, a snapshot file, the way back); [TrackingRoot]
+ * provides them.
+ */
 class TrackingPlatformActions(
     val requestLocationPermission: () -> Unit,
-    val saveSnapshot: suspend (Bitmap) -> String?
+    val saveSnapshot: suspend (Bitmap) -> String?,
+    val navigateBack: () -> Unit
 )
 
 @Composable
@@ -233,7 +237,6 @@ fun TrackingScreen(
     onAction: (TrackingAction) -> Unit,
     initialStartPoint: Coordinates,
     snackBarHostState: SnackbarHostState,
-    onNavigateBack: () -> Unit,
     platformActions: TrackingPlatformActions
 ) {
     val cameraPositionState = rememberCameraPositionState()
@@ -250,7 +253,7 @@ fun TrackingScreen(
         if (hasActiveSession) {
             showExitConfirmation = true
         } else {
-            onNavigateBack()
+            platformActions.navigateBack()
         }
     }
 
@@ -263,7 +266,7 @@ fun TrackingScreen(
                 TextButton(onClick = {
                     showExitConfirmation = false
                     onAction(TrackingAction.Stop)
-                    onNavigateBack()
+                    platformActions.navigateBack()
                 }) {
                     Text(stringResource(R.string.dialog_exit_tracking_confirm))
                 }
@@ -551,7 +554,7 @@ fun TrackingScreen(
                                 Button( // Stop
                                     onClick = {
                                         onAction(TrackingAction.Stop)
-                                        onNavigateBack()
+                                        platformActions.navigateBack()
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
@@ -659,8 +662,11 @@ private fun TrackingScreenPreview() {
             onAction = {},
             initialStartPoint = plannedRoute.first(),
             snackBarHostState = remember { SnackbarHostState() },
-            onNavigateBack = {},
-            platformActions = TrackingPlatformActions(requestLocationPermission = {}, saveSnapshot = { null })
+            platformActions = TrackingPlatformActions(
+                requestLocationPermission = {},
+                saveSnapshot = { null },
+                navigateBack = {}
+            )
         )
     }
 }
